@@ -1,0 +1,41 @@
+# Dependencies
+**/node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs / coverage
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Caches / temp
+.cache/
+.tmp/
+tmp/
+temp/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Uploaded files (keep folder via .gitkeep)
+server/uploads/*
+!server/uploads/.gitkeep
+
