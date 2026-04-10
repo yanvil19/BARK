@@ -115,4 +115,41 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getMe };
+// @desc    List users (admin view)
+// @route   GET /api/auth/users
+// @access  Private (Super Admin only — enforced in route)
+const listUsers = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limitRaw = parseInt(req.query.limit, 10) || 25;
+    const limit = Math.min(Math.max(limitRaw, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (req.query.role) filter.role = req.query.role;
+    if (req.query.department) filter.department = req.query.department;
+    if (req.query.program) filter.program = req.query.program;
+
+    const search = (req.query.search || '').trim();
+    if (search) {
+      filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
+    }
+
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    ]);
+
+    res.status(200).json({
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      users,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { registerUser, loginUser, getMe, listUsers };
