@@ -4,6 +4,9 @@ const {
   loginUser,
   getMe,
   listUsers,
+  updateUser,
+  deactivateUser,
+  activateUser,
   registerStudentRequest,
   checkRegistrationStatus,
   listRegistrationRequests,
@@ -50,5 +53,17 @@ router.patch('/registrations/:id/reject', protect, authorizeRoles('dean'), rejec
 // @route   GET /api/auth/users
 // @access  Private - Super Admin only
 router.get('/users', protect, authorizeRoles('super_admin'), listUsers);
+
+// @route   PATCH /api/auth/users/:id
+// @access  Private - Super Admin only
+router.patch('/users/:id', protect, authorizeRoles('super_admin'), updateUser);
+
+// @route   PATCH /api/auth/users/:id/deactivate
+// @access  Private - Super Admin only (soft delete)
+router.patch('/users/:id/deactivate', protect, authorizeRoles('super_admin'), deactivateUser);
+
+// @route   PATCH /api/auth/users/:id/activate
+// @access  Private - Super Admin only
+router.patch('/users/:id/activate', protect, authorizeRoles('super_admin'), activateUser);
 
 module.exports = router;

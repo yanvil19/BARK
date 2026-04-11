@@ -248,6 +248,122 @@ const listUsers = async (req, res) => {
   }
 };
 
+// @desc    Update a user (admin)
+// @route   PATCH /api/auth/users/:id
+// @access  Private (Super Admin only — enforced in route)
+const updateUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { name, email, password, role } = req.body || {};
+
+    if (email !== undefined) {
+      if (!isValidEmail(email)) return res.status(400).json({ message: 'Please provide a valid email' });
+      const normalizedEmail = String(email).toLowerCase().trim();
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
+      if (existing) return res.status(400).json({ message: 'A user with this email already exists' });
+      user.email = normalizedEmail;
+    }
+
+    if (typeof name === 'string' && name.trim()) user.name = name.trim();
+
+    if (password !== undefined) {
+      if (String(password).length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
+      user.password = String(password);
+    }
+
+    if (role !== undefined) user.role = role;
+
+    // Department / Program updates (IDs)
+    let departmentId =
+      req.body && Object.prototype.hasOwnProperty.call(req.body, 'departmentId') ? req.body.departmentId : undefined;
+    let programId =
+      req.body && Object.prototype.hasOwnProperty.call(req.body, 'programId') ? req.body.programId : undefined;
+
+    // Allow clearing via null / empty string
+    if (departmentId === '' || departmentId === null) departmentId = null;
+    if (programId === '' || programId === null) programId = null;
+
+    if (departmentId !== undefined || programId !== undefined) {
+      const nextProgramId = programId === undefined ? (user.program ? String(user.program) : null) : programId;
+      let nextDepartmentId = departmentId === undefined ? (user.department ? String(user.department) : null) : departmentId;
+
+      if (nextProgramId && !nextDepartmentId) {
+        if (!isObjectId(nextProgramId)) return res.status(400).json({ message: 'Invalid programId' });
+        const p = await Program.findById(nextProgramId);
+        if (!p) return res.status(400).json({ message: 'Program not found' });
+        nextDepartmentId = String(p.department);
+      }
+
+      if (nextDepartmentId && !isObjectId(nextDepartmentId)) {
+        return res.status(400).json({ message: 'Invalid departmentId' });
+      }
+
+      if (nextProgramId && !isObjectId(nextProgramId)) {
+        return res.status(400).json({ message: 'Invalid programId' });
+      }
+
+      const validation = await ensureDeptProgramValid({ departmentId: nextDepartmentId, programId: nextProgramId });
+      if (!validation.ok) return res.status(400).json({ message: validation.message });
+
+      user.department = nextDepartmentId || null;
+      user.program = nextProgramId || null;
+    }
+
+    await user.save();
+
+    const out = await User.findById(user._id)
+      .select('-password')
+      .populate('department', 'name code')
+      .populate('program', 'name code department');
+
+    res.status(200).json({ message: 'User updated', user: out });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to update user', error: error.message });
+  }
+};
+
+// @desc    Deactivate a user (soft delete)
+// @route   PATCH /api/auth/users/:id/deactivate
+// @access  Private (Super Admin only — enforced in route)
+const deactivateUser = async (req, res) => {
+  try {
+    if (String(req.user._id) === String(req.params.id)) {
+      return res.status(400).json({ message: 'Super admin cannot deactivate itself' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isActive = false;
+    await user.save();
+
+    res.status(200).json({ message: 'User deactivated', user: { _id: user._id, isActive: user.isActive } });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to deactivate user', error: error.message });
+  }
+};
+
+// @desc    Activate a user
+// @route   PATCH /api/auth/users/:id/activate
+// @access  Private (Super Admin only — enforced in route)
+const activateUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isActive = true;
+    await user.save();
+
+    res.status(200).json({ message: 'User activated', user: { _id: user._id, isActive: user.isActive } });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to activate user', error: error.message });
+  }
+};
+
 // @desc    Student self-registration (creates a pending request)
 // @route   POST /api/auth/register-student
 // @access  Public
@@ -516,6 +632,9 @@ module.exports = {
   loginUser,
   getMe,
   listUsers,
+  updateUser,
+  deactivateUser,
+  activateUser,
   registerStudentRequest,
   checkRegistrationStatus,
   listRegistrationRequests,
