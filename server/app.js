@@ -2,12 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
+const catalogRoutes = require('./routes/catalogRoutes');
+const adminCatalogRoutes = require('./routes/adminCatalogRoutes');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/catalog', catalogRoutes);
+app.use('/api/admin/catalog', adminCatalogRoutes);
 
 app.get('/', (req, res) => {
     res.send('API is running...');

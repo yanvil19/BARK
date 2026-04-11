@@ -27,14 +27,15 @@ const userSchema = new mongoose.Schema(
     },
     // For dean, program_chair, professor, student
     department: {
-      type: String,
-      enum: ['CEA', 'ABM', 'SAS', null],
       default: null,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
     },
     // For program_chair, professor, student
     program: {
-      type: String,
       default: null,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Program',
     },
     isActive: {
       type: Boolean,
@@ -46,6 +47,7 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre('save', async function () {
+  if (this._passwordAlreadyHashed) return;
   if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

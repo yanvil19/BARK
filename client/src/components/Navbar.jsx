@@ -1,10 +1,48 @@
-export default function Navbar() {
+export default function Navbar({ me, route, onRoute, onLogout }) {
   return (
-    <header className="nav">
-      <div className="container nav__inner">
-        <div className="nav__brand">NU-BOARD</div>
+    <header>
+      <div>
+        <strong>NU-BOARD</strong>
       </div>
+      <nav>
+        <button onClick={() => onRoute('home')} disabled={route === 'home'}>
+          Home
+        </button>{' '}
+        <button onClick={() => onRoute('student')} disabled={route === 'student'}>
+          Student Register
+        </button>{' '}
+        <button onClick={() => onRoute('login')} disabled={route === 'login'}>
+          Login
+        </button>{' '}
+        {me?.role === 'dean' ? (
+          <button onClick={() => onRoute('dean')} disabled={route === 'dean'}>
+            Dean Approvals
+          </button>
+        ) : null}{' '}
+        {me?.role === 'super_admin' ? (
+          <>
+            <button onClick={() => onRoute('adminCatalog')} disabled={route === 'adminCatalog'}>
+              Admin Catalog
+            </button>{' '}
+            <button onClick={() => onRoute('adminUsers')} disabled={route === 'adminUsers'}>
+              Admin Users
+            </button>
+          </>
+        ) : null}
+      </nav>
+      <div>
+        {me ? (
+          <>
+            <span>
+              Logged in: {me.email} ({me.role})
+            </span>{' '}
+            <button onClick={onLogout}>Logout</button>
+          </>
+        ) : (
+          <span>Not logged in</span>
+        )}
+      </div>
+      <hr />
     </header>
   );
 }
-
