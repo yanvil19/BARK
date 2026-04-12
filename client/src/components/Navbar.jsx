@@ -8,12 +8,16 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         <button onClick={() => onRoute('home')} disabled={route === 'home'}>
           Home
         </button>{' '}
-        <button onClick={() => onRoute('student')} disabled={route === 'student'}>
-          Student Register
-        </button>{' '}
-        <button onClick={() => onRoute('login')} disabled={route === 'login'}>
-          Login
-        </button>{' '}
+        {me?.role === 'student' ? null : (
+          <button onClick={() => onRoute('student')} disabled={route === 'student'}>
+            Student Register
+          </button>
+        )}{' '}
+        {!me ? (
+          <button onClick={() => onRoute('login')} disabled={route === 'login'}>
+            Login
+          </button>
+        ) : null}{' '}
         {me?.role === 'dean' ? (
           <button onClick={() => onRoute('dean')} disabled={route === 'dean'}>
             Dean Approvals

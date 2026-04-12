@@ -18,6 +18,16 @@ export default function AdminUsers() {
     departmentId: '',
     programId: '',
   });
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    role: 'professor',
+    password: '',
+    departmentId: '',
+    programId: '',
+  });
 
   const users = useMemo(() => (data && data.users ? data.users : []), [data]);
 
@@ -121,6 +131,35 @@ export default function AdminUsers() {
     return programs.filter((p) => String(p.department?._id || p.department) === String(editForm.departmentId));
   }, [programs, editForm.departmentId]);
 
+  const createDepartmentPrograms = useMemo(() => {
+    if (!createForm.departmentId) return programs;
+    return programs.filter((p) => String(p.department?._id || p.department) === String(createForm.departmentId));
+  }, [programs, createForm.departmentId]);
+
+  async function submitCreate(e) {
+    e.preventDefault();
+    setCreateBusy(true);
+    setCreateError('');
+    try {
+      const body = {
+        name: createForm.name,
+        email: createForm.email,
+        password: createForm.password,
+        role: createForm.role,
+        departmentId: createForm.departmentId || null,
+        programId: createForm.programId || null,
+      };
+
+      await apiAuth('/api/auth/register', { method: 'POST', body });
+      setCreateForm({ name: '', email: '', role: 'professor', password: '', departmentId: '', programId: '' });
+      await load();
+    } catch (err) {
+      setCreateError(err.message || 'Create failed');
+    } finally {
+      setCreateBusy(false);
+    }
+  }
+
   return (
     <main>
       <h2>Super Admin: Users</h2>
@@ -129,6 +168,95 @@ export default function AdminUsers() {
       </button>
       {error ? <p>{error}</p> : null}
       {busy ? <p>Loading...</p> : null}
+
+      {!editingId ? (
+        <section>
+          <h3>Create User</h3>
+          <form onSubmit={submitCreate}>
+            <div>
+              <label>
+                Name{' '}
+                <input
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div>
+              <label>
+                Email{' '}
+                <input
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div>
+              <label>
+                Password{' '}
+                <input
+                  type="password"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div>
+              <label>
+                Role{' '}
+                <select
+                  value={createForm.role}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+                >
+                  <option value="super_admin">super_admin</option>
+                  <option value="dean">dean</option>
+                  <option value="program_chair">program_chair</option>
+                  <option value="professor">professor</option>
+                </select>
+              </label>
+            </div>
+            <div>
+              <label>
+                Department{' '}
+                <select
+                  value={createForm.departmentId}
+                  onChange={(e) => {
+                    const nextDepartmentId = e.target.value;
+                    setCreateForm((f) => ({ ...f, departmentId: nextDepartmentId, programId: '' }));
+                  }}
+                >
+                  <option value="">(none)</option>
+                  {departments.map((d) => (
+                    <option key={d._id} value={d._id}>
+                      {d.code} - {d.name} {d.isActive ? '' : '(inactive)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div>
+              <label>
+                Program{' '}
+                <select
+                  value={createForm.programId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, programId: e.target.value }))}
+                >
+                  <option value="">(none)</option>
+                  {createDepartmentPrograms.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.code} - {p.name} {p.isActive ? '' : '(inactive)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="submit" disabled={createBusy}>
+              {createBusy ? 'Creating...' : 'Create'}
+            </button>
+          </form>
+          {createError ? <p>{createError}</p> : null}
+        </section>
+      ) : null}
 
       {editingId ? (
         <section>

@@ -90,6 +90,10 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
+    if (role === 'student') {
+      return res.status(400).json({ message: 'Student accounts must be created via student registration' });
+    }
+
     const normalizedEmail = String(email).toLowerCase().trim();
 
     const departmentId = await resolveDepartmentId(req.body.departmentId || department);

@@ -39,6 +39,14 @@ export default function App() {
     setRoute('home');
   }
 
+  useEffect(() => {
+    if (me && route === 'login') setRoute('home');
+  }, [me, route]);
+
+  useEffect(() => {
+    if (me?.role === 'student' && route === 'student') setRoute('home');
+  }, [me, route]);
+
   function handleLogout() {
     setToken('');
     setMe(null);
