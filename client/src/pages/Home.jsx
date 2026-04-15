@@ -4,29 +4,34 @@ const Home = () => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch Departments and Programs in parallel using native fetch
-        const [deptRes, progRes] = await Promise.all([
-          fetch('http://localhost:5000/api/catalog/departments'),
-          fetch('http://localhost:5000/api/catalog/programs')
-        ]);
+  const fetchData = async () => {
+    try {
+      const [deptRes, progRes, statsRes] = await Promise.all([
+        fetch('http://localhost:5000/api/catalog/departments'),
+        fetch('http://localhost:5000/api/catalog/programs'),
+        fetch('http://localhost:5000/api/stats/summary') // 👈 ADD THIS
+      ]);
 
-        const deptData = await deptRes.json();
-        const progData = await progRes.json();
+      const deptData = await deptRes.json();
+      const progData = await progRes.json();
+      const statsData = await statsRes.json();
 
-        setDepartments(deptData.departments || []);
-        setPrograms(progData.programs || []);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading landing page data:", error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+      setDepartments(deptData.departments || []);
+      setPrograms(progData.programs || []);
+      setStats(statsData); // 👈 ADD THIS
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading landing page data:", error);
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   return (
     <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>
@@ -77,6 +82,27 @@ const Home = () => {
             <li>📄 CS102: Data Structures & Algorithms (Sample)</li>
           </ul>
         </div>
+      </section>
+
+      <hr style={{ margin: '40px 0' }} />
+
+      <section style={{ textAlign: 'center' }}>
+        <h1>System Statistics</h1>
+        {!stats ? (
+          <p>Loading stats...</p>
+        ) : (
+          <div style={{ background: '#f3f3f3', padding: '20px', borderRadius: '10px', display: 'inline-block' }}>
+            <h3>Total Users: {stats.total.users}</h3>
+            <h4>Active Users: {stats.total.activeUsers}</h4>
+            <hr />
+            {Object.entries(stats.users).map(([role, value]) => (
+              <div key={role}>
+                <h4>{role}</h4>
+                <p>{value.active} active / {value.total} total</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
