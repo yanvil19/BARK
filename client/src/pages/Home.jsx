@@ -4,29 +4,34 @@ const Home = ({ me }) => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch Departments and Programs in parallel using native fetch
-        const [deptRes, progRes] = await Promise.all([
-          fetch('http://localhost:5000/api/catalog/departments'),
-          fetch('http://localhost:5000/api/catalog/programs')
-        ]);
+  const fetchData = async () => {
+    try {
+      const [deptRes, progRes, statsRes] = await Promise.all([
+        fetch('http://localhost:5000/api/catalog/departments'),
+        fetch('http://localhost:5000/api/catalog/programs'),
+        fetch('http://localhost:5000/api/stats/summary') // 👈 ADD THIS
+      ]);
 
-        const deptData = await deptRes.json();
-        const progData = await progRes.json();
+      const deptData = await deptRes.json();
+      const progData = await progRes.json();
+      const statsData = await statsRes.json();
 
-        setDepartments(deptData.departments || []);
-        setPrograms(progData.programs || []);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading landing page data:", error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+      setDepartments(deptData.departments || []);
+      setPrograms(progData.programs || []);
+      setStats(statsData); // 👈 ADD THIS
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading landing page data:", error);
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   // Landing Page for unauthenticated users
   if (!me) {
