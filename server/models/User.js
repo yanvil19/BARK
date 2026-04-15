@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['super_admin', 'dean', 'program_chair', 'professor', 'student', 'alumni'],
+      enum: ['super_admin', 'dean', 'program_chair', 'professor', 'student'],
       required: [true, 'Role is required'],
     },
     // For dean, program_chair, professor, student

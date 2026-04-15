@@ -38,7 +38,7 @@ const Home = ({ me }) => {
     return (
       <div>
         {/* 1. Website Name & Description */}
-        <header style={{ textAlign: 'center', marginBottom: '50px' }}>
+        <header>
           <h1>NU-BOARD</h1>
           <p>
             The official Automated Examination Management System for National University - Laguna. 
@@ -94,7 +94,24 @@ const Home = ({ me }) => {
     return (
       <main>
         <h1>Dashboard for Super Admin</h1>
-        <p>Insert content here</p>
+        
+        <section>
+          <h2>System Statistics</h2>
+          {!stats ? (
+            <p>Loading stats...</p>
+          ) : (
+            <div>
+              <h3>Total Users: {stats.total.users}</h3>
+              <h4>Active Users: {stats.total.activeUsers}</h4>
+              {Object.entries(stats.users).map(([role, value]) => (
+                <div key={role}>
+                  <h4>{role}</h4>
+                  <p>{value.active} active / {value.total} total</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
     );
   }
