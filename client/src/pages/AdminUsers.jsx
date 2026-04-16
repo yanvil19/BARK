@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import '../styles/AdminUsers.css';
 
 export default function AdminUsers() {
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,8 @@ export default function AdminUsers() {
     departmentId: '',
     programId: '',
   });
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const users = useMemo(() => (data && data.users ? data.users : []), [data]);
 
@@ -192,13 +195,21 @@ export default function AdminUsers() {
               </label>
             </div>
             <div>
-              <label>
+              <label className="password-label">
                 Password{' '}
                 <input
-                  type="password"
+                  type={showCreatePassword ? 'text' : 'password'}
                   value={createForm.password}
                   onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePassword(!showCreatePassword)}
+                  title={showCreatePassword ? 'Hide password' : 'Show password'}
+                  className="password-toggle-btn"
+                >
+                  {showCreatePassword ? '👁️' : '👁️‍🗨️'}
+                </button>
               </label>
             </div>
             <div>
@@ -286,13 +297,21 @@ export default function AdminUsers() {
               </label>
             </div>
             <div>
-              <label>
+              <label className="password-label">
                 New Password (optional){' '}
                 <input
-                  type="password"
+                  type={showEditPassword ? 'text' : 'password'}
                   value={editForm.password}
                   onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword(!showEditPassword)}
+                  title={showEditPassword ? 'Hide password' : 'Show password'}
+                  className="password-toggle-btn"
+                >
+                  {showEditPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
               </label>
             </div>
             <div>

@@ -25,6 +25,24 @@ const userSchema = new mongoose.Schema(
       enum: ['super_admin', 'dean', 'program_chair', 'professor', 'student'],
       required: [true, 'Role is required'],
     },
+    // For student/alumni: distinguish between student and alumni
+    userType: {
+      type: String,
+      enum: ['student', 'alumni'],
+      default: null,
+    },
+    // For student: Student ID (format: YYYY-XXXXXX)
+    studentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    // For alumni: Alumni ID (format: YYYY-XXXXXX)
+    alumniId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     // For dean, program_chair, professor, student
     department: {
       default: null,

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
+import { ID_FORMATS, validateStudentId, validateAlumniId, getStudentIdErrorMessage, getAlumniIdErrorMessage } from '../lib/idFormats.js';
+import '../styles/StudentRegister.css';
 
 const REG_KEY = 'nu_board_registration';
 
@@ -35,6 +37,9 @@ export default function StudentRegister({ onNavigate }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState('student'); // 'student' or 'alumni'
+  const [studentId, setStudentId] = useState('');
+  const [alumniId, setAlumniId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [programId, setProgramId] = useState('');
 
@@ -43,6 +48,10 @@ export default function StudentRegister({ onNavigate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Validation state
+  const [idError, setIdError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [statusRequestId, setStatusRequestId] = useState(saved?.requestId || '');
   const [statusToken, setStatusToken] = useState(saved?.token || '');
@@ -107,11 +116,35 @@ export default function StudentRegister({ onNavigate }) {
     e.preventDefault();
     setBusy(true);
     setError('');
+    setIdError('');
     setSubmitted(false);
+
+    // Validate ID format
+    if (userType === 'student' && !validateStudentId(studentId)) {
+      setIdError(getStudentIdErrorMessage());
+      setBusy(false);
+      return;
+    }
+
+    if (userType === 'alumni' && !validateAlumniId(alumniId)) {
+      setIdError(getAlumniIdErrorMessage());
+      setBusy(false);
+      return;
+    }
+
     try {
       const data = await api('/api/auth/register-student', {
         method: 'POST',
-        body: { name, email, password, departmentId, programId },
+        body: {
+          name,
+          email,
+          password,
+          userType,
+          studentId: userType === 'student' ? studentId : undefined,
+          alumniId: userType === 'alumni' ? alumniId : undefined,
+          departmentId,
+          programId,
+        },
       });
       setSubmitted(true);
       if (data?.request?._id && data?.token) {
@@ -176,6 +209,7 @@ export default function StudentRegister({ onNavigate }) {
     setStatusError('');
     setSubmitted(false);
     setShowAdvanced(false);
+    setIdError('');
   }
 
   const hasTracking = Boolean(statusRequestId && statusToken);
@@ -183,7 +217,7 @@ export default function StudentRegister({ onNavigate }) {
 
   return (
     <main>
-      <h2>Student Registration</h2>
+      <h2>Student / Alumni Registration</h2>
 
       <section>
         <h3>Submit Request</h3>
@@ -205,15 +239,56 @@ export default function StudentRegister({ onNavigate }) {
             </label>
           </div>
           <div>
-            <label>
+            <label className="password-label">
               Password
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={disableForm}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={disableForm}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                className="password-toggle-btn"
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
             </label>
+          </div>
+          <div>
+            <label>
+              User Type
+              <select value={userType} onChange={(e) => {
+                setUserType(e.target.value);
+                setIdError('');
+              }} disabled={disableForm}>
+                <option value="student">Student</option>
+                <option value="alumni">Alumni</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>
+              {userType === 'student' ? 'Student ID' : 'Alumni ID'}
+              <input
+                type="text"
+                value={userType === 'student' ? studentId : alumniId}
+                placeholder={userType === 'student' ? ID_FORMATS.STUDENT_ID.placeholder : ID_FORMATS.ALUMNI_ID.placeholder}
+                onChange={(e) => {
+                  if (userType === 'student') {
+                    setStudentId(e.target.value);
+                  } else {
+                    setAlumniId(e.target.value);
+                  }
+                  setIdError('');
+                }}
+                disabled={disableForm}
+              />
+            </label>
+            {idError ? <p className="id-error">{idError}</p> : null}
           </div>
           <div>
             <label>

@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
+const { validateStudentId, validateAlumniId } = require('../utils/idFormats');
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -373,12 +374,32 @@ const activateUser = async (req, res) => {
 // @access  Public
 const registerStudentRequest = async (req, res) => {
   try {
-    const { name, email, password, departmentId, programId } = req.body;
+    const { name, email, password, departmentId, programId, userType, studentId, alumniId } = req.body;
 
-    if (!name || !email || !password || !departmentId || !programId) {
+    if (!name || !email || !password || !departmentId || !programId || !userType) {
       return res.status(400).json({
-        message: 'Please provide name, email, password, departmentId, and programId',
+        message: 'Please provide name, email, password, departmentId, programId, and userType (student or alumni)',
       });
+    }
+
+    if (userType !== 'student' && userType !== 'alumni') {
+      return res.status(400).json({ message: 'userType must be either "student" or "alumni"' });
+    }
+
+    if (userType === 'student' && !studentId) {
+      return res.status(400).json({ message: 'Student ID is required for student accounts' });
+    }
+
+    if (userType === 'alumni' && !alumniId) {
+      return res.status(400).json({ message: 'Alumni ID is required for alumni accounts' });
+    }
+
+    if (userType === 'student' && !validateStudentId(studentId)) {
+      return res.status(400).json({ message: 'Student ID must be in format YYYY-XXXXXX (e.g., 2026-123456)' });
+    }
+
+    if (userType === 'alumni' && !validateAlumniId(alumniId)) {
+      return res.status(400).json({ message: 'Alumni ID must be in format YYYY-XXXXXX (e.g., 2026-123456)' });
     }
 
     if (!isValidEmail(email)) {
@@ -422,6 +443,9 @@ const registerStudentRequest = async (req, res) => {
       email: normalizedEmail,
       passwordHash,
       publicTokenHash,
+      userType,
+      studentId: userType === 'student' ? studentId : null,
+      alumniId: userType === 'alumni' ? alumniId : null,
       department: departmentId,
       program: programId,
       status: 'pending',
@@ -433,6 +457,7 @@ const registerStudentRequest = async (req, res) => {
         _id: request._id,
         name: request.name,
         email: request.email,
+        userType: request.userType,
         department: request.department,
         program: request.program,
         status: request.status,
@@ -550,6 +575,9 @@ const approveRegistrationRequest = async (req, res) => {
       email: request.email,
       password: request.passwordHash,
       role: 'student',
+      userType: request.userType,
+      studentId: request.studentId,
+      alumniId: request.alumniId,
       department: request.department,
       program: request.program,
       isActive: true,
@@ -570,6 +598,7 @@ const approveRegistrationRequest = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        userType: user.userType,
         department: user.department,
         program: user.program,
         isActive: user.isActive,

@@ -29,6 +29,24 @@ const registrationRequestSchema = new mongoose.Schema(
       default: 'student',
       immutable: true,
     },
+    // Distinguish between student and alumni
+    userType: {
+      type: String,
+      enum: ['student', 'alumni'],
+      required: [true, 'User type (student or alumni) is required'],
+    },
+    // Student ID (format: YYYY-XXXXXX)
+    studentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    // Alumni ID (format: YYYY-XXXXXX)
+    alumniId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',

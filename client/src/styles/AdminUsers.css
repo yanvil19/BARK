@@ -1,0 +1,18 @@
+.password-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.password-toggle-btn {
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.password-toggle-btn:disabled {
+  cursor: not-allowed;
+}
