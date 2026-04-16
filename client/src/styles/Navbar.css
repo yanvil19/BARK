@@ -61,13 +61,8 @@
   white-space: nowrap;
 }
 
-#Header button:hover {
-  background: var(--accent-yellow);
-  color: #000;
-}
-
 #Header button:disabled {
-  opacity: 0.5;
+  color: var(--accent-yellow);
   cursor: not-allowed;
 }
 
