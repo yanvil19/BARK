@@ -6,6 +6,7 @@ import StudentRegister from './pages/StudentRegister.jsx';
 import DeanApprovals from './pages/DeanApprovals.jsx';
 import AdminCatalog from './pages/AdminCatalog.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
+import UserAccount from './pages/UserAccount.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
   let page = null;
   if (route === 'home') page = <Home me={me} />;
   if (route === 'login') page = <Login onLogin={handleLogin} />;
+  if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'adminCatalog') page = <AdminCatalog />;

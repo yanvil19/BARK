@@ -37,9 +37,9 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       <div>
         {me ? (
           <>
-            <span>
-              Logged in: {me.email} ({me.role})
-            </span>{' '}
+            <button onClick={() => onRoute('account')} disabled={false}>
+              {me.name} ({me.role})
+            </button>{' '}
             <button onClick={onLogout}>Logout</button>
           </>
         ) : (
