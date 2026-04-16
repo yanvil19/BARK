@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar.jsx';
-import Home from './pages/Home.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import StudentRegister from './pages/StudentRegister.jsx';
 import DeanApprovals from './pages/DeanApprovals.jsx';
@@ -8,9 +8,10 @@ import AdminCatalog from './pages/AdminCatalog.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import UserAccount from './pages/UserAccount.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
+import Footer from './components/Footer.jsx';
 
 export default function App() {
-  const [route, setRoute] = useState('home');
+  const [route, setRoute] = useState('Dashboard');
   const [me, setMe] = useState(null);
   const [meError, setMeError] = useState('');
 
@@ -37,25 +38,25 @@ export default function App() {
   function handleLogin(token) {
     setToken(token);
     refreshMe();
-    setRoute('home');
+    setRoute('Dashboard');
   }
 
   useEffect(() => {
-    if (me && route === 'login') setRoute('home');
+    if (me && route === 'login') setRoute('Dashboard');
   }, [me, route]);
 
   useEffect(() => {
-    if (me?.role === 'student' && route === 'student') setRoute('home');
+    if (me?.role === 'student' && route === 'student') setRoute('Dashboard');
   }, [me, route]);
 
   function handleLogout() {
     setToken('');
     setMe(null);
-    setRoute('home');
+    setRoute('Dashboard');
   }
 
   let page = null;
-  if (route === 'home') page = <Home me={me} />;
+  if (route === 'Dashboard') page = <Dashboard me={me} />;
   if (route === 'login') page = <Login onLogin={handleLogin} />;
   if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
@@ -64,10 +65,15 @@ export default function App() {
   if (route === 'adminUsers') page = <AdminUsers />;
 
   return (
-    <div>
+    <div className="app-container">
       <Navbar me={me} route={route} onRoute={setRoute} onLogout={handleLogout} />
-      {meError ? <p>{meError}</p> : null}
-      {page}
+
+      <main className="page-content">
+        {meError ? <p>{meError}</p> : null}
+        {page}
+      </main>
+
+      <Footer />
     </div>
   );
 }

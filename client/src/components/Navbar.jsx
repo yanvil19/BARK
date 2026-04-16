@@ -1,40 +1,74 @@
+import '../styles/Navbar.css';
+
 export default function Navbar({ me, route, onRoute, onLogout }) {
+  const isSuperAdmin = me?.role === 'super_admin';
+  const isDean = me?.role === 'dean';
+
   return (
-    <header>
-      <div>
-        <strong>NU-BOARD</strong>
+    <header id="Header">
+
+      <div className="nav-left">
+        <strong onClick={() => onRoute('landing')}>BARK</strong>
       </div>
-      <nav>
-        <button onClick={() => onRoute('home')} disabled={route === 'home'}>
-          Home
-        </button>{' '}
-        {me?.role === 'student' ? null : (
-          <button onClick={() => onRoute('student')} disabled={route === 'student'}>
+
+      <nav className="nav-center">
+
+        {isSuperAdmin && (
+          <button
+            onClick={() => onRoute('AdminDashboard')}
+            disabled={route === 'AdminDashboard'}
+          >
+            Dashboard
+          </button>
+        )}
+
+        {me && me.role !== 'student' && (
+          <button
+            onClick={() => onRoute('student')}
+            disabled={route === 'student'}
+          >
             Student Register
           </button>
-        )}{' '}
-        {!me ? (
-          <button onClick={() => onRoute('login')} disabled={route === 'login'}>
-            Login
-          </button>
-        ) : null}{' '}
-        {me?.role === 'dean' ? (
-          <button onClick={() => onRoute('dean')} disabled={route === 'dean'}>
+        )}
+
+        {isDean && (
+          <button
+            onClick={() => onRoute('dean')}
+            disabled={route === 'dean'}
+          >
             Dean Approvals
           </button>
-        ) : null}{' '}
-        {me?.role === 'super_admin' ? (
+        )}
+
+        {isSuperAdmin && (
           <>
-            <button onClick={() => onRoute('adminCatalog')} disabled={route === 'adminCatalog'}>
+            <button
+              onClick={() => onRoute('adminCatalog')}
+              disabled={route === 'adminCatalog'}
+            >
               Admin Catalog
-            </button>{' '}
-            <button onClick={() => onRoute('adminUsers')} disabled={route === 'adminUsers'}>
-              Admin Users
+            </button>
+
+            <button
+              onClick={() => onRoute('adminUsers')}
+              disabled={route === 'adminUsers'}
+            >
+              User Management
             </button>
           </>
-        ) : null}
+        )}
+
+        {!me && (
+          <button
+            onClick={() => onRoute('login')}
+            disabled={route === 'login'}
+          >
+            Login
+          </button>
+        )}
       </nav>
-      <div>
+
+      <div className="nav-right">
         {me ? (
           <>
             <button onClick={() => onRoute('account')} disabled={false}>
@@ -46,7 +80,7 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
           <span>Not logged in</span>
         )}
       </div>
-      <hr />
+
     </header>
   );
 }

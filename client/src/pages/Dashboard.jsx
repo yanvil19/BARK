@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const Home = ({ me }) => {
+const Dashboard = ({ me }) => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -165,4 +165,4 @@ const Home = ({ me }) => {
   );
 };
 
-export default Home;
+export default Dashboard;
