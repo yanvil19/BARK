@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { apiAuth } from '../lib/api.js';
 
 const Dashboard = ({ me }) => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+
+  // Admin-only: all depts + programs (including inactive)
+  const [adminDepts, setAdminDepts] = useState([]);
+  const [adminPrograms, setAdminPrograms] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   useEffect(() => {
   const fetchData = async () => {
@@ -32,6 +38,29 @@ const Dashboard = ({ me }) => {
 
   fetchData();
 }, []);
+
+  // Fetch all departments + programs for super admin (auth required)
+  useEffect(() => {
+    if (me?.role !== 'super_admin') return;
+    let cancelled = false;
+    setAdminLoading(true);
+    (async () => {
+      try {
+        const [deptRes, progRes] = await Promise.all([
+          apiAuth('/api/admin/catalog/departments?limit=200'),
+          apiAuth('/api/admin/catalog/programs?limit=200'),
+        ]);
+        if (cancelled) return;
+        setAdminDepts(deptRes.departments || []);
+        setAdminPrograms(progRes.programs || []);
+      } catch (err) {
+        console.error('Failed to load admin catalog:', err.message);
+      } finally {
+        if (!cancelled) setAdminLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [me]);
 
   // Landing Page for unauthenticated users
   if (!me) {
@@ -91,10 +120,18 @@ const Dashboard = ({ me }) => {
 
   // Super Admin Dashboard
   if (me.role === 'super_admin') {
+    // Derive program count per department
+    const programCountByDept = adminPrograms.reduce((acc, prog) => {
+      const deptId = String(prog.department?._id || prog.department || '');
+      acc[deptId] = (acc[deptId] || 0) + 1;
+      return acc;
+    }, {});
+
     return (
       <main>
         <h1>Dashboard for Super Admin</h1>
-        
+
+        {/* System Statistics */}
         <section>
           <h2>System Statistics</h2>
           {!stats ? (
@@ -110,6 +147,72 @@ const Dashboard = ({ me }) => {
                 </div>
               ))}
             </div>
+          )}
+        </section>
+
+        {/* Schools (Departments) Table */}
+        <section>
+          <h2>Schools of NU Laguna <small>({adminLoading ? '...' : adminDepts.length} total)</small></h2>
+          {adminLoading ? (
+            <p>Loading...</p>
+          ) : (
+            <table border="1" cellPadding="6" cellSpacing="0">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>School Name</th>
+                  <th>Program Count</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminDepts.length === 0 ? (
+                  <tr><td colSpan={4}>No departments found.</td></tr>
+                ) : (
+                  adminDepts.map((dept) => (
+                    <tr key={dept._id}>
+                      <td>{dept.code}</td>
+                      <td>{dept.name}</td>
+                      <td>{programCountByDept[String(dept._id)] || 0}</td>
+                      <td>{dept.isActive ? 'Active' : 'Inactive'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        {/* Programs Table */}
+        <section>
+          <h2>Programs <small>({adminLoading ? '...' : adminPrograms.length} total)</small></h2>
+          {adminLoading ? (
+            <p>Loading...</p>
+          ) : (
+            <table border="1" cellPadding="6" cellSpacing="0">
+              <thead>
+                <tr>
+                  <th>Program Code</th>
+                  <th>Program Name</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminPrograms.length === 0 ? (
+                  <tr><td colSpan={4}>No programs found.</td></tr>
+                ) : (
+                  adminPrograms.map((prog) => (
+                    <tr key={prog._id}>
+                      <td>{prog.code}</td>
+                      <td>{prog.name}</td>
+                      <td>{prog.department?.code || String(prog.department)}</td>
+                      <td>{prog.isActive ? 'Active' : 'Inactive'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           )}
         </section>
       </main>
