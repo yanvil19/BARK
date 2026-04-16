@@ -185,9 +185,11 @@
 
 /* ── Action Buttons ─────────────────────────────── */
 .um-actions-cell {
-  display: flex;
-  gap: 6px;
   white-space: nowrap;
+}
+
+.um-actions-cell button:not(:last-child) {
+  margin-right: 6px;
 }
 
 .um-btn-edit {

@@ -78,7 +78,7 @@ export default function AdminUsers() {
   useEffect(() => {
     const t = setTimeout(() => {
       fetchUsersList(searchQuery, filterRole, filterDepartment);
-    }, 400);
+    }, 100);
     return () => clearTimeout(t);
   }, [searchQuery, filterRole, filterDepartment]);
 
