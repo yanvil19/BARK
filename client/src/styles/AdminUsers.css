@@ -8,9 +8,13 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  margin-top: -20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding: 20px 25px 10px 25px;
   margin-bottom: 20px;
-  padding-bottom: 10px;
   border-bottom: 1px solid var(--primary-bg);
+  background-color: var(--text-light);
 }
 
 .um-title {
@@ -84,6 +88,7 @@
   border: 1px solid #e4e7ec;
   overflow: hidden;
   margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .um-loading {

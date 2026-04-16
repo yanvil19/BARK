@@ -1,5 +1,6 @@
 :root {
   --primary-bg: #35408E;
+  --content-bg: #E9EAF3;
   --accent-yellow: #FAD227;
   --text-light: #F8F9FA;
 
@@ -15,7 +16,7 @@ html, body {
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--text-light); /* FIXED */
+  background-color: var(--content-bg);
   color: #000;
   font-family: var(--font-body);
 }
