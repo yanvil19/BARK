@@ -8,26 +8,17 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
     <header id="Header">
 
       <div className="nav-left">
-        <strong onClick={() => onRoute('landing')}>BARK</strong>
+        <strong onClick={() => onRoute('Dashboard')}>BARK</strong>
       </div>
 
       <nav className="nav-center">
 
         {isSuperAdmin && (
           <button
-            onClick={() => onRoute('AdminDashboard')}
-            disabled={route === 'AdminDashboard'}
+            onClick={() => onRoute('Dashboard')}
+            disabled={route === 'Dashboard'}
           >
             Dashboard
-          </button>
-        )}
-
-        {me && me.role !== 'student' && (
-          <button
-            onClick={() => onRoute('student')}
-            disabled={route === 'student'}
-          >
-            Student Register
           </button>
         )}
 
@@ -58,6 +49,51 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
           </>
         )}
 
+        {me && me.role !== 'student' && (
+          <button
+            onClick={() => onRoute('student')}
+            disabled={route === 'student'}
+          >
+            Student Register
+          </button>
+        )}
+
+        {!me && (
+          <button
+            onClick={() => onRoute('about')}
+            disabled={route === 'about'}
+          >
+            About
+          </button>
+        )}
+
+        {!me && (
+          <button
+            onClick={() => onRoute('Programs')}
+            disabled={route === 'Programs'}
+          >
+            Programs
+          </button>
+        )}
+
+        {!me && (
+          <button
+            onClick={() => onRoute('Mock Exams')}
+            disabled={route === 'Mock Exams'}
+          >
+            Mock Exams
+          </button>
+        )}
+
+        {!me && (
+          <button
+            onClick={() => onRoute('Register')}
+            disabled={route === 'Register'}
+          >
+            Register
+          </button>
+        )}
+
         {!me && (
           <button
             onClick={() => onRoute('login')}
@@ -66,6 +102,8 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             Login
           </button>
         )}
+
+
       </nav>
 
       <div className="nav-right">
