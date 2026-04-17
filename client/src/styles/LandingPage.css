@@ -1,0 +1,261 @@
+/* =========================================
+   Landing Page Hero Section
+   ========================================= */
+
+/* Imports Google font to look sleek */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+.landing-wrapper {
+    margin: -20px; /* nagkakawhiteborder if tanggalin ito what my padding ba somewhere? */
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+.hero-main {
+    position: relative;
+    min-height: 85vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 10%;
+    color: #ffffff;
+    overflow: hidden;
+
+    /* Multi-layered background: dots, gradient overlay, and image */
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.15) 2px, transparent 2px),
+        linear-gradient(to bottom, rgba(70, 95, 185, 0.75), rgba(30, 45, 110, 0.95)),
+        url('../assets/henrysyhall.jpg');
+    background-size: 35px 35px, 100% 100%, cover;
+    background-position: 0 0, 0 0, center;
+    background-repeat: repeat, no-repeat, no-repeat;
+
+    /* Subdued animation for a slight dynamic feel */
+    animation: heroBg 15s ease-in-out infinite alternate;
+}
+
+@keyframes heroBg {
+    0% {
+        background-position: 0 0, 0 0, center top;
+    }
+
+    100% {
+        background-position: 0 0, 0 0, center bottom;
+    }
+}
+
+.hero-inner {
+    max-width: 1000px;
+    z-index: 10;
+    /* Put above any pseudo elements if we add them */
+}
+
+/* Typography constraints */
+.hero-subtitle {
+    font-size: 2.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+    letter-spacing: -0.5px;
+}
+
+.hero-title {
+    font-size: 4.5rem;
+    font-weight: 900;
+    margin: 5px 0 15px 0;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    opacity: 0.75;
+    max-width: 950px;
+    line-height: 1.5;
+}
+
+/* Button Group Alignment */
+.hero-buttons {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+/* Buttons Base & Styling */
+button {
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-login-yellow {
+    background-color: #ffd60a;
+    color: #001d3d;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 14px 45px;
+    border: 2px solid #ffd60a;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(255, 214, 10, 0.3);
+}
+
+.btn-login-yellow:hover {
+    background-color: #ffc300;
+    border-color: #ffc300;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 214, 10, 0.5);
+}
+
+.btn-login-yellow:active {
+    transform: translateY(0);
+}
+
+.btn-learn-more-outline {
+    background-color: transparent;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 14px 45px;
+    border: 2px solid #ffd60a;
+    border-radius: 6px;
+}
+
+.btn-learn-more-outline:hover {
+    background-color: rgba(255, 214, 10, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(255, 214, 10, 0.2);
+}
+
+.btn-learn-more-outline:active {
+    transform: translateY(0);
+}
+
+/* Content Container Wrapper for list below */
+.landing-content-wrap {
+    padding: 40px 10%;
+}
+
+/* =========================================
+   About Section / What is BARK
+   ========================================= */
+.about-section {
+    padding: 80px 10%;
+    /* Continuing the dark blue theme with dots */
+    background-color: #263377;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 2px, transparent 2px);
+    background-size: 35px 35px;
+    background-position: 0 0;
+    color: #fff;
+}
+
+.about-content {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.about-left {
+    flex: 1;
+}
+
+.about-subtitle {
+    color: #ffd60a;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+.about-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-top: 0;
+    margin-bottom: 25px;
+    letter-spacing: -1px;
+}
+
+.text-yellow {
+    color: #ffd60a;
+}
+
+.text-white {
+    color: #ffffff;
+}
+
+.about-para {
+    font-size: 1.05rem;
+    font-weight: 300;
+    line-height: 1.6;
+    opacity: 0.85;
+    margin-bottom: 20px;
+}
+
+/* Right side cards */
+.about-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateX(5px);
+    background-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.feature-icon {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    min-height: 50px;
+}
+
+.feature-text h5 {
+    margin: 0 0 5px 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.feature-text p {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 300;
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+    .about-content {
+        flex-direction: column;
+    }
+}

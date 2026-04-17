@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import '../styles/Dashboard.css';
+import '../styles/LandingPage.css';
 
 const Dashboard = ({ me }) => {
   const [departments, setDepartments] = useState([]);
@@ -13,31 +15,31 @@ const Dashboard = ({ me }) => {
   const [adminLoading, setAdminLoading] = useState(false);
 
   useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [deptRes, progRes, statsRes] = await Promise.all([
-        fetch('http://localhost:5000/api/catalog/departments'),
-        fetch('http://localhost:5000/api/catalog/programs'),
-        fetch('http://localhost:5000/api/stats/summary') // 👈 ADD THIS
-      ]);
+    const fetchData = async () => {
+      try {
+        const [deptRes, progRes, statsRes] = await Promise.all([
+          fetch('http://localhost:5000/api/catalog/departments'),
+          fetch('http://localhost:5000/api/catalog/programs'),
+          fetch('http://localhost:5000/api/stats/summary') // 👈 ADD THIS
+        ]);
 
-      const deptData = await deptRes.json();
-      const progData = await progRes.json();
-      const statsData = await statsRes.json();
+        const deptData = await deptRes.json();
+        const progData = await progRes.json();
+        const statsData = await statsRes.json();
 
-      setDepartments(deptData.departments || []);
-      setPrograms(progData.programs || []);
-      setStats(statsData); // 👈 ADD THIS
+        setDepartments(deptData.departments || []);
+        setPrograms(progData.programs || []);
+        setStats(statsData); // 👈 ADD THIS
 
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading landing page data:", error);
-      setLoading(false);
-    }
-  };
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading landing page data:", error);
+        setLoading(false);
+      }
+    };
 
-  fetchData();
-}, []);
+    fetchData();
+  }, []);
 
   // Fetch all departments + programs for super admin (auth required)
   useEffect(() => {
@@ -65,17 +67,72 @@ const Dashboard = ({ me }) => {
   // Landing Page for unauthenticated users
   if (!me) {
     return (
-      <div>
+      <div className="landing-wrapper">
         {/* 1. Website Name & Description */}
-        <header>
-          <h1>NU-BOARD</h1>
-          <p>
-            The official Automated Examination Management System for National University - Laguna. 
-            Streamlining academic assessments for students and faculty.
-          </p>
+        <header className="hero-main">
+          <div className="hero-inner">
+            <h2 className="hero-subtitle">Engineered for Excellence.</h2>
+            <h1 className="hero-title">Built for Board Success.</h1>
+            <p className="hero-description">
+              Prepare with faculty-validated content, adaptive quizzes, and real-time performance insights.
+            </p>
+            <div className="hero-buttons">
+              <button className="btn-login-yellow">Login</button>
+              <button className="btn-learn-more-outline">Learn More</button>
+            </div>
+          </div>
         </header>
 
-        <div>
+        {/* 2. What is BARK? Section */}
+        <section className="about-section">
+          <div className="about-content">
+            <div className="about-left">
+              <h4 className="about-subtitle">WHAT IS BARK?</h4>
+              <h2 className="about-title">
+                <span className="text-yellow">Your Personal</span><br />
+                <span className="text-white">Review Platform</span>
+              </h2>
+              <p className="about-para">
+                Board Exam & Review Kit (BARK), the Board Exam Reviewer for NU Laguna — is a web-based platform designed to help students prepare for their PRC licensure exams through quizzes, mock board exams, and progress tracking.
+              </p>
+              <p className="about-para">
+                Unlike third-party reviewers, all content is created, reviewed, and approved by faculty to ensure academic quality. Role-based access for administrators, faculty, and students means a streamlined, scalable experience across all programs.
+              </p>
+            </div>
+            <div className="about-right">
+              <div className="feature-card">
+                <div className="feature-icon">📋</div>
+                <div className="feature-text">
+                  <h5>Faculty-Curated Content</h5>
+                  <p>Every question is created, reviewed, and approved by the Faculty</p>
+                </div>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon">🧠</div>
+                <div className="feature-text">
+                  <h5>Adaptive Mock Exams</h5>
+                  <p>Simulate the real board experience with timed, full-length mock exams tailored per program.</p>
+                </div>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon">📊</div>
+                <div className="feature-text">
+                  <h5>AI-Powered Analytics</h5>
+                  <p>Personalized feedback highlights your strengths, gaps, and areas needing focus.</p>
+                </div>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon">🔒</div>
+                <div className="feature-text">
+                  <h5>Role-Based Access</h5>
+                  <p>Separate dashboards and tools for students, faculty, and administrators.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="landing-content-wrap">
           {/* 2. Departments List */}
           <section>
             <h2>Our Departments</h2>
@@ -101,7 +158,7 @@ const Dashboard = ({ me }) => {
           </section>
         </div>
 
-        <hr/>
+        <hr />
 
         {/* 4. Hardcoded Available Exams (As requested by your groupmate) */}
         <section>
@@ -146,6 +203,33 @@ const Dashboard = ({ me }) => {
                   <p>{value.active} active / {value.total} total</p>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Database Storage Statistics */}
+        <section className="dashboard-storage-card">
+          <h2>Database Storage (Free Tier)</h2>
+          {!stats || !stats.database ? (
+            <p>Loading storage stats...</p>
+          ) : (
+            <div>
+              <div className="dashboard-storage-header">
+                <span><strong>Total Used:</strong> {stats.database.totalSizeMB} MB / {stats.database.limitMB} MB</span>
+                <span><strong>{stats.database.percentUsed}%</strong></span>
+              </div>
+              <div className="dashboard-storage-bar-track">
+                <div
+                  className="dashboard-storage-bar-fill"
+                  style={{
+                    width: `${Math.min(stats.database.percentUsed, 100)}%`,
+                    backgroundColor: stats.database.percentUsed > 85 ? '#e53935' : stats.database.percentUsed > 60 ? '#fb8c00' : '#43a047'
+                  }}
+                ></div>
+              </div>
+              <p className="dashboard-storage-footer">
+                Data Storage: {stats.database.storageSizeMB} MB | Index Size: {stats.database.indexSizeMB} MB
+              </p>
             </div>
           )}
         </section>
