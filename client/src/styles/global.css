@@ -1,0 +1,258 @@
+/* client/src/styles/global.css */
+
+:root {
+  /* Official National University / BARK Colors */
+  --nu-blue: #0038a8;       /* The deep blue seen on the building/logo */
+  --nu-gold: #f9cd0b;       /* The vibrant gold/yellow from the buttons/logo */
+  --nu-white: #ffffff;
+  --nu-text-gray: #555555;
+  --nu-bg-light: #f4f4f4;   /* Background for sections like "Available Exams" */
+  
+  --bark-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.bark-theme {
+  font-family: var(--bark-font);
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- 1. SCHOOLS OF NU LAGUNA (Tab System) --- */
+.schools-section {
+  max-width: 1200px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.schools-section h2 {
+  color: var(--nu-blue);
+  font-size: 1.5rem;
+  margin-bottom: 25px;
+  text-transform: uppercase;
+  border-left: 5px solid var(--nu-gold);
+  padding-left: 15px;
+}
+
+.tab-headers {
+  display: flex;
+  background-color: var(--nu-blue); /* The Navy Blue bar from your image */
+  border-radius: 5px 5px 0 0;
+  overflow-x: auto;
+}
+
+.tab-header {
+  padding: 15px 30px;
+  color: var(--nu-white);
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.3s;
+  border-bottom: 4px solid transparent;
+}
+
+.tab-header.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-bottom: 4px solid var(--nu-gold); /* The gold indicator line */
+}
+
+.tab-content {
+  background-color: #f9f9f9;
+  padding: 30px;
+  border: 1px solid #ddd;
+  border-top: none;
+}
+
+.program-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 15px;
+}
+
+.program-card {
+  background-color: #3554a4; /* The lighter blue cards in your image */
+  color: white;
+  padding: 15px 20px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.program-card::before {
+  content: '●';
+  color: var(--nu-gold);
+  margin-right: 15px;
+  font-size: 1.2rem;
+}
+
+/* --- 2. AVAILABLE MOCK BOARD EXAMS --- */
+.exams-section {
+  max-width: 1200px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.exams-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.exams-header h2 {
+  font-size: 2rem;
+  color: #1a1a1a;
+}
+
+.exams-header h2 span {
+  color: var(--nu-gold); /* "Mock Board" in yellow */
+}
+
+.see-all-btn {
+  background-color: var(--nu-gold);
+  border: none;
+  padding: 10px 25px;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.exam-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.exam-details strong {
+  font-size: 1.1rem;
+  color: var(--nu-blue);
+}
+
+.exam-details p {
+  color: #d4a017; /* Darker gold for the subject text */
+  margin: 5px 0 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.na-badge {
+  background-color: #3554a4;
+  color: var(--nu-gold);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-right: 20px;
+}
+
+.exam-date {
+  color: #888;
+  font-size: 0.9rem;
+  min-width: 100px;
+  text-align: right;
+}
+
+/* --- 3. CTA BANNER (READY TO PASS) --- */
+.cta-banner {
+  background-color: var(--nu-gold);
+  background-image: radial-gradient(circle, rgba(0,0,0,0.05) 2px, transparent 2px);
+  background-size: 20px 20px; 
+  margin: 60px auto;
+  max-width: 1200px;
+  padding: 50px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-text h3 {
+  font-size: 2.5rem;
+  color: var(--nu-blue);
+  margin: 0;
+}
+
+.cta-text p {
+  color: var(--nu-blue);
+  font-size: 1.2rem;
+  margin: 15px 0 25px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.primary-btn {
+  background-color: #1a1a1a;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.secondary-btn {
+  background-color: transparent;
+  color: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  padding: 12px 30px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.nu-logo-large {
+  height: 200px;
+  width: auto;
+  opacity: 0.9;
+  object-fit: contain;
+}
+
+/* --- 4. FOOTER --- */
+.landing-footer {
+  background-color: #1a1a1a;
+  color: white;
+  padding: 60px 0;
+  margin-top: 80px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.cta-banner::before {
+  content: 'BARK';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Impact', 'Arial Black', sans-serif; /* Sharp, bold edges */
+  font-size: 350px;
+  font-weight: 900;
+  color: rgba(0, 56, 168, 0.07); /* NU Blue with very low opacity */
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Add z-index to these existing classes so they sit ABOVE the BARK text */
+.cta-text {
+  position: relative;
+  z-index: 1;
+}
+
+.nu-logo-large {
+  position: relative;
+  z-index: 1;
+}
