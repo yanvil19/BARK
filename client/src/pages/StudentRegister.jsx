@@ -212,6 +212,14 @@ export default function StudentRegister({ onNavigate }) {
         setApprovedEmail('');
         saveSaved({ requestId: data.request._id, token: data.token, email: data.request.email });
         setStatus('pending');
+
+        // Clear form fields to allow submitting multiple accounts easily
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setStudentId('');
+        setAlumniId('');
       }
     } catch (err) {
       setError(err.message || 'Failed to submit request');
@@ -281,7 +289,7 @@ export default function StudentRegister({ onNavigate }) {
   }
 
   const hasTracking = Boolean(statusRequestId && statusToken);
-  const disableForm = (hasTracking && status === 'pending') || status === 'approved' || Boolean(approvedEmail);
+  const disableForm = false; // Changed to false to allow multiple registrations
   const idLabel = userType === 'student' ? 'Student ID' : 'Alumni ID';
   const idPlaceholder = userType === 'student' ? ID_FORMATS.STUDENT_ID.placeholder : ID_FORMATS.ALUMNI_ID.placeholder;
   const idValue = userType === 'student' ? studentId : alumniId;
