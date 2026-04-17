@@ -1,0 +1,75 @@
+.landing-container {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: url("../assets/henrysyhall.jpg") no-repeat center center fixed;
+  background-size: cover;
+  position: relative;
+  min-height: 100vh;
+  color: #333;
+}
+
+.landing-container::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: -1;
+}
+
+.logo { font-size: 1.5rem; font-weight: bold; }
+.nav-links { display: flex; gap: 1.5rem; }
+.nav-links a { color: white; text-decoration: none; font-weight: 500; }
+.nav-links a:hover { text-decoration: underline; }
+
+/* Hero */
+.hero { text-align: center; padding: 4rem 2rem; color: #004080; }
+.hero h1 { font-size: 2.2rem; font-weight: bold; margin-bottom: 1rem; }
+.hero p { margin-bottom: 1.5rem; }
+.hero-buttons { display: flex; justify-content: center; gap: 1rem; }
+.hero-buttons button {
+  background: #ffcc00; color: #004080; border: none;
+  padding: 0.8rem 1.5rem; border-radius: 5px; font-weight: bold; cursor: pointer;
+}
+.hero-buttons button:hover { background: #e6b800; }
+
+/* About */
+.about { padding: 3rem 2rem; text-align: center; }
+.about h2 { color: #004080; margin-bottom: 1rem; }
+.features { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+.feature { background: #ffcc00; padding: 1rem 1.5rem; border-radius: 6px; font-weight: bold; }
+
+/* Schools */
+.schools { padding: 3rem 2rem; }
+.schools h2 { color: #004080; margin-bottom: 1rem; }
+.tabs { display: flex; gap: 1rem; margin-bottom: 1rem; }
+.tab {
+  background: #004080; color: white; border: none;
+  padding: 0.6rem 1rem; border-radius: 4px; cursor: pointer;
+}
+.tab.active { background: #ffcc00; color: #004080; }
+.tab-content ul { margin-top: 1rem; }
+
+/* Mock Exams */
+.mock-exams { padding: 3rem 2rem; }
+.mock-exams h2 { color: #004080; text-align: center; margin-bottom: 1rem; }
+.exam-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+.exam-table th, .exam-table td { border: 1px solid #ccc; padding: 0.8rem; }
+.exam-table th { background: #004080; color: white; }
+.exam-table td button {
+  background: #ffcc00; border: none; padding: 0.5rem 1rem;
+  border-radius: 4px; cursor: pointer; font-weight: bold;
+}
+.exam-table td button:hover { background: #e6b800; }
+
+/* CTA */
+.cta { background: #ffcc00; padding: 2rem; text-align: center; }
+.cta h2 { margin-bottom: 1rem; color: #004080; }
+.cta-buttons button {
+  margin: 0.5rem; padding: 0.8rem 1.5rem; border: none;
+  cursor: pointer; background: #004080; color: white;
+  border-radius: 5px; font-weight: bold;
+}
+.cta-buttons button:hover { background: #003060; }
+
+/* Footer */
+.footer { background: #004080; color: white; text-align: center; padding: 1rem; }
