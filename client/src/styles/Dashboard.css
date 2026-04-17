@@ -27,6 +27,18 @@
   transition: width 0.4s ease, background-color 0.4s ease;
 }
 
+.dashboard-storage-bar-fill.normal {
+  background-color: #43a047;
+}
+
+.dashboard-storage-bar-fill.warning {
+  background-color: #fb8c00;
+}
+
+.dashboard-storage-bar-fill.danger {
+  background-color: #e53935;
+}
+
 .dashboard-storage-footer {
   font-size: 0.9em;
   color: #666;

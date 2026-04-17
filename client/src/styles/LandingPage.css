@@ -249,11 +249,13 @@ button {
 }
 
 .schools-programs {
-    padding: 28px 10% 40px;
+    padding: 28px 10% 60px; 
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 260px));
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 260px)); 
+    justify-content: start;   
+    align-content: start;     
     gap: 18px 14px;
+    min-height: 320px;       
     background: rgba(37, 45, 115, 0.42);
 }
 

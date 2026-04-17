@@ -1,8 +1,49 @@
+import { useState, useEffect } from 'react';
 import '../styles/Navbar.css';
 
 export default function Navbar({ me, route, onRoute, onLogout }) {
   const isSuperAdmin = me?.role === 'super_admin';
   const isDean = me?.role === 'dean';
+  const [activeSection, setActiveSection] = useState('');
+
+  useEffect(() => {
+    if (route !== 'Dashboard') {
+      setActiveSection('');
+      return;
+    }
+
+    const lastScrollY = { current: window.scrollY };  // ← use object to avoid stale closure
+
+    const handleScroll = () => { lastScrollY.current = window.scrollY; };
+    window.addEventListener('scroll', handleScroll);
+
+    const sections = ['about', 'programs', 'mock-exams'];
+    const observers = sections.map(id => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          const scrollingUp = entry.boundingClientRect.top > 0;
+
+          if (entry.isIntersecting) {
+            setActiveSection(id);
+          } else if (scrollingUp) {
+            const idx = sections.indexOf(id);
+            if (idx > 0) setActiveSection(sections[idx - 1]);
+          }
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -60% 0px' }
+      );
+      observer.observe(el);
+      return observer;
+    });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      observers.forEach(obs => obs?.disconnect());
+    };
+  }, [route]);
 
   return (
     <header id="Header">
@@ -60,8 +101,15 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {!me && (
           <button
-            onClick={() => onRoute('about')}
-            disabled={route === 'about'}
+            className={activeSection === 'about' ? 'nav-active' : ''}
+            onClick={() => {
+              if (route !== 'Dashboard') {
+                onRoute('Dashboard');
+                setTimeout(() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }), 100);
+              } else {
+                document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
           >
             About
           </button>
@@ -69,8 +117,15 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {!me && (
           <button
-            onClick={() => onRoute('Programs')}
-            disabled={route === 'Programs'}
+            className={activeSection === 'programs' ? 'nav-active' : ''}
+            onClick={() => {
+              if (route !== 'Dashboard') {
+                onRoute('Dashboard');
+                setTimeout(() => document.getElementById('programs')?.scrollIntoView({ behavior: 'smooth' }), 100);
+              } else {
+                document.getElementById('programs')?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
           >
             Programs
           </button>
@@ -78,8 +133,15 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {!me && (
           <button
-            onClick={() => onRoute('Mock Exams')}
-            disabled={route === 'Mock Exams'}
+            className={activeSection === 'mock-exams' ? 'nav-active' : ''}
+            onClick={() => {
+              if (route !== 'Dashboard') {
+                onRoute('Dashboard');
+                setTimeout(() => document.getElementById('mock-exams')?.scrollIntoView({ behavior: 'smooth' }), 100);
+              } else {
+                document.getElementById('mock-exams')?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
           >
             Mock Exams
           </button>
@@ -102,7 +164,6 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             Login
           </button>
         )}
-
 
       </nav>
 

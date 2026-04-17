@@ -3,7 +3,7 @@ import { apiAuth } from '../lib/api.js';
 import '../styles/Dashboard.css';
 import '../styles/LandingPage.css';
 
-const Dashboard = ({ me }) => {
+const Dashboard = ({ me, onRoute }) => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [activeDepartmentId, setActiveDepartmentId] = useState('');
@@ -98,14 +98,17 @@ const Dashboard = ({ me }) => {
               Prepare with faculty-validated content, adaptive quizzes, and real-time performance insights.
             </p>
             <div className="hero-buttons">
-              <button className="btn-login-yellow">Login</button>
-              <button className="btn-learn-more-outline">Learn More</button>
+              <button className="btn-login-yellow" onClick={() => onRoute('login')}>Login</button>
+              <button className="btn-learn-more-outline" onClick={() => {
+                const el = document.getElementById('about');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}>Learn More</button>
             </div>
           </div>
         </header>
 
         {/* 2. What is BARK? Section */}
-        <section className="about-section">
+        <section id="about" className="about-section">
           <div className="about-content">
             <div className="about-left">
               <h4 className="about-subtitle">WHAT IS BARK?</h4>
@@ -154,7 +157,7 @@ const Dashboard = ({ me }) => {
         </section>
 
         <div className="landing-content-wrap">
-          <section className="schools-panel">
+          <section id="programs" className="schools-panel">
             <header className="schools-header">
               <div className="schools-header-left">
                 <span className="schools-header-label">Schools of NU LAGUNA</span>
@@ -205,7 +208,7 @@ const Dashboard = ({ me }) => {
             )}
           </section>
 
-          <section className="exams-panel">
+          <section id="mock-exams" className="exams-panel">
             <div className="exams-section-header">
               <div>
                 <span className="exams-section-label">Practice Materials</span>
@@ -233,8 +236,11 @@ const Dashboard = ({ me }) => {
                   Join hundreds of NU Laguna students and review smarter.
                 </p>
                 <div className="exam-cta-actions">
-                  <button type="button" className="exam-cta-primary">Create An Account</button>
-                  <button type="button" className="exam-cta-secondary">View Programs</button>
+                  <button type="button" className="exam-cta-primary" onClick={() => onRoute('Register')}>Create An Account</button>
+                  <button type="button" className="exam-cta-secondary" onClick={() => {
+                    const el = document.getElementById('programs');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}>View Programs</button>
                 </div>
               </div>
               <div className="exam-cta-watermark" aria-hidden="true">BARK</div>
@@ -289,13 +295,7 @@ const Dashboard = ({ me }) => {
                 <span><strong>{stats.database.percentUsed}%</strong></span>
               </div>
               <div className="dashboard-storage-bar-track">
-                <div
-                  className="dashboard-storage-bar-fill"
-                  style={{
-                    width: `${Math.min(stats.database.percentUsed, 100)}%`,
-                    backgroundColor: stats.database.percentUsed > 85 ? '#e53935' : stats.database.percentUsed > 60 ? '#fb8c00' : '#43a047'
-                  }}
-                ></div>
+                <div className={`dashboard-storage-bar-fill ${stats.database.percentUsed > 85 ? 'danger' : stats.database.percentUsed > 60 ? 'warning' : 'normal'}`} style={{ width: `${Math.min(stats.database.percentUsed, 100)}%` }}></div>
               </div>
               <p className="dashboard-storage-footer">
                 Data Storage: {stats.database.storageSizeMB} MB | Index Size: {stats.database.indexSizeMB} MB
