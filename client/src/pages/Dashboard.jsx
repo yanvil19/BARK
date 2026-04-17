@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import '../styles/Dashboard.css';
 
-const Dashboard = ({ me }) => {
+const Dashboard = ({ me, onNavigate }) => {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +119,6 @@ const Dashboard = ({ me }) => {
     );
   }
 
-  // Super Admin Dashboard
   if (me.role === 'super_admin') {
     // Derive program count per department
     const programCountByDept = adminPrograms.reduce((acc, prog) => {
@@ -129,119 +128,116 @@ const Dashboard = ({ me }) => {
     }, {});
 
     return (
-      <main>
-        <h1>Dashboard for Super Admin</h1>
+      <main className="dashboard-sa-main">
+        <header className="dashboard-sa-header">
+          <h1>System Overview</h1>
+          <p>National University Laguna</p>
+        </header>
 
-        {/* System Statistics */}
-        <section>
-          <h2>System Statistics</h2>
-          {!stats ? (
-            <p>Loading stats...</p>
-          ) : (
+        <div className="dashboard-sa-top-grid">
+          {/* Section 1: Pending Accounts */}
+          <section className="dashboard-box">
+            <div className="box-title">Pending Accounts</div>
+            <div className="box-content-vertical">
+              <div className="metric-card metric-card-yellow">
+                <h2>{stats?.pendingAccounts?.students || 0}</h2>
+                <p>Students</p>
+              </div>
+              <div className="metric-card metric-card-yellow">
+                <h2>{stats?.pendingAccounts?.alumni || 0}</h2>
+                <p>Alumni</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Registered Accounts */}
+          <section className="dashboard-box box-wide">
+            <div className="box-title">Registered Accounts</div>
+            <div className="box-content-grid">
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.student?.active || 0}</h2><p>Students</p></div>
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.alumni?.active || 0}</h2><p>Alumni</p></div>
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.dean?.active || 0}</h2><p>Dean</p></div>
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.program_chair?.active || 0}</h2><p>Program Chairs</p></div>
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.professor?.active || 0}</h2><p>Professors</p></div>
+              <div className="metric-card metric-card-blue"><h2 className="heavy">{stats?.users?.super_admin?.active || 0}</h2><p>Super Admin</p></div>
+            </div>
+          </section>
+
+          {/* Section 3: Database Storage */}
+          <section className="dashboard-box">
+            <div className="box-title">Database Storage</div>
+            <div className="box-content-center">
+              <div className="db-gauge-container">
+                <div className="db-gauge-fill" style={{ height: `${Math.min(stats?.database?.percentUsed || 0, 100)}%` }}></div>
+              </div>
+              <div className="db-gauge-label">
+                {stats?.database?.totalSizeMB || 0}mb / {stats?.database?.limitMB || 512}mb
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Schools Table Section */}
+        <section className="dashboard-table-section">
+          <div className="table-section-header">
             <div>
-              <h3>Total Users: {stats.total.users}</h3>
-              <h4>Active Users: {stats.total.activeUsers}</h4>
-              {Object.entries(stats.users).map(([role, value]) => (
-                <div key={role}>
-                  <h4>{role}</h4>
-                  <p>{value.active} active / {value.total} total</p>
-                </div>
+              <h2>Schools of NU Laguna</h2>
+              <p>{adminDepts.length} schools registered in the system</p>
+            </div>
+            <button className="view-btn" onClick={() => { if (typeof onNavigate === 'function') onNavigate('adminCatalog') }}>View</button>
+          </div>
+          
+          <table className="modern-table">
+            <thead>
+              <tr><th>Acronym</th><th>School Name</th><th>Programs</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {adminDepts.map(dept => (
+                <tr key={dept._id}>
+                  <td><span className="pill pill-dark">{dept.code}</span></td>
+                  <td>{dept.name}</td>
+                  <td className="light-text">{programCountByDept[String(dept._id)] || 0} program{programCountByDept[String(dept._id)] === 1 ? '' : 's'}</td>
+                  <td>
+                    <span className={`status-text ${dept.isActive ? 'active' : 'inactive'}`}>
+                      • {dept.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
               ))}
-            </div>
-          )}
+            </tbody>
+          </table>
         </section>
 
-        {/* Database Storage Statistics */}
-        <section className="dashboard-storage-card">
-          <h2>Database Storage (Free Tier)</h2>
-          {!stats || !stats.database ? (
-            <p>Loading storage stats...</p>
-          ) : (
+        {/* Programs Table Section */}
+        <section className="dashboard-table-section">
+          <div className="table-section-header">
             <div>
-              <div className="dashboard-storage-header">
-                <span><strong>Total Used:</strong> {stats.database.totalSizeMB} MB / {stats.database.limitMB} MB</span>
-                <span><strong>{stats.database.percentUsed}%</strong></span>
-              </div>
-              <div className="dashboard-storage-bar-track">
-                <div 
-                  className="dashboard-storage-bar-fill"
-                  style={{
-                    width: `${Math.min(stats.database.percentUsed, 100)}%`,
-                    backgroundColor: stats.database.percentUsed > 85 ? '#e53935' : stats.database.percentUsed > 60 ? '#fb8c00' : '#43a047'
-                  }}
-                ></div>
-              </div>
-              <p className="dashboard-storage-footer">
-                Data Storage: {stats.database.storageSizeMB} MB | Index Size: {stats.database.indexSizeMB} MB
-              </p>
+              <h2>Programs</h2>
+              <p>{adminPrograms.length} programs across all departments</p>
             </div>
-          )}
-        </section>
-
-        {/* Schools (Departments) Table */}
-        <section>
-          <h2>Schools of NU Laguna <small>({adminLoading ? '...' : adminDepts.length} total)</small></h2>
-          {adminLoading ? (
-            <p>Loading...</p>
-          ) : (
-            <table border="1" cellPadding="6" cellSpacing="0">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>School Name</th>
-                  <th>Program Count</th>
-                  <th>Status</th>
+            <button className="view-btn" onClick={() => { if (typeof onNavigate === 'function') onNavigate('adminCatalog') }}>View</button>
+          </div>
+          
+          <table className="modern-table">
+            <thead>
+              <tr><th>Code</th><th>Program Name</th><th>Department</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {adminPrograms.map(prog => (
+                <tr key={prog._id}>
+                  <td><span className="pill pill-dark">{prog.code}</span></td>
+                  <td>{prog.name}</td>
+                  <td><span className="pill pill-dark">{prog.department?.code || String(prog.department)}</span></td>
+                  <td>
+                    <span className={`status-text ${prog.isActive ? 'active' : 'inactive'}`}>
+                      • {prog.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {adminDepts.length === 0 ? (
-                  <tr><td colSpan={4}>No departments found.</td></tr>
-                ) : (
-                  adminDepts.map((dept) => (
-                    <tr key={dept._id}>
-                      <td>{dept.code}</td>
-                      <td>{dept.name}</td>
-                      <td>{programCountByDept[String(dept._id)] || 0}</td>
-                      <td>{dept.isActive ? 'Active' : 'Inactive'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
-        </section>
-
-        {/* Programs Table */}
-        <section>
-          <h2>Programs <small>({adminLoading ? '...' : adminPrograms.length} total)</small></h2>
-          {adminLoading ? (
-            <p>Loading...</p>
-          ) : (
-            <table border="1" cellPadding="6" cellSpacing="0">
-              <thead>
-                <tr>
-                  <th>Program Code</th>
-                  <th>Program Name</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminPrograms.length === 0 ? (
-                  <tr><td colSpan={4}>No programs found.</td></tr>
-                ) : (
-                  adminPrograms.map((prog) => (
-                    <tr key={prog._id}>
-                      <td>{prog.code}</td>
-                      <td>{prog.name}</td>
-                      <td>{prog.department?.code || String(prog.department)}</td>
-                      <td>{prog.isActive ? 'Active' : 'Inactive'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
+          <div className="table-footer-dots">...</div>
         </section>
       </main>
     );

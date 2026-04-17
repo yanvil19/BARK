@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
+const RegistrationRequest = require('../models/RegistrationRequest');
 const mongoose = require('mongoose');
 
 // @desc    Get counts for dashboard/landing page
@@ -77,7 +78,17 @@ const getSummaryStats = async (req, res) => {
             console.error("Error fetching db stats:", dbErr);
         }
 
+        // Pending Accounts counts
+        const [pendingStudents, pendingAlumni] = await Promise.all([
+            RegistrationRequest.countDocuments({ status: 'pending', userType: 'student' }),
+            RegistrationRequest.countDocuments({ status: 'pending', userType: 'alumni' })
+        ]);
+
         res.status(200).json({
+            pendingAccounts: {
+                students: pendingStudents,
+                alumni: pendingAlumni
+            },
             users: usersByRole,
             academic: {
                 departments: departmentCount,
