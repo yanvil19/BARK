@@ -1,10 +1,10 @@
-# NU-BOARD testing
+# BARK
 
 Board Exam Reviewer for NU Laguna - a web-based platform for quizzes, mock board exams, and progress tracking.
 
 ## Project Overview
 
-NU-BOARD is an institution-managed reviewer system where exam content is created by NU Laguna faculty and goes through a structured approval workflow before students can access it.
+BARK is an institution-managed reviewer system where exam content is created by NU Laguna faculty and goes through a structured approval workflow before students can access it.
 
 **User roles**
 
