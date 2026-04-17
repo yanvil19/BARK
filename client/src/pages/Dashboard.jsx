@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import '../styles/Dashboard.css';
 
 const Dashboard = ({ me }) => {
   const [departments, setDepartments] = useState([]);
@@ -146,6 +147,33 @@ const Dashboard = ({ me }) => {
                   <p>{value.active} active / {value.total} total</p>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* Database Storage Statistics */}
+        <section className="dashboard-storage-card">
+          <h2>Database Storage (Free Tier)</h2>
+          {!stats || !stats.database ? (
+            <p>Loading storage stats...</p>
+          ) : (
+            <div>
+              <div className="dashboard-storage-header">
+                <span><strong>Total Used:</strong> {stats.database.totalSizeMB} MB / {stats.database.limitMB} MB</span>
+                <span><strong>{stats.database.percentUsed}%</strong></span>
+              </div>
+              <div className="dashboard-storage-bar-track">
+                <div 
+                  className="dashboard-storage-bar-fill"
+                  style={{
+                    width: `${Math.min(stats.database.percentUsed, 100)}%`,
+                    backgroundColor: stats.database.percentUsed > 85 ? '#e53935' : stats.database.percentUsed > 60 ? '#fb8c00' : '#43a047'
+                  }}
+                ></div>
+              </div>
+              <p className="dashboard-storage-footer">
+                Data Storage: {stats.database.storageSizeMB} MB | Index Size: {stats.database.indexSizeMB} MB
+              </p>
             </div>
           )}
         </section>

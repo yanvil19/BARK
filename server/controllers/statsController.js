@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
+const mongoose = require('mongoose');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -55,6 +56,27 @@ const getSummaryStats = async (req, res) => {
         const totalActiveUsers = activeCounts.reduce((a, b) => a + b, 0);
         const totalUsers = totalCounts.reduce((a, b) => a + b, 0);
 
+        // Database storage stats
+        let databaseStorage = null;
+        try {
+            if (mongoose.connection && mongoose.connection.db) {
+                const stats = await mongoose.connection.db.stats();
+                const indexSize = stats.indexSize || stats.totalIndexSize || 0;
+                const storageSize = stats.storageSize || 0;
+                const totalStorageBytes = storageSize + indexSize;
+                const limitBytes = 512 * 1024 * 1024; // 512 MB
+                databaseStorage = {
+                    totalSizeMB: (totalStorageBytes / (1024 * 1024)).toFixed(2),
+                    limitMB: 512,
+                    percentUsed: ((totalStorageBytes / limitBytes) * 100).toFixed(2),
+                    storageSizeMB: (storageSize / (1024 * 1024)).toFixed(2),
+                    indexSizeMB: (indexSize / (1024 * 1024)).toFixed(2)
+                };
+            }
+        } catch (dbErr) {
+            console.error("Error fetching db stats:", dbErr);
+        }
+
         res.status(200).json({
             users: usersByRole,
             academic: {
@@ -64,7 +86,8 @@ const getSummaryStats = async (req, res) => {
             total: {
                 activeUsers: totalActiveUsers,
                 users: totalUsers
-            }
+            },
+            database: databaseStorage
         });
 
     } catch (error) {
