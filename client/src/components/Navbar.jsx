@@ -1,6 +1,24 @@
 import '../styles/Navbar.css';
+import '../styles/ProfileModal.css';
+import { useState, useRef, useEffect } from 'react';
+import ProfileModal from './ProfileModal.jsx';
 
 export default function Navbar({ me, route, onRoute, onLogout }) {
+
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const isSuperAdmin = me?.role === 'super_admin';
   const isDean = me?.role === 'dean';
 
@@ -15,17 +33,26 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {isSuperAdmin && (
           <button
+            className={route === 'Dashboard' ? 'active' : ''}
             onClick={() => onRoute('Dashboard')}
-            disabled={route === 'Dashboard'}
           >
             Dashboard
           </button>
         )}
 
+        {(!me || me.role !== 'student') && (
+          <button
+            className={route === 'student' ? 'active' : ''}
+            onClick={() => onRoute('student')}
+          >
+            Student Register
+          </button>
+        )}
+
         {isDean && (
           <button
+            className={route === 'dean' ? 'active' : ''}
             onClick={() => onRoute('dean')}
-            disabled={route === 'dean'}
           >
             Dean Approvals
           </button>
@@ -34,89 +61,54 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         {isSuperAdmin && (
           <>
             <button
+              className={route === 'adminCatalog' ? 'active' : ''}
               onClick={() => onRoute('adminCatalog')}
-              disabled={route === 'adminCatalog'}
             >
               Admin Catalog
             </button>
 
             <button
+              className={route === 'adminUsers' ? 'active' : ''}
               onClick={() => onRoute('adminUsers')}
-              disabled={route === 'adminUsers'}
             >
               User Management
             </button>
           </>
         )}
 
-        {me && me.role !== 'student' && (
-          <button
-            onClick={() => onRoute('student')}
-            disabled={route === 'student'}
-          >
-            Student Register
-          </button>
-        )}
-
         {!me && (
           <button
-            onClick={() => onRoute('about')}
-            disabled={route === 'about'}
-          >
-            About
-          </button>
-        )}
-
-        {!me && (
-          <button
-            onClick={() => onRoute('Programs')}
-            disabled={route === 'Programs'}
-          >
-            Programs
-          </button>
-        )}
-
-        {!me && (
-          <button
-            onClick={() => onRoute('Mock Exams')}
-            disabled={route === 'Mock Exams'}
-          >
-            Mock Exams
-          </button>
-        )}
-
-        {!me && (
-          <button
-            onClick={() => onRoute('Register')}
-            disabled={route === 'Register'}
-          >
-            Register
-          </button>
-        )}
-
-        {!me && (
-          <button
+            className={route === 'login' ? 'active' : ''}
             onClick={() => onRoute('login')}
-            disabled={route === 'login'}
           >
             Login
           </button>
         )}
 
-
       </nav>
 
-      <div className="nav-right">
+      <div className="nav-right" ref={wrapperRef}>
+
         {me ? (
-          <>
-            <button onClick={() => onRoute('account')} disabled={false}>
-              {me.name} ({me.role})
-            </button>{' '}
-            <button onClick={onLogout}>Logout</button>
-          </>
+          <div className="profile-wrapper">
+
+            <img
+              src={me.profilePicture || 'https://static.vecteezy.com/system/resources/previews/036/280/651/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
+              alt="profile"
+              className="profile-icon"
+              onClick={() => setOpen(!open)}
+            />
+            {open && (
+              <ProfileModal me={me} onLogout={onLogout} />
+            )}
+
+          </div>
         ) : (
-          <span>Not logged in</span>
+          <button onClick={() => onRoute('login')}>
+            Login
+          </button>
         )}
+
       </div>
 
     </header>
