@@ -56,8 +56,9 @@ export default function App() {
   }
 
   let page = null;
-  if (route === 'Dashboard') page = <Dashboard me={me} onNavigate={setRoute} />;
+  if (route === 'Dashboard') page = <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} />;
+  if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;

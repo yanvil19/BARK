@@ -77,3 +77,7 @@
   object-fit: cover;
   border: 2px solid var(--accent-yellow);
 }
+
+#Header button.nav-active {
+  color: var(--accent-yellow);
+}

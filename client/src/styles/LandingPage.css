@@ -1,0 +1,707 @@
+/* =========================================
+   Landing Page Hero Section
+   ========================================= */
+
+.landing-wrapper {
+    margin: -20px; /* nagkakawhiteborder if tanggalin ito what my padding ba somewhere? */
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+.hero-main {
+    position: relative;
+    min-height: 85vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 10%;
+    color: #ffffff;
+    overflow: hidden;
+
+    /* Multi-layered background: dots, gradient overlay, and image */
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.15) 2px, transparent 2px),
+        linear-gradient(to bottom, rgba(70, 95, 185, 0.75), rgba(30, 45, 110, 0.95)),
+        url('../assets/henrysyhall.jpg');
+    background-size: 35px 35px, 100% 100%, cover;
+    background-position: 0 0, 0 0, center;
+    background-repeat: repeat, no-repeat, no-repeat;
+
+    /* Subdued animation for a slight dynamic feel */
+    animation: heroBg 15s ease-in-out infinite alternate;
+}
+
+@keyframes heroBg {
+    0% {
+        background-position: 0 0, 0 0, center top;
+    }
+
+    100% {
+        background-position: 0 0, 0 0, center bottom;
+    }
+}
+
+.hero-inner {
+    max-width: 1000px;
+    z-index: 10;
+    /* Put above any pseudo elements if we add them */
+}
+
+/* Typography constraints */
+.hero-subtitle {
+    font-size: 2.2rem;
+    font-weight: 400;
+    margin: 0;
+    opacity: 0.9;
+    letter-spacing: -0.5px;
+}
+
+.hero-title {
+    font-size: 4.5rem;
+    font-weight: 900;
+    margin: 5px 0 15px 0;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    opacity: 0.75;
+    max-width: 950px;
+    line-height: 1.5;
+}
+
+/* Button Group Alignment */
+.hero-buttons {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+/* Buttons Base & Styling */
+button {
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-login-yellow {
+    background-color: #ffd60a;
+    color: #001d3d;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 14px 45px;
+    border: 2px solid #ffd60a;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(255, 214, 10, 0.3);
+}
+
+.btn-login-yellow:hover {
+    background-color: #ffc300;
+    border-color: #ffc300;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 214, 10, 0.5);
+}
+
+.btn-login-yellow:active {
+    transform: translateY(0);
+}
+
+.btn-learn-more-outline {
+    background-color: transparent;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 14px 45px;
+    border: 2px solid #ffd60a;
+    border-radius: 6px;
+}
+
+.btn-learn-more-outline:hover {
+    background-color: rgba(255, 214, 10, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(255, 214, 10, 0.2);
+}
+
+.btn-learn-more-outline:active {
+    transform: translateY(0);
+}
+
+/* Content Container Wrapper */
+.landing-content-wrap {
+    padding: 0 0 72px 0;
+    background-color: #32409a;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+    background-size: 35px 35px;
+    background-position: 0 0;
+}
+
+.schools-panel {
+    position: relative;
+    background: linear-gradient(180deg, #3a47a4 0%, #313d96 100%);
+    color: #ffffff;
+    overflow: hidden;
+    width: 100%;
+    font-family: var(--font-body);
+    border-top: none;
+    box-shadow: none;
+}
+
+.schools-panel::before,
+.schools-panel::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.schools-panel::before {
+    top: 0;
+    border-top: 3px solid rgba(255, 255, 255, 0.78);
+}
+
+.schools-panel::after {
+    top: 60px;
+    left: 0;
+    right: 0;
+    border-top: 5px solid #FAD227;
+}
+
+.schools-header {
+    height: 60px;
+    padding: 0 10%;
+    display: flex;
+    align-items: center;
+}
+
+.schools-header-left {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.schools-header-label {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-title);
+    color: #ffffff;
+    text-align: left;
+}
+
+.schools-header-tag {
+    font-size: 0.82rem;
+    color: #FAD227;
+    font-weight: 500;
+    font-family: var(--font-title);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    flex-shrink: 0;
+}
+
+.schools-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 10%;
+    background-color: rgba(52, 65, 156, 0.82);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    overflow-x: auto;
+}
+
+.schools-tab {
+    flex: 1 1 0;
+    background: transparent;
+    border: none;
+    border-bottom: 4px solid rgba(122, 138, 232, 0.48);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 16px 14px 12px;
+    text-align: center;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.schools-tab-name {
+    display: inline;
+    font-family: var(--font-title);
+}
+
+.schools-tab:hover {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.schools-tab.active {
+    color: #FAD227;
+    border-bottom-color: #FAD227;
+    font-weight: 700;
+}
+
+.schools-programs {
+    padding: 28px 10% 60px; 
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 260px)); 
+    justify-content: start;   
+    align-content: start;     
+    gap: 18px 14px;
+    min-height: 320px;       
+    background: rgba(37, 45, 115, 0.42);
+}
+
+.schools-program-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #4c59b8;
+    border: none;
+    border-radius: 6px;
+    padding: 14px 16px;
+    min-height: 44px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.schools-program-card:hover {
+    background-color: #5a68ca;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(8, 14, 58, 0.22);
+}
+
+.schools-program-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #FAD227;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(250, 210, 39, 0.5);
+}
+
+.schools-program-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.schools-program-name {
+    margin: 0;
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.2;
+    font-family: var(--font-title);
+}
+
+.schools-program-code {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.schools-feedback {
+    margin: 0;
+    padding: 24px 10%;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    background: transparent;
+}
+
+.exams-panel {
+    padding: 52px 10% 0;
+    color: #ffffff;
+}
+
+.exams-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.exams-section-label {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #FAD227;
+    font-family: var(--font-title);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.exams-section-title {
+    margin: 0;
+    color: #ffffff;
+    font-family: var(--font-title);
+    font-size: 2.35rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.exams-section-title span {
+    color: #FAD227;
+}
+
+.exams-placeholder-card {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 42px;
+    padding: 28px 30px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(52, 65, 156, 0.92) 0%, rgba(43, 54, 137, 0.94) 100%);
+    box-shadow: 0 20px 40px rgba(11, 16, 60, 0.18);
+}
+
+.exams-placeholder-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 45%);
+    pointer-events: none;
+}
+
+.exams-placeholder-title,
+.exams-placeholder-copy,
+.exams-placeholder-note {
+    position: relative;
+    z-index: 1;
+}
+
+.exams-placeholder-title {
+    margin: 0 0 10px;
+    font-family: var(--font-title);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.exams-placeholder-copy {
+    max-width: 780px;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.exams-placeholder-note {
+    margin: 14px 0 0;
+    color: #FAD227;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.exam-cta-banner {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 28px;
+    padding: 34px 40px;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle, rgba(255, 255, 255, 0.2) 1.2px, transparent 1.2px),
+        linear-gradient(135deg, #f7c918 0%, #ffd42a 52%, #f5bf08 100%);
+    background-size: 18px 18px, 100% 100%;
+    color: #24327f;
+    box-shadow: 0 24px 48px rgba(18, 22, 68, 0.22);
+}
+
+.exam-cta-content {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+}
+
+.exam-cta-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-family: var(--font-title);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(36, 50, 127, 0.82);
+}
+
+.exam-cta-title {
+    margin: 0 0 12px;
+    font-family: var(--font-title);
+    font-size: 3.25rem;
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    color: #24327f;
+}
+
+.exam-cta-copy {
+    margin: 0;
+    max-width: 520px;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: rgba(36, 50, 127, 0.9);
+}
+
+.exam-cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.exam-cta-primary,
+.exam-cta-secondary {
+    min-width: 170px;
+    padding: 14px 22px;
+    border-radius: 8px;
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.exam-cta-primary {
+    background-color: #2b347f;
+    border: 2px solid #2b347f;
+    color: #ffffff;
+    box-shadow: 0 10px 18px rgba(43, 52, 127, 0.18);
+}
+
+.exam-cta-primary:hover {
+    background-color: #202966;
+    border-color: #202966;
+}
+
+.exam-cta-secondary {
+    background-color: transparent;
+    border: 2px solid rgba(43, 52, 127, 0.65);
+    color: #2b347f;
+}
+
+.exam-cta-secondary:hover {
+    background-color: rgba(43, 52, 127, 0.08);
+}
+
+.exam-cta-watermark {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-title);
+    font-size: clamp(7rem, 18vw, 13rem);
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    line-height: 0.9;
+    color: rgba(36, 50, 127, 0.12);
+    user-select: none;
+    pointer-events: none;
+    z-index: 0;
+    white-space: nowrap;
+}
+/* =========================================
+   About Section / What is BARK
+   ========================================= */
+.about-section {
+    padding: 80px 10%;
+    /* Continuing the dark blue theme with dots */
+    background-color: #263377;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 2px, transparent 2px);
+    background-size: 35px 35px;
+    background-position: 0 0;
+    color: #fff;
+}
+
+.about-content {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.about-left {
+    flex: 1;
+}
+
+.about-subtitle {
+    color: #ffd60a;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+}
+
+.about-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-top: 0;
+    margin-bottom: 25px;
+    letter-spacing: -1px;
+}
+
+.text-yellow {
+    color: #ffd60a;
+}
+
+.text-white {
+    color: #ffffff;
+}
+
+.about-para {
+    font-size: 1.05rem;
+    font-weight: 300;
+    line-height: 1.6;
+    opacity: 0.85;
+    margin-bottom: 20px;
+}
+
+/* Right side cards */
+.about-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateX(5px);
+    background-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.feature-icon {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    min-height: 50px;
+}
+
+.feature-text h5 {
+    margin: 0 0 5px 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.feature-text p {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 300;
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+    .about-content {
+        flex-direction: column;
+    }
+
+    .schools-panel::before {
+        left: 6%;
+        right: 6%;
+    }
+
+    .schools-panel::after {
+        left: 0;
+        right: 0;
+    }
+
+    .schools-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .schools-header-left {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .schools-header-label {
+        text-align: left;
+    }
+
+    .schools-header-tag {
+        align-self: flex-start;
+    }
+
+    .schools-tabs {
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 4px;
+    }
+
+    .schools-tab {
+        text-align: left;
+        border-bottom-width: 3px;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .schools-programs {
+        grid-template-columns: 1fr;
+    }
+
+    .exams-panel {
+        padding-top: 40px;
+    }
+
+    .exams-section-title {
+        font-size: 1.8rem;
+    }
+
+    .exams-placeholder-card {
+        padding: 24px 20px;
+    }
+
+    .exam-cta-banner {
+        padding: 28px 22px;
+    }
+
+    .exam-cta-title {
+        font-size: 2.35rem;
+    }
+
+    .exam-cta-watermark {
+        right: 16px;
+        bottom: 10px;
+        font-size: 5rem;
+    }
+}
