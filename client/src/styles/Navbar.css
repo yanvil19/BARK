@@ -38,13 +38,11 @@
   white-space: nowrap;
 }
 
-/* USER TEXT */
 .user-info {
   font-size: 14px;
   opacity: 0.9;
 }
 
-/* BUTTONS */
 #Header button {
   background: transparent;
   border: none;
@@ -61,12 +59,17 @@
   white-space: nowrap;
 }
 
+#Header button.active {
+  background: transparent;
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
 #Header button:disabled {
   color: var(--accent-yellow);
   cursor: not-allowed;
 }
 
-/* PROFILE PIC */
 #Header img {
   width: 34px;
   height: 34px;
