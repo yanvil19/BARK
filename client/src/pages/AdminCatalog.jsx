@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import '../styles/AdminCatalog.css';
 
 export default function AdminCatalog() {
   const [deptName, setDeptName] = useState('');
@@ -7,6 +8,8 @@ export default function AdminCatalog() {
   const [deptEditId, setDeptEditId] = useState(null);
   const [deptEditName, setDeptEditName] = useState('');
   const [deptEditCode, setDeptEditCode] = useState('');
+  const [showForm, setShowForm] = useState(false); // For department form
+  const [showProgramForm, setShowProgramForm] = useState(false); // For program form
 
   const [progName, setProgName] = useState('');
   const [progCode, setProgCode] = useState('');
@@ -156,80 +159,245 @@ export default function AdminCatalog() {
     }
   }
 
+  function deleteEditedDepartment() {
+    if (!deptEditId) return;
+
+    const ok = window.confirm(
+      'Are you sure you want to delete this department?'
+    );
+
+    if (!ok) return;
+
+    console.log('Deleting department:', deptEditId);
+
+    cancelEditDepartment();
+  }
+
   return (
-    <main>
-      <h2>Super Admin: Catalog</h2>
+    <main className="adminCatalog-page-container">
+      <header className="adminCatalog-page-header">
+        <h2>Super Admin Catalog</h2>
+        <p className="adminCatalog-subtitle">Manage schools (departments) and programs</p>
+      </header>
       {error ? <p>{error}</p> : null}
 
-      <section>
-        <h3>Departments</h3>
-        <form onSubmit={createDepartment}>
-          <div>
-            <label>
-              Name <input value={deptName} onChange={(e) => setDeptName(e.target.value)} />
-            </label>
+      <section className="adminCatalog-departments">
+        <header className="adminCatalog-departments-header">
+          <div className="titles">
+            <h3>Schools of NU Laguna</h3>
+            <h4>{departments.length} schools registered in the system</h4>
           </div>
-          <div>
-            <label>
-              Code <input value={deptCode} onChange={(e) => setDeptCode(e.target.value)} />
-            </label>
-          </div>
-          <button type="submit">Create Department</button>
-        </form>
-        {deptEditId ? (
-          <div>
-            <h4>Edit Department</h4>
-            <form onSubmit={saveDepartmentEdit}>
-              <div>
-                <label>
-                  Name <input value={deptEditName} onChange={(e) => setDeptEditName(e.target.value)} />
-                </label>
+
+          <div className="actions">
+            <button onClick={() => setShowForm(true)}>
+              + Add Department
+            </button>
+
+            {showForm && (
+              <div
+                className="adminCatalog-modal-overlay"
+                onClick={() => setShowForm(false)}
+              >
+                <div
+                  className="adminCatalog-modal"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  
+                  <div className="adminCatalog-modal-header">
+                    <h3>Create Department</h3>
+                    
+                    <button
+                      type="button"
+                      className="adminCatalog-modal-close"
+                      onClick={() => setShowForm(false)}
+                      aria-label="Close modal"
+                    >
+                      x
+                    </button>
+                  </div>
+
+                  <div className="adminCatalog-modal-body">
+                    <form onSubmit={createDepartment}>
+                      <div className="adminCatalog-form-group">
+                        <label className='form-title'>
+                          Department Name
+                        </label>
+                        <input
+                            className='input-title'
+                            value={deptName}
+                            onChange={(e) => setDeptName(e.target.value)}
+                            placeholder='e.g. School of Engineering And Architecture'
+                          />
+                      </div>
+
+                      <div className="adminCatalog-form-group">
+                        <label className='form-title'>
+                          Acronym / Code
+                        </label>
+                        <input
+                            className='input-title'
+                            value={deptCode}
+                            onChange={(e) => setDeptCode(e.target.value)}
+                            placeholder='e.g. SEA'
+                          />
+                      </div>
+                    </form>
+                  </div>
+                  <div className="adminCatalog-modal-footer">
+                        <button className="adminCatalog-cancelbtn" onClick={() => setShowForm(false)}>
+                          Cancel
+                        </button>
+
+                        <button className="adminCatalog-primarybtn" onClick={createDepartment} disabled={!deptName || !deptCode}>
+                          Save Department
+                        </button>
+                      </div>
+                </div>
               </div>
-              <div>
-                <label>
-                  Code <input value={deptEditCode} onChange={(e) => setDeptEditCode(e.target.value)} />
-                </label>
-              </div>
-              <button type="submit">Save</button>{' '}
-              <button type="button" onClick={cancelEditDepartment}>
-                Cancel
-              </button>
-            </form>
+            )}
           </div>
-        ) : null}
-        <ul>
-          {departments.map((d) => (
-            <li key={d._id}>
-              {d.code} - {d.name} | active: {String(d.isActive)}{' '}
-              <button onClick={() => toggleDepartment(d)}>{d.isActive ? 'Deactivate' : 'Activate'}</button>
-              {' '}
-              <button onClick={() => startEditDepartment(d)}>Edit</button>
-            </li>
-          ))}
-        </ul>
+        </header>
+
+        <table className="adminCatalog-table">
+          <thead>
+            <tr>
+              <th className="adminCatalog-dept-code">Acronym</th>
+              <th className="adminCatalog-dept-name">School Name</th>
+              <th className="adminCatalog-dept-programs">Programs</th>
+              <th className="adminCatalog-dept-status">Status</th>
+              <th className="adminCatalog-dept-actions">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {departments.map((d) => {
+              const programCount = programs.filter(
+                (p) => (p.department?._id || p.department) === d._id
+              ).length;
+
+              return (
+                <tr key={d._id}>
+                  <td className="adminCatalog-dept-code"><span className="adminCatalog-dept-pill">{d.code}</span></td>
+
+                  <td className="adminCatalog-dept-name">{d.name}</td>
+
+                  <td className="adminCatalog-dept-programs">
+                    {programCount} {programCount === 1 ? 'program' : 'programs'}
+                  </td>
+             
+                  <td className="adminCatalog-dept-status"
+                    data-status={d.isActive ? 'active' : 'inactive'}
+                  >●
+                    {d.isActive ? ' Active' : ' Inactive'}
+                  </td>
+
+                  <td className="adminCatalog-dept-actions">
+                    <button className="adminCatalog-btn-edit" onClick={() => startEditDepartment(d)}>
+                      Edit
+                    </button>
+                      
+                    <button className="adminCatalog-btn-danger" onClick={() => toggleDepartment(d)}>
+                      {d.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </section>
 
-      <section>
-        <h3>Programs</h3>
-        <div>
-          <label>
-            Filter by department
-            <select value={progDeptId} onChange={(e) => setProgDeptId(e.target.value)}>
-              <option value="">(all)</option>
-              {departments.map((d) => (
-                <option key={d._id} value={d._id}>
-                  {d.code} - {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <form onSubmit={createProgram}>
-          <div>
-            <label>
-              Department
-              <select value={progDeptId} onChange={(e) => setProgDeptId(e.target.value)}>
-                <option value="">Select...</option>
+        {deptEditId && (
+          <div
+            className="adminCatalog-modal-overlay"
+            onClick={cancelEditDepartment}
+          >
+            <div
+              className="adminCatalog-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="adminCatalog-modal-header">
+                <h3>Edit Department</h3>
+
+                <button
+                  type="button"
+                  className="adminCatalog-modal-close"
+                  onClick={cancelEditDepartment}
+                  aria-label="Close modal"
+                >
+                  x
+                </button>
+              </div>
+
+              <div className="adminCatalog-modal-body">
+                <form onSubmit={saveDepartmentEdit}>
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Department Name</label>
+                    <input
+                      className="input-title"
+                      value={deptEditName}
+                      onChange={(e) => setDeptEditName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Acronym / Code</label>
+                    <input
+                      className="input-title"
+                      value={deptEditCode}
+                      onChange={(e) => setDeptEditCode(e.target.value)}
+                    />
+                  </div>
+                </form>
+              </div>
+
+              <div className="adminCatalog-modal-footer">
+                <button
+                  className="adminCatalog-deletebtn"
+                  type="button"
+                  onClick={deleteEditedDepartment}
+                >
+                  Delete Department
+                </button>
+
+                <button
+                  className="adminCatalog-cancelbtn"
+                  type="button"
+                  onClick={cancelEditDepartment}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="adminCatalog-primarybtn"
+                  onClick={saveDepartmentEdit}
+                  disabled={!deptEditName || !deptEditCode}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
+
+
+      <section className="adminCatalog-programs">
+        <header className="adminCatalog-programs-header">
+          <div className="titles">
+            <h3>Programs</h3>
+            <h4>{programs.length} programs across all departments</h4>
+          </div>
+
+          <div className="actions">
+            <label className="adminCatalog-program-filter">
+              <select
+                value={progDeptId}
+                onChange={(e) => setProgDeptId(e.target.value)}
+              >
+                <option value="">Filter: All Departments</option>
                 {departments.map((d) => (
                   <option key={d._id} value={d._id}>
                     {d.code} - {d.name}
@@ -237,67 +405,222 @@ export default function AdminCatalog() {
                 ))}
               </select>
             </label>
+
+            <button onClick={() => setShowProgramForm(true)}>
+              + Add Program
+            </button>
           </div>
-          <div>
-            <label>
-              Name <input value={progName} onChange={(e) => setProgName(e.target.value)} />
-            </label>
-          </div>
-          <div>
-            <label>
-              Code <input value={progCode} onChange={(e) => setProgCode(e.target.value)} />
-            </label>
-          </div>
-          <button type="submit" disabled={!progDeptId}>
-            Create Program
-          </button>
-        </form>
-        {progEditId ? (
-          <div>
-            <h4>Edit Program</h4>
-            <form onSubmit={saveProgramEdit}>
-              <div>
-                <label>
-                  Department
-                  <select value={progEditDeptId} onChange={(e) => setProgEditDeptId(e.target.value)}>
-                    <option value="">Select...</option>
-                    {departments.map((d) => (
-                      <option key={d._id} value={d._id}>
-                        {d.code} - {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div>
-                <label>
-                  Name <input value={progEditName} onChange={(e) => setProgEditName(e.target.value)} />
-                </label>
-              </div>
-              <div>
-                <label>
-                  Code <input value={progEditCode} onChange={(e) => setProgEditCode(e.target.value)} />
-                </label>
-              </div>
-              <button type="submit">Save</button>{' '}
-              <button type="button" onClick={cancelEditProgram}>
-                Cancel
-              </button>
-            </form>
-          </div>
-        ) : null}
-        <ul>
-          {programs.map((p) => (
-            <li key={p._id}>
-              {p.code} - {p.name} | dept:{' '}
-              {p.department?.code ? `${p.department.code}` : String(p.department)} | active: {String(p.isActive)}{' '}
-              <button onClick={() => toggleProgram(p)}>{p.isActive ? 'Deactivate' : 'Activate'}</button>
-              {' '}
-              <button onClick={() => startEditProgram(p)}>Edit</button>
-            </li>
-          ))}
-        </ul>
+        </header>
+
+        <table className="adminCatalog-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Program Name</th>
+              <th>Department</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {programs.map((p) => (
+              <tr key={p._id}>
+                <td className="adminCatalog-program-code">
+                  <span className="adminCatalog-dept-pill">{p.code}</span>
+                </td>
+
+                <td>{p.name}</td>
+
+                <td className="adminCatalog-program-dept">
+                  <span className="adminCatalog-dept-pill">
+                    {p.department?.code || p.department}
+                  </span>
+                </td>
+
+                <td
+                  className="adminCatalog-dept-status"
+                  data-status={p.isActive ? "active" : "inactive"}
+                >
+                  ● {p.isActive ? "Active" : "Inactive"}
+                </td>
+
+                <td className="adminCatalog-dept-actions">
+                  <button
+                    className="adminCatalog-btn adminCatalog-btn-edit"
+                    onClick={() => startEditProgram(p)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    className="adminCatalog-btn adminCatalog-btn-danger"
+                    onClick={() => toggleProgram(p)}
+                  >
+                    {p.isActive ? "Deactivate" : "Activate"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
+
+        {showProgramForm && (
+          <div
+            className="adminCatalog-modal-overlay"
+            onClick={() => setShowProgramForm(false)}
+          >
+            <div
+              className="adminCatalog-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="adminCatalog-modal-header">
+                <h3>Add Program</h3>
+                <button
+                  className="adminCatalog-modal-close"
+                  onClick={() => setShowProgramForm(false)}
+                >
+                  x
+                </button>
+              </div>
+
+              <div className="adminCatalog-modal-body">
+                <form onSubmit={createProgram}>
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Department</label>
+                    <select
+                      className="input-title"
+                      value={progDeptId}
+                      onChange={(e) => setProgDeptId(e.target.value)}
+                    >
+                      <option value="">Select department...</option>
+                      {departments.map((d) => (
+                        <option key={d._id} value={d._id}>
+                          {d.code} - {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Program Name</label>
+                    <input
+                      className="input-title"
+                      value={progName}
+                      onChange={(e) => setProgName(e.target.value)}
+                      placeholder='e.g. BS Tourism'
+                    />
+                  </div>
+
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Program Code</label>
+                    <input
+                      className="input-title"
+                      value={progCode}
+                      onChange={(e) => setProgCode(e.target.value)}
+                      placeholder='e.g. BSTM'
+                    />
+                  </div>
+                </form>
+              </div>
+
+              <div className="adminCatalog-modal-footer">
+                <button
+                  className="adminCatalog-cancelbtn"
+                  onClick={() => setShowProgramForm(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="adminCatalog-primarybtn"
+                  onClick={createProgram}
+                  disabled={!progDeptId || !progName || !progCode}
+                >
+                  Save Program
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {progEditId && (
+          <div
+            className="adminCatalog-modal-overlay"
+            onClick={cancelEditProgram}
+          >
+            <div
+              className="adminCatalog-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="adminCatalog-modal-header">
+                <h3>Edit Program</h3>
+                <button
+                  className="adminCatalog-modal-close"
+                  onClick={cancelEditProgram}
+                >
+                  x
+                </button>
+              </div>
+
+              <div className="adminCatalog-modal-body">
+                <form onSubmit={saveProgramEdit}>
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Department</label>
+                    <select
+                      className="input-title"
+                      value={progEditDeptId}
+                      onChange={(e) => setProgEditDeptId(e.target.value)}
+                    >
+                      <option value="">Select...</option>
+                      {departments.map((d) => (
+                        <option key={d._id} value={d._id}>
+                          {d.code} - {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Program Name</label>
+                    <input
+                      className="input-title"
+                      value={progEditName}
+                      onChange={(e) => setProgEditName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="adminCatalog-form-group">
+                    <label className="form-title">Program Code</label>
+                    <input
+                      className="input-title"
+                      value={progEditCode}
+                      onChange={(e) => setProgEditCode(e.target.value)}
+                    />
+                  </div>
+                </form>
+              </div>
+
+              <div className="adminCatalog-modal-footer">
+                <button
+                  className="adminCatalog-cancelbtn"
+                  onClick={cancelEditProgram}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="adminCatalog-primarybtn"
+                  onClick={saveProgramEdit}
+                  disabled={!progEditDeptId || !progEditName || !progEditCode}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </main>
   );
 }
