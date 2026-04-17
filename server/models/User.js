@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['super_admin', 'dean', 'program_chair', 'professor', 'student'],
+      enum: ['super_admin', 'dean', 'program_chair', 'professor', 'student', 'alumni'],
       required: [true, 'Role is required'],
     },
     // For student/alumni: distinguish between student and alumni

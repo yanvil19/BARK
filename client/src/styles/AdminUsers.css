@@ -1,3 +1,283 @@
+/* ── Page Layout ────────────────────────────────── */
+.um-page {
+  padding: 0;
+}
+
+/* ── Page Header ────────────────────────────────── */
+.um-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: -20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding: 20px 25px 10px 25px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--primary-bg);
+  background-color: var(--text-light);
+}
+
+.um-title {
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 4px 0;
+}
+
+.um-subtitle {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.um-btn-add {
+  background-color: var(--primary-bg);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.um-btn-add:hover {
+  opacity: 0.85;
+}
+
+/* ── Filter Bar ─────────────────────────────────── */
+.um-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.um-search {
+  flex: 1;
+  padding: 9px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #aaa;
+  background-color: #fafafa;
+  cursor: default;
+}
+
+.um-filter-select {
+  padding: 9px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #555;
+  background-color: #fafafa;
+  min-width: 170px;
+  cursor: default;
+}
+
+/* ── Table Wrapper ──────────────────────────────── */
+.um-table-wrap {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e4e7ec;
+  overflow: hidden;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.um-loading {
+  text-align: center;
+  padding: 24px;
+  color: #888;
+  font-size: 14px;
+}
+
+/* ── Table ──────────────────────────────────────── */
+.um-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.um-table thead tr {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.um-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.um-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.um-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.um-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.um-empty {
+  text-align: center;
+  color: #aaa;
+  padding: 32px !important;
+  font-size: 14px;
+}
+
+/* ── User Cell ──────────────────────────────────── */
+.um-user-name {
+  font-weight: 600;
+  color: #1a1a2e;
+  font-size: 14px;
+}
+
+.um-user-email {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* ── Role Badges ────────────────────────────────── */
+.um-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.um-badge--student      { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
+.um-badge--alumni       { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
+.um-badge--dean         { background-color: #dff1ff; color: #1da1f2; border-color: #1da1f2; }
+.um-badge--professor    { background-color: #fff1e0; color: #e67e22; border-color: #e67e22; }
+.um-badge--program_chair{ background-color: #e6f7eb; color: #1e873a; border-color: #1e873a; }
+.um-badge--super_admin  { background-color: #fff9d1; color: #c49900; border-color: #c49900; }
+.um-badge--dept         { background-color: var(--primary-bg); color: var(--accent-yellow); border-color: var(--primary-bg); }
+
+.um-none {
+  color: #bbb;
+  font-size: 13px;
+}
+
+/* ── Status ─────────────────────────────────────── */
+.um-status {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.um-status--active   { color: #22a06b; }
+.um-status--inactive { color: #e03a3a; }
+
+/* ── Action Buttons ─────────────────────────────── */
+.um-actions-cell {
+  white-space: nowrap;
+}
+
+.um-actions-cell button:not(:last-child) {
+  margin-right: 6px;
+}
+
+.um-btn-edit {
+  padding: 4px 12px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.um-btn-edit:hover { background: #f0f0f0; }
+
+.um-btn-deactivate {
+  padding: 4px 12px;
+  border: 1px solid #e03a3a;
+  border-radius: 4px;
+  background: #fff;
+  color: #e03a3a;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.um-btn-deactivate:hover { background: #fff5f5; }
+
+.um-btn-activate {
+  padding: 4px 12px;
+  border: 1px solid #22a06b;
+  border-radius: 4px;
+  background: #fff;
+  color: #22a06b;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.um-btn-activate:hover { background: #f0fff8; }
+
+/* ── Status / Error messages ────────────────────── */
+.um-error {
+  color: #e03a3a;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ── Legacy Forms Section ───────────────────────── */
+.um-legacy {
+  padding-top: 24px;
+  border-top: 2px dashed #e4e7ec;
+}
+
+.um-legacy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.um-legacy-header h3 {
+  font-family: var(--font-title);
+  font-size: 15px;
+  color: #aaa;
+  margin: 0;
+}
+
+.um-btn-refresh {
+  padding: 6px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.um-btn-refresh:hover { background: #f5f5f5; }
+.um-btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Legacy password toggle ─────────────────────── */
 .password-label {
   display: flex;
   align-items: center;

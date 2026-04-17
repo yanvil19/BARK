@@ -1,0 +1,8 @@
+#Footer {
+  background-color: var(--primary-bg);
+  color: var(--text-light);
+  text-align: center;
+  padding: 5px;
+  border-top: 2px solid var(--accent-yellow);
+  font-size: 12px;
+}

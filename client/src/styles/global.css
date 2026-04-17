@@ -1,0 +1,40 @@
+:root {
+  --primary-bg: #35408E;
+  --content-bg: #E9EAF3;
+  --accent-yellow: #FAD227;
+  --text-light: #F8F9FA;
+
+  --font-title: 'Poppins', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+}
+
+html, body {
+  height: 100%;
+  overflow-y: scroll; /* Forces vertical scrollbar to prevent UI shifting */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--content-bg);
+  color: #000;
+  font-family: var(--font-body);
+}
+
+/* HEADINGS */
+strong {
+  font-family: var(--font-title);
+  color: var(--accent-yellow);
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* THIS PUSHES FOOTER DOWN */
+.page-content {
+  flex: 1;
+  padding: 20px;
+}

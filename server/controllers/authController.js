@@ -91,8 +91,8 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
-    if (role === 'student') {
-      return res.status(400).json({ message: 'Student accounts must be created via student registration' });
+    if (role === 'student' || role === 'alumni') {
+      return res.status(400).json({ message: 'Student and alumni accounts must be created via student registration' });
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
@@ -261,7 +261,7 @@ const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { name, email, password, role } = req.body || {};
+    const { name, email, password, role, studentId, alumniId } = req.body || {};
 
     if (email !== undefined) {
       if (!isValidEmail(email)) return res.status(400).json({ message: 'Please provide a valid email' });
@@ -281,6 +281,8 @@ const updateUser = async (req, res) => {
     }
 
     if (role !== undefined) user.role = role;
+    if (studentId !== undefined) user.studentId = studentId;
+    if (alumniId !== undefined) user.alumniId = alumniId;
 
     // Department / Program updates (IDs)
     let departmentId =
@@ -574,7 +576,7 @@ const approveRegistrationRequest = async (req, res) => {
       name: request.name,
       email: request.email,
       password: request.passwordHash,
-      role: 'student',
+      role: request.userType,   // 'student' → role:'student', 'alumni' → role:'alumni'
       userType: request.userType,
       studentId: request.studentId,
       alumniId: request.alumniId,
