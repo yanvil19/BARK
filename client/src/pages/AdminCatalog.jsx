@@ -46,6 +46,13 @@ export default function AdminCatalog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  
+  useEffect(() => {
+    loadPrograms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progDeptId]);
+
+
   async function createDepartment(e) {
     e.preventDefault();
     setError('');
