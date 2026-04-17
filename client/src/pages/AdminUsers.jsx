@@ -216,15 +216,17 @@ export default function AdminUsers() {
   return (
     <main className="um-page">
       {/* ── Page Header ── */}
-      <div className="um-header">
-        <div>
-          <h1 className="um-title">User Management</h1>
-          <p className="um-subtitle">Create, edit, and manage all system users</p>
+      <header className="um-page-header">
+        <div className="um-header">
+          <div>
+            <h1 className="um-title">User Management</h1>
+            <p className="um-subtitle">Create, edit, and manage all system users</p>
+          </div>
+          <button className="um-btn-add" onClick={startCreate}>
+            + Add User
+          </button>
         </div>
-        <button className="um-btn-add" onClick={startCreate}>
-          + Add User
-        </button>
-      </div>
+      </header>
 
       {/* ── Filters ── */}
       <div className="um-filters">

@@ -1,34 +1,35 @@
-/* ── Page Layout ────────────────────────────────── */
+/* Page Layout */
 .um-page {
   padding: 0;
 }
 
-/* ── Page Header ────────────────────────────────── */
+/* Page Header */
+.um-page-header {
+  margin: -20px -20px 20px;
+  padding: 18px 32px 12px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
+}
+
 .um-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-top: -20px;
-  margin-left: -20px;
-  margin-right: -20px;
-  padding: 20px 25px 10px 25px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--primary-bg);
-  background-color: var(--text-light);
 }
 
 .um-title {
+  margin: 0 0 4px;
   font-family: var(--font-title);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  color: #1a1a2e;
-  margin: 0 0 4px 0;
+  line-height: 1.1;
+  color: var(--primary-bg);
 }
 
 .um-subtitle {
-  font-size: 13px;
-  color: #888;
   margin: 0;
+  font-size: 13px;
+  color: #8b92bc;
 }
 
 .um-btn-add {
@@ -49,7 +50,7 @@
   opacity: 0.85;
 }
 
-/* ── Filter Bar ─────────────────────────────────── */
+/* Filter Bar */
 .um-filters {
   display: flex;
   gap: 12px;
@@ -81,7 +82,7 @@
   cursor: default;
 }
 
-/* ── Table Wrapper ──────────────────────────────── */
+/* Table Wrapper */
 .um-table-wrap {
   background: #fff;
   border-radius: 8px;
@@ -98,7 +99,7 @@
   font-size: 14px;
 }
 
-/* ── Table ──────────────────────────────────────── */
+/* Table */
 .um-table {
   width: 100%;
   border-collapse: collapse;
@@ -140,7 +141,7 @@
   font-size: 14px;
 }
 
-/* ── User Cell ──────────────────────────────────── */
+/* User Cell */
 .um-user-name {
   font-weight: 600;
   color: #1a1a2e;
@@ -153,7 +154,7 @@
   margin-top: 2px;
 }
 
-/* ── Role Badges ────────────────────────────────── */
+/* Role Badges */
 .um-badge {
   display: inline-block;
   padding: 3px 12px;
@@ -165,30 +166,30 @@
   border: 1px solid transparent;
 }
 
-.um-badge--student      { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
-.um-badge--alumni       { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
-.um-badge--dean         { background-color: #dff1ff; color: #1da1f2; border-color: #1da1f2; }
-.um-badge--professor    { background-color: #fff1e0; color: #e67e22; border-color: #e67e22; }
-.um-badge--program_chair{ background-color: #e6f7eb; color: #1e873a; border-color: #1e873a; }
-.um-badge--super_admin  { background-color: #fff9d1; color: #c49900; border-color: #c49900; }
-.um-badge--dept         { background-color: var(--primary-bg); color: var(--accent-yellow); border-color: var(--primary-bg); }
+.um-badge--student { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
+.um-badge--alumni { background-color: #e7e0f8; color: #6f42c1; border-color: #6f42c1; }
+.um-badge--dean { background-color: #dff1ff; color: #1da1f2; border-color: #1da1f2; }
+.um-badge--professor { background-color: #fff1e0; color: #e67e22; border-color: #e67e22; }
+.um-badge--program_chair { background-color: #e6f7eb; color: #1e873a; border-color: #1e873a; }
+.um-badge--super_admin { background-color: #fff9d1; color: #c49900; border-color: #c49900; }
+.um-badge--dept { background-color: var(--primary-bg); color: var(--accent-yellow); border-color: var(--primary-bg); }
 
 .um-none {
   color: #bbb;
   font-size: 13px;
 }
 
-/* ── Status ─────────────────────────────────────── */
+/* Status */
 .um-status {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.um-status--active   { color: #22a06b; }
+.um-status--active { color: #22a06b; }
 .um-status--inactive { color: #e03a3a; }
 
-/* ── Action Buttons ─────────────────────────────── */
+/* Action Buttons */
 .um-actions-cell {
   white-space: nowrap;
 }
@@ -208,7 +209,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.um-btn-edit:hover { background: #f0f0f0; }
+
+.um-btn-edit:hover {
+  background: #f0f0f0;
+}
 
 .um-btn-deactivate {
   padding: 4px 12px;
@@ -221,7 +225,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.um-btn-deactivate:hover { background: #fff5f5; }
+
+.um-btn-deactivate:hover {
+  background: #fff5f5;
+}
 
 .um-btn-activate {
   padding: 4px 12px;
@@ -234,16 +241,19 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.um-btn-activate:hover { background: #f0fff8; }
 
-/* ── Status / Error messages ────────────────────── */
+.um-btn-activate:hover {
+  background: #f0fff8;
+}
+
+/* Status / Error messages */
 .um-error {
   color: #e03a3a;
   font-size: 13px;
   margin-bottom: 12px;
 }
 
-/* ── Legacy Forms Section ───────────────────────── */
+/* Legacy Forms Section */
 .um-legacy {
   padding-top: 24px;
   border-top: 2px dashed #e4e7ec;
@@ -274,10 +284,17 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.um-btn-refresh:hover { background: #f5f5f5; }
-.um-btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Legacy password toggle ─────────────────────── */
+.um-btn-refresh:hover {
+  background: #f5f5f5;
+}
+
+.um-btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Legacy password toggle */
 .password-label {
   display: flex;
   align-items: center;
@@ -295,4 +312,16 @@
 
 .password-toggle-btn:disabled {
   cursor: not-allowed;
+}
+
+@media (max-width: 860px) {
+  .um-page-header {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .um-header {
+    flex-direction: column;
+    gap: 14px;
+  }
 }

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { ID_FORMATS, validateStudentId, validateAlumniId, getStudentIdErrorMessage, getAlumniIdErrorMessage } from '../lib/idFormats.js';
+import {
+  ID_FORMATS,
+  validateStudentId,
+  validateAlumniId,
+  getStudentIdErrorMessage,
+  getAlumniIdErrorMessage,
+} from '../lib/idFormats.js';
 import '../styles/StudentRegister.css';
 
 const REG_KEY = 'nu_board_registration';
@@ -31,13 +37,57 @@ async function copyText(value) {
   }
 }
 
+function PasswordToggle({ shown, onToggle, label, disabled }) {
+  function handleKeyDown(e) {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggle();
+    }
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      className={`register-password-toggle${disabled ? ' is-disabled' : ''}`}
+      aria-label={label}
+      title={label}
+      onClick={disabled ? undefined : onToggle}
+      onKeyDown={handleKeyDown}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="register-password-toggle-icon">
+        <path
+          d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        {!shown ? (
+          <path
+            d="M4 4 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        ) : null}
+      </svg>
+    </span>
+  );
+}
+
 export default function StudentRegister({ onNavigate }) {
   const saved = useMemo(() => loadSaved(), []);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState('student'); // 'student' or 'alumni'
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [userType, setUserType] = useState('student');
   const [studentId, setStudentId] = useState('');
   const [alumniId, setAlumniId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -49,9 +99,9 @@ export default function StudentRegister({ onNavigate }) {
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  // Validation state
   const [idError, setIdError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [statusRequestId, setStatusRequestId] = useState(saved?.requestId || '');
   const [statusToken, setStatusToken] = useState(saved?.token || '');
@@ -59,7 +109,7 @@ export default function StudentRegister({ onNavigate }) {
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
   const [statusData, setStatusData] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | pending | approved | rejected
+  const [status, setStatus] = useState('idle');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
@@ -106,8 +156,6 @@ export default function StudentRegister({ onNavigate }) {
   useEffect(() => {
     if (!statusRequestId || !statusToken) return;
     setStatus('pending');
-    // Auto-check status when we already have tracking info
-    // eslint-disable-next-line no-use-before-define
     checkStatusInternal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -119,7 +167,18 @@ export default function StudentRegister({ onNavigate }) {
     setIdError('');
     setSubmitted(false);
 
-    // Validate ID format
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please confirm your password.');
+      setBusy(false);
+      return;
+    }
+
+    if (String(password).length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setBusy(false);
+      return;
+    }
+
     if (userType === 'student' && !validateStudentId(studentId)) {
       setIdError(getStudentIdErrorMessage());
       setBusy(false);
@@ -212,228 +271,349 @@ export default function StudentRegister({ onNavigate }) {
     setIdError('');
   }
 
+  function updateIdValue(value) {
+    setIdError('');
+    if (userType === 'student') {
+      setStudentId(value);
+      return;
+    }
+    setAlumniId(value);
+  }
+
   const hasTracking = Boolean(statusRequestId && statusToken);
   const disableForm = (hasTracking && status === 'pending') || status === 'approved' || Boolean(approvedEmail);
+  const idLabel = userType === 'student' ? 'Student ID' : 'Alumni ID';
+  const idPlaceholder = userType === 'student' ? ID_FORMATS.STUDENT_ID.placeholder : ID_FORMATS.ALUMNI_ID.placeholder;
+  const idValue = userType === 'student' ? studentId : alumniId;
 
   return (
-    <main>
-      <h2>Student / Alumni Registration</h2>
+    <main className="register-page-container">
+      <header className="register-page-header">
+        <h2>Student Registration</h2>
+        <p className="register-subtitle">Manage student registration requests</p>
+      </header>
 
-      <section>
-        <h3>Submit Request</h3>
-        {hasTracking && status === 'pending' ? (
-          <p>You already have a pending request. Please check your status below.</p>
-        ) : null}
-        {approvedEmail || status === 'approved' ? <p>Your account has been approved. Please log in instead.</p> : null}
-        <form onSubmit={submitRegistration}>
-          <div>
-            <label>
-              Name
-              <input value={name} onChange={(e) => setName(e.target.value)} disabled={disableForm} />
-            </label>
+      <div className="register-shell">
+        <section className="register-card">
+          <div className="register-card-header">
+            <h3>Create Student</h3>
           </div>
-          <div>
-            <label>
-              Email
-              <input value={email} onChange={(e) => setEmail(e.target.value)} disabled={disableForm} />
-            </label>
-          </div>
-          <div>
-            <label className="password-label">
-              Password
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={disableForm}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={disableForm}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                className="password-toggle-btn"
-              >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
-            </label>
-          </div>
-          <div>
-            <label>
-              User Type
-              <select value={userType} onChange={(e) => {
-                setUserType(e.target.value);
-                setIdError('');
-              }} disabled={disableForm}>
-                <option value="student">Student</option>
-                <option value="alumni">Alumni</option>
-              </select>
-            </label>
-          </div>
-          <div>
-            <label>
-              {userType === 'student' ? 'Student ID' : 'Alumni ID'}
-              <input
-                type="text"
-                value={userType === 'student' ? studentId : alumniId}
-                placeholder={userType === 'student' ? ID_FORMATS.STUDENT_ID.placeholder : ID_FORMATS.ALUMNI_ID.placeholder}
-                onChange={(e) => {
-                  if (userType === 'student') {
-                    setStudentId(e.target.value);
-                  } else {
-                    setAlumniId(e.target.value);
-                  }
-                  setIdError('');
-                }}
-                disabled={disableForm}
-              />
-            </label>
-            {idError ? <p className="id-error">{idError}</p> : null}
-          </div>
-          <div>
-            <label>
-              Department
-              <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={disableForm}>
-                <option value="">Select...</option>
-                {departments.map((d) => (
-                  <option key={d._id} value={d._id}>
-                    {d.code} - {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div>
-            <label>
-              Program
-              <select
-                value={programId}
-                onChange={(e) => setProgramId(e.target.value)}
-                disabled={!departmentId || disableForm}
-              >
-                <option value="">Select...</option>
-                {programs.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.code} - {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <button type="submit" disabled={busy || disableForm}>
-            {busy ? 'Submitting...' : 'Submit'}
-          </button>
-        </form>
-        {error ? <p>{error}</p> : null}
-        {submitted ? <p>Submitted. Waiting for dean approval.</p> : null}
-      </section>
 
-      <section>
-        <h3>Check Status</h3>
-        {hasTracking ? (
-          <>
-            {status === 'pending' ? <p>Status: Pending approval.</p> : null}
-            {status === 'approved' ? <p>Status: Approved. You can now log in.</p> : null}
-            {status === 'rejected' ? <p>Status: Rejected.</p> : null}
-            {statusData?.request?.rejectionReason ? <p>Reason: {statusData.request.rejectionReason}</p> : null}
-
-            <button onClick={checkStatusInternal} disabled={statusBusy}>
-              {statusBusy ? 'Checking...' : 'Check my status'}
-            </button>
-
-            {status === 'approved' ? (
-              <>
-                {' '}
-                <button
-                  onClick={() => {
-                    if (typeof onNavigate === 'function') onNavigate('login');
-                  }}
-                >
-                  Go to Login
-                </button>
-              </>
+          <div className="register-card-body">
+            {(hasTracking && status === 'pending') || approvedEmail || status === 'approved' ? (
+              <div className="register-banner-list">
+                {hasTracking && status === 'pending' ? (
+                  <div className="register-banner register-banner--info">
+                    You already have a pending request. You can track its progress in the status card below.
+                  </div>
+                ) : null}
+                {approvedEmail || status === 'approved' ? (
+                  <div className="register-banner register-banner--approved">
+                    Your account has been approved. Please continue to login instead of submitting a new request.
+                  </div>
+                ) : null}
+              </div>
             ) : null}
 
-            {status === 'rejected' ? (
-              <>
-                {' '}
-                <button onClick={resetForResubmit}>Submit again</button>
-              </>
-            ) : null}
-          </>
-        ) : approvedEmail ? (
-          <>
-            <p>Status: Approved. Please log in using your email.</p>
-            <p>Email: {approvedEmail}</p>
-            <button
-              onClick={() => {
-                if (typeof onNavigate === 'function') onNavigate('login');
-              }}
-            >
-              Go to Login
-            </button>{' '}
-            <button onClick={resetForResubmit}>Clear</button>
-          </>
-        ) : (
-          <p>After you submit a request, you can check its status here.</p>
-        )}
+            <form className="register-form" onSubmit={submitRegistration}>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="student-register-name">Full Name</label>
+                  <input
+                    id="student-register-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="ex. Juan Dela Cruz"
+                    disabled={disableForm}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="student-register-email">Email Address</label>
+                  <input
+                    id="student-register-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="ex. juandlc@gmail.com"
+                    disabled={disableForm}
+                  />
+                </div>
+              </div>
 
-        <div>
-          <label>
-            <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} /> Advanced
-          </label>
-        </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="student-register-password">Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      id="student-register-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      disabled={disableForm}
+                    />
+                    <PasswordToggle
+                      shown={showPassword}
+                      onToggle={() => setShowPassword((current) => !current)}
+                      label={showPassword ? 'Hide password' : 'Show password'}
+                      disabled={disableForm}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="student-register-confirm-password">Confirm Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      id="student-register-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm password"
+                      disabled={disableForm}
+                    />
+                    <PasswordToggle
+                      shown={showConfirmPassword}
+                      onToggle={() => setShowConfirmPassword((current) => !current)}
+                      label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                      disabled={disableForm}
+                    />
+                  </div>
+                </div>
+              </div>
 
-        {showAdvanced ? (
-          <form onSubmit={checkStatus}>
-            <div>
-              <label>
-                Request ID
-                <input value={statusRequestId} onChange={(e) => setStatusRequestId(e.target.value)} />
-              </label>{' '}
-              {statusRequestId ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const ok = await copyText(statusRequestId);
-                    if (!ok) alert('Copy failed');
-                  }}
-                >
-                  Copy
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="student-register-department">Department</label>
+                  <select
+                    id="student-register-department"
+                    value={departmentId}
+                    onChange={(e) => setDepartmentId(e.target.value)}
+                    disabled={disableForm}
+                  >
+                    <option value="">Select department</option>
+                    {departments.map((d) => (
+                      <option key={d._id} value={d._id}>
+                        {d.code} - {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="student-register-program">Program</label>
+                  <select
+                    id="student-register-program"
+                    value={programId}
+                    onChange={(e) => setProgramId(e.target.value)}
+                    disabled={!departmentId || disableForm}
+                  >
+                    <option value="">Select program</option>
+                    {programs.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.code} - {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="register-segment-row">
+                <div className="form-group">
+                  <span className="register-segment-label">Applicant Type</span>
+                  <div className="register-segmented" role="tablist" aria-label="Applicant type">
+                    <button
+                      type="button"
+                      className={userType === 'student' ? 'is-active' : ''}
+                      onClick={() => {
+                        setUserType('student');
+                        setIdError('');
+                      }}
+                      disabled={disableForm}
+                    >
+                      Student
+                    </button>
+                    <button
+                      type="button"
+                      className={userType === 'alumni' ? 'is-active' : ''}
+                      onClick={() => {
+                        setUserType('alumni');
+                        setIdError('');
+                      }}
+                      disabled={disableForm}
+                    >
+                      Alumni
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="student-register-id">{idLabel}</label>
+                  <input
+                    id="student-register-id"
+                    type="text"
+                    value={idValue}
+                    onChange={(e) => updateIdValue(e.target.value)}
+                    placeholder={idPlaceholder}
+                    disabled={disableForm}
+                  />
+                </div>
+              </div>
+
+              <div className="register-footer">
+                <span>Student will be placed in Pending status</span>
+                <button type="submit" className="submit-btn" disabled={busy || disableForm}>
+                  {busy ? 'Submitting...' : 'Submit Request'}
                 </button>
-              ) : null}
-            </div>
-            <div>
-              <label>
-                Token
-                <input value={statusToken} onChange={(e) => setStatusToken(e.target.value)} />
-              </label>{' '}
-              {statusToken ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const ok = await copyText(statusToken);
-                    if (!ok) alert('Copy failed');
-                  }}
-                >
-                  Copy
-                </button>
-              ) : null}
-            </div>
-            <button type="submit" disabled={statusBusy}>
-              {statusBusy ? 'Checking...' : 'Check (manual)'}
-            </button>{' '}
+              </div>
+            </form>
+
+            {(idError || error || submitted) && (
+              <div className="register-message-stack">
+                {idError ? <p className="error-message">{idError}</p> : null}
+                {error ? <p className="error-message">{error}</p> : null}
+                {submitted ? <p className="success-message">Submitted. Waiting for dean approval.</p> : null}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="register-status-card">
+          <div className="register-status-card-header">
+            <h3>Check Status</h3>
+          </div>
+
+          <div className="register-status-card-body">
             {hasTracking ? (
-              <button type="button" onClick={resetForResubmit} disabled={statusBusy}>
-                Clear saved
-              </button>
-            ) : null}
-          </form>
-        ) : null}
+              <>
+                <p className="register-status-copy">Use your saved request details to monitor approval progress.</p>
+                {status === 'pending' ? <div className="register-status-pill pending">Pending approval</div> : null}
+                {status === 'approved' ? <div className="register-status-pill approved">Approved</div> : null}
+                {status === 'rejected' ? <div className="register-status-pill rejected">Rejected</div> : null}
+                {statusData?.request?.rejectionReason ? (
+                  <p className="error-message">Reason: {statusData.request.rejectionReason}</p>
+                ) : null}
 
-        {statusError ? <p>{statusError}</p> : null}
-        {showAdvanced && statusData ? <pre>{JSON.stringify(statusData, null, 2)}</pre> : null}
-      </section>
+                <div className="register-status-actions">
+                  <button className="register-secondary-btn" onClick={checkStatusInternal} disabled={statusBusy}>
+                    {statusBusy ? 'Checking...' : 'Check my status'}
+                  </button>
+
+                  {status === 'approved' ? (
+                    <button
+                      className="register-ghost-btn"
+                      onClick={() => {
+                        if (typeof onNavigate === 'function') onNavigate('login');
+                      }}
+                    >
+                      Go to Login
+                    </button>
+                  ) : null}
+
+                  {status === 'rejected' ? (
+                    <button className="register-ghost-btn" onClick={resetForResubmit}>
+                      New Registration
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : approvedEmail ? (
+              <>
+                <div className="register-status-pill approved">Approved</div>
+                <p className="register-status-copy">Please log in using this approved email: {approvedEmail}</p>
+                <div className="register-status-actions">
+                  <button
+                    className="register-secondary-btn"
+                    onClick={() => {
+                      if (typeof onNavigate === 'function') onNavigate('login');
+                    }}
+                  >
+                    Go to Login
+                  </button>
+                  <button className="register-ghost-btn" onClick={resetForResubmit}>
+                    Clear
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="register-status-copy">
+                After you submit a request, your tracking details will be saved here so you can check status anytime.
+              </p>
+            )}
+
+            <div className="register-checkbox-row">
+              <label className="register-checkbox">
+                <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
+                Advanced tracking tools
+              </label>
+            </div>
+
+            {showAdvanced ? (
+              <form className="register-manual-form" onSubmit={checkStatus}>
+                <div className="register-manual-grid">
+                  <div className="form-group">
+                    <label htmlFor="student-register-request-id">Request ID</label>
+                    <input
+                      id="student-register-request-id"
+                      value={statusRequestId}
+                      onChange={(e) => setStatusRequestId(e.target.value)}
+                      placeholder="Paste request ID"
+                    />
+                    {statusRequestId ? (
+                      <button
+                        className="register-ghost-btn register-copy-btn"
+                        type="button"
+                        onClick={async () => {
+                          const ok = await copyText(statusRequestId);
+                          if (!ok) alert('Copy failed');
+                        }}
+                      >
+                        Copy Request ID
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="student-register-token">Token</label>
+                    <input
+                      id="student-register-token"
+                      value={statusToken}
+                      onChange={(e) => setStatusToken(e.target.value)}
+                      placeholder="Paste tracking token"
+                    />
+                    {statusToken ? (
+                      <button
+                        className="register-ghost-btn register-copy-btn"
+                        type="button"
+                        onClick={async () => {
+                          const ok = await copyText(statusToken);
+                          if (!ok) alert('Copy failed');
+                        }}
+                      >
+                        Copy Token
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="register-manual-actions">
+                  <button className="register-secondary-btn" type="submit" disabled={statusBusy}>
+                    {statusBusy ? 'Checking...' : 'Check manually'}
+                  </button>
+                  {hasTracking ? (
+                    <button className="register-ghost-btn" type="button" onClick={resetForResubmit} disabled={statusBusy}>
+                      Clear saved
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            ) : null}
+
+            {statusError ? <p className="error-message">{statusError}</p> : null}
+            {showAdvanced && statusData ? <pre className="register-debug-output">{JSON.stringify(statusData, null, 2)}</pre> : null}
+          </div>
+        </section>
+      </div>
+
+      {submitted ? <div className="register-toast">New Student Registered</div> : null}
     </main>
   );
 }

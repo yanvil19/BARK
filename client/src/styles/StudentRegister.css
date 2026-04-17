@@ -1,24 +1,543 @@
-.password-label {
+.register-page-container {
+  margin: -20px;
+  min-height: 100%;
+  background: linear-gradient(180deg, #eef0f8 0%, #e5e7f2 100%);
+}
+
+.register-page-header {
+  padding: 18px 32px 12px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.register-page-header h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--primary-bg);
+}
+
+.register-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8b92bc;
+}
+
+.register-shell {
+  width: min(100%, 1040px);
+  margin: 30px auto 0;
+  padding: 0 24px 40px;
+  box-sizing: border-box;
+}
+
+.register-card,
+.register-status-card {
+  background: #fff;
+  border: 1px solid #bec5e3;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(34, 41, 91, 0.16);
+  overflow: hidden;
+}
+
+.register-card-header,
+.register-status-card-header {
+  padding: 14px 18px;
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.register-card-header h3,
+.register-status-card-header h3 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.register-card-body,
+.register-status-card-body {
+  padding: 18px 30px 22px;
+}
+
+.register-banner-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.register-banner {
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+
+.register-banner--info {
+  color: #2f4a95;
+  background: #eef2ff;
+  border-color: #cfd8ff;
+}
+
+.register-banner--approved {
+  color: #21603a;
+  background: #eefaf1;
+  border-color: #bae0c5;
+}
+
+.register-banner--error {
+  color: #a13030;
+  background: #fff0f0;
+  border-color: #f0c1c1;
+}
+
+.register-form {
+  padding-bottom: 22px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 28px;
+  margin-bottom: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-group label,
+.register-segment-label,
+.register-manual-form label,
+.register-checkbox {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a57a2;
+}
+
+.form-group input,
+.form-group select,
+.register-manual-form input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 31px;
+  padding: 7px 12px;
+  border: 1px solid #d5daf0;
+  border-radius: 4px;
+  background: #f3f5fc;
+  color: #5261ab;
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.password-input-wrapper input {
+  padding-right: 44px;
+}
+
+.form-group input::placeholder,
+.form-group select:invalid,
+.register-manual-form input::placeholder {
+  color: #a4abcf;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.register-manual-form input:focus {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
+  background: #fff;
+}
+
+.form-group input:disabled,
+.form-group select:disabled,
+.register-manual-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-group select,
+.register-manual-form input {
+  appearance: none;
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.register-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #4f5fae;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.register-password-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.register-password-toggle:hover {
+  color: #334693;
+}
+
+.register-password-toggle:focus-visible {
+  outline: none;
+}
+
+.register-password-toggle.is-disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.register-segment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 20px 28px;
+  margin-bottom: 18px;
+}
+
+.register-segmented {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px;
+  border-radius: 999px;
+  background: #eef1fb;
+  border: 1px solid #d5daf0;
+}
+
+.register-segmented button {
+  border: none;
+  background: transparent;
+  color: #5b68ab;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.register-segmented button.is-active {
+  background: var(--primary-bg);
+  color: #fff;
+}
+
+.register-footer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px -30px 0;
+  padding: 12px 24px 16px 30px;
+  border-top: 1px solid #ccd3ee;
 }
 
-.password-toggle-btn {
-  padding: 6px 12px;
+.register-footer span {
+  color: #99a2cc;
+  font-size: 13px;
+}
+
+.submit-btn,
+.register-secondary-btn,
+.register-ghost-btn {
+  border-radius: 6px;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
 }
 
-.password-toggle-btn:disabled {
+.submit-btn {
+  min-width: 142px;
+  padding: 10px 18px;
+  border: none;
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.register-secondary-btn {
+  padding: 9px 14px;
+  border: none;
+  background: #4b5ab0;
+  color: #fff;
+}
+
+.register-ghost-btn {
+  padding: 9px 14px;
+  border: 1px solid #c9d0ec;
+  background: #fff;
+  color: #4b5ab0;
+}
+
+.submit-btn:hover,
+.register-secondary-btn:hover,
+.register-ghost-btn:hover {
+  transform: translateY(-1px);
+}
+
+.submit-btn:disabled,
+.register-secondary-btn:disabled,
+.register-ghost-btn:disabled {
+  transform: none;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.id-error {
-  color: red;
-  font-size: 0.9em;
-  margin-top: 4px;
+.register-message-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.error-message,
+.success-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.error-message {
+  color: #a13030;
+  background: #fff0f0;
+  border: 1px solid #f0c1c1;
+}
+
+.success-message {
+  color: #21603a;
+  background: #eefaf1;
+  border: 1px solid #bae0c5;
+}
+
+.register-status-card {
+  margin-top: 22px;
+}
+
+.register-status-copy {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: #646d9c;
+  line-height: 1.55;
+}
+
+.register-status-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.register-status-pill.pending {
+  color: #765500;
+  background: #fff4c8;
+}
+
+.register-status-pill.approved {
+  color: #21603a;
+  background: #dcf5e3;
+}
+
+.register-status-pill.rejected {
+  color: #a13030;
+  background: #fde2e2;
+}
+
+.register-status-actions,
+.register-manual-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.register-status-card-body .error-message {
+  margin-bottom: 16px;
+}
+
+.register-status-card-body .register-status-actions {
+  margin-bottom: 8px;
+}
+
+.register-checkbox-row {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed #d0d5ea;
+}
+
+.register-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.register-checkbox input {
+  accent-color: var(--primary-bg);
+}
+
+.register-manual-form {
+  margin-top: 18px;
+  padding: 20px 18px 18px;
+  border-radius: 10px;
+  background: #f7f8fd;
+  border: 1px solid #dbe0f4;
+}
+
+.register-manual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+
+.register-copy-btn {
+  margin-top: 8px;
+  width: fit-content;
+}
+
+.register-manual-actions {
+  margin-top: 12px;
+}
+
+.register-debug-output {
+  margin: 16px 0 0;
+  padding: 12px;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #1c2248;
+  color: #f5f7ff;
+  font-size: 12px;
+}
+
+.register-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 38px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 300px;
+  max-width: min(calc(100vw - 48px), 420px);
+  padding: 10px 18px 10px 34px;
+  border-radius: 10px;
+  background: #414a9d;
+  color: #fff;
+  box-shadow: 0 16px 34px rgba(26, 34, 78, 0.22);
+  z-index: 1100;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.register-toast::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  border-radius: 10px 0 0 10px;
+  background: #2fd10f;
+}
+
+.register-toast::before {
+  content: "\2713";
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: inline-flex;
+  place-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #37d11f;
+  color: #2f4a95;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+@media (max-width: 860px) {
+  .register-page-container {
+    margin: -20px -20px 0;
+  }
+
+  .register-page-header,
+  .register-shell {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .form-grid,
+  .register-segment-row,
+  .register-manual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .register-card-body,
+  .register-status-card-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .register-footer {
+    flex-direction: column;
+    align-items: stretch;
+    margin-left: -18px;
+    margin-right: -18px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .submit-btn,
+  .register-secondary-btn,
+  .register-ghost-btn {
+    width: 100%;
+  }
+
+  .register-toast {
+    left: 16px;
+    right: 16px;
+    min-width: 0;
+    max-width: none;
+    padding: 10px 14px 10px 30px;
+    font-size: 13px;
+    gap: 10px;
+  }
+
+  .register-toast::after {
+    width: 10px;
+  }
+
+  .register-toast::before {
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+  }
 }
