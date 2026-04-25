@@ -1,5 +1,6 @@
 const Tag = require('../models/Tag');
 const Program = require('../models/Program');
+const Question = require('../models/Question');
 
 // Helper: resolve program IDs accessible to the requesting user
 async function getAccessibleProgramIds(user) {
@@ -91,6 +92,11 @@ const deleteTag = async (req, res) => {
 
     if (tag.program.toString() !== req.user.program?.toString()) {
       return res.status(403).json({ message: 'You can only manage tags for your own program' });
+    }
+
+    const questionCount = await Question.countDocuments({ tag: tag._id });
+    if (questionCount > 0) {
+      return res.status(400).json({ message: 'Cannot delete this subject because it is currently used by one or more questions. Please edit its name instead.' });
     }
 
     await tag.deleteOne();
