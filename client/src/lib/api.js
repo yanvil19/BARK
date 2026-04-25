@@ -46,3 +46,20 @@ export async function apiAuth(path, options = {}) {
   return api(path, { ...options, headers: { ...authHeader(), ...(options.headers || {}) } });
 }
 
+// For FormData uploads — browser sets Content-Type (multipart boundary) automatically
+export async function apiAuthUpload(path, formData) {
+  const token = getToken();
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await parseJsonResponse(res);
+  if (!res.ok) {
+    const message = data?.message || `Request failed (${res.status})`;
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}

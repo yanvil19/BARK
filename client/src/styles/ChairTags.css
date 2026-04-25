@@ -1,0 +1,241 @@
+/* ── Page Shell ─────────────────────────────────────────── */
+.ct-page {
+  margin: -20px;
+  min-height: 100%;
+  background: linear-gradient(180deg, #eef0f8 0%, #e5e7f2 100%);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.ct-header {
+  padding: 22px 32px 18px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ct-header-left h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 22px;
+  color: var(--primary-bg);
+}
+
+.ct-header-left p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: #8b92bc;
+}
+
+.ct-header-badge {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+
+/* ── Body ────────────────────────────────────────────────── */
+.ct-body {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Add Tag Card ────────────────────────────────────────── */
+.ct-add-card {
+  background: #fff;
+  border: 1px solid rgba(53, 64, 142, 0.25);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ct-add-card h3 {
+  margin: 0 0 14px;
+  font-family: var(--font-title);
+  font-size: 15px;
+  color: var(--primary-bg);
+}
+
+.ct-add-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ct-add-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid rgba(53, 64, 142, 0.3);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: #f9faff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  max-width: 380px;
+}
+
+.ct-add-input:focus {
+  outline: none;
+  border-color: var(--primary-bg);
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.12);
+  background: #fff;
+}
+
+.ct-add-btn {
+  padding: 10px 22px;
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.ct-add-btn:hover:not(:disabled) {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.ct-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ct-form-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+/* ── Tags Grid Card ──────────────────────────────────────── */
+.ct-tags-card {
+  background: #fff;
+  border: 1px solid rgba(53, 64, 142, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.ct-tags-card-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ct-tags-card-header h3 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 16px;
+  color: var(--primary-bg);
+}
+
+.ct-tags-count {
+  font-size: 12px;
+  color: #8b92bc;
+  font-family: var(--font-body);
+}
+
+/* ── Tag Chips Grid ──────────────────────────────────────── */
+.ct-tags-grid {
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ct-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: #9ba3cb;
+  font-size: 14px;
+}
+
+.ct-empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+/* ── Tag Chip ────────────────────────────────────────────── */
+.ct-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #eef0fb;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  border-radius: 999px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: chipIn 0.2s ease;
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.ct-tag-chip:hover {
+  border-color: rgba(53, 64, 142, 0.45);
+  box-shadow: 0 2px 8px rgba(53, 64, 142, 0.1);
+}
+
+.ct-tag-chip.editing {
+  border-color: var(--primary-bg);
+  background: #fff;
+}
+
+.ct-chip-name {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--primary-bg);
+  font-weight: 600;
+}
+
+.ct-chip-edit-input {
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--primary-bg);
+  font-weight: 600;
+  width: 120px;
+  outline: none;
+  padding: 0;
+}
+
+.ct-chip-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ct-chip-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.ct-chip-btn:hover {
+  background: rgba(53, 64, 142, 0.1);
+}
+
+.ct-chip-btn.save { color: #16a34a; }
+.ct-chip-btn.cancel { color: #6b7280; }
+.ct-chip-btn.edit { color: #3f4ab8; }
+.ct-chip-btn.del { color: #dc2626; }

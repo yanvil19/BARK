@@ -59,6 +59,8 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
   const isSuperAdmin = me?.role === 'super_admin';
   const isDean = me?.role === 'dean';
+  const isChair = me?.role === 'program_chair';
+  const isProfessor = me?.role === 'professor';
 
   return (
     <header id="Header">
@@ -80,8 +82,33 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         )}
 
         {isDean && (
-          <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
-            Dean Approvals
+          <>
+            <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
+              Approvals
+            </button>
+            <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
+              My Questions
+            </button>
+          </>
+        )}
+
+        {isChair && (
+          <>
+            <button className={route === 'chairTags' ? 'active' : ''} onClick={() => onRoute('chairTags')}>
+              Manage Subjects
+            </button>
+            <button className={route === 'chairQuestions' ? 'active' : ''} onClick={() => onRoute('chairQuestions')}>
+              My Questions
+            </button>
+            <button className={route === 'chairApprovals' ? 'active' : ''} onClick={() => onRoute('chairApprovals')}>
+              Approve Questions
+            </button>
+          </>
+        )}
+
+        {isProfessor && (
+          <button className={route === 'profQuestions' ? 'active' : ''} onClick={() => onRoute('profQuestions')}>
+            My Questions
           </button>
         )}
 

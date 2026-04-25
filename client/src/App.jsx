@@ -7,6 +7,11 @@ import DeanApprovals from './pages/DeanApprovals.jsx';
 import AdminCatalog from './pages/AdminCatalog.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import UserAccount from './pages/UserAccount.jsx';
+import ChairTags from './pages/ChairTags.jsx';
+import ChairApprovals from './pages/ChairApprovals.jsx';
+import ProfessorQuestions from './pages/ProfessorQuestions.jsx';
+import ChairQuestions from './pages/ChairQuestions.jsx';
+import DeanQuestions from './pages/DeanQuestions.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 
@@ -64,6 +69,11 @@ export default function App() {
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'adminCatalog') page = <AdminCatalog />;
   if (route === 'adminUsers') page = <AdminUsers />;
+  if (route === 'chairTags') page = <ChairTags me={me} />;
+  if (route === 'chairApprovals') page = <ChairApprovals me={me} />;
+  if (route === 'profQuestions') page = <ProfessorQuestions me={me} />;
+  if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
+  if (route === 'deanQuestions') page = <DeanQuestions me={me} />;
 
   return (
     <div className="app-container">
