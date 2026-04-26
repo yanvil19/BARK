@@ -120,8 +120,8 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {isSuperAdmin && (
           <>
-            <button className={route === 'adminCatalog' ? 'active' : ''} onClick={() => onRoute('adminCatalog')}>
-              Admin Catalog
+            <button className={route === 'schoolsPrograms' ? 'active' : ''} onClick={() => onRoute('schoolsPrograms')}>
+              Schools and Programs
             </button>
             <button className={route === 'adminUsers' ? 'active' : ''} onClick={() => onRoute('adminUsers')}>
               User Management

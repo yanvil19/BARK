@@ -373,110 +373,101 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
     return (
       <main className="dashboard-sa-main">
         <header className="dashboard-sa-header">
-          <h1>System Overview</h1>
-          <p>National University Laguna</p>
+          <h1>Dashboard</h1>
+          <p>National University Laguna • Super Admin Portal</p>
         </header>
 
         <div className="dashboard-sa-top-grid">
           <section className="dashboard-box">
-            <div className="box-title">Pending Accounts</div>
+            <div className="box-title">Question Repository</div>
             <div className="box-content-vertical">
-              <div className="metric-card metric-card-yellow">
-                <h2>{stats?.pendingAccounts?.students || 0}</h2>
-                <p>Students</p>
+              <div className="metric-card metric-card-blue">
+                <h2>{stats?.questions?.total || 0}</h2>
+                <p>Total Questions</p>
               </div>
-              <div className="metric-card metric-card-yellow">
-                <h2>{stats?.pendingAccounts?.alumni || 0}</h2>
-                <p>Alumni</p>
+              <div className="metric-card metric-card-yellow" style={{ marginTop: '10px' }}>
+                <h2>{stats?.questions?.pending || 0}</h2>
+                <p>Pending Review</p>
               </div>
             </div>
           </section>
 
           <section className="dashboard-box box-wide">
-            <div className="box-title">Registered Accounts</div>
+            <div className="box-title">System Users</div>
             <div className="box-content-grid">
               <div className="metric-card metric-card-blue"><h2>{stats?.users?.student?.active || 0}</h2><p>Students</p></div>
-              <div className="metric-card metric-card-blue"><h2>{stats?.users?.alumni?.active || 0}</h2><p>Alumni</p></div>
-              <div className="metric-card metric-card-blue"><h2>{stats?.users?.dean?.active || 0}</h2><p>Dean</p></div>
-              <div className="metric-card metric-card-blue"><h2>{stats?.users?.program_chair?.active || 0}</h2><p>Program Chairs</p></div>
               <div className="metric-card metric-card-blue"><h2>{stats?.users?.professor?.active || 0}</h2><p>Professors</p></div>
-              <div className="metric-card metric-card-blue"><h2>{stats?.users?.super_admin?.active || 0}</h2><p>Super Admin</p></div>
+              <div className="metric-card metric-card-blue"><h2>{stats?.users?.program_chair?.active || 0}</h2><p>Chairs</p></div>
+              <div className="metric-card metric-card-blue"><h2>{stats?.users?.dean?.active || 0}</h2><p>Deans</p></div>
+              <div className="metric-card metric-card-blue"><h2>{stats?.users?.super_admin?.active || 0}</h2><p>Admins</p></div>
+              <div className="metric-card metric-card-yellow" onClick={() => onRoute('adminUsers')} style={{ cursor: 'pointer' }}>
+                <h2>{(stats?.pendingAccounts?.students || 0) + (stats?.pendingAccounts?.alumni || 0)}</h2>
+                <p>Pending Req.</p>
+              </div>
             </div>
           </section>
 
           <section className="dashboard-box">
-            <div className="box-title">Database Storage</div>
+            <div className="box-title">Database</div>
             <div className="box-content-center">
               <div className="db-gauge-container">
                 <div className="db-gauge-fill" style={{ height: `${Math.min(stats?.database?.percentUsed || 0, 100)}%` }} />
               </div>
               <div className="db-gauge-label">
-                {stats?.database?.totalSizeMB || 0}mb / {stats?.database?.limitMB || 512}mb
+                {stats?.database?.percentUsed || 0}% Used
               </div>
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>{stats?.database?.totalSizeMB || 0}MB / 512MB</p>
             </div>
           </section>
         </div>
 
-        <section className="dashboard-table-section">
-          <div className="table-section-header">
-            <div>
-              <h2>Schools of NU Laguna</h2>
-              <p>{adminDepts.length} schools registered in the system</p>
+        <div className="dashboard-sa-bottom-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '0 20px 24px' }}>
+          <section className="dashboard-table-section" style={{ margin: 0 }}>
+            <div className="table-section-header">
+              <div>
+                <h2 style={{ fontSize: '18px' }}>Schools</h2>
+                <p style={{ fontSize: '12px' }}>{adminDepts.length} Registered</p>
+              </div>
+              <button className="view-btn" onClick={() => navigate('schoolsPrograms')}>Manage</button>
             </div>
-            <button className="view-btn" onClick={() => navigate('adminCatalog')}>View</button>
-          </div>
-          <table className="modern-table">
-            <thead>
-              <tr><th>Acronym</th><th>School Name</th><th>Programs</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {adminDepts.map(dept => (
-                <tr key={dept._id}>
-                  <td><span className="pill pill-dark">{dept.code}</span></td>
-                  <td>{dept.name}</td>
-                  <td className="light-text">
-                    {programCountByDept[String(dept._id)] || 0} program{programCountByDept[String(dept._id)] === 1 ? '' : 's'}
-                  </td>
-                  <td>
-                    <span className={`status-text ${dept.isActive ? 'active' : 'inactive'}`}>
-                      • {dept.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+            <table className="modern-table">
+              <thead>
+                <tr><th>Code</th><th>School Name</th></tr>
+              </thead>
+              <tbody>
+                {adminDepts.slice(0, 5).map(dept => (
+                  <tr key={dept._id}>
+                    <td><span className="pill pill-dark">{dept.code}</span></td>
+                    <td style={{ fontSize: '13px' }}>{dept.name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
 
-        <section className="dashboard-table-section">
-          <div className="table-section-header">
-            <div>
-              <h2>Programs</h2>
-              <p>{adminPrograms.length} programs across all departments</p>
+          <section className="dashboard-table-section" style={{ margin: 0 }}>
+            <div className="table-section-header">
+              <div>
+                <h2 style={{ fontSize: '18px' }}>Programs</h2>
+                <p style={{ fontSize: '12px' }}>{adminPrograms.length} Registered</p>
+              </div>
+              <button className="view-btn" onClick={() => navigate('schoolsPrograms')}>Manage</button>
             </div>
-            <button className="view-btn" onClick={() => navigate('adminCatalog')}>View</button>
-          </div>
-          <table className="modern-table">
-            <thead>
-              <tr><th>Code</th><th>Program Name</th><th>Department</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {adminPrograms.map(prog => (
-                <tr key={prog._id}>
-                  <td><span className="pill pill-dark">{prog.code}</span></td>
-                  <td>{prog.name}</td>
-                  <td><span className="pill pill-dark">{prog.department?.code || String(prog.department)}</span></td>
-                  <td>
-                    <span className={`status-text ${prog.isActive ? 'active' : 'inactive'}`}>
-                      • {prog.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="table-footer-dots">...</div>
-        </section>
+            <table className="modern-table">
+              <thead>
+                <tr><th>Code</th><th>Program Name</th></tr>
+              </thead>
+              <tbody>
+                {adminPrograms.slice(0, 5).map(prog => (
+                  <tr key={prog._id}>
+                    <td><span className="pill pill-dark">{prog.code}</span></td>
+                    <td style={{ fontSize: '13px' }}>{prog.name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
       </main>
     );
   }

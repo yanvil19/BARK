@@ -4,7 +4,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import StudentRegister from './pages/StudentRegister.jsx';
 import DeanApprovals from './pages/DeanApprovals.jsx';
-import AdminCatalog from './pages/AdminCatalog.jsx';
+import SchoolsPrograms from './pages/SchoolsPrograms.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import UserAccount from './pages/UserAccount.jsx';
 import ChairTags from './pages/ChairTags.jsx';
@@ -67,7 +67,7 @@ export default function App() {
   if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
-  if (route === 'adminCatalog') page = <AdminCatalog />;
+  if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers />;
   if (route === 'chairTags') page = <ChairTags me={me} />;
   if (route === 'chairApprovals') page = <ChairApprovals me={me} />;

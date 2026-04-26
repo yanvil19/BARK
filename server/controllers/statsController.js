@@ -85,6 +85,13 @@ const getSummaryStats = async (req, res) => {
             RegistrationRequest.countDocuments({ status: 'pending', userType: 'alumni' })
         ]);
 
+        // Question Stats (GLOBAL)
+        const [totalQuestions, totalApproved, totalPending] = await Promise.all([
+            Question.countDocuments(),
+            Question.countDocuments({ state: 'approved' }),
+            Question.countDocuments({ state: { $in: ['pending_chair', 'pending_dean'] } })
+        ]);
+
         res.status(200).json({
             pendingAccounts: {
                 students: pendingStudents,
@@ -94,6 +101,11 @@ const getSummaryStats = async (req, res) => {
             academic: {
                 departments: departmentCount,
                 programs: programCount
+            },
+            questions: {
+                total: totalQuestions,
+                approved: totalApproved,
+                pending: totalPending
             },
             total: {
                 activeUsers: totalActiveUsers,
