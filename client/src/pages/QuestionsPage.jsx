@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import QuestionForm from '../components/QuestionForm.jsx';
+import { Modal } from '../components/Modal.jsx';
 import '../styles/QuestionsPage.css';
 
 const BASE = 'http://localhost:5000';
@@ -15,19 +16,42 @@ const STATE_LABELS = {
   rejected: 'Rejected',
 };
 
-const ALL_STATES = Object.keys(STATE_LABELS);
+const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved'];
+const ARCHIVAL_FILTERS = ['in_use', 'retired', 'rejected'];
 
 function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-export default function QuestionsPage({ me, role, programId, programLabel, programs, onProgramChange }) {
+function formatStateLabel(state) {
+  return STATE_LABELS[state] || state;
+}
+
+function truncateText(text, max = 100) {
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}...`;
+}
+
+export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const moreMenuRef = useRef(null);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -42,11 +66,13 @@ export default function QuestionsPage({ me, role, programId, programLabel, progr
   }, []);
 
   const fetchTags = useCallback(async () => {
-    if (!programId) return;
+    if (!programId && role === 'dean') {
+      setTags([]);
+      return;
+    }
+
     try {
-      const url = role === 'dean'
-        ? `${BASE}/api/tags?program=${programId}`
-        : `${BASE}/api/tags`;
+      const url = role === 'dean' ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
       const data = await apiAuth(url);
       setTags(data.tags || []);
     } catch (err) {
@@ -54,18 +80,146 @@ export default function QuestionsPage({ me, role, programId, programLabel, progr
     }
   }, [programId, role]);
 
-  useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
-  useEffect(() => { fetchTags(); }, [fetchTags]);
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
-  const programFilteredQuestions = questions.filter((q) => {
-    if (role === 'dean' && programId) {
-      const qProg = q.program?._id || q.program;
-      if (String(qProg) !== String(programId)) return false;
+  useEffect(() => {
+    fetchTags();
+  }, [fetchTags]);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setShowMoreMenu(false);
+      }
     }
-    return true;
-  });
 
-  const filtered = programFilteredQuestions.filter((q) => filter === 'all' || q.state === filter);
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setShowMoreMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchQuery, subjectFilter, sortBy]);
+
+  const baseQuestions = useMemo(() => {
+    return questions.filter((q) => {
+      if (role === 'dean' && programId) {
+        const qProgram = q.program?._id || q.program;
+        if (String(qProgram) !== String(programId)) return false;
+      }
+      return true;
+    });
+  }, [programId, questions, role]);
+
+  const subjectOptions = useMemo(() => {
+    const map = new Map();
+
+    tags.forEach((tag) => {
+      if (tag?._id && tag?.name) {
+        map.set(String(tag._id), { id: String(tag._id), name: tag.name });
+      }
+    });
+
+    baseQuestions.forEach((q) => {
+      const id = q.tag?._id || q.tag;
+      const name = q.tag?.name;
+      if (id && name && !map.has(String(id))) {
+        map.set(String(id), { id: String(id), name });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [baseQuestions, tags]);
+
+  const counts = useMemo(() => {
+    const result = { all: baseQuestions.length };
+    [...STATE_FILTERS, ...ARCHIVAL_FILTERS].forEach((state) => {
+      if (state === 'all') return;
+      result[state] = baseQuestions.filter((q) => q.state === state).length;
+    });
+    return result;
+  }, [baseQuestions]);
+
+  const filteredQuestions = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+
+    const next = baseQuestions.filter((q) => {
+      if (filter !== 'all' && q.state !== filter) return false;
+
+      if (subjectFilter) {
+        const qTag = q.tag?._id || q.tag;
+        if (String(qTag) !== String(subjectFilter)) return false;
+      }
+
+      if (!needle) return true;
+
+      const content = [
+        q.title,
+        q.description,
+        q.tag?.name,
+        q.program?.name,
+        q.program?.code,
+        q.revisionNote,
+        q.rejectionReason,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return content.includes(needle);
+    });
+
+    next.sort((a, b) => {
+      if (sortBy === 'oldest') {
+        return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
+      }
+
+      if (sortBy === 'title') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    });
+
+    return next;
+  }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
+
+  const { paginatedQuestions, totalPages } = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return {
+      paginatedQuestions: filteredQuestions.slice(startIndex, endIndex),
+      totalPages: Math.ceil(filteredQuestions.length / itemsPerPage),
+    };
+  }, [filteredQuestions, currentPage]);
+
+  function closeFormModal() {
+    setShowForm(false);
+    setEditQuestion(null);
+  }
+
+  function openCreateModal() {
+    setEditQuestion(null);
+    setShowForm(true);
+  }
+
+  function openEditModal(question) {
+    setEditQuestion(question);
+    setShowForm(true);
+  }
 
   function handleSaved(newQuestion, isEdit) {
     if (isEdit) {
@@ -73,151 +227,321 @@ export default function QuestionsPage({ me, role, programId, programLabel, progr
     } else {
       setQuestions((prev) => [newQuestion, ...prev]);
     }
-    setShowForm(false);
-    setEditQuestion(null);
+    closeFormModal();
   }
 
-  async function handleDelete(q) {
-    if (!window.confirm(`Delete "${q.title}"?`)) return;
+  async function handleDelete(question) {
+    if (!window.confirm(`Delete "${question.title}"?`)) return;
+
     try {
-      await apiAuth(`${BASE}/api/questions/${q._id}`, { method: 'DELETE' });
-      setQuestions((prev) => prev.filter((x) => x._id !== q._id));
+      await apiAuth(`${BASE}/api/questions/${question._id}`, { method: 'DELETE' });
+      setQuestions((prev) => prev.filter((item) => item._id !== question._id));
     } catch (err) {
       alert(err.message || 'Failed to delete question.');
     }
   }
 
-  async function handleSubmit(q) {
-    if (!window.confirm(`Submit "${q.title}" for Chair review? You won't be able to edit it after this.`)) return;
+  async function handleSubmit(question) {
+    if (!window.confirm(`Submit "${question.title}" for Chair review? You won't be able to edit it after this.`)) return;
+
     try {
-      const data = await apiAuth(`${BASE}/api/questions/${q._id}/submit`, { method: 'POST' });
-      setQuestions((prev) => prev.map((x) => (x._id === q._id ? data.question : x)));
+      const data = await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
+      setQuestions((prev) => prev.map((item) => (item._id === question._id ? data.question : item)));
     } catch (err) {
       alert(err.message || 'Failed to submit question.');
     }
   }
 
-  return (
-    <div>
-      <h1>My Questions</h1>
-      <p>{role === 'dean' ? 'Creating questions for your department programs' : `${programLabel || 'Your Program'}`}</p>
+  function getPageTitle() {
+    return role === 'dean' ? 'Question Management' : 'My Questions';
+  }
 
-      {/* Dean: Program Selector */}
-      {role === 'dean' && (
-        <div>
-          <label><strong>Select Program: </strong></label>
-          <select value={programId || ''} onChange={(e) => onProgramChange(e.target.value)}>
-            <option value="">— Select a program —</option>
-            {programs.map((p) => (
-              <option key={p._id} value={p._id}>{p.name} ({p.code})</option>
+  function getPageSubtitle() {
+    if (role === 'dean') return 'Create, edit, and manage questions for your department programs';
+    return 'Create, edit, and manage your question drafts and submissions';
+  }
+
+  const canCreateQuestion = role !== 'dean' || !!programId;
+
+  return (
+    <main className="qp-page">
+      <header className="qp-page-header">
+        <div className="qp-header">
+          <div>
+            <h1 className="qp-title">{getPageTitle()}</h1>
+            <p className="qp-subtitle">{getPageSubtitle()}</p>
+            {role !== 'dean' && programLabel ? (
+              <div className="qp-program-chip-wrap">
+                <span className="qp-program-chip">{programLabel}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {canCreateQuestion && (
+            <button type="button" className="qp-btn-add" onClick={openCreateModal}>
+              + Create Question
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className="qp-state-pills">
+        {STATE_FILTERS.map((state) => (
+          <button
+            key={state}
+            type="button"
+            className={`qp-state-pill ${filter === state ? 'qp-state-pill--active' : ''}`}
+            onClick={() => setFilter(state)}
+          >
+            <span className="qp-state-pill-count">{counts[state] || 0}</span>
+            <span>{state === 'all' ? 'All' : formatStateLabel(state)}</span>
+          </button>
+        ))}
+
+        <div className="qp-more-wrap" ref={moreMenuRef}>
+          <button
+            type="button"
+            className={`qp-state-pill qp-state-pill--more ${ARCHIVAL_FILTERS.includes(filter) ? 'qp-state-pill--active' : ''}`}
+            onClick={() => setShowMoreMenu((prev) => !prev)}
+            aria-expanded={showMoreMenu}
+          >
+            <span>More</span>
+            <span className={`qp-more-caret ${showMoreMenu ? 'is-open' : ''}`}>^</span>
+          </button>
+
+          {showMoreMenu ? (
+            <div className="qp-more-menu">
+              <div className="qp-more-menu-label">Archival States</div>
+              {ARCHIVAL_FILTERS.map((state) => (
+                <button
+                  key={state}
+                  type="button"
+                  className={`qp-more-item ${filter === state ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setFilter(state);
+                    setShowMoreMenu(false);
+                  }}
+                >
+                  <span>{formatStateLabel(state)}</span>
+                  <span className="qp-more-count">{counts[state] || 0}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {role === 'dean' && (
+          <select
+            className="qp-filter-select qp-filter-select--program"
+            value={programId || ''}
+            onChange={(e) => onProgramChange(e.target.value)}
+          >
+            <option value="">Filter: Program</option>
+            {programs.map((program) => (
+              <option key={program._id} value={program._id}>
+                {program.name} ({program.code})
+              </option>
             ))}
           </select>
-        </div>
-      )}
-
-      <hr />
-
-      {/* Stats */}
-      <div>
-        {['draft', 'pending_chair', 'returned', 'approved'].map((s) => (
-          <span key={s} style={{ marginRight: 16 }}>
-            <strong>{programFilteredQuestions.filter((q) => q.state === s).length}</strong> {STATE_LABELS[s]}
-          </span>
-        ))}
-      </div>
-
-      <br />
-
-      {/* Filter + New Button */}
-      <div>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">All ({programFilteredQuestions.length})</option>
-          {ALL_STATES.map((s) => (
-            <option key={s} value={s}>
-              {STATE_LABELS[s]} ({programFilteredQuestions.filter((q) => q.state === s).length})
-            </option>
-          ))}
-        </select>
-        {' '}
-        {(role !== 'dean' || programId) && (
-          <button onClick={() => setShowForm(true)}>+ New Question</button>
         )}
       </div>
 
-      <br />
+      <div className="qp-filters">
+        <input
+          className="qp-search"
+          type="text"
+          placeholder="Search question"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
 
-      {/* Question List */}
-      {loading ? (
-        <p>Loading questions…</p>
-      ) : filtered.length === 0 ? (
-        <p>{filter === 'all' ? 'No questions yet. Create your first one!' : `No ${STATE_LABELS[filter] || filter} questions.`}</p>
-      ) : (
-        <table border="1" cellPadding="8">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Subject</th>
-              {role === 'dean' && <th>Program</th>}
-              <th>State</th>
-              <th>Updated</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((q) => (
-              <tr key={q._id}>
-                <td>
-                  <strong>{q.title}</strong>
-                  <br />
-                  <small>{q.description?.slice(0, 80)}{q.description?.length > 80 ? '…' : ''}</small>
-                  {q.state === 'returned' && q.revisionNote && (
-                    <><br /><strong>Note:</strong> {q.revisionNote}</>
-                  )}
-                  {q.state === 'rejected' && q.rejectionReason && (
-                    <><br /><strong>Rejected:</strong> {q.rejectionReason}</>
-                  )}
-                </td>
-                <td>{q.tag?.name || '—'}</td>
-                {role === 'dean' && <td>{q.program?.code || q.program?.name || '—'}</td>}
-                <td><strong>{STATE_LABELS[q.state] || q.state}</strong></td>
-                <td>{formatDate(q.updatedAt)}</td>
-                <td>
-                  {q.state === 'draft' && (
-                    <>
-                      <button onClick={() => { setEditQuestion(q); setShowForm(true); }}>Edit</button>{' '}
-                      <button onClick={() => handleSubmit(q)}>Submit</button>{' '}
-                      <button onClick={() => handleDelete(q)}>Delete</button>
-                    </>
-                  )}
-                  {q.state === 'returned' && (
-                    <>
-                      <button onClick={() => { setEditQuestion(q); setShowForm(true); }}>Edit</button>{' '}
-                      <button onClick={() => handleSubmit(q)}>Re-submit</button>
-                    </>
-                  )}
-                </td>
+        <select
+          className="qp-filter-select"
+          value={subjectFilter}
+          onChange={(e) => setSubjectFilter(e.target.value)}
+        >
+          <option value="">Filter: All Subjects</option>
+          {subjectOptions.map((tag) => (
+            <option key={tag.id} value={tag.id}>
+              {tag.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="qp-filter-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="newest">Sort: Newest</option>
+          <option value="oldest">Sort: Oldest</option>
+          <option value="title">Sort: Title A-Z</option>
+        </select>
+      </div>
+
+      {!canCreateQuestion && role === 'dean' ? (
+        <p className="qp-helper-note">Select a program first before creating a question.</p>
+      ) : null}
+
+      <div className="qp-table-wrap">
+        {loading ? (
+          <p className="qp-loading">Loading questions...</p>
+        ) : (
+          <table className="qp-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Subject</th>
+                {role === 'dean' && <th>Program</th>}
+                <th>Status</th>
+                <th>Updated</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {filteredQuestions.length === 0 ? (
+                <tr>
+                  <td colSpan={role === 'dean' ? 6 : 5} className="qp-empty">
+                    {filter === 'all'
+                      ? 'No questions found. Create your first one!'
+                      : `No ${formatStateLabel(filter)} questions found.`}
+                  </td>
+                </tr>
+              ) : (
+                paginatedQuestions.map((question) => (
+                  <tr key={question._id}>
+                    <td>
+                      <div className="qp-question-title">{question.title}</div>
+                      <div className="qp-question-text">{truncateText(question.description, 120)}</div>
 
-      {/* New/Edit Question Modal */}
-      {showForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>{editQuestion ? 'Edit Question' : 'New Question'}</h2>
-            <hr />
-            <QuestionForm
-              tags={tags}
-              programId={programId}
-              initialData={editQuestion}
-              onSaved={handleSaved}
-              onClose={() => { setShowForm(false); setEditQuestion(null); }}
-            />
+                      {question.state === 'returned' && question.revisionNote ? (
+                        <div className="qp-note qp-note--returned">
+                          <strong>Revision Note:</strong> {question.revisionNote}
+                        </div>
+                      ) : null}
+
+                      {question.state === 'rejected' && question.rejectionReason ? (
+                        <div className="qp-note qp-note--rejected">
+                          <strong>Rejected:</strong> {question.rejectionReason}
+                        </div>
+                      ) : null}
+                    </td>
+
+                    <td>
+                      {question.tag?.name ? (
+                        <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
+                      ) : (
+                        <span className="qp-none">(none)</span>
+                      )}
+                    </td>
+
+                    {role === 'dean' && (
+                      <td>
+                        {question.program?.code || question.program?.name ? (
+                          <span className="qp-badge qp-badge--program">
+                            {question.program?.code || question.program?.name}
+                          </span>
+                        ) : (
+                          <span className="qp-none">(none)</span>
+                        )}
+                      </td>
+                    )}
+
+                    <td>
+                      <span className={`qp-status qp-status--${question.state}`}>
+                        <span className="qp-status-dot" />
+                        {formatStateLabel(question.state)}
+                      </span>
+                    </td>
+
+                    <td>{formatDate(question.updatedAt || question.createdAt)}</td>
+
+                    <td className="qp-actions-cell">
+                      {question.state === 'draft' ? (
+                        <>
+                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
+                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>Submit</button>
+                          <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
+                        </>
+                      ) : null}
+
+                      {question.state === 'returned' ? (
+                        <>
+                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
+                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>Re-submit</button>
+                        </>
+                      ) : null}
+
+                      {question.state !== 'draft' && question.state !== 'returned' ? (
+                        <span className="qp-no-actions">No actions available</span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ── Pagination ── */}
+      {!loading && filteredQuestions.length > 0 && (
+        <div className="qp-pagination">
+          <div className="qp-pagination-info">
+            Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
+          </div>
+          <div className="qp-pagination-controls">
+            <button 
+              className="qp-pagination-btn" 
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </button>
+            <div className="qp-pagination-pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  className={`qp-pagination-page ${currentPage === page ? 'qp-pagination-page--active' : ''}`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button 
+              className="qp-pagination-btn" 
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </button>
           </div>
         </div>
       )}
-    </div>
+
+      <Modal
+        open={showForm}
+        onClose={closeFormModal}
+        title={editQuestion ? 'Edit Question' : 'Create Question'}
+      >
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            {editQuestion
+              ? 'Update the question details and save your changes.'
+              : 'Add a new question draft for your program.'}
+          </p>
+          {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
+        </div>
+
+        <QuestionForm
+          tags={tags}
+          programId={programId}
+          initialData={editQuestion}
+          onSaved={handleSaved}
+          onClose={closeFormModal}
+        />
+      </Modal>
+    </main>
   );
 }
