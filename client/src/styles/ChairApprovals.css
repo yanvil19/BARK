@@ -245,6 +245,8 @@
   margin: 0;
   flex: 1;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-card-desc {
@@ -255,6 +257,8 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-card-meta {
@@ -273,7 +277,9 @@
   font-size: 11px;
   color: var(--primary-bg);
   font-weight: 600;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-author {
@@ -327,14 +333,25 @@
 /* ── Pagination ──────────────────────────────────────────– */
 .ca-pagination {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
   margin-top: 24px;
-  padding: 16px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid rgba(53, 64, 142, 0.2);
+  padding: 16px 0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ca-pagination-info {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.ca-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ca-pagination-btn {
@@ -364,6 +381,7 @@
 .ca-pagination-pages {
   display: flex;
   gap: 4px;
+  align-items: center;
 }
 
 .ca-pagination-page {
@@ -430,6 +448,8 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--primary-bg);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-sidebar-close {
@@ -479,6 +499,8 @@
   font-size: 15px;
   font-weight: 700;
   color: #1a1f4b;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-question-detail-text {
@@ -486,6 +508,8 @@
   font-size: 13px;
   color: #4a5268;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-meta-grid {
@@ -507,6 +531,8 @@
   font-size: 13px;
   color: #1a1f4b;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-images {
@@ -537,6 +563,7 @@
   background: #f9faff;
   border-radius: 7px;
   border: 1px solid rgba(53, 64, 142, 0.15);
+  min-width: 0;
 }
 
 .ca-answer-indicator {
@@ -563,6 +590,7 @@
   font-size: 13px;
   color: #1a1f4b;
   flex: 1;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -578,6 +606,8 @@
   font-size: 13px;
   color: #92400e;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ca-sidebar-actions {
@@ -734,6 +764,7 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
 }
 
 .ca-form-group {

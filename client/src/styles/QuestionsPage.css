@@ -324,6 +324,8 @@
   font-weight: 600;
   color: #1a1a2e;
   font-size: 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .qp-question-text {
@@ -331,12 +333,16 @@
   color: #888;
   margin-top: 4px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .qp-note {
   margin-top: 8px;
   font-size: 12px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .qp-note--returned {
@@ -363,6 +369,8 @@
   background-color: #e7e0f8;
   color: #6f42c1;
   border-color: #6f42c1;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .qp-badge--program {
