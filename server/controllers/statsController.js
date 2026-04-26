@@ -3,6 +3,7 @@ const Department = require('../models/Department');
 const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const mongoose = require('mongoose');
+const Question = require('../models/Question');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -126,6 +127,16 @@ const getProgramChairStats = async (req, res) => {
       isActive: true,
     });
 
+    const approvedQuestions = await Question.countDocuments({
+      program: req.user.program,
+      state: 'approved'
+    });
+
+    const pendingQuestions = await Question.countDocuments({
+      program: req.user.program,
+      state: 'pending_chair'
+    });
+
     res.status(200).json({
       programStudentCount: [
         {
@@ -134,10 +145,10 @@ const getProgramChairStats = async (req, res) => {
           count: programStudentCount,
         },
       ],
-      totalQuestions: 0,
+      approvedQuestions,
       passingRate: 0,
       examsPublished: 0,
-      pendingQuestions: 0,
+      pendingQuestions,
       subjectSummary: [],
       reviewQuestions: []
     });

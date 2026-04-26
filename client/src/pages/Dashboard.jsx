@@ -109,7 +109,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
       setPcStats({
         ...statsRes,
-        pendingQuestionsCount: pendingRes.questions?.length ?? 0,
+        pendingQuestionsCount: statsRes.pendingQuestions ?? 0,
       });
       setPendingQuestions(pendingRes.questions || []);
     } catch (err) {
@@ -512,10 +512,11 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
               </section>
 
               <div className="dashboard-box">
-                <div className="box-title">Total Questions</div>
-                <div className="metric-card metric-card-blue pc-tq-card">
-                  <div className="pc-tq-number">
-                    {(pcStats?.totalQuestions || 0).toLocaleString()}
+                <div className="box-title">No. of Approved Questions</div>
+                <div className="box-content-grid-2">
+                  <div className="metric-card metric-card-blue student-count-card">
+                    <h2>{(pcStats?.approvedQuestions || 0).toLocaleString()}</h2>
+                    <p>Approved Questions</p>
                   </div>
                 </div>
               </div>
@@ -548,7 +549,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
                 <div className="box-content-vertical">
                   <div className="metric-card metric-card-blue">
                     <h2>{pcStats?.pendingQuestionsCount ?? '—'}</h2>
-                    <p>&nbsp;</p>
+                    <p>Pending Questions</p>
                   </div>
                 </div>
               </section>
