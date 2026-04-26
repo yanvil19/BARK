@@ -4,8 +4,8 @@ import '../styles/Dashboard.css';
 import '../styles/LandingPage.css';
 
 const Dashboard = ({ me, onNavigate, onRoute }) => {
-  console.log('🔍 RENDER - ME OBJECT:', me);
-  console.log('🔍 RENDER - ROLE VALUE:', me?.role);
+  // console.log('🔍 RENDER - ME OBJECT:', me);
+  // console.log('🔍 RENDER - ROLE VALUE:', me?.role);
   const navigate = onNavigate || onRoute || (() => {});
 
   const [departments, setDepartments] = useState([]);
@@ -81,21 +81,21 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
   }, [me]);
 
  useEffect(() => {
-  console.log('🟡 EFFECT TRIGGERED');
-  console.log('🟡 ME INSIDE EFFECT:', me);
-  console.log('🟡 ROLE INSIDE EFFECT:', me?.role);
+  // console.log('🟡 EFFECT TRIGGERED');
+  // console.log('🟡 ME INSIDE EFFECT:', me);
+  // console.log('🟡 ROLE INSIDE EFFECT:', me?.role);
 
   if (!me) {
-    console.log('⛔ No user yet, skipping fetch');
+    // console.log('⛔ No user yet, skipping fetch');
     return;
   }
 
   if (me.role !== 'program_chair') {
-    console.log('⛔ Wrong role:', me.role);
+    // console.log('⛔ Wrong role:', me.role);
     return;
   }
 
-  console.log('✅ FETCHING PROGRAM CHAIR STATS NOW');
+  // console.log('✅ FETCHING PROGRAM CHAIR STATS NOW');
 
   const fetchPcStats = async () => {
     try {
@@ -104,8 +104,8 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
         apiAuth('/api/questions/approvals?limit=10'),
       ]);
 
-      console.log('✅ API RESPONSE (stats):', statsRes);
-      console.log('✅ API RESPONSE (pending):', pendingRes);
+      // console.log('✅ API RESPONSE (stats):', statsRes);
+      // console.log('✅ API RESPONSE (pending):', pendingRes);
 
       setPcStats({
         ...statsRes,
