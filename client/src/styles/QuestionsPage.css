@@ -293,6 +293,7 @@
   font-size: 13px;
   font-weight: 600;
   color: #666;
+  vertical-align: middle;
 }
 
 .qp-table td {
@@ -344,7 +345,8 @@
 }
 
 .qp-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 3px 12px;
   border-radius: 20px;
   font-size: 12px;
