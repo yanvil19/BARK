@@ -1,12 +1,14 @@
 import '../styles/Navbar.css';
 import '../styles/ProfileModal.css';
-import { useEffect, useRef, useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ProfileModal from './ProfileModal.jsx';
 
 export default function Navbar({ me, route, onRoute, onLogout }) {
+
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const wrapperRef = useRef(null);
+  const canSeeDashboard = ['super_admin', 'program_chair', 'dean'].includes(me?.role);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -64,16 +66,22 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
   return (
     <header id="Header">
+
       <div className="nav-left">
         <strong onClick={() => onRoute('Dashboard')}>BARK</strong>
       </div>
 
       <nav className="nav-center">
-        {isSuperAdmin && (
-          <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => onRoute('Dashboard')}>
+        
+        {(isSuperAdmin || isChair) && (
+          <button
+            className={route === 'Dashboard' ? 'active' : ''}
+            onClick={() => onRoute('Dashboard')}
+          >
             Dashboard
           </button>
         )}
+
 
         {me && me.role !== 'student' && (
           <button className={route === 'student' ? 'active' : ''} onClick={() => onRoute('student')}>
@@ -82,85 +90,67 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         )}
 
         {isDean && (
-          <>
-            <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
-              Approvals
-            </button>
-            <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
-              My Questions
-            </button>
-          </>
-        )}
-
-        {isChair && (
-          <>
-            <button className={route === 'chairTags' ? 'active' : ''} onClick={() => onRoute('chairTags')}>
-              Manage Subjects
-            </button>
-            <button className={route === 'chairQuestions' ? 'active' : ''} onClick={() => onRoute('chairQuestions')}>
-              My Questions
-            </button>
-            <button className={route === 'chairApprovals' ? 'active' : ''} onClick={() => onRoute('chairApprovals')}>
-              Approve Questions
-            </button>
-          </>
-        )}
-
-        {isProfessor && (
-          <button className={route === 'profQuestions' ? 'active' : ''} onClick={() => onRoute('profQuestions')}>
-            My Questions
+          <button
+            className={route === 'dean' ? 'active' : ''}
+            onClick={() => onRoute('dean')}
+          >
+            Dean Approvals
           </button>
         )}
 
         {isSuperAdmin && (
           <>
-            <button className={route === 'adminCatalog' ? 'active' : ''} onClick={() => onRoute('adminCatalog')}>
+            <button
+              className={route === 'adminCatalog' ? 'active' : ''}
+              onClick={() => onRoute('adminCatalog')}
+            >
               Admin Catalog
             </button>
-            <button className={route === 'adminUsers' ? 'active' : ''} onClick={() => onRoute('adminUsers')}>
+
+            <button
+              className={route === 'adminUsers' ? 'active' : ''}
+              onClick={() => onRoute('adminUsers')}
+            >
               User Management
             </button>
           </>
         )}
 
         {!me && (
-          <>
-            <button className={activeSection === 'about' ? 'nav-active' : ''} onClick={() => scrollToSection('about')}>
-              About
-            </button>
-            <button className={activeSection === 'programs' ? 'nav-active' : ''} onClick={() => scrollToSection('programs')}>
-              Programs
-            </button>
-            <button className={activeSection === 'mock-exams' ? 'nav-active' : ''} onClick={() => scrollToSection('mock-exams')}>
-              Mock Exams
-            </button>
-            <button className={route === 'Register' ? 'active' : ''} onClick={() => onRoute('Register')}>
-              Register
-            </button>
-          </>
+          <button
+            className={route === 'login' ? 'active' : ''}
+            onClick={() => onRoute('login')}
+          >
+            Login
+          </button>
         )}
+
       </nav>
 
       <div className="nav-right" ref={wrapperRef}>
+
         {me ? (
           <div className="profile-wrapper">
+
             <img
-              src={
-                me.profilePicture ||
-                'https://static.vecteezy.com/system/resources/previews/036/280/651/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'
-              }
+              src={me.profilePicture || 'https://static.vecteezy.com/system/resources/previews/036/280/651/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'}
               alt="profile"
               className="profile-icon"
               onClick={() => setOpen(!open)}
             />
-            {open && <ProfileModal me={me} onLogout={onLogout} />}
+            {open && (
+              <ProfileModal me={me} onLogout={onLogout} />
+            )}
+
           </div>
         ) : (
-          <button className={route === 'login' ? 'active' : ''} onClick={() => onRoute('login')}>
+          <button onClick={() => onRoute('login')}>
             Login
           </button>
         )}
+
       </div>
+
     </header>
   );
 }
