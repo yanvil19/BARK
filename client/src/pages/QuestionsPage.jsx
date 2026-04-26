@@ -46,8 +46,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [subjectFilter, setSubjectFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
+  const [viewQuestion, setViewQuestion] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -211,6 +213,11 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setEditQuestion(null);
   }
 
+  function closeViewModal() {
+    setShowViewModal(false);
+    setViewQuestion(null);
+  }
+
   function openCreateModal() {
     setEditQuestion(null);
     setShowForm(true);
@@ -219,6 +226,11 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   function openEditModal(question) {
     setEditQuestion(question);
     setShowForm(true);
+  }
+
+  function openViewModal(question) {
+    setViewQuestion(question);
+    setShowViewModal(true);
   }
 
   function handleSaved(newQuestion, isEdit) {
@@ -473,7 +485,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                       ) : null}
 
                       {question.state !== 'draft' && question.state !== 'returned' ? (
-                        <span className="qp-no-actions">No actions available</span>
+                        <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
                       ) : null}
                     </td>
                   </tr>
@@ -540,6 +552,26 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           initialData={editQuestion}
           onSaved={handleSaved}
           onClose={closeFormModal}
+        />
+      </Modal>
+
+      <Modal
+        open={showViewModal}
+        onClose={closeViewModal}
+        title="View Question"
+      >
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            Review the details of your submitted question. This view is read-only.
+          </p>
+          {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
+        </div>
+
+        <QuestionForm
+          tags={tags}
+          initialData={viewQuestion}
+          onClose={closeViewModal}
+          readOnly={true}
         />
       </Modal>
     </main>

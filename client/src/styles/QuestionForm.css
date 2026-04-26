@@ -339,3 +339,26 @@
     width: 100%;
   }
 }
+
+/* Read-only styles */
+.qf-shell--readonly input:disabled,
+.qf-shell--readonly select:disabled,
+.qf-shell--readonly textarea:disabled {
+  background-color: #f8f9fe;
+  color: #4a57a2;
+  border-color: #e2e5f5;
+  cursor: default;
+  opacity: 1;
+}
+
+.qf-shell--readonly .qf-answer-radio.is-disabled {
+  cursor: default;
+}
+
+.qf-shell--readonly .qf-radio-indicator {
+  border-color: #d1d6ef;
+}
+
+.qf-shell--readonly .qf-answer-radio input:checked + .qf-radio-indicator {
+  border-color: #4a57a2;
+}

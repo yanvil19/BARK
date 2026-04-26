@@ -422,6 +422,7 @@
 }
 
 .qp-btn-edit,
+.qp-btn-view,
 .qp-btn-submit,
 .qp-btn-delete {
   padding: 4px 12px;
@@ -431,6 +432,15 @@
   font-family: var(--font-body);
   cursor: pointer;
   transition: background 0.15s;
+}
+
+.qp-btn-view {
+  border: 1px solid #3b458b;
+  color: #3b458b;
+}
+
+.qp-btn-view:hover {
+  background: rgba(59, 69, 139, 0.08);
 }
 
 .qp-btn-edit {
