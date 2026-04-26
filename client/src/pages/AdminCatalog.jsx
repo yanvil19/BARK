@@ -182,136 +182,146 @@ export default function AdminCatalog() {
 
   return (
     <main className="adminCatalog-page-container">
-      <header className="adminCatalog-page-header">
+    
+    <header className="adminCatalog-page-header">
+      <div className="adminCatalog-content">
         <h2>Super Admin Catalog</h2>
-        <p className="adminCatalog-subtitle">Manage schools (departments) and programs</p>
-      </header>
+        <p className="adminCatalog-subtitle">
+          Manage schools (departments) and programs
+        </p>
+      </div>
+    </header>
+
       {error ? <p>{error}</p> : null}
 
       <section className="adminCatalog-departments">
-        <header className="adminCatalog-departments-header">
-          <div className="titles">
-            <h3>Schools of NU Laguna</h3>
-            <h4>{departments.length} schools registered in the system</h4>
-          </div>
+        <div className="adminCatalog-content">
+          <header className="adminCatalog-departments-header">
+            <div className="titles">
+              <h3>Schools of NU Laguna</h3>
+              <h4>{departments.length} schools registered in the system</h4>
+            </div>
 
-          <div className="actions">
-            <button onClick={() => setShowForm(true)}>
-              + Add Department
-            </button>
+            <div className="actions">
+              <button onClick={() => setShowForm(true)}>
+                + Add Department
+              </button>
 
-            {showForm && (
-              <div
-                className="adminCatalog-modal-overlay"
-                onClick={() => setShowForm(false)}
-              >
+              {showForm && (
                 <div
-                  className="adminCatalog-modal"
-                  onClick={(e) => e.stopPropagation()}
+                  className="adminCatalog-modal-overlay"
+                  onClick={() => setShowForm(false)}
                 >
-                  
-                  <div className="adminCatalog-modal-header">
-                    <h3>Create Department</h3>
+                  <div
+                    className="adminCatalog-modal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     
-                    <button
-                      type="button"
-                      className="adminCatalog-modal-close"
-                      onClick={() => setShowForm(false)}
-                      aria-label="Close modal"
-                    >
-                      x
-                    </button>
-                  </div>
-
-                  <div className="adminCatalog-modal-body">
-                    <form onSubmit={createDepartment}>
-                      <div className="adminCatalog-form-group">
-                        <label className='form-title'>
-                          Department Name
-                        </label>
-                        <input
-                            className='input-title'
-                            value={deptName}
-                            onChange={(e) => setDeptName(e.target.value)}
-                            placeholder='e.g. School of Engineering And Architecture'
-                          />
-                      </div>
-
-                      <div className="adminCatalog-form-group">
-                        <label className='form-title'>
-                          Acronym / Code
-                        </label>
-                        <input
-                            className='input-title'
-                            value={deptCode}
-                            onChange={(e) => setDeptCode(e.target.value)}
-                            placeholder='e.g. SEA'
-                          />
-                      </div>
-                    </form>
-                  </div>
-                  <div className="adminCatalog-modal-footer">
-                        <button className="adminCatalog-cancelbtn" onClick={() => setShowForm(false)}>
-                          Cancel
-                        </button>
-
-                        <button className="adminCatalog-primarybtn" onClick={createDepartment} disabled={!deptName || !deptCode}>
-                          Save Department
-                        </button>
-                      </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <table className="adminCatalog-table">
-          <thead>
-            <tr>
-              <th className="adminCatalog-dept-code">Acronym</th>
-              <th className="adminCatalog-dept-name">School Name</th>
-              <th className="adminCatalog-dept-programs">Programs</th>
-              <th className="adminCatalog-dept-status">Status</th>
-              <th className="adminCatalog-dept-actions">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {departments.map((d) => {
-              const programCount = programs.filter(
-                (p) => (p.department?._id || p.department) === d._id
-              ).length;
-
-              return (
-                <tr key={d._id}>
-                  <td className="adminCatalog-dept-code"><span className="adminCatalog-dept-pill">{d.code}</span></td>
-
-                  <td className="adminCatalog-dept-name">{d.name}</td>
-
-                  <td className="adminCatalog-dept-programs">
-                    {programCount} {programCount === 1 ? 'program' : 'programs'}
-                  </td>
-             
-                  <td className="adminCatalog-dept-status"
-                    data-status={d.isActive ? 'active' : 'inactive'}
-                  >●
-                    {d.isActive ? ' Active' : ' Inactive'}
-                  </td>
-
-                  <td className="adminCatalog-dept-actions">
-                    <button className="adminCatalog-btn-edit" onClick={() => startEditDepartment(d)}>
-                      Edit
-                    </button>
+                    <div className="adminCatalog-modal-header">
+                      <h3>Create Department</h3>
                       
-                    <button className="adminCatalog-btn-danger" onClick={() => toggleDepartment(d)}>
-                      {d.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
+                      <button
+                        type="button"
+                        className="adminCatalog-modal-close"
+                        onClick={() => setShowForm(false)}
+                        aria-label="Close modal"
+                      >
+                        x
+                      </button>
+                    </div>
+
+                    <div className="adminCatalog-modal-body">
+                      <form onSubmit={createDepartment}>
+                        <div className="adminCatalog-form-group">
+                          <label className='form-title'>
+                            Department Name
+                          </label>
+                          <input
+                              className='input-title'
+                              value={deptName}
+                              onChange={(e) => setDeptName(e.target.value)}
+                              placeholder='e.g. School of Engineering And Architecture'
+                            />
+                        </div>
+
+                        <div className="adminCatalog-form-group">
+                          <label className='form-title'>
+                            Acronym / Code
+                          </label>
+                          <input
+                              className='input-title'
+                              value={deptCode}
+                              onChange={(e) => setDeptCode(e.target.value)}
+                              placeholder='e.g. SEA'
+                            />
+                        </div>
+                      </form>
+                    </div>
+                    <div className="adminCatalog-modal-footer">
+                          <button className="adminCatalog-cancelbtn" onClick={() => setShowForm(false)}>
+                            Cancel
+                          </button>
+
+                          <button className="adminCatalog-primarybtn" onClick={createDepartment} disabled={!deptName || !deptCode}>
+                            Save Department
+                          </button>
+                        </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+          
+          <div className="adminCatalog-table-container">
+            <table className="adminCatalog-table">
+              <thead>
+                <tr>
+                  <th className="adminCatalog-dept-code">Acronym</th>
+                  <th className="adminCatalog-dept-name">School Name</th>
+                  <th className="adminCatalog-dept-programs">Programs</th>
+                  <th className="adminCatalog-dept-status">Status</th>
+                  <th className="adminCatalog-dept-actions">Actions</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+
+              <tbody>
+                {departments.map((d) => {
+                  const programCount = programs.filter(
+                    (p) => (p.department?._id || p.department) === d._id
+                  ).length;
+
+                  return (
+                    <tr key={d._id}>
+                      <td className="adminCatalog-dept-code"><span className="adminCatalog-dept-pill">{d.code}</span></td>
+
+                      <td className="adminCatalog-dept-name">{d.name}</td>
+
+                      <td className="adminCatalog-dept-programs">
+                        {programCount} {programCount === 1 ? 'program' : 'programs'}
+                      </td>
+                
+                      <td className="adminCatalog-dept-status"
+                        data-status={d.isActive ? 'active' : 'inactive'}
+                      >●
+                        {d.isActive ? ' Active' : ' Inactive'}
+                      </td>
+
+                      <td className="adminCatalog-dept-actions">
+                        <button className="adminCatalog-btn-edit" onClick={() => startEditDepartment(d)}>
+                          Edit
+                        </button>
+                          
+                        <button className="adminCatalog-btn-danger" onClick={() => toggleDepartment(d)}>
+                          {d.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
         {deptEditId && (
@@ -392,85 +402,89 @@ export default function AdminCatalog() {
 
 
       <section className="adminCatalog-programs">
-        <header className="adminCatalog-programs-header">
-          <div className="titles">
-            <h3>Programs</h3>
-            <h4>{programs.length} programs across all departments</h4>
-          </div>
+        <div className="adminCatalog-content">
+          <header className="adminCatalog-programs-header">
+            <div className="titles">
+              <h3>Programs</h3>
+              <h4>{programs.length} programs across all departments</h4>
+            </div>
 
-          <div className="actions">
-            <label className="adminCatalog-program-filter">
-              <select
-                value={progDeptId}
-                onChange={(e) => setProgDeptId(e.target.value)}
-              >
-                <option value="">Filter: All Departments</option>
-                {departments.map((d) => (
-                  <option key={d._id} value={d._id}>
-                    {d.code} - {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button onClick={() => setShowProgramForm(true)}>
-              + Add Program
-            </button>
-          </div>
-        </header>
-
-        <table className="adminCatalog-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Program Name</th>
-              <th>Department</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {programs.map((p) => (
-              <tr key={p._id}>
-                <td className="adminCatalog-program-code">
-                  <span className="adminCatalog-dept-pill">{p.code}</span>
-                </td>
-
-                <td>{p.name}</td>
-
-                <td className="adminCatalog-program-dept">
-                  <span className="adminCatalog-dept-pill">
-                    {p.department?.code || p.department}
-                  </span>
-                </td>
-
-                <td
-                  className="adminCatalog-dept-status"
-                  data-status={p.isActive ? "active" : "inactive"}
+            <div className="actions">
+              <label className="adminCatalog-program-filter">
+                <select
+                  value={progDeptId}
+                  onChange={(e) => setProgDeptId(e.target.value)}
                 >
-                  ● {p.isActive ? "Active" : "Inactive"}
-                </td>
+                  <option value="">Filter: All Departments</option>
+                  {departments.map((d) => (
+                    <option key={d._id} value={d._id}>
+                      {d.code} - {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <td className="adminCatalog-dept-actions">
-                  <button
-                    className="adminCatalog-btn adminCatalog-btn-edit"
-                    onClick={() => startEditProgram(p)}
-                  >
-                    Edit
-                  </button>
+              <button onClick={() => setShowProgramForm(true)}>
+                + Add Program
+              </button>
+            </div>
+          </header>
+          
+          <div className="adminCatalog-table-container">
+            <table className="adminCatalog-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Program Name</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
 
-                  <button
-                    className="adminCatalog-btn adminCatalog-btn-danger"
-                    onClick={() => toggleProgram(p)}
-                  >
-                    {p.isActive ? "Deactivate" : "Activate"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <tbody>
+                {programs.map((p) => (
+                  <tr key={p._id}>
+                    <td className="adminCatalog-program-code">
+                      <span className="adminCatalog-dept-pill">{p.code}</span>
+                    </td>
+
+                    <td>{p.name}</td>
+
+                    <td className="adminCatalog-program-dept">
+                      <span className="adminCatalog-dept-pill">
+                        {p.department?.code || p.department}
+                      </span>
+                    </td>
+
+                    <td
+                      className="adminCatalog-dept-status"
+                      data-status={p.isActive ? "active" : "inactive"}
+                    >
+                      ● {p.isActive ? "Active" : "Inactive"}
+                    </td>
+
+                    <td className="adminCatalog-dept-actions">
+                      <button
+                        className="adminCatalog-btn adminCatalog-btn-edit"
+                        onClick={() => startEditProgram(p)}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        className="adminCatalog-btn adminCatalog-btn-danger"
+                        onClick={() => toggleProgram(p)}
+                      >
+                        {p.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
         {showProgramForm && (
