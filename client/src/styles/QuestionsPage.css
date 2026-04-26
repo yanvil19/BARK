@@ -625,3 +625,13 @@
     min-width: 760px;
   }
 }
+
+.qp-warning-text {
+  color: #d92d20;
+  font-weight: 600;
+  margin-top: 8px !important;
+}
+
+.qp-modal-actions {
+  margin-top: 24px;
+}

@@ -48,8 +48,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [loading, setLoading] = useState(true);
   const [editQuestion, setEditQuestion] = useState(null);
   const [viewQuestion, setViewQuestion] = useState(null);
+  const [questionToDelete, setQuestionToDelete] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -242,12 +244,18 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     closeFormModal();
   }
 
-  async function handleDelete(question) {
-    if (!window.confirm(`Delete "${question.title}"?`)) return;
+  function handleDelete(question) {
+    setQuestionToDelete(question);
+    setShowDeleteModal(true);
+  }
 
+  async function confirmDelete() {
+    if (!questionToDelete) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}`, { method: 'DELETE' });
-      setQuestions((prev) => prev.filter((item) => item._id !== question._id));
+      await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
+      setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
+      setShowDeleteModal(false);
+      setQuestionToDelete(null);
     } catch (err) {
       alert(err.message || 'Failed to delete question.');
     }
@@ -574,6 +582,38 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           onClose={closeViewModal}
           readOnly={true}
         />
+      </Modal>
+
+      <Modal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Question"
+      >
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            Are you sure you want to delete <strong>"{questionToDelete?.title}"</strong>?
+          </p>
+          <p className="qp-modal-subtitle qp-warning-text">
+            This action cannot be undone. Drafts will be permanently removed.
+          </p>
+        </div>
+
+        <div className="modal-actions qp-modal-actions">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onClick={() => setShowDeleteModal(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="modal-btn-danger"
+            onClick={confirmDelete}
+          >
+            Delete Question
+          </button>
+        </div>
       </Modal>
     </main>
   );
