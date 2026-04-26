@@ -38,4 +38,3 @@ Desktop.ini
 # Uploaded files (keep folder via .gitkeep)
 server/uploads/*
 !server/uploads/.gitkeep
-
