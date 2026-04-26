@@ -35,16 +35,11 @@ const listQuestions = async (req, res) => {
 
 // GET /api/questions/approvals
 // For Program Chairs: lists all pending_chair questions for their program
-// For Deans: lists all pending_dean questions for their department (future)
 const listApprovals = async (req, res) => {
   try {
     let filter = {};
     if (req.user.role === 'program_chair') {
       filter = { state: { $ne: 'draft' }, program: req.user.program };
-    } else if (req.user.role === 'dean') {
-      // Future feature: Dean approvals queue
-      const accessibleIds = await getAccessibleProgramIds(req.user);
-      filter = { state: 'pending_dean', program: { $in: accessibleIds } };
     } else {
       return res.status(403).json({ message: 'Not authorized to view approvals' });
     }
@@ -221,7 +216,7 @@ const reviewQuestion = async (req, res) => {
       question.rejectionReason = undefined;
     } else if (action === 'approve') {
       if (question.state !== 'pending_chair') return res.status(400).json({ message: 'Question is not pending Chair review' });
-      question.state = 'pending_dean';
+      question.state = 'approved';
     } else if (action === 'return') {
       if (question.state !== 'pending_chair') return res.status(400).json({ message: 'Question is not pending Chair review' });
       if (!note?.trim()) return res.status(400).json({ message: 'Revision note is required when returning' });

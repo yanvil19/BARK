@@ -263,7 +263,7 @@
 .qp-state.draft        { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
 .qp-state.pending_chair { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; }
 .qp-state.returned     { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
-.qp-state.pending_dean { background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+
 .qp-state.approved     { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
 .qp-state.in_use       { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
 .qp-state.retired      { background: #f9fafb; color: #374151; border: 1px solid #9ca3af; }

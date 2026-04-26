@@ -33,13 +33,13 @@ export default function ChairApprovals({ me }) {
   useEffect(() => { fetchApprovals(); }, [fetchApprovals]);
 
   async function handleApprove(q) {
-    if (!window.confirm(`Approve "${q.title}"? It will be sent to the Dean for final review.`)) return;
+    if (!window.confirm(`Approve "${q.title}"? It will be marked as approved and ready to use.`)) return;
     try {
       await apiAuth(`${BASE}/api/questions/${q._id}/review`, {
         method: 'POST',
         body: { action: 'approve' }
       });
-      setQuestions((prev) => prev.map((x) => x._id === q._id ? { ...x, state: 'pending_dean' } : x));
+      setQuestions((prev) => prev.map((x) => x._id === q._id ? { ...x, state: 'approved' } : x));
     } catch (err) {
       alert(err.message || 'Failed to approve question.');
     }
@@ -104,7 +104,7 @@ export default function ChairApprovals({ me }) {
 
   const filtered = questions.filter((q) => {
     if (filter === 'all') return true;
-    if (filter === 'approved') return q.state === 'pending_dean' || q.state === 'approved';
+    if (filter === 'approved') return q.state === 'approved';
     return q.state === filter;
   });
 
@@ -190,7 +190,7 @@ export default function ChairApprovals({ me }) {
                         <strong>Returned</strong>
                         <p style={{ color: 'orange', fontSize: '12px', margin: '4px 0 0 0' }}>{q.revisionNote}</p>
                       </div>
-                    ) : q.state === 'pending_dean' || q.state === 'approved' ? (
+                    ) : q.state === 'approved' ? (
                       <strong style={{ color: 'green' }}>Approved</strong>
                     ) : (
                       <strong>Pending Review</strong>

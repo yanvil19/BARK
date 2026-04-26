@@ -9,7 +9,6 @@ const STATE_LABELS = {
   draft: 'Draft',
   pending_chair: 'Pending Chair Review',
   returned: 'Returned for Revision',
-  pending_dean: 'Pending Dean Review',
   approved: 'Approved',
   in_use: 'In Use',
   retired: 'Retired',
