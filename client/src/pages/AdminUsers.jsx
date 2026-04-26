@@ -34,7 +34,20 @@ export default function AdminUsers() {
   const [filterRole, setFilterRole] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const users = useMemo(() => (data && data.users ? data.users : []), [data]);
+
+  const { paginatedUsers, totalPages } = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return {
+      paginatedUsers: users.slice(startIndex, endIndex),
+      totalPages: Math.ceil(users.length / itemsPerPage),
+    };
+  }, [users, currentPage]);
 
   async function fetchUsersList(search, role, dept) {
     setBusy(true);
@@ -77,12 +90,14 @@ export default function AdminUsers() {
 
   useEffect(() => {
     const t = setTimeout(() => {
+      setCurrentPage(1);
       fetchUsersList(searchQuery, filterRole, filterDepartment);
     }, 100);
     return () => clearTimeout(t);
   }, [searchQuery, filterRole, filterDepartment]);
 
   function closeModal() {
+    setCurrentPage(1);
     setModalMode(null);
     setSelectedUser(null);
     setCreateError('');
@@ -272,8 +287,8 @@ export default function AdminUsers() {
               <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              {users.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
-                users.map((u) => (
+              {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                paginatedUsers.map((u) => (
                   <tr key={u._id}>
                     <td>
                       <div className="um-user-name">{u.name}</div>
@@ -295,6 +310,42 @@ export default function AdminUsers() {
           </table>
         )}
       </div>
+
+      {/* ── Pagination ── */}
+      {!busy && users.length > 0 && (
+        <div className="um-pagination">
+          <div className="um-pagination-info">
+            Showing {users.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, users.length)} of {users.length} users
+          </div>
+          <div className="um-pagination-controls">
+            <button 
+              className="um-pagination-btn" 
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </button>
+            <div className="um-pagination-pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  className={`um-pagination-page ${currentPage === page ? 'um-pagination-page--active' : ''}`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button 
+              className="um-pagination-btn" 
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <Modal open={modalMode === 'create'} onClose={closeModal} title="Creating User">

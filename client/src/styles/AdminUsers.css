@@ -104,6 +104,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 }
 
 .um-table thead tr {
@@ -314,6 +315,91 @@
   cursor: not-allowed;
 }
 
+/* Pagination */
+.um-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.um-pagination-info {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.um-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.um-pagination-btn {
+  padding: 8px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.um-pagination-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+.um-pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.um-pagination-pages {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.um-pagination-page {
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.um-pagination-page:hover {
+  background: #f9fafb;
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+.um-pagination-page--active {
+  background: var(--primary-bg);
+  color: #fff;
+  border-color: var(--primary-bg);
+}
+
 @media (max-width: 860px) {
   .um-page-header {
     padding-left: 18px;
@@ -323,5 +409,15 @@
   .um-header {
     flex-direction: column;
     gap: 14px;
+  }
+
+  .um-pagination {
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .um-pagination-controls {
+    justify-content: center;
   }
 }
