@@ -270,18 +270,19 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           <div>
             <h1 className="qp-title">{getPageTitle()}</h1>
             <p className="qp-subtitle">{getPageSubtitle()}</p>
-            {role !== 'dean' && programLabel ? (
-              <div className="qp-program-chip-wrap">
-                <span className="qp-program-chip">{programLabel}</span>
-              </div>
-            ) : null}
           </div>
 
-          {canCreateQuestion && (
-            <button type="button" className="qp-btn-add" onClick={openCreateModal}>
-              + Create Question
-            </button>
-          )}
+          <div className="qp-header-actions">
+            {role !== 'dean' && programLabel ? (
+              <span className="qp-program-chip">{programLabel}</span>
+            ) : null}
+
+            {canCreateQuestion && (
+              <button type="button" className="qp-btn-add" onClick={openCreateModal}>
+                + Create Question
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
