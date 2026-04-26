@@ -15,14 +15,12 @@
 /* MODAL BOX */
 .profile-modal {
   position: absolute;
+  border-radius: 10px;
   top: 48px;
   right: 0;
-  width: 280px;
+  min-width: 300px;
   max-width: 90vw;
   background: #ffffff;
-  color: #1f1f1f;
-  padding: 16px;
-  border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -33,78 +31,103 @@
 }
 
 /* TITLE */
-.profile-modal h3 {
+.profile-modal-header h3 {
   margin: 0 0 12px;
   font-size: 20px;
   font-weight: 700;
-  color: #000;
+  font-family: var(--font-title);
+  color: #35408e;
+  border-radius: 10px 10px 0 0;
+
+  padding: 0.3em 1em;
+
+  border-bottom: 1px solid #35408e;
+}
+
+.profile-modal-identifiers {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2em;
+}
+
+.profile-modal-identifiers .userName {
+  margin: 0;
+  font-size: 30px;
+  font-family: var(--font-title);
+  font-weight: bolder;
+  color: #35408e;
+  justify-content: center;
+}
+
+.profile-modal-identifiers .role {
+  background-color: transparent;
+  color: var(--primary-bg);
+  border: 1px solid var(--primary-bg);
+  border-radius: 10px;
+  align-self: center;
+  justify-content: center;
+
+  width: 50%;
+  margin: 0;
+  padding: 0;
+}
+
+.email, .studentID, .department, .program {
+  margin: 0 0 0.5em 0;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: rgba(53, 64, 142, 1);
+}
+
+.email-icon {
+  padding-left: 1em;
+  width: 20px;
+  height: 20px;
+  color: #fad227;
+  flex-shrink: 0;
+}
+
+.profile-modal svg {
+  fill: currentColor;
 }
 
 /* TEXT ROWS */
 .profile-modal p {
-  margin: 0;
-  font-size: 14px !important;
-  line-height: 1.5;
-  color: #333 !important;
-
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1em;
+
+  align-items: center;
   justify-content: flex-start;
-  text-align: left;
 }
 
-/* LABEL (left side) */
-.profile-modal p strong {
-  color: var(--primary-bg) !important;
-  font-weight: 700 !important;
-  font-size: 14px !important;
-  width: 95px;
+.profile-modal-additional-info p {
+  margin: 0;
+  color: var(--primary-bg);
+
+  overflow-wrap: break-word;
+}
+
+.profile-modal-additional-info .studentID-icon, .profile-modal-additional-info .department-icon, .profile-modal-additional-info .program-icon {
+  padding-left: 1em;
+  width: 20px;
+  height: 20px;
+  color: #fad227;
   flex-shrink: 0;
-  margin-right: 8px;
 }
 
-/* DIVIDER */
-.profile-modal hr {
-  border: none;
-  border-top: 1px solid rgba(255, 200, 0, 0.2);
-  margin: 8px 0;
+.profile-modal-additional-info .studentID, .profile-modal-additional-info .department, .profile-modal-additional-info .program {
+  margin: 0 0 1em 0;
 }
 
 /* NORMAL BUTTONS INSIDE MODAL (NOT LOGOUT) */
-.profile-modal button:not(.logout-btn) {
-  margin-top: 6px;
-
-  padding: 8px;
-  border: none;
-  border-radius: 8px;
-
-  background: var(--accent-yellow);
-  color: #000;
-
-  cursor: pointer;
-  font-weight: 600;
-
-  transition: 0.2s ease;
+.profile-modal .logout-btn {
+  background-color: red !important;
+  width: 15em;
+  align-self: center;
+  margin: 2em 0 1em 0;
 }
 
-.profile-modal button:not(.logout-btn):hover {
-  opacity: 0.85;
-}
-
-.logout-btn {
-  margin-top: 10px;
-  padding: 10px 16px;
-  border-radius: 20px;
-  border: 2px solid var(--primary-bg);
-  background-color: var(--primary-bg) !important;
-  color: white !important;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.logout-btn:hover {
-  background-color: var(--accent-yellow) !important;
-  transform: translateY(-1px);
+.profile-modal .logout-btn:hover {
+  background-color: orange !important;
 }
