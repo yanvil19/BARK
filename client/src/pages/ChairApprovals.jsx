@@ -14,8 +14,12 @@ const STATE_LABELS = {
 };
 
 function formatDate(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function formatStateLabel(state) {
@@ -65,20 +69,24 @@ export default function ChairApprovals({ me }) {
     }
   }, []);
 
-  useEffect(() => { 
-    fetchApprovals(); 
+  useEffect(() => {
+    fetchApprovals();
     fetchTags();
   }, [fetchApprovals, fetchTags]);
 
-  async function handleApprove(q) {
-    if (!window.confirm(`Approve "${q.title}"? It will be marked as approved and ready to use.`)) return;
+  async function handleApprove(question) {
+    if (!window.confirm(`Approve "${question.title}"? It will be marked as approved and ready to use.`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${q._id}/review`, {
+      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
         method: 'POST',
-        body: { action: 'approve' }
+        body: { action: 'approve' },
       });
-      setQuestions((prev) => prev.map((x) => x._id === q._id ? { ...x, state: 'approved' } : x));
-      setSelectedQuestion((prev) => prev && prev._id === q._id ? { ...prev, state: 'approved' } : prev);
+      setQuestions((prev) => prev.map((item) => (
+        item._id === question._id ? { ...item, state: 'approved' } : item
+      )));
+      setSelectedQuestion((prev) => (
+        prev && prev._id === question._id ? { ...prev, state: 'approved' } : prev
+      ));
     } catch (err) {
       alert(err.message || 'Failed to approve question.');
     }
@@ -89,19 +97,26 @@ export default function ChairApprovals({ me }) {
       alert(`A ${actionModal.action === 'return' ? 'revision note' : 'rejection reason'} is required.`);
       return;
     }
+
     setSubmitting(true);
     try {
       await apiAuth(`${BASE}/api/questions/${actionModal.question._id}/review`, {
         method: 'POST',
-        body: { action: actionModal.action, note: note.trim() }
+        body: { action: actionModal.action, note: note.trim() },
       });
+
       const newState = actionModal.action === 'return' ? 'returned' : 'rejected';
       const updatedQuestion = {
         ...actionModal.question,
         state: newState,
-        ...(newState === 'returned' ? { revisionNote: note.trim() } : { rejectionReason: note.trim() })
+        ...(newState === 'returned'
+          ? { revisionNote: note.trim() }
+          : { rejectionReason: note.trim() }),
       };
-      setQuestions((prev) => prev.map((x) => x._id === actionModal.question._id ? updatedQuestion : x));
+
+      setQuestions((prev) => prev.map((item) => (
+        item._id === actionModal.question._id ? updatedQuestion : item
+      )));
       setSelectedQuestion(updatedQuestion);
       setActionModal(null);
       setNote('');
@@ -112,29 +127,31 @@ export default function ChairApprovals({ me }) {
     }
   }
 
-  async function handleRestore(q) {
-    if (!window.confirm(`Restore "${q.title}" to pending review queue?`)) return;
+  async function handleRestore(question) {
+    if (!window.confirm(`Restore "${question.title}" to pending review queue?`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${q._id}/review`, {
+      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
         method: 'POST',
-        body: { action: 'restore' }
+        body: { action: 'restore' },
       });
-      const updated = { ...q, state: 'pending_chair', rejectionReason: null };
-      setQuestions((prev) => prev.map((x) => x._id === q._id ? updated : x));
+      const updated = { ...question, state: 'pending_chair', rejectionReason: null };
+      setQuestions((prev) => prev.map((item) => (
+        item._id === question._id ? updated : item
+      )));
       setSelectedQuestion(updated);
     } catch (err) {
       alert(err.message || 'Failed to restore question.');
     }
   }
 
-  async function handleDelete(q) {
-    if (!window.confirm(`Permanently delete "${q.title}"? This cannot be undone.`)) return;
+  async function handleDelete(question) {
+    if (!window.confirm(`Permanently delete "${question.title}"? This cannot be undone.`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${q._id}/review`, {
+      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
         method: 'POST',
-        body: { action: 'delete' }
+        body: { action: 'delete' },
       });
-      setQuestions((prev) => prev.filter((x) => x._id !== q._id));
+      setQuestions((prev) => prev.filter((item) => item._id !== question._id));
       setSelectedQuestion(null);
     } catch (err) {
       alert(err.message || 'Failed to delete question.');
@@ -143,18 +160,21 @@ export default function ChairApprovals({ me }) {
 
   const subjectOptions = useMemo(() => {
     const map = new Map();
+
     tags.forEach((tag) => {
       if (tag?._id && tag?.name) {
         map.set(String(tag._id), { id: String(tag._id), name: tag.name });
       }
     });
-    questions.forEach((q) => {
-      const id = q.tag?._id || q.tag;
-      const name = q.tag?.name;
+
+    questions.forEach((question) => {
+      const id = question.tag?._id || question.tag;
+      const name = question.tag?.name;
       if (id && name && !map.has(String(id))) {
         map.set(String(id), { id: String(id), name });
       }
     });
+
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [questions, tags]);
 
@@ -162,37 +182,36 @@ export default function ChairApprovals({ me }) {
     const result = { all: questions.length };
     STATE_FILTERS.forEach((state) => {
       if (state === 'all') return;
-      result[state] = questions.filter((q) => q.state === state).length;
+      result[state] = questions.filter((question) => question.state === state).length;
     });
     return result;
   }, [questions]);
 
   const filteredQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
-    
-    let result = questions.filter((q) => {
-      if (filter !== 'all' && q.state !== filter) return false;
-      
+
+    return questions.filter((question) => {
+      if (filter !== 'all' && question.state !== filter) return false;
+
       if (subjectFilter) {
-        const qTag = q.tag?._id || q.tag;
+        const qTag = question.tag?._id || question.tag;
         if (String(qTag) !== String(subjectFilter)) return false;
       }
 
       if (!needle) return true;
 
       const content = [
-        q.title,
-        q.description,
-        q.tag?.name,
-        q.createdBy?.name,
+        question.title,
+        question.description,
+        question.tag?.name,
+        question.createdBy?.name,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
+
       return content.includes(needle);
     });
-
-    return result;
   }, [questions, filter, searchQuery, subjectFilter]);
 
   const { paginatedQuestions, totalPages } = useMemo(() => {
@@ -210,7 +229,6 @@ export default function ChairApprovals({ me }) {
 
   return (
     <main className="ca-page">
-      {/* ── Header ─────────────────────────────────────── */}
       <header className="ca-page-header">
         <div className="ca-header">
           <div>
@@ -223,7 +241,6 @@ export default function ChairApprovals({ me }) {
         </div>
       </header>
 
-      {/* ── Status Pills ────────────────────────────── */}
       <div className="ca-state-pills">
         {STATE_FILTERS.map((state) => (
           <button
@@ -238,7 +255,6 @@ export default function ChairApprovals({ me }) {
         ))}
       </div>
 
-      {/* ── Filters & Search ─────────────────────────── */}
       <div className="ca-filters">
         <input
           className="ca-search"
@@ -262,76 +278,77 @@ export default function ChairApprovals({ me }) {
         </select>
       </div>
 
-      {/* ── Main Layout ────────────────────────────── */}
       <div className="ca-layout">
-        {/* Left Column: Questions List */}
         <div className="ca-list-panel">
           {loading ? (
-            <div className="ca-empty">Loading questions…</div>
+            <div className="ca-empty">Loading questions...</div>
           ) : filteredQuestions.length === 0 ? (
             <div className="ca-empty">No questions found.</div>
           ) : (
             <>
               <div className="ca-questions-list">
-                {paginatedQuestions.map((q) => (
+                {paginatedQuestions.map((question) => (
                   <div
-                    key={q._id}
-                    className={`ca-question-card ${selectedQuestion?._id === q._id ? 'is-active' : ''}`}
-                    onClick={() => setSelectedQuestion(q)}
+                    key={question._id}
+                    className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''}`}
+                    onClick={() => setSelectedQuestion(question)}
                   >
                     <div className="ca-card-top">
                       <div>
-                        <h3 className="ca-card-title">{q.title}</h3>
-                        <p className="ca-card-desc">{truncateText(q.description, 100)}</p>
+                        <h3 className="ca-card-title">{question.title}</h3>
+                        <p className="ca-card-desc">{truncateText(question.description, 100)}</p>
                       </div>
-                      <div className={`ca-state-badge ca-state--${q.state}`}>
-                        {q.state === 'pending_chair' ? 'Pending' : formatStateLabel(q.state)}
+                      <div className={`ca-state-badge ca-state--${question.state}`}>
+                        {question.state === 'pending_chair' ? 'Pending' : formatStateLabel(question.state)}
                       </div>
                     </div>
                     <div className="ca-card-meta">
-                      <span className="ca-tag-pill">{q.tag?.name || 'N/A'}</span>
-                      <span className="ca-author">{q.createdBy?.name || 'Unknown'}</span>
-                      <span className="ca-date">{formatDate(q.submittedAt)}</span>
+                      <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
+                      <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
+                      <span className="ca-date">{formatDate(question.submittedAt)}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
+              {filteredQuestions.length > 0 && (
                 <div className="ca-pagination">
-                  <button
-                    className="ca-pagination-btn"
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    ← Previous
-                  </button>
-                  <div className="ca-pagination-pages">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <button
-                        key={page}
-                        className={`ca-pagination-page ${currentPage === page ? 'ca-pagination-page--active' : ''}`}
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </button>
-                    ))}
+                  <div className="ca-pagination-info">
+                    Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
                   </div>
-                  <button
-                    className="ca-pagination-btn"
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next →
-                  </button>
+                  <div className="ca-pagination-controls">
+                    <button
+                      className="ca-pagination-btn"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <div className="ca-pagination-pages">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          className={`ca-pagination-page ${currentPage === page ? 'ca-pagination-page--active' : ''}`}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      className="ca-pagination-btn"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Right Column: Question Details Sidebar */}
         {selectedQuestion ? (
           <div className="ca-sidebar">
             <div className="ca-sidebar-header">
@@ -340,19 +357,17 @@ export default function ChairApprovals({ me }) {
                 className="ca-sidebar-close"
                 onClick={() => setSelectedQuestion(null)}
               >
-                ✕
+                x
               </button>
             </div>
 
             <div className="ca-sidebar-content">
-              {/* Question Details */}
               <section className="ca-section">
                 <h3 className="ca-section-label">Question</h3>
                 <h4 className="ca-question-detail-title">{selectedQuestion.title}</h4>
                 <p className="ca-question-detail-text">{selectedQuestion.description}</p>
               </section>
 
-              {/* Images */}
               {selectedQuestion.images && selectedQuestion.images.length > 0 && (
                 <section className="ca-section">
                   <h3 className="ca-section-label">Images</h3>
@@ -370,7 +385,6 @@ export default function ChairApprovals({ me }) {
                 </section>
               )}
 
-              {/* Answers */}
               <section className="ca-section">
                 <h3 className="ca-section-label">Answers</h3>
                 <div className="ca-answers">
@@ -385,7 +399,6 @@ export default function ChairApprovals({ me }) {
                 </div>
               </section>
 
-              {/* Metadata */}
               <section className="ca-section">
                 <div className="ca-meta-grid">
                   <div>
@@ -403,7 +416,6 @@ export default function ChairApprovals({ me }) {
                 </div>
               </section>
 
-              {/* Revision/Rejection Notes */}
               {selectedQuestion.state === 'returned' && selectedQuestion.revisionNote && (
                 <section className="ca-section ca-section--note">
                   <h3 className="ca-section-label">Revision Note</h3>
@@ -419,7 +431,6 @@ export default function ChairApprovals({ me }) {
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="ca-sidebar-actions">
               {selectedQuestion.state === 'pending_chair' ? (
                 <>
@@ -475,7 +486,6 @@ export default function ChairApprovals({ me }) {
         )}
       </div>
 
-      {/* Action Modal (Return / Reject) */}
       {actionModal && (
         <div className="ca-modal-overlay">
           <div className="ca-modal">
@@ -486,7 +496,7 @@ export default function ChairApprovals({ me }) {
                 onClick={() => setActionModal(null)}
                 type="button"
               >
-                ✕
+                x
               </button>
             </div>
             <div className="ca-modal-body">
@@ -502,22 +512,24 @@ export default function ChairApprovals({ me }) {
                   rows="5"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={actionModal.action === 'return' ? "Explain what needs to be fixed..." : "Explain why this question is being rejected..."}
+                  placeholder={actionModal.action === 'return'
+                    ? 'Explain what needs to be fixed...'
+                    : 'Explain why this question is being rejected...'}
                   autoFocus
                 />
               </div>
             </div>
             <div className="ca-modal-footer">
-              <button 
+              <button
                 className="ca-btn-cancel"
-                onClick={() => setActionModal(null)} 
+                onClick={() => setActionModal(null)}
                 disabled={submitting}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="ca-btn-submit"
-                onClick={submitAction} 
+                onClick={submitAction}
                 disabled={submitting || !note.trim()}
               >
                 {submitting ? 'Submitting...' : 'Submit'}
