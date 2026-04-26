@@ -613,9 +613,9 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
                       <td>
                         <span
                           className="pill"
-                          style={{ backgroundColor: hashTagColor(q.tag), color: '#fff' }}
+                          style={{ backgroundColor: hashTagColor(q.tag?.name || q.tag), color: '#fff' }}
                         >
-                          {q.tag}
+                          {q.tag?.name || q.tag}
                         </span>
                       </td>
                       <td className="pc-question-text">{q.questionText}</td>
