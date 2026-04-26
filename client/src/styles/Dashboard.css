@@ -508,50 +508,94 @@
   font-weight: 500;
 }
 
-.pc-question-text {
-  max-width: 420px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Faculty Creator Info */
+.pc-creator-cell {
+  padding-left: 24px !important;
 }
 
-/* Action buttons */
-.pc-action-buttons {
+.pc-creator-info {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 12px;
 }
 
-.pc-btn {
-  padding: 0.5em 2em;
-  border-radius: 4px;
-  font-size: 0.8rem;
+.pc-creator-avatar {
+  width: 34px;
+  height: 34px;
+  background: #f0f2ff;
+  color: #2b3980;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid #dee2f2;
+}
+
+.pc-creator-name {
   font-weight: 600;
-  cursor: pointer;
-  background: transparent;
-  transition: background 0.15s;
+  color: #3e4c84;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.pc-btn-approve {
-  border: 1.5px solid #2aba25;
-  color: #2aba25;
+.pc-self-tag {
+  font-size: 0.75rem;
+  color: #8c96ae;
+  font-weight: 500;
+  background: #f1f2f7;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
-.pc-btn-approve:hover { background: rgba(42, 186, 37, 0.08); }
-
-.pc-btn-revision {
-  border: 1.5px solid #f5a623;
-  color: #f5a623;
+/* Stat Cells & Pills */
+.pc-stat-cell {
+  text-align: center !important;
+  font-weight: 600;
+  color: #5a6691;
 }
 
-.pc-btn-revision:hover { background: rgba(245, 166, 35, 0.08); }
-
-.pc-btn-discard {
-  border: 1.5px solid #e53935;
-  color: #e53935;
+.pc-stat-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  min-width: 36px;
 }
 
-.pc-btn-discard:hover { background: rgba(229, 57, 53, 0.08); }
+.pc-stat-pill.is-pending {
+  background: #fff4e5;
+  color: #d97706;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.pc-stat-pill.is-clear {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.2);
+}
+
+.pc-date-cell {
+  color: #8c96ae;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.pc-none-text {
+  color: #b0b8c9;
+  font-style: italic;
+}
+
+.pc-empty-state {
+  text-align: center;
+  padding: 40px !important;
+  color: #8c96ae;
+  font-style: italic;
+}
 
 /* Table notice */
 .pc-table-notice {

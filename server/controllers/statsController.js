@@ -132,10 +132,44 @@ const getProgramChairStats = async (req, res) => {
       state: 'approved'
     });
 
-    const pendingQuestions = await Question.countDocuments({
+    const pendingQuestionsCount = await Question.countDocuments({
       program: req.user.program,
       state: 'pending_chair'
     });
+
+    const facultyStats = await Question.aggregate([
+      { $match: { program: req.user.program } },
+      {
+        $group: {
+          _id: '$createdBy',
+          totalQuestions: { $sum: 1 },
+          pendingQuestions: {
+            $sum: { $cond: [{ $eq: ['$state', 'pending_chair'] }, 1, 0] }
+          },
+          lastSubmittedAt: { $max: '$submittedAt' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      {
+        $project: {
+          _id: 1,
+          name: '$creator.name',
+          role: '$creator.role',
+          totalQuestions: 1,
+          pendingQuestions: 1,
+          lastSubmittedAt: 1
+        }
+      },
+      { $sort: { lastSubmittedAt: -1 } }
+    ]);
 
     res.status(200).json({
       programStudentCount: [
@@ -148,7 +182,8 @@ const getProgramChairStats = async (req, res) => {
       approvedQuestions,
       passingRate: 0,
       examsPublished: 0,
-      pendingQuestions,
+      pendingQuestionsCount,
+      facultyStats,
       subjectSummary: [],
       reviewQuestions: []
     });

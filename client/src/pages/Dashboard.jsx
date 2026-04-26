@@ -109,7 +109,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
       setPcStats({
         ...statsRes,
-        pendingQuestionsCount: statsRes.pendingQuestions ?? 0,
+        pendingQuestionsCount: statsRes.pendingQuestionsCount ?? 0,
       });
       setPendingQuestions(pendingRes.questions || []);
     } catch (err) {
@@ -147,6 +147,14 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
     const deptId = String(prog.department?._id || prog.department || '');
     return deptId === String(activeDepartmentId);
   });
+  const formatRole = (role) => {
+    switch (role) {
+      case 'program_chair': return 'Program Chair';
+      case 'professor': return 'Professor';
+      case 'dean': return 'Dean';
+      default: return role;
+    }
+  };
 
   const hashTagColor = (str = '') => {
     const palette = [
@@ -586,14 +594,14 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
             <section className="dashboard-table-section">
               <div className="table-section-header">
                 <div>
-                  <h2>Questions for Review and Approval</h2>
-                  <p>These questions are currently being reviewed or are pending approval</p>
+                  <h2>{me?.program?.name || 'Program'} Faculty Submission Overview</h2>
+                  <p>Summary of questions created and submitted by each professor</p>
                 </div>
                 <div className="pc-review-header-right">
-                  <span className="pc-see-all" onClick={() => onRoute('chairApprovals')}>See all</span>
+                  <span className="pc-see-all" onClick={() => onRoute('chairApprovals')}>Review Questions</span>
                   <div className="pc-pending-badge">
                     <span className="pc-pending-number">{pcStats?.pendingQuestionsCount ?? 0}</span>
-                    <span className="pc-pending-label">Pending</span>
+                    <span className="pc-pending-label">Total Pending</span>
                   </div>
                 </div>
               </div>
@@ -601,45 +609,67 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
               <table className="modern-table">
                 <colgroup>
                   <col style={{ width: '25%' }} />
-                  <col style={{ width: '50%' }} />
-                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
                 </colgroup>
                 
                 <thead>
                   <tr>
-                    <th>Tag</th>
-                    <th>Question</th>
-                    <th>Review Action</th>
+                    <th>Creator</th>
+                    <th>Role</th>
+                    <th>Total Questions</th>
+                    <th>Pending Review</th>
+                    <th>Recent Submission</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingQuestions.slice(0, 10).map((q, i) => (
-                    <tr key={i}>
-                      <td>
-                        <span
-                          className="pill"
-                          style={{ backgroundColor: hashTagColor(q.tag?.name || q.tag), color: '#fff' }}
-                        >
-                          {q.tag?.name || q.tag}
-                        </span>
-                      </td>
-                      <td className="pc-question-text">{q.questionText}</td>
-                      <td>
-                        <div className="pc-action-buttons">
-                          <button className="pc-btn pc-btn-approve">Approve</button>
-                          <button className="pc-btn pc-btn-revision">Revision</button>
-                          <button className="pc-btn pc-btn-discard">Discard</button>
-                        </div>
-                      </td>
+                  {(pcStats?.facultyStats || []).length > 0 ? (
+                    pcStats.facultyStats.map((stat, i) => (
+                      <tr key={i}>
+                        <td className="pc-creator-cell">
+                          <div className="pc-creator-info">
+                            <div className="pc-creator-avatar">
+                              {stat.name.charAt(0)}
+                            </div>
+                            <span className="pc-creator-name">
+                              {stat.name} {stat._id === me?._id && <span className="pc-self-tag">(You)</span>}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="pc-role-cell">
+                          {formatRole(stat.role)}
+                        </td>
+                        <td className="pc-stat-cell">{stat.totalQuestions}</td>
+                        <td className="pc-stat-cell">
+                          <span className={`pc-stat-pill ${stat.pendingQuestions > 0 ? 'is-pending' : 'is-clear'}`}>
+                            {stat.pendingQuestions}
+                          </span>
+                        </td>
+                        <td className="pc-date-cell">
+                          {stat.lastSubmittedAt 
+                            ? new Date(stat.lastSubmittedAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })
+                            : <span className="pc-none-text">No submissions</span>}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="pc-empty-state">No faculty submissions found</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
 
               <div className="pc-table-notice">
-                Showing 10 of {pcStats?.pendingQuestionsCount ?? 0} pending questions.{' '}
-                <button className="pc-notice-link" onClick={() => navigate('chairApprovals')}>
-                  Go to Approved Questions to review all →
+                Overview of faculty activity in {me?.program?.name || 'your program'}.{' '}
+                <button className="pc-notice-link" onClick={() => onRoute('chairApprovals')}>
+                  Go to Approval Queue →
                 </button>
               </div>
             </section>
