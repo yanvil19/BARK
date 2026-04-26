@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import '../styles/QuestionForm.css';
 
@@ -13,10 +13,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
   ]);
   const [tagId, setTagId] = useState(initialData?.tag?._id || initialData?.tag || '');
   const [imagePreviews, setImagePreviews] = useState(
-    (initialData?.images || []).map((url) => ({ 
-      url: url.startsWith('/') ? `${BASE}${url}` : url, 
-      file: null, 
-      existing: true 
+    (initialData?.images || []).map((url) => ({
+      url: url.startsWith('/') ? `${BASE}${url}` : url,
+      file: null,
+      existing: true,
     }))
   );
   const [uploadedUrls, setUploadedUrls] = useState(initialData?.images || []);
@@ -48,16 +48,18 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
   async function handleImagePick(e) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    const previews = files.map((f) => ({ url: URL.createObjectURL(f), file: f, existing: false }));
+
+    const previews = files.map((file) => ({ url: URL.createObjectURL(file), file, existing: false }));
     setImagePreviews((prev) => [...prev, ...previews]);
     setUploading(true);
+
     try {
       const fd = new FormData();
-      files.forEach((f) => fd.append('images', f));
+      files.forEach((file) => fd.append('images', file));
       const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
       setUploadedUrls((prev) => [...prev, ...data.urls]);
     } catch (err) {
-      setError('Image upload failed: ' + err.message);
+      setError(`Image upload failed: ${err.message}`);
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -80,9 +82,14 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
   async function save(submit = false) {
     const err = validate();
-    if (err) { setError(err); return; }
+    if (err) {
+      setError(err);
+      return;
+    }
+
     setError('');
     setSaving(true);
+
     try {
       const body = {
         title: title.trim(),
@@ -92,7 +99,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         images: uploadedUrls,
         ...(programId ? { programId } : {}),
       };
-      
+
       let question;
       if (initialData) {
         const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
@@ -101,7 +108,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
         question = data.question;
       }
-      
+
       if (submit) {
         await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
         onSaved({ ...question, state: 'pending_chair' }, !!initialData);
@@ -116,98 +123,121 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
   }
 
   return (
-    <div>
-      {/* Title */}
-      <div>
-        <label><strong>Question Title *</strong></label><br />
-        <input
-          type="text"
-          placeholder="e.g. Beam Deflection Problem #1"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={120}
-        />
+    <div className="qf-shell">
+      <div className="qf-grid">
+        <div className="qf-field">
+          <label htmlFor="question-title">Question Title *</label>
+          <input
+            id="question-title"
+            type="text"
+            placeholder="e.g. Beam Deflection Problem #1"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={120}
+          />
+        </div>
+
+        <div className="qf-field">
+          <label htmlFor="question-subject">Subject *</label>
+          <select id="question-subject" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+            <option value="">Select a subject</option>
+            {tags.map((tag) => (
+              <option key={tag._id} value={tag._id}>{tag.name}</option>
+            ))}
+          </select>
+          {tags.length === 0 ? (
+            <p className="qf-inline-note qf-inline-note--error">
+              No subjects available. Ask your Program Chair to create subjects first.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="qf-field qf-field--full">
+          <label htmlFor="question-description">Question *</label>
+          <textarea
+            id="question-description"
+            placeholder="Write the full question here..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={5}
+          />
+        </div>
       </div>
 
-      <br />
-
-      {/* Description */}
-      <div>
-        <label><strong>Question *</strong></label><br />
-        <textarea
-          placeholder="Write the full question here…"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={4}
-          cols={50}
-        />
-      </div>
-
-      <br />
-
-      {/* Subject */}
-      <div>
-        <label><strong>Subject *</strong></label><br />
-        <select value={tagId} onChange={(e) => setTagId(e.target.value)} className="qf-select">
-          <option value="">— Select a subject —</option>
-          {tags.map((t) => (
-            <option key={t._id} value={t._id}>{t.name}</option>
-          ))}
-        </select>
-        {tags.length === 0 && (
-          <p className="error-text">No subjects available. Ask your Program Chair to create subjects first.</p>
-        )}
-      </div>
-
-      <br />
-
-      {/* Answers */}
-      <div>
-        <label><strong>Answers *</strong> (select the radio button to mark the correct answer)</label>
-        <br />
-        {answers.map((ans, idx) => (
-          <div key={idx} className="answer-row">
-            <input
-              type="radio"
-              checked={ans.isCorrect}
-              onChange={() => setCorrect(idx)}
-              title="Mark as correct"
-            />
-            <input
-              type="text"
-              placeholder={`Answer ${idx + 1}`}
-              value={ans.text}
-              onChange={(e) => setAnswerText(idx, e.target.value)}
-            />
-            {answers.length > 2 && (
-              <button type="button" onClick={() => removeAnswer(idx)}>Remove</button>
-            )}
+      <section className="qf-section">
+        <div className="qf-section-heading">
+          <div>
+            <h3>Answers *</h3>
+            <p>Select the radio button to mark the correct answer.</p>
           </div>
-        ))}
-        <br />
-        <button type="button" onClick={addAnswer}>+ Add Answer</button>
-      </div>
+          <button type="button" className="qf-secondary-btn" onClick={addAnswer}>
+            + Add Answer
+          </button>
+        </div>
 
-      <br />
+        <div className="qf-answer-list">
+          {answers.map((answer, idx) => (
+            <div key={idx} className="qf-answer-row">
+              <label className="qf-answer-radio">
+                <input
+                  type="radio"
+                  checked={answer.isCorrect}
+                  onChange={() => setCorrect(idx)}
+                  title="Mark as correct"
+                />
+                <span className="qf-radio-indicator" />
+              </label>
 
-      {/* Images */}
-      <div>
-        <label><strong>Images</strong> (optional, max 5)</label><br />
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleImagePick}
-        />
-        {uploading && <span> Uploading…</span>}
-        {imagePreviews.length > 0 && (
+              <input
+                className="qf-answer-input"
+                type="text"
+                placeholder={`Answer ${idx + 1}`}
+                value={answer.text}
+                onChange={(e) => setAnswerText(idx, e.target.value)}
+              />
+
+              {answers.length > 2 ? (
+                <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(idx)}>
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="qf-section">
+        <div className="qf-section-heading">
+          <div>
+            <h3>Images</h3>
+            <p>Optional, maximum of 5 images.</p>
+          </div>
+        </div>
+
+        <div className="qf-upload-box">
+          <input
+            ref={fileRef}
+            className="qf-file-input"
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImagePick}
+          />
+          <button type="button" className="qf-secondary-btn" onClick={() => fileRef.current?.click()}>
+            Choose Files
+          </button>
+          <span className="qf-upload-note">
+            {uploading ? 'Uploading images...' : 'PNG, JPG, or WEBP files work best.'}
+          </span>
+        </div>
+
+        {imagePreviews.length > 0 ? (
           <div className="image-previews">
             {imagePreviews.map((img, idx) => (
               <div key={idx} className="image-thumb">
-                <img 
-                  src={img.url} 
-                  alt="" 
+                <img
+                  src={img.url}
+                  alt=""
                   onClick={() => setFullscreenImage(img.url)}
                   title="Click to view full size"
                 />
@@ -215,41 +245,53 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
                   type="button"
                   onClick={() => removeImage(idx)}
                   className="btn-remove-img"
-                >✕</button>
+                >
+                  x
+                </button>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        ) : null}
+      </section>
 
-      <br />
+      {error ? <p className="error-text">{error}</p> : null}
 
-      {error && <p className="error-text">{error}</p>}
-
-      {/* Actions */}
       <div className="form-actions">
-        <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
-        <button type="button" onClick={() => save(false)} disabled={saving || uploading}>
-          {saving ? 'Saving…' : 'Save Draft'}
+        <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={saving}>
+          Cancel
         </button>
-        <button type="button" onClick={() => save(true)} disabled={saving || uploading}>
-          {saving ? 'Saving…' : 'Submit for Review'}
+        <button
+          type="button"
+          className="qf-draft-btn"
+          onClick={() => save(false)}
+          disabled={saving || uploading}
+        >
+          {saving ? 'Saving...' : 'Save Draft'}
+        </button>
+        <button
+          type="button"
+          className="qf-submit-btn"
+          onClick={() => save(true)}
+          disabled={saving || uploading}
+        >
+          {saving ? 'Saving...' : 'Submit for Review'}
         </button>
       </div>
 
-      {/* Fullscreen Image Viewer */}
-      {fullscreenImage && (
+      {fullscreenImage ? (
         <div className="fullscreen-overlay">
           <div className="fullscreen-content">
-            <button 
+            <button
               type="button"
               onClick={() => setFullscreenImage(null)}
               className="btn-close-red"
-            >✕ Close</button>
+            >
+              Close
+            </button>
             <img src={fullscreenImage} alt="Fullscreen" className="fullscreen-img" />
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
