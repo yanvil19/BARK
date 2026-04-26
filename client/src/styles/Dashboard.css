@@ -109,7 +109,21 @@
   font-size: 0.8rem;
   margin: 4px 0 0 0;
   text-transform: capitalize;
+
+  padding-top: 10px;
+  
+  background-image: linear-gradient(
+    to right,
+    #8c96ae 0%,
+    #8c96ae 80%,
+    transparent 80%
+  );
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: top left;
+
 }
+
 
 /* DATABASE GAUGE (VERTICAL) */
 .db-gauge-container {
@@ -139,10 +153,9 @@
 .dashboard-table-section {
   background: #ffffff;
   border-radius: 8px;
-  border: 1px solid #e1e3ed;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  margin: 0 0px 24px 0px;
-  padding: 10px;
+  border: 1px solid rgba(53, 64, 142, 0.37);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  margin: 1em 1.5em;
   overflow: hidden;
 }
 
@@ -192,7 +205,7 @@
   background-color: #eef0f6;
   color: #6a7499;
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   padding: 12px 24px;
   font-size: 0.9rem;
 }
@@ -204,10 +217,21 @@
   font-size: 0.9rem;
 }
 
+.modern-table tbody td:first-child {
+  text-align: center;
+}
+
+.modern-table tbody td:last-child {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1em;
+}
+
 .pill {
   display: inline-block;
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: 0.5em 2em;
+  border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -316,6 +340,51 @@
   grid-column: 1 / -1;
 }
 
+.question-count-card {
+  border: 1px solid #e1e3ed;
+  border-top-width: 5px;
+  border-radius: 4px;
+  padding: 12px 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  background-color: #35408e;
+  margin-top: 2%;
+
+  align-self: center;
+  width: 94%;
+  border-top-color: #fad02c;
+}
+
+.question-count-card h2 {
+  font-size: 2.8rem;
+  margin: 0;
+  color: #FAD227;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.question-count-card p {
+  color: #FAD227;
+  font-size: 0.8rem;
+  margin: 4px 0 4px 0;
+  padding: 0 1em;
+  text-transform: capitalize;
+  text-align: center;
+
+  padding-top: 10px;
+  
+  background-image: linear-gradient(
+    to right,
+    #8c96ae 0%,
+    #8c96ae 80%,
+    transparent 80%
+  );
+  background-size: 100% 1px;  /* line thickness */
+  background-repeat: no-repeat;
+  background-position: top left;
+}
+
 .pc-tq-number {
   font-size: 4.5rem;
   font-weight: 700;
@@ -339,6 +408,7 @@
 /* Subject Success Rate */
 .dashboard-pc-subject-box {
   margin-bottom: 24px;
+  margin: 1em 1.5em;
 }
 
 .pc-subject-grid {
@@ -453,7 +523,7 @@
 }
 
 .pc-btn {
-  padding: 5px 16px;
+  padding: 0.5em 2em;
   border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 600;

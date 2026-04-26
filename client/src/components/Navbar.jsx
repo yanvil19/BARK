@@ -69,7 +69,7 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       </div>
 
       <nav className="nav-center">
-        {isSuperAdmin && (
+        {(isSuperAdmin || isChair) && (
           <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => onRoute('Dashboard')}>
             Dashboard
           </button>

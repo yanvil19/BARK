@@ -513,12 +513,10 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
               <div className="dashboard-box">
                 <div className="box-title">No. of Approved Questions</div>
-                <div className="box-content-grid-2">
-                  <div className="metric-card metric-card-blue student-count-card">
+                  <div className="question-count-card">
                     <h2>{(pcStats?.approvedQuestions || 0).toLocaleString()}</h2>
                     <p>Approved Questions</p>
                   </div>
-                </div>
               </div>
             </div>
 
@@ -592,7 +590,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
                   <p>These questions are currently being reviewed or are pending approval</p>
                 </div>
                 <div className="pc-review-header-right">
-                  <span className="pc-see-all">See all</span>
+                  <span className="pc-see-all" onClick={() => onRoute('chairApprovals')}>See all</span>
                   <div className="pc-pending-badge">
                     <span className="pc-pending-number">{pcStats?.pendingQuestionsCount ?? 0}</span>
                     <span className="pc-pending-label">Pending</span>
@@ -601,6 +599,12 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
               </div>
 
               <table className="modern-table">
+                <colgroup>
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '50%' }} />
+                  <col style={{ width: '25%' }} />
+                </colgroup>
+                
                 <thead>
                   <tr>
                     <th>Tag</th>
@@ -634,8 +638,8 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
               <div className="pc-table-notice">
                 Showing 10 of {pcStats?.pendingQuestionsCount ?? 0} pending questions.{' '}
-                <button className="pc-notice-link" onClick={() => navigate('myQuestions')}>
-                  Go to My Questions to review all →
+                <button className="pc-notice-link" onClick={() => navigate('chairApprovals')}>
+                  Go to Approved Questions to review all →
                 </button>
               </div>
             </section>
