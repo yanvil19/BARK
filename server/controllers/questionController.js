@@ -68,6 +68,8 @@ const createQuestion = async (req, res) => {
     if (!answers.some((a) => a.isCorrect))
       return res.status(400).json({ message: 'At least one answer must be marked as correct' });
     if (!tagId) return res.status(400).json({ message: 'A topic tag is required' });
+    if (Array.isArray(images) && images.length > 5)
+      return res.status(400).json({ message: 'Maximum of 5 images allowed' });
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
     let resolvedProgramId;
@@ -123,7 +125,11 @@ const updateQuestion = async (req, res) => {
     const { title, description, answers, tagId, images } = req.body;
     if (title) question.title = title.trim();
     if (description) question.description = description.trim();
-    if (images !== undefined) question.images = images;
+    if (images !== undefined) {
+      if (Array.isArray(images) && images.length > 5)
+        return res.status(400).json({ message: 'Maximum of 5 images allowed' });
+      question.images = images;
+    }
     if (answers) {
       if (!Array.isArray(answers) || answers.length < 2)
         return res.status(400).json({ message: 'At least 2 answers are required' });

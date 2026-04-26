@@ -53,9 +53,34 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
+    // 1. Check Total Count (Max 5)
+    if (imagePreviews.length + files.length > 5) {
+      setError('Maximum of 5 images allowed per question.');
+      e.target.value = '';
+      return;
+    }
+
+    // 2. Check File Size (Max 5MB) & Types
+    const MAX_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setError(`File "${file.name}" is not an allowed type. Only JPG, PNG, and WEBP are accepted.`);
+        e.target.value = '';
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        setError(`File "${file.name}" exceeds the 5MB size limit.`);
+        e.target.value = '';
+        return;
+      }
+    }
+
     const previews = files.map((file) => ({ url: URL.createObjectURL(file), file, existing: false }));
     setImagePreviews((prev) => [...prev, ...previews]);
     setUploading(true);
+    setError(''); // Clear any previous errors
 
     try {
       const fd = new FormData();
@@ -64,6 +89,8 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       setUploadedUrls((prev) => [...prev, ...data.urls]);
     } catch (err) {
       setError(`Image upload failed: ${err.message}`);
+      // Remove previews if upload failed
+      setImagePreviews((prev) => prev.slice(0, prev.length - previews.length));
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -240,7 +267,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               Choose Files
             </button>
             <span className="qf-upload-note">
-              {uploading ? 'Uploading images...' : 'PNG, JPG, or WEBP files work best.'}
+              {uploading ? 'Uploading images...' : 'JPG, PNG, or WEBP (Max 5MB each, 5 total)'}
             </span>
           </div>
         )}
