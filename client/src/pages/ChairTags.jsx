@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import '../styles/ChairTags.css';
+import '../styles/global.css';
 
 const BASE = 'http://localhost:5000';
 
@@ -10,6 +12,7 @@ export default function ChairTags({ me }) {
   const [addError, setAddError] = useState('');
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState({});
+  const [showAddModal, setShowAddModal] = useState(false);
 
   async function fetchTags() {
     try {
@@ -71,64 +74,147 @@ export default function ChairTags({ me }) {
   }
 
   return (
-    <div>
-      <h1>Manage Subjects</h1>
-      <p>Create and manage subjects for your program. Professors will use these subjects to categorize their questions.</p>
+    <div className='mng-subjects-container'>
+      <div>
+        <header className='mng-subjects-header'>
+          <h1>Manage Subjects</h1>
+          <p>Create and manage subjects for your program. Professors will use these subjects to categorize their questions.</p>
+        </header>
 
-      <hr />
+        <div className='mng-subjects-content'>
+          <header className='mng-subjects-content-header'>
+            <h2>
+              All Tags <div className='tag-count-pill'><span className="tag-count">{tags.length}</span></div>
+            </h2>
 
-      <h2>Add New Tag</h2>
-      <form onSubmit={handleAdd}>
-        <input
-          type="text"
-          placeholder="e.g. Mathematics"
-          value={newName}
-          onChange={(e) => { setNewName(e.target.value); setAddError(''); }}
-          maxLength={60}
-        />
-        <button type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add Tag'}</button>
-        {addError && <p style={{ color: 'red' }}>{addError}</p>}
-      </form>
+            <button className="adminCatalog-btn" onClick={() => setShowAddModal(true)}>
+              + Add New Tag
+            </button>
+          </header>
 
-      <hr />
+          {loading ? (
+            <p>Loading…</p>
+          ) : tags.length === 0 ? (
+            <p>No tags yet. Create your first tag above.</p>
+          ) : (
+            <table className="tags-table">
+              <colgroup>
+                <col style={{ width: '40%' }} />
+                <col style={{ width: '60%' }} />
+              </colgroup>
 
-      <h2>All Tags ({tags.length})</h2>
-      {loading ? (
-        <p>Loading…</p>
-      ) : tags.length === 0 ? (
-        <p>No tags yet. Create your first tag above.</p>
-      ) : (
-        <ul>
-          {tags.map((tag) => {
-            const isEditing = tag._id in editValues;
-            return (
-              <li key={tag._id}>
-                {isEditing ? (
-                  <>
-                    <input
-                      value={editValues[tag._id]}
-                      autoFocus
-                      onChange={(e) => setEditValues((prev) => ({ ...prev, [tag._id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveEdit(tag);
-                        if (e.key === 'Escape') cancelEdit(tag._id);
-                      }}
-                    />
-                    <button onClick={() => saveEdit(tag)}>Save</button>
-                    <button onClick={() => cancelEdit(tag._id)}>Cancel</button>
-                  </>
-                ) : (
-                  <>
-                    <strong>{tag.name}</strong>
-                    {' '}
-                    <button onClick={() => startEdit(tag)}>Edit</button>
-                    <button onClick={() => handleDelete(tag)}>Delete</button>
-                  </>
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {tags.map((tag) => {
+                  const isEditing = tag._id in editValues;
+
+                  return (
+                    <tr key={tag._id}>
+                      <td>
+                        <div className="tag-pill editable">
+                          {isEditing ? (
+                            <input
+                              className="tag-pill-input"
+                              value={editValues[tag._id]}
+                              autoFocus
+                              onChange={(e) =>
+                                setEditValues((prev) => ({
+                                  ...prev,
+                                  [tag._id]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveEdit(tag);
+                                if (e.key === 'Escape') cancelEdit(tag._id);
+                              }}
+                            />
+                          ) : (
+                            <span className="tag-pill-text">{tag.name}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="adminCatalog-dept-actions">
+                          <button className="adminCatalog-btn-edit" onClick={() => startEdit(tag)}>Edit</button>
+
+                          <button className="adminCatalog-btn-danger" onClick={() => handleDelete(tag)}>Delete</button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div
+          className="adminCatalog-modal-overlay"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="adminCatalog-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="adminCatalog-modal-header">
+              <h3>Add New Tag</h3>
+              <button onClick={() => setShowAddModal(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleAdd}>
+              <div className="adminCatalog-modal-body">
+                <div className="adminCatalog-form-group">
+                  <label className="form-title">Tag Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Mathematics"
+                    value={newName}
+                    onChange={(e) => {
+                      setNewName(e.target.value);
+                      setAddError('');
+                    }}
+                    maxLength={60}
+                    autoFocus
+                  />
+                </div>
+
+                {addError && (
+                  <p style={{ color: 'red', fontSize: '13px' }}>
+                    {addError}
+                  </p>
                 )}
-              </li>
-            );
-          })}
-        </ul>
+              </div>
+
+              <div className="adminCatalog-modal-footer">
+                <button
+                  type="button"
+                  className="adminCatalog-cancelbtn"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="adminCatalog-primarybtn"
+                  disabled={saving}
+                >
+                  {saving ? 'Adding…' : 'Add Tag'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

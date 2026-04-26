@@ -1,241 +1,319 @@
-/* ── Page Shell ─────────────────────────────────────────── */
-.ct-page {
+.mng-subjects-container {
   margin: -20px;
   min-height: 100%;
   background: linear-gradient(180deg, #eef0f8 0%, #e5e7f2 100%);
 }
 
-/* ── Header ─────────────────────────────────────────────── */
-.ct-header {
-  padding: 22px 32px 18px;
+.mng-subjects-container .mng-subjects-header {
+  padding: 18px 32px 12px;
   background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
 }
 
-.ct-header-left h2 {
+.mng-subjects-container .mng-subjects-header h1 {
   margin: 0;
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 24px;
+  line-height: 1.1;
   color: var(--primary-bg);
 }
 
-.ct-header-left p {
-  margin: 3px 0 0;
+.mng-subjects-container .mng-subjects-header p {
+  margin: 4px 0 0;
   font-size: 13px;
   color: #8b92bc;
 }
 
-.ct-header-badge {
-  background: var(--primary-bg);
-  color: var(--accent-yellow);
-  font-family: var(--font-title);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 5px 14px;
-  border-radius: 999px;
+.mng-subjects-container .mng-subjects-content {
+  background-color: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.37);
+  border-radius: 0.8em;
+  box-shadow: 0 12px 15.8px rgba(0, 0, 0, 0.07);
+
+  width: 95vw;
+  margin: 2em;
 }
 
-/* ── Body ────────────────────────────────────────────────── */
-.ct-body {
-  padding: 28px 32px;
+.mng-subjects-content-header {
+  margin: 0 1em;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;  
+}
+
+.mng-subjects-container .mng-subjects-content h2 {
+  font-family: var(--font-title);
+  font-size: 20px;
+  line-height: 1.1;
+  color: var(--primary-bg);
+
+  padding: 0 1em;
+}
+
+.tag-count-pill {
+  display: inline-block;
+  background-color: #35408E;
+  border-radius: 9999px;
+  padding: 0.5em 1.5em;
+  margin-left: 0.5em;
+}
+
+.tag-count {
+  font-size: 20px;
+  color: #FAD227;
+}
+
+.adminCatalog-btn {
+  background-color: var(--primary-bg);
+  color: #ffffff;
+  border: none;
+  border-radius: 0.5em;
+
+  padding: 1em 2em;
+}
+
+.adminCatalog-btn-edit, .adminCatalog-btn-danger {
+  padding: 0.5em 4em;
+}
+
+.adminCatalog-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.adminCatalog-modal {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 35vw;
+  border-radius: 0.8em;
+  box-shadow: 0 12px 15.8px rgba(0, 0, 0, 0.07);
+}
+
+.adminCatalog-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5em 1em;
+  border-radius: 0.8em 0.8em 0 0;
+  font-family: var(--font-title);
+  color: var(--accent-yellow);
+  background-color: var(--primary-bg);
+}
+
+.adminCatalog-modal-header h3 {
+  margin: 0;
+}
+
+.adminCatalog-modal-header button {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.adminCatalog-modal-header button:hover {
+  opacity: 1;
+}
+
+.adminCatalog-modal-body {
+  padding: 2em;
+}
+
+.adminCatalog-form-group {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  margin-bottom: 16px;
 }
 
-/* ── Add Tag Card ────────────────────────────────────────── */
-.ct-add-card {
-  background: #fff;
-  border: 1px solid rgba(53, 64, 142, 0.25);
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-}
-
-.ct-add-card h3 {
-  margin: 0 0 14px;
-  font-family: var(--font-title);
-  font-size: 15px;
+.adminCatalog-form-group label.form-title {
+  font-size: 20px;
   color: var(--primary-bg);
+  margin-bottom: 5px;
 }
 
-.ct-add-form {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.ct-add-input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1.5px solid rgba(53, 64, 142, 0.3);
-  border-radius: 8px;
-  font-family: var(--font-body);
+.adminCatalog-form-group input,
+.adminCatalog-form-group select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #c7cbe8;
   font-size: 14px;
-  background: #f9faff;
-  color: #222;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  max-width: 380px;
+  background-color: #f4f5fb;
 }
 
-.ct-add-input:focus {
+.adminCatalog-form-group input:focus,
+.adminCatalog-form-group select:focus {
   outline: none;
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.12);
-  background: #fff;
+  border-color: #2f3a8f;
+  background-color: #ffffff;
 }
 
-.ct-add-btn {
-  padding: 10px 22px;
-  background: var(--primary-bg);
-  color: var(--accent-yellow);
-  border: none;
-  border-radius: 8px;
-  font-family: var(--font-title);
-  font-size: 14px;
-  font-weight: 600;
+.adminCatalog-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3em;
+  padding: 1em 2em 1em 0;
+  border-top: 1px solid rgba(47, 58, 143, 0.54);
+}
+
+.adminCatalog-cancelbtn {
+  border-radius: 6px;
+  background-color: #ffffff;
+  border: 2px solid #2f3a8f;
+  color: #2f3a8f;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
-  white-space: nowrap;
-}
-
-.ct-add-btn:hover:not(:disabled) {
-  opacity: 0.88;
-  transform: translateY(-1px);
-}
-
-.ct-add-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ct-form-error {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #dc2626;
-}
-
-/* ── Tags Grid Card ──────────────────────────────────────── */
-.ct-tags-card {
-  background: #fff;
-  border: 1px solid rgba(53, 64, 142, 0.25);
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-}
-
-.ct-tags-card-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ct-tags-card-header h3 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 16px;
-  color: var(--primary-bg);
-}
-
-.ct-tags-count {
-  font-size: 12px;
-  color: #8b92bc;
+  font-size: 13px;
   font-family: var(--font-body);
+  padding: 0.2em 2em;
 }
 
-/* ── Tag Chips Grid ──────────────────────────────────────── */
-.ct-tags-grid {
-  padding: 20px 24px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.adminCatalog-primarybtn {
+  border-radius: 6px;
+  background-color: #2f3a8f;
+  border: none;
+  color: #ffcc00;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body);
+  padding: 0.2em 2em;
 }
 
-.ct-empty {
-  padding: 40px 24px;
+.tags-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tags-table thead {
+  border: 1px solid rgba(53, 64, 142, 0.37);
+}
+
+.tags-table th {
+  background-color: rgba(53, 64, 142, 0.11);
+  color: #35408e;
   text-align: center;
-  color: #9ba3cb;
-  font-size: 14px;
+  padding: 12px;
 }
 
-.ct-empty-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+.tags-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7f2;
+  text-align: center;
 }
 
-/* ── Tag Chip ────────────────────────────────────────────── */
-.ct-tag-chip {
+.tags-table button {
+  margin-left: 8px;
+}
+
+.tag-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: #eef0fb;
-  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  padding: 0.5em 1.5em;
   border-radius: 999px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  animation: chipIn 0.2s ease;
+
+  background-color: #35408E; 
+  color: #FAD227;
+
+  font-weight: 700;
+  max-width: 100%;
 }
 
-@keyframes chipIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+.tag-pill-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.ct-tag-chip:hover {
-  border-color: rgba(53, 64, 142, 0.45);
-  box-shadow: 0 2px 8px rgba(53, 64, 142, 0.1);
-}
-
-.ct-tag-chip.editing {
-  border-color: var(--primary-bg);
-  background: #fff;
-}
-
-.ct-chip-name {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--primary-bg);
-  font-weight: 600;
-}
-
-.ct-chip-edit-input {
+.tag-pill-input {
   border: none;
   background: transparent;
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--primary-bg);
-  font-weight: 600;
-  width: 120px;
   outline: none;
-  padding: 0;
+
+  color: #35408E;
+  font-size: 14px;
+  font-weight: 500;
+
+  width: 100%;
+  min-width: 120px;
 }
 
-.ct-chip-actions {
-  display: flex;
-  gap: 4px;
+@media (max-width: 1024px) {
+  .mng-subjects-container .mng-subjects-content {
+    width: 95vw;
+    margin: 1.5em auto;
+  }
+
+  .adminCatalog-btn {
+    padding: 0.8em 1.5em;
+    margin-bottom: 1em;
+  }
+  .adminCatalog-modal {
+    max-width: 70vw;
+  }
+
+  .tag-count {
+    font-size: 18px;
+  }
 }
 
-.ct-chip-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 13px;
-  line-height: 1;
-  transition: background 0.15s;
-}
+@media (max-width: 768px) {
+  .mng-subjects-container {
+    margin: 0;
+  }
 
-.ct-chip-btn:hover {
-  background: rgba(53, 64, 142, 0.1);
-}
+  .mng-subjects-container .mng-subjects-header {
+    padding: 16px;
+  }
 
-.ct-chip-btn.save { color: #16a34a; }
-.ct-chip-btn.cancel { color: #6b7280; }
-.ct-chip-btn.edit { color: #3f4ab8; }
-.ct-chip-btn.del { color: #dc2626; }
+  .mng-subjects-container .mng-subjects-header h1 {
+    font-size: 20px;
+  }
+
+  .mng-subjects-container .mng-subjects-header p {
+    font-size: 12px;
+  }
+
+  .mng-subjects-container .mng-subjects-content {
+    width: 100%;
+    margin: 1em 0;
+    border-radius: 0;
+  }
+
+  .mng-subjects-content-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1em;
+  }
+
+  .mng-subjects-content-header h2 {
+    padding: 0;
+    font-size: 18px;
+  }
+
+  .adminCatalog-btn {
+    width: 100%;
+    padding: 0.8em;
+  }
+
+  .adminCatalog-modal {
+    max-width: 90vw;
+  }
+
+  .adminCatalog-modal-body {
+    padding: 1.5em;
+  }
+
+  .tags-table th,
+  .tags-table td {
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+}
