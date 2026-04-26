@@ -109,4 +109,45 @@ const getSummaryStats = async (req, res) => {
     }
 };
 
-module.exports = { getSummaryStats };
+const getProgramChairStats = async (req, res) => {
+  try {
+    if (!req.user.program) {
+      return res.status(400).json({ message: 'Program Chair has no assigned program' });
+    }
+
+    const program = await Program.findById(req.user.program).select('name code');
+    if (!program) {
+      return res.status(404).json({ message: 'Assigned program not found' });
+    }
+
+    const programStudentCount = await User.countDocuments({
+      role: 'student',
+      program: req.user.program,
+      isActive: true,
+    });
+
+    res.status(200).json({
+      programStudentCount: [
+        {
+          programId: program._id,
+          programName: program.name || program.code || 'Assigned Program',
+          count: programStudentCount,
+        },
+      ],
+      totalQuestions: 0,
+      passingRate: 0,
+      examsPublished: 0,
+      pendingQuestions: 0,
+      subjectSummary: [],
+      reviewQuestions: []
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching program chair stats',
+      error: error.message
+    });
+  }
+};
+
+module.exports = { getSummaryStats, getProgramChairStats };

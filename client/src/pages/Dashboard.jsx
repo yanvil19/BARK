@@ -100,14 +100,17 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
   const fetchPcStats = async () => {
     try {
       const [statsRes, pendingRes] = await Promise.all([
-        apiAuth('/api/program-chair/stats'),
-        apiAuth('/api/program-chair/pending-questions?limit=10'),
+        apiAuth('/api/stats/program-chair/stats'),
+        apiAuth('/api/questions/approvals?limit=10'),
       ]);
 
       console.log('✅ API RESPONSE (stats):', statsRes);
       console.log('✅ API RESPONSE (pending):', pendingRes);
 
-      setPcStats(statsRes);
+      setPcStats({
+        ...statsRes,
+        pendingQuestionsCount: pendingRes.questions?.length ?? 0,
+      });
       setPendingQuestions(pendingRes.questions || []);
     } catch (err) {
       console.error('❌ FETCH ERROR:', err);
@@ -500,7 +503,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
                 <div className="box-title">Program Student Count</div>
                 <div className="box-content-grid-2">
                   {(pcStats?.programStudentCount || []).map((prog, i) => ( 
-                    <div key={i} className="metric-card metric-card-blue">
+                    <div key={i} className="metric-card metric-card-blue student-count-card">
                       <h2>{prog.count.toLocaleString()}</h2>
                       <p>{prog.programName}</p>
                     </div>

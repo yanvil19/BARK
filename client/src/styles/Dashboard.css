@@ -312,7 +312,9 @@
   flex: 1;
 }
 
-
+.box-content-grid-2 .student-count-card:only-child {
+  grid-column: 1 / -1;
+}
 
 .pc-tq-number {
   font-size: 4.5rem;
@@ -325,9 +327,6 @@
   padding: 16px;
   line-height: 1;
 }
-
-
-
 
 /* Row 2 */
 .dashboard-pc-stats-row {
