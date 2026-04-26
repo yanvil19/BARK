@@ -3,6 +3,7 @@ const Department = require('../models/Department');
 const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const mongoose = require('mongoose');
+const Question = require('../models/Question');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -109,4 +110,55 @@ const getSummaryStats = async (req, res) => {
     }
 };
 
-module.exports = { getSummaryStats };
+const getProgramChairStats = async (req, res) => {
+  try {
+    if (!req.user.program) {
+      return res.status(400).json({ message: 'Program Chair has no assigned program' });
+    }
+
+    const program = await Program.findById(req.user.program).select('name code');
+    if (!program) {
+      return res.status(404).json({ message: 'Assigned program not found' });
+    }
+
+    const programStudentCount = await User.countDocuments({
+      role: 'student',
+      program: req.user.program,
+      isActive: true,
+    });
+
+    const approvedQuestions = await Question.countDocuments({
+      program: req.user.program,
+      state: 'approved'
+    });
+
+    const pendingQuestions = await Question.countDocuments({
+      program: req.user.program,
+      state: 'pending_chair'
+    });
+
+    res.status(200).json({
+      programStudentCount: [
+        {
+          programId: program._id,
+          programName: program.name || program.code || 'Assigned Program',
+          count: programStudentCount,
+        },
+      ],
+      approvedQuestions,
+      passingRate: 0,
+      examsPublished: 0,
+      pendingQuestions,
+      subjectSummary: [],
+      reviewQuestions: []
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching program chair stats',
+      error: error.message
+    });
+  }
+};
+
+module.exports = { getSummaryStats, getProgramChairStats };
