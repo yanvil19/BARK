@@ -62,6 +62,12 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
   const isChair = me?.role === 'program_chair';
   const isProfessor = me?.role === 'professor';
 
+  const getInitials = (name = '') => {
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  };
+
   return (
     <header id="Header">
       <div className="nav-left">
@@ -144,15 +150,9 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       <div className="nav-right" ref={wrapperRef}>
         {me ? (
           <div className="profile-wrapper">
-            <img
-              src={
-                me.profilePicture ||
-                'https://static.vecteezy.com/system/resources/previews/036/280/651/non_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg'
-              }
-              alt="profile"
-              className="profile-icon"
-              onClick={() => setOpen(!open)}
-            />
+            <div className="profile-icon avatar-initials" onClick={() => setOpen(!open)}>
+              {getInitials(me.name)}
+            </div>
             {open && <ProfileModal me={me} onLogout={onLogout} />}
           </div>
         ) : (

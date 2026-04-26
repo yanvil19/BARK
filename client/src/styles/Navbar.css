@@ -70,12 +70,25 @@
   cursor: not-allowed;
 }
 
-#Header img {
+#Header img,
+.avatar-initials {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  object-fit: cover;
   border: 2px solid var(--accent-yellow);
+  cursor: pointer;
+}
+
+.avatar-initials {
+  background-color: var(--accent-yellow);
+  color: var(--primary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  flex-shrink: 0;
 }
 
 #Header button.nav-active {
