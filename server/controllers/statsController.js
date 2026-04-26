@@ -2,6 +2,9 @@ const User = require('../models/User');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
+const Question = require('../models/Question'); // Added
+const Exam = require('../models/Exam'); // Added
+const ExamResult = require('../models/ExamResult'); // Added
 const mongoose = require('mongoose');
 
 // @desc    Get counts for dashboard/landing page
@@ -34,15 +37,11 @@ const getSummaryStats = async (req, res) => {
 
         // Build structured user stats
         const usersByRole = Object.fromEntries(
-            roles.map((role, i) => ({
+            roles.map((role, i) => [
                 role,
-                active: activeCounts[i],
-                total: totalCounts[i]
-            })).map(item => [
-                item.role,
                 {
-                    active: item.active,
-                    total: item.total
+                    active: activeCounts[i],
+                    total: totalCounts[i]
                 }
             ])
         );
@@ -109,4 +108,95 @@ const getSummaryStats = async (req, res) => {
     }
 };
 
-module.exports = { getSummaryStats };
+// @desc    Get program chair dashboard stats
+// @route   GET /api/program-chair/stats
+// @access  Program Chair
+const getProgramChairStats = async (req, res) => {
+  try {
+    const chairId = req.user._id;
+    
+    // 1. Get the chair and populate programs
+    const chair = await User.findById(chairId).populate('programs');
+    
+    // DEBUG: See if the chair has programs in the console
+    console.log(`--- Stats Request for Chair: ${chair?.name} ---`);
+    console.log(`Assigned Programs count: ${chair?.programs?.length || 0}`);
+
+    if (!chair || !chair.programs || chair.programs.length === 0) {
+      return res.status(200).json({
+        programStudentCount: [],
+        totalQuestions: 0,
+        pendingQuestionsCount: 0,
+        examsPublished: 0,
+        totalPassingRate: 0,
+        subjectSuccessRates: []
+      });
+    }
+
+    const programIds = chair.programs.map(p => p._id);
+
+    // 2. Count students - CRITICAL: Verify the field name is 'program' in your User model
+    const programStudentCount = await Promise.all(
+      chair.programs.map(async (prog) => {
+        const count = await User.countDocuments({
+          role: 'student',
+          isActive: true,
+          program: prog._id 
+        });
+        return { programName: prog.name, count };
+      })
+    );
+
+    // 3. Gather other stats
+    const [totalQuestions, pendingQuestionsCount, examsPublished] = await Promise.all([
+      Question.countDocuments({ program: { $in: programIds } }),
+      Question.countDocuments({ program: { $in: programIds }, status: 'pending' }),
+      Exam.countDocuments({ program: { $in: programIds }, isPublished: true })
+    ]);
+
+    // 4. Success Rates
+    const subjectSuccessRates = await ExamResult.aggregate([
+      { $match: { program: { $in: programIds } } },
+      {
+        $group: {
+          _id: '$subject',
+          totalAttempts: { $sum: 1 },
+          passed: { $sum: { $cond: ['$passed', 1, 0] } }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          label: '$_id',
+          value: {
+            $round: [
+              { $cond: [{ $eq: ['$totalAttempts', 0] }, 0, { $multiply: [{ $divide: ['$passed', '$totalAttempts'] }, 100] }] },
+              0
+            ]
+          }
+        }
+      }
+    ]);
+
+    const totalPassingRate = subjectSuccessRates.length
+      ? Math.round(subjectSuccessRates.reduce((sum, s) => sum + s.value, 0) / subjectSuccessRates.length)
+      : 0;
+
+    res.status(200).json({
+      programStudentCount,
+      totalQuestions,
+      pendingQuestionsCount,
+      examsPublished,
+      totalPassingRate,
+      subjectSuccessRates
+    });
+  } catch (error) {
+    console.error("Stats Error:", error);
+    res.status(500).json({ message: 'Error fetching stats', error: error.message });
+  }
+};
+
+module.exports = { 
+    getSummaryStats, 
+    getProgramChairStats 
+};
