@@ -29,14 +29,14 @@
   display: grid;
   grid-template-columns: minmax(200px, 1fr) 2.5fr minmax(200px, 1fr);
   gap: 20px;
-  margin-bottom: 32px;
+  margin: 0 20px 32px;
 }
 
 .dashboard-box {
   background: #ffffff;
   border-radius: 8px;
   border: 1px solid #e1e3ed;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
 }
@@ -84,7 +84,6 @@
   border-radius: 4px;
   text-align: center;
   padding: 12px 0;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
 
 .metric-card-yellow {
@@ -154,7 +153,7 @@
   background: #ffffff;
   border-radius: 8px;
   border: 1px solid rgba(53, 64, 142, 0.37);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   margin: 1em 1.5em;
   overflow: hidden;
 }
@@ -267,6 +266,42 @@
   background-color: #ffffff;
 }
 
+.pill-nu {
+  background-color: #34408d;
+  color: #fad227;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: inline-block;
+  min-width: 80px;
+  text-align: center;
+}
+
+.pag-btn {
+  background: #ffffff;
+  border: 1px solid #d1d4e0;
+  color: #4a5578;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pag-btn:hover:not(:disabled) {
+  background: #f0f4ff;
+  border-color: #34408d;
+  color: #34408d;
+}
+
+.pag-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
 @media (max-width: 1024px) {
   .dashboard-sa-top-grid {
     grid-template-columns: 1fr;
@@ -287,7 +322,7 @@
 .dashboard-pc-main .dashboard-box {
   border: 1px solid rgba(53, 64, 142, 0.37);
   border-radius: 10px;
-  box-shadow: 0px 12px 15.8px 0px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .dashboard-pc-header {
@@ -345,7 +380,7 @@
   border-top-width: 5px;
   border-radius: 4px;
   padding: 12px 0;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  padding: 12px 0;
   background-color: #35408e;
   margin-top: 2%;
 

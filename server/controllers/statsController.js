@@ -4,6 +4,7 @@ const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const mongoose = require('mongoose');
 const Question = require('../models/Question');
+const AuditLog = require('../models/AuditLog');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -92,6 +93,18 @@ const getSummaryStats = async (req, res) => {
             Question.countDocuments({ state: { $in: ['pending_chair', 'pending_dean'] } })
         ]);
 
+        // User counts by department
+        const userCountByDept = await User.aggregate([
+            { $group: { _id: '$department', count: { $sum: 1 } } }
+        ]);
+        const deptUserMap = Object.fromEntries(userCountByDept.map(item => [item._id || 'none', item.count]));
+
+        // User counts by program
+        const userCountByProg = await User.aggregate([
+            { $group: { _id: '$program', count: { $sum: 1 } } }
+        ]);
+        const progUserMap = Object.fromEntries(userCountByProg.map(item => [item._id || 'none', item.count]));
+
         res.status(200).json({
             pendingAccounts: {
                 students: pendingStudents,
@@ -100,7 +113,9 @@ const getSummaryStats = async (req, res) => {
             users: usersByRole,
             academic: {
                 departments: departmentCount,
-                programs: programCount
+                programs: programCount,
+                deptUserCounts: deptUserMap,
+                progUserCounts: progUserMap
             },
             questions: {
                 total: totalQuestions,
@@ -208,4 +223,31 @@ const getProgramChairStats = async (req, res) => {
   }
 };
 
-module.exports = { getSummaryStats, getProgramChairStats };
+const getAuditLogs = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const [total, logs] = await Promise.all([
+      AuditLog.countDocuments(),
+      AuditLog.find()
+        .populate('admin', 'name email role')
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit)
+    ]);
+
+    res.status(200).json({
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      logs
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching audit logs', error: error.message });
+  }
+};
+
+module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs };

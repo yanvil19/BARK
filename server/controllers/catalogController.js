@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
+const { logAudit } = require('../utils/auditLogger');
 
 function isObjectId(value) {
   return mongoose.Types.ObjectId.isValid(String(value || ''));
@@ -80,6 +81,11 @@ const createDepartment = async (req, res) => {
       return res.status(400).json({ message: 'Please provide name and code' });
     }
     const dept = await Department.create({ name, code });
+    
+    await logAudit(req.user._id, 'department_created', 'Department', dept._id, {
+      name: dept.name,
+      code: dept.code
+    });
     res.status(201).json({ message: 'Department created', department: dept });
   } catch (error) {
     res.status(400).json({ message: 'Failed to create department', error: error.message });
@@ -97,6 +103,11 @@ const updateDepartment = async (req, res) => {
 
     const dept = await Department.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!dept) return res.status(404).json({ message: 'Department not found' });
+
+    const isToggle = Object.keys(update).length === 1 && Object.prototype.hasOwnProperty.call(update, 'isActive');
+    await logAudit(req.user._id, isToggle ? 'department_toggled' : 'department_updated', 'Department', dept._id, {
+      update
+    });
     res.status(200).json({ message: 'Department updated', department: dept });
   } catch (error) {
     res.status(400).json({ message: 'Failed to update department', error: error.message });
@@ -143,6 +154,12 @@ const createProgram = async (req, res) => {
     if (!dept) return res.status(404).json({ message: 'Department not found' });
 
     const program = await Program.create({ name, code, department: departmentId });
+    
+    await logAudit(req.user._id, 'program_created', 'Program', program._id, {
+      name: program.name,
+      code: program.code,
+      departmentId: program.department
+    });
     res.status(201).json({ message: 'Program created', program });
   } catch (error) {
     res.status(400).json({ message: 'Failed to create program', error: error.message });
@@ -169,6 +186,11 @@ const updateProgram = async (req, res) => {
 
     const program = await Program.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!program) return res.status(404).json({ message: 'Program not found' });
+
+    const isToggle = Object.keys(update).length === 1 && Object.prototype.hasOwnProperty.call(update, 'isActive');
+    await logAudit(req.user._id, isToggle ? 'program_toggled' : 'program_updated', 'Program', program._id, {
+      update
+    });
     res.status(200).json({ message: 'Program updated', program });
   } catch (error) {
     res.status(400).json({ message: 'Failed to update program', error: error.message });

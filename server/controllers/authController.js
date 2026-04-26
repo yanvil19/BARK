@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
 const { validateStudentId, validateAlumniId } = require('../utils/idFormats');
+const { logAudit } = require('../utils/auditLogger');
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -118,6 +119,12 @@ const registerUser = async (req, res) => {
       role,
       department: departmentId || null,
       program: programId || null,
+    });
+
+    await logAudit(req.user._id, 'user_created', 'User', user._id, {
+      name: user.name,
+      email: user.email,
+      role: user.role
     });
 
     res.status(201).json({
@@ -317,10 +324,14 @@ const updateUser = async (req, res) => {
       if (!validation.ok) return res.status(400).json({ message: validation.message });
 
       user.department = nextDepartmentId || null;
-      user.program = nextProgramId || null;
+    user.program = nextProgramId || null;
     }
 
     await user.save();
+
+    await logAudit(req.user._id, 'user_updated', 'User', user._id, {
+      changedFields: Object.keys(req.body || {}).filter(k => k !== 'password')
+    });
 
     const out = await User.findById(user._id)
       .select('-password')
@@ -348,6 +359,8 @@ const deactivateUser = async (req, res) => {
     user.isActive = false;
     await user.save();
 
+    await logAudit(req.user._id, 'user_deactivated', 'User', user._id);
+
     res.status(200).json({ message: 'User deactivated', user: { _id: user._id, isActive: user.isActive } });
   } catch (error) {
     res.status(400).json({ message: 'Failed to deactivate user', error: error.message });
@@ -364,6 +377,8 @@ const activateUser = async (req, res) => {
 
     user.isActive = true;
     await user.save();
+
+    await logAudit(req.user._id, 'user_activated', 'User', user._id);
 
     res.status(200).json({ message: 'User activated', user: { _id: user._id, isActive: user.isActive } });
   } catch (error) {
@@ -593,6 +608,11 @@ const approveRegistrationRequest = async (req, res) => {
     request.rejectionReason = null;
     await request.save();
 
+    await logAudit(req.user._id, 'registration_approved', 'RegistrationRequest', request._id, {
+      userEmail: request.email,
+      userId: user._id
+    });
+
     res.status(200).json({
       message: 'Registration request approved; student account created',
       user: {
@@ -646,6 +666,10 @@ const rejectRegistrationRequest = async (req, res) => {
     request.reviewedAt = new Date();
     request.rejectionReason = reason || null;
     await request.save();
+
+    await logAudit(req.user._id, 'registration_rejected', 'RegistrationRequest', request._id, {
+      reason: request.rejectionReason
+    });
 
     res.status(200).json({
       message: 'Registration request rejected',

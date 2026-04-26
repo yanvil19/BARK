@@ -13,4 +13,11 @@ router.get(
   getProgramChairStats
 );
 
+router.get(
+  '/audit-logs',
+  protect,
+  authorizeRoles('super_admin'),
+  require('../controllers/statsController').getAuditLogs
+);
+
 module.exports = router;
