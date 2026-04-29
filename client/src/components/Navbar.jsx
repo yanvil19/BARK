@@ -92,8 +92,17 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
               Approvals
             </button>
-            <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
-              My Questions
+            <button className={route === 'deanTags' ? 'active' : ''} onClick={() => onRoute('deanTags')}>
+              Manage Subjects
+            </button>
+            <button className={route === 'mockBoardExam' ? 'active' : ''} onClick={() => onRoute('mockBoardExam')}>
+              Mock Board Exam
+            </button>
+            <button
+              className={route === 'availableMockBoardExams' ? 'active' : ''}
+              onClick={() => onRoute('availableMockBoardExams')}
+            >
+              Available Mock Board Exams
             </button>
           </>
         )}

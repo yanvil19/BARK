@@ -12,6 +12,9 @@ import ChairApprovals from './pages/ChairApprovals.jsx';
 import ProfessorQuestions from './pages/ProfessorQuestions.jsx';
 import ChairQuestions from './pages/ChairQuestions.jsx';
 import DeanQuestions from './pages/DeanQuestions.jsx';
+import DeanTags from './pages/DeanTags.jsx';
+import MockBoardExam from './pages/MockBoardExam.jsx';
+import AvailableMockBoardExams from './pages/AvailableMockBoardExams.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 
@@ -19,6 +22,8 @@ export default function App() {
   const [route, setRoute] = useState('Dashboard');
   const [me, setMe] = useState(null);
   const [meError, setMeError] = useState('');
+  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState('');
+  const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
 
   async function refreshMe() {
     const token = getToken();
@@ -54,6 +59,12 @@ export default function App() {
     if (me?.role === 'student' && route === 'student') setRoute('Dashboard');
   }, [me, route]);
 
+  useEffect(() => {
+    if (route !== 'mockBoardExam' && editingMockBoardExamId) {
+      setEditingMockBoardExamId('');
+    }
+  }, [editingMockBoardExamId, route]);
+
   function handleLogout() {
     setToken('');
     setMe(null);
@@ -74,6 +85,29 @@ export default function App() {
   if (route === 'profQuestions') page = <ProfessorQuestions me={me} />;
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
   if (route === 'deanQuestions') page = <DeanQuestions me={me} />;
+  if (route === 'deanTags') page = <DeanTags me={me} />;
+  if (route === 'mockBoardExam')
+    page = (
+      <MockBoardExam
+        me={me}
+        editingExamId={editingMockBoardExamId}
+        onClearEditing={() => setEditingMockBoardExamId('')}
+        onExamSaved={() => {
+          setMockBoardExamRefreshKey((prev) => prev + 1);
+          setRoute('availableMockBoardExams');
+        }}
+      />
+    );
+  if (route === 'availableMockBoardExams')
+    page = (
+      <AvailableMockBoardExams
+        refreshKey={mockBoardExamRefreshKey}
+        onEditExam={(id) => {
+          setEditingMockBoardExamId(id);
+          setRoute('mockBoardExam');
+        }}
+      />
+    );
 
   return (
     <div className="app-container">

@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import { Modal } from '../components/Modal.jsx';
-import '../styles/ChairTags.css';
+import '../styles/SubjectTags.css';
 import '../styles/global.css';
 
 const BASE = 'http://localhost:5000';
 
 export default function ChairTags({ me }) {
+  const isDean = me?.role === 'dean';
   const [tags, setTags] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [programId, setProgramId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -18,9 +22,38 @@ export default function ChairTags({ me }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
 
-  async function fetchTags() {
+  async function fetchPrograms() {
+    if (!isDean) return;
+    setLoadingPrograms(true);
     try {
-      const data = await apiAuth(`${BASE}/api/tags`);
+      const data = await apiAuth(`${BASE}/api/catalog/programs`);
+      const deptId = me?.department?._id || me?.department;
+      const deptPrograms = (data.programs || []).filter((program) => {
+        const programDept = program.department?._id || program.department;
+        return String(programDept) === String(deptId);
+      });
+      setPrograms(deptPrograms);
+      setProgramId((prev) => {
+        if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
+        if (deptPrograms.length === 1) return deptPrograms[0]._id;
+        return '';
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingPrograms(false);
+    }
+  }
+
+  async function fetchTags() {
+    if (isDean && !programId) {
+      setTags([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const path = isDean ? `${BASE}/api/tags?program=${encodeURIComponent(programId)}` : `${BASE}/api/tags`;
+      const data = await apiAuth(path);
       setTags(data.tags || []);
     } catch (err) {
       console.error(err);
@@ -29,17 +62,27 @@ export default function ChairTags({ me }) {
     }
   }
 
-  useEffect(() => { fetchTags(); }, []);
+  useEffect(() => {
+    fetchPrograms();
+  }, [isDean, me]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchTags();
+  }, [isDean, programId]);
 
   async function handleAdd(e) {
     e.preventDefault();
     setAddError('');
     if (!newName.trim()) { setAddError('Tag name cannot be empty.'); return; }
+    if (isDean && !programId) { setAddError('Select a program first.'); return; }
     setSaving(true);
     try {
-      const data = await apiAuth(`${BASE}/api/tags`, { method: 'POST', body: { name: newName.trim() } });
+      const body = isDean ? { name: newName.trim(), programId } : { name: newName.trim() };
+      const data = await apiAuth(`${BASE}/api/tags`, { method: 'POST', body });
       setTags((prev) => [...prev, data.tag].sort((a, b) => a.name.localeCompare(b.name)));
       setNewName('');
+      setShowAddModal(false);
     } catch (err) {
       setAddError(err.message || 'Failed to create tag.');
     } finally {
@@ -91,16 +134,22 @@ export default function ChairTags({ me }) {
     t.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
   );
 
+  const departmentLabel = me?.department?.name || 'Department';
+
   return (
     <main className="qp-page ct-page">
       <header className="qp-page-header">
         <div className="qp-header">
           <div>
             <h1 className="qp-title">Manage Subjects</h1>
-            <p className="qp-subtitle">Create and manage subjects for your program. Professors will use these subjects to categorize their questions.</p>
+            <p className="qp-subtitle">
+              {isDean
+                ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'
+                : 'Create and manage subjects for your program. Professors will use these subjects to categorize their questions.'}
+            </p>
           </div>
 
-          <button type="button" className="qp-btn-add" onClick={() => setShowAddModal(true)}>
+          <button type="button" className="qp-btn-add" onClick={() => setShowAddModal(true)} disabled={isDean && !programId}>
             + Add New Subject
           </button>
         </div>
@@ -111,15 +160,49 @@ export default function ChairTags({ me }) {
           <span className="qp-state-pill-count">{filteredTags.length}</span>
           <span>{searchQuery ? 'Matches' : 'All Subjects'}</span>
         </div>
+        {isDean ? (
+          <div className="st-dean-toolbar">
+            <select
+              className="st-dean-program-select"
+              value={programId}
+              onChange={(e) => {
+                setProgramId(e.target.value);
+                setEditValues({});
+                setSearchQuery('');
+              }}
+              disabled={loadingPrograms}
+            >
+              <option value="">{`Select ${departmentLabel} Program`}</option>
+              {programs.map((program) => (
+                <option key={program._id} value={program._id}>
+                  {program.name} {program.code ? `(${program.code})` : ''}
+                </option>
+              ))}
+            </select>
 
-        <input
-          className="qp-search"
-          type="text"
-          placeholder="Search subjects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+            <input
+              className="qp-search st-dean-search"
+              type="text"
+              placeholder="Search subjects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={!programId}
+            />
+          </div>
+        ) : (
+          <input
+            className="qp-search"
+            type="text"
+            placeholder="Search subjects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        )}
       </div>
+
+      {isDean && !programId ? (
+        <p className="ct-helper-note">Select a program first before managing subjects.</p>
+      ) : null}
 
       <div className="qp-table-wrap">
         {loading ? (
@@ -195,11 +278,32 @@ export default function ChairTags({ me }) {
       >
         <div className="qp-modal-copy">
           <p className="qp-modal-subtitle">
-            Create a new subject category for your program's questions.
+            {isDean
+              ? 'Create a new subject category for the selected program.'
+              : 'Create a new subject category for your program\'s questions.'}
           </p>
         </div>
 
         <form onSubmit={handleAdd} className="ct-modal-form">
+          {isDean ? (
+            <div className="adminCatalog-form-group">
+              <label className="form-title">Program *</label>
+              <select
+                className="st-dean-modal-select"
+                value={programId}
+                onChange={(e) => setProgramId(e.target.value)}
+                required
+              >
+                <option value="">{`Select ${departmentLabel} Program`}</option>
+                {programs.map((program) => (
+                  <option key={program._id} value={program._id}>
+                    {program.name} {program.code ? `(${program.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
           <div className="adminCatalog-form-group">
             <label className="form-title">Subject Name *</label>
             <input
@@ -229,7 +333,7 @@ export default function ChairTags({ me }) {
             <button
               type="submit"
               className="modal-btn-primary"
-              disabled={saving}
+              disabled={saving || (isDean && !programId)}
             >
               {saving ? 'Adding...' : 'Add Subject'}
             </button>

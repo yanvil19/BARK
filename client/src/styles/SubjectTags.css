@@ -4,8 +4,8 @@
   padding: 0;
 }
 
-/* Reusing qp- classes from global or shared context if possible, 
-   but since they are in QuestionsPage.css, we redefine the necessary ones here 
+/* Reusing qp- classes from global or shared context if possible,
+   but since they are in QuestionsPage.css, we redefine the necessary ones here
    to ensure the Manage Subjects page looks identical. */
 
 .qp-page-header {
@@ -268,7 +268,8 @@
   margin-bottom: 4px;
 }
 
-.adminCatalog-form-group input {
+.adminCatalog-form-group input,
+.adminCatalog-form-group select {
   padding: 10px 14px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
@@ -278,7 +279,8 @@
   transition: all 0.2s;
 }
 
-.adminCatalog-form-group input:focus {
+.adminCatalog-form-group input:focus,
+.adminCatalog-form-group select:focus {
   border-color: var(--primary-bg);
   background-color: #fff;
   box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
@@ -299,4 +301,62 @@
   font-size: 13px;
   margin-top: 8px !important;
   font-weight: 600;
+}
+
+/* Dean-only layout additions kept isolated so the chair page keeps its original styling. */
+.st-dean-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.st-dean-program-select {
+  min-width: 220px;
+  padding: 10px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  transition: all 0.2s;
+}
+
+.st-dean-program-select:focus {
+  border-color: var(--primary-bg);
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
+  outline: none;
+}
+
+.st-dean-search {
+  max-width: 320px;
+}
+
+.st-dean-modal-select {
+  width: 100%;
+}
+
+.ct-helper-note {
+  margin: 0 20px 16px;
+  color: #667085;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .st-dean-toolbar {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .st-dean-program-select,
+  .st-dean-search {
+    max-width: none;
+    width: 100%;
+  }
+
+  .ct-controls-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

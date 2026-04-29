@@ -16,6 +16,27 @@ async function getAccessibleProgramIds(user) {
   return [];
 }
 
+async function resolveManagedProgramId(req) {
+  const accessibleIds = await getAccessibleProgramIds(req.user);
+
+  if (req.user.role === 'program_chair') {
+    return req.user.program?.toString() || null;
+  }
+
+  if (req.user.role === 'dean') {
+    const programId = req.body.programId || req.query.program;
+    if (!programId) {
+      return { error: 'Dean must specify a program' };
+    }
+    if (!accessibleIds.includes(String(programId))) {
+      return { error: 'Access denied to this program' };
+    }
+    return String(programId);
+  }
+
+  return null;
+}
+
 // GET /api/tags?program=<id>
 const listTags = async (req, res) => {
   try {
@@ -48,7 +69,8 @@ const createTag = async (req, res) => {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ message: 'Tag name is required' });
 
-    const programId = req.user.program;
+    const programId = await resolveManagedProgramId(req);
+    if (programId?.error) return res.status(400).json({ message: programId.error });
     if (!programId) return res.status(400).json({ message: 'No program assigned to your account' });
 
     const existing = await Tag.findOne({ program: programId, name: name.trim() });
@@ -71,8 +93,9 @@ const updateTag = async (req, res) => {
     const tag = await Tag.findById(req.params.id);
     if (!tag) return res.status(404).json({ message: 'Tag not found' });
 
-    if (tag.program.toString() !== req.user.program?.toString()) {
-      return res.status(403).json({ message: 'You can only manage tags for your own program' });
+    const accessibleIds = await getAccessibleProgramIds(req.user);
+    if (!accessibleIds.includes(tag.program.toString())) {
+      return res.status(403).json({ message: 'You can only manage tags for your accessible programs' });
     }
 
     tag.name = name.trim();
@@ -90,8 +113,9 @@ const deleteTag = async (req, res) => {
     const tag = await Tag.findById(req.params.id);
     if (!tag) return res.status(404).json({ message: 'Tag not found' });
 
-    if (tag.program.toString() !== req.user.program?.toString()) {
-      return res.status(403).json({ message: 'You can only manage tags for your own program' });
+    const accessibleIds = await getAccessibleProgramIds(req.user);
+    if (!accessibleIds.includes(tag.program.toString())) {
+      return res.status(403).json({ message: 'You can only manage tags for your accessible programs' });
     }
 
     const questionCount = await Question.countDocuments({ tag: tag._id });

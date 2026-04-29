@@ -248,4 +248,52 @@ const reviewQuestion = async (req, res) => {
   }
 };
 
-module.exports = { listQuestions, listApprovals, createQuestion, updateQuestion, deleteQuestion, submitQuestion, reviewQuestion };
+// POST /api/questions/:id/dean-return
+const deanReturnApprovedQuestion = async (req, res) => {
+  try {
+    if (req.user.role !== 'dean') {
+      return res.status(403).json({ message: 'Only Deans can return approved questions from exam creation' });
+    }
+
+    const { note } = req.body;
+    if (!note?.trim()) {
+      return res.status(400).json({ message: 'Feedback is required when returning an approved question' });
+    }
+
+    const question = await Question.findById(req.params.id);
+    if (!question) return res.status(404).json({ message: 'Question not found' });
+
+    const accessibleIds = await getAccessibleProgramIds(req.user);
+    if (!accessibleIds.includes(question.program.toString())) {
+      return res.status(403).json({ message: 'Question does not belong to your accessible programs' });
+    }
+
+    if (question.state !== 'approved') {
+      return res.status(400).json({ message: 'Only approved questions can be returned by the Dean' });
+    }
+
+    question.state = 'returned';
+    question.revisionNote = note.trim();
+    await question.save();
+
+    const populated = await question.populate([
+      { path: 'tag', select: 'name' },
+      { path: 'program', select: 'name code' },
+      { path: 'createdBy', select: 'name' },
+    ]);
+    res.json({ question: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = {
+  listQuestions,
+  listApprovals,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  submitQuestion,
+  reviewQuestion,
+  deanReturnApprovedQuestion,
+};
