@@ -19,7 +19,10 @@ export default function DeanQuestions({ me }) {
           return String(pDept) === String(deptId);
         });
         setPrograms(deptPrograms);
-        if (deptPrograms.length === 1) setSelectedProgramId(deptPrograms[0]._id);
+        setSelectedProgramId((prev) => {
+          if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
+          return deptPrograms[0]?._id || '';
+        });
       } catch (err) {
         console.error('Failed to load programs:', err);
       }

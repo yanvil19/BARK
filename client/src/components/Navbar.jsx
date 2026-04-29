@@ -92,6 +92,9 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
               Approvals
             </button>
+            <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
+              My Questions
+            </button>
             <button className={route === 'deanTags' ? 'active' : ''} onClick={() => onRoute('deanTags')}>
               Manage Subjects
             </button>

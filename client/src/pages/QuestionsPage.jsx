@@ -281,11 +281,11 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }
 
   function getPageTitle() {
-    return role === 'dean' ? 'Question Management' : 'My Questions';
+    return 'My Questions';
   }
 
   function getPageSubtitle() {
-    if (role === 'dean') return 'Create, edit, and manage questions for your department programs';
+    if (role === 'dean') return 'Create, edit, and manage your questions, then track their review statuses by program.';
     return 'Create, edit, and manage your question drafts and submissions';
   }
 
