@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import StudentRegister from './pages/StudentRegister.jsx';
 import DeanApprovals from './pages/DeanApprovals.jsx';
+import StudentManager from './pages/StudentManager.jsx';
 import SchoolsPrograms from './pages/SchoolsPrograms.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import UserAccount from './pages/UserAccount.jsx';
@@ -87,6 +88,7 @@ export default function App() {
   if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
+  if (route === 'studentManager') page = <StudentManager onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers />;

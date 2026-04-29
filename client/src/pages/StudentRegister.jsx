@@ -80,7 +80,7 @@ function PasswordToggle({ shown, onToggle, label, disabled }) {
   );
 }
 
-export default function StudentRegister({ onNavigate }) {
+export default function StudentRegister({ onNavigate, embedded = false }) {
   const saved = useMemo(() => loadSaved(), []);
 
   const [name, setName] = useState('');
@@ -296,10 +296,12 @@ export default function StudentRegister({ onNavigate }) {
 
   return (
     <main className="register-page-container">
-      <header className="register-page-header">
-        <h2>Student Registration</h2>
-        <p className="register-subtitle">Manage student registration requests</p>
-      </header>
+      {!embedded ? (
+        <header className="register-page-header">
+          <h2>Student Registration</h2>
+          <p className="register-subtitle">Manage student registration requests</p>
+        </header>
+      ) : null}
 
       <div className="register-shell">
         <section className="register-card">

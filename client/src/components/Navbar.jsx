@@ -75,13 +75,13 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       </div>
 
       <nav className="nav-center">
-        {(isSuperAdmin || isChair) && (
+        {me && (
           <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => onRoute('Dashboard')}>
             Dashboard
           </button>
         )}
 
-        {me && me.role !== 'student' && (
+        {me && me.role !== 'student' && !isDean && (
           <button className={route === 'student' ? 'active' : ''} onClick={() => onRoute('student')}>
             Student Register
           </button>
@@ -89,8 +89,8 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
         {isDean && (
           <>
-            <button className={route === 'dean' ? 'active' : ''} onClick={() => onRoute('dean')}>
-              Approvals
+            <button className={route === 'studentManager' ? 'active' : ''} onClick={() => onRoute('studentManager')}>
+              Student Manager
             </button>
             <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
               My Questions
