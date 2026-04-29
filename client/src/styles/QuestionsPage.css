@@ -643,3 +643,118 @@
 .qp-modal-actions {
   margin-top: 24px;
 }
+
+/* ===== IMPORT STYLES ===== */
+
+.qp-header-actions-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.qp-btn-upload {
+  background-color: var(--primary-bg);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.qp-btn-upload:hover:not(:disabled) {
+  background-color: #2d3a7a;
+}
+
+.qp-btn-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.import-upload-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: #f9fafb;
+  border: 2px dashed #d0d5dd;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.import-error-banner {
+  padding: 12px 16px;
+  background: #fee2e2;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.import-review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: transparent;
+}
+
+.qp-modal-info {
+  margin: 12px 0 16px 0;
+  padding: 12px;
+  background: #f0f9ff;
+  border-left: 4px solid #3b82f6;
+  font-size: 12px;
+  color: #1e40af;
+  line-height: 1.6;
+}
+
+.modal-btn-cancel {
+  padding: 10px 20px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn-cancel:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.modal-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-btn-danger {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modal-btn-danger:hover {
+  background: #b91c1c;
+}
+
+.modal-btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

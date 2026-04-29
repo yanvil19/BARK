@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import { uploadDocumentForImport, submitImportedQuestions } from '../lib/importApi.js';
 import QuestionForm from '../components/QuestionForm.jsx';
 import { Modal } from '../components/Modal.jsx';
 import '../styles/QuestionsPage.css';
@@ -48,6 +49,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [loading, setLoading] = useState(true);
   const [editQuestion, setEditQuestion] = useState(null);
   const [viewQuestion, setViewQuestion] = useState(null);
+  // Import-related state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedQuestions, setImportedQuestions] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const fileInputRef = useRef(null);
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -213,6 +220,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   function closeFormModal() {
     setShowForm(false);
     setEditQuestion(null);
+    setImportedQuestions([]);
   }
 
   function closeViewModal() {
@@ -290,6 +298,63 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }
 
   const canCreateQuestion = role !== 'dean' || !!programId;
+  const canImport = role !== 'dean' || !!programId;
+
+  // ===== IMPORT HANDLERS =====
+
+  function openImportModal() {
+    setShowImportModal(true);
+    setImportError(null);
+  }
+
+  function closeImportModal() {
+    setShowImportModal(false);
+    setImportError(null);
+  }
+
+  function triggerFileInput() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelected(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setImportLoading(true);
+      setImportError(null);
+
+      try {
+          const result = await uploadDocumentForImport(file);
+
+          const preFilledQuestions = result.questions.map(q => ({
+              title: q.question_text?.substring(0, 100) || '',
+              description: q.question_text || '',
+              answers: Object.entries(q.options || {})
+                  .filter(([, text]) => text !== null)
+                  .map(([key, text]) => ({
+                      text,
+                      isCorrect: key === q.correct_answer,
+                  })),
+              flags: q.flags || [],
+          }));
+
+          if (preFilledQuestions.length === 0) {
+              throw new Error('No questions could be extracted from this file. Please check the format and try again.');
+          }
+
+          setImportedQuestions(preFilledQuestions);
+          setShowImportModal(false);
+          setEditQuestion(null);
+          setShowForm(true);
+
+      } catch (error) {
+          console.error('Import error:', error);
+          setImportError(error.message || 'Failed to import questions. Please try again.');
+      } finally {
+          setImportLoading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  }
 
   return (
     <main className="qp-page">
@@ -306,9 +371,14 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             ) : null}
 
             {canCreateQuestion && (
-              <button type="button" className="qp-btn-add" onClick={openCreateModal}>
-                + Create Question
-              </button>
+              <div className="qp-header-actions-buttons">
+                <button type="button" className="qp-btn-add" onClick={openImportModal}>
+                  + Import Questions
+                </button>
+                <button type="button" className="qp-btn-add" onClick={openCreateModal}>
+                  + Create Question
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -550,26 +620,35 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       )}
 
       <Modal
-        open={showForm}
-        onClose={closeFormModal}
-        title={editQuestion ? 'Edit Question' : 'Create Question'}
-      >
-        <div className="qp-modal-copy">
-          <p className="qp-modal-subtitle">
-            {editQuestion
-              ? 'Update the question details and save your changes.'
-              : 'Add a new question draft for your program.'}
-          </p>
-          {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
-        </div>
-
-        <QuestionForm
-          tags={tags}
-          programId={programId}
-          initialData={editQuestion}
-          onSaved={handleSaved}
+          open={showForm}
           onClose={closeFormModal}
-        />
+          title={editQuestion ? 'Edit Question' : 'Create Question'}
+      >
+          <div className="qp-modal-copy">
+              <p className="qp-modal-subtitle">
+                  {editQuestion
+                      ? 'Update the question details and save your changes.'
+                      : importedQuestions.length > 0
+                          ? `${importedQuestions.length} questions extracted. Review, assign tags, and save.`
+                          : 'Add a new question draft for your program.'}
+              </p>
+              {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
+          </div>
+
+          <QuestionForm
+              tags={tags}
+              programId={programId}
+              initialData={editQuestion}
+              importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
+              onSaved={(savedData, isEdit) => {
+                  handleSaved(savedData, isEdit);
+                  setImportedQuestions([]); // Clear after save
+              }}
+              onClose={() => {
+                  closeFormModal();
+                  setImportedQuestions([]);
+              }}
+          />
       </Modal>
 
       <Modal
@@ -623,6 +702,60 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           </button>
         </div>
       </Modal>
+
+      {/* Import Modal */}
+      <Modal
+        open={showImportModal}
+        onClose={closeImportModal}
+        title="Import Questions"
+      >
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            Upload a PDF or DOCX file containing multiple choice questions. An AI will extract the questions for your review.
+          </p>
+          <p className="qp-modal-info">
+            <strong>Supported formats:</strong> PDF (typed), DOCX<br />
+            <strong>File size:</strong> Up to 10MB<br />
+            <strong>Max questions:</strong> 20 per upload
+          </p>
+          {importError && (
+            <div className="import-error-banner">
+              {importError}
+            </div>
+          )}
+        </div>
+
+        <div className="import-upload-area">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelected}
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            style={{ display: 'none' }}
+            disabled={importLoading}
+          />
+          <button
+            type="button"
+            className="qp-btn-upload"
+            onClick={triggerFileInput}
+            disabled={importLoading}
+          >
+            {importLoading ? 'Processing...' : '📁 Choose File'}
+          </button>
+        </div>
+
+        <div className="modal-actions qp-modal-actions">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onClick={closeImportModal}
+            disabled={importLoading}
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
+
     </main>
   );
 }

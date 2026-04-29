@@ -9,6 +9,7 @@ const statsRoutes = require('./routes/statsRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const questionRoutes = require('./routes/questionRoutes');
 const mockBoardExamRoutes = require('./routes/mockBoardExamRoutes');
+const importRoutes = require('./routes/importRoutes');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/mock-board-exams', mockBoardExamRoutes);
+app.use('/api/import', importRoutes);
 
 app.get('/', (req, res) => {
     res.send('API is running...');
