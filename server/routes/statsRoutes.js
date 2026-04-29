@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { getSummaryStats, getProgramChairStats } = require('../controllers/statsController');
+const { getSummaryStats, getProgramChairStats, getDeanDashboardStats } = require('../controllers/statsController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
 router.get('/summary', getSummaryStats);
@@ -11,6 +11,13 @@ router.get(
   protect,
   authorizeRoles('program_chair'),
   getProgramChairStats
+);
+
+router.get(
+  '/dean/dashboard',
+  protect,
+  authorizeRoles('dean'),
+  getDeanDashboardStats
 );
 
 router.get(

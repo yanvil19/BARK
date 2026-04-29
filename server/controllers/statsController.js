@@ -5,6 +5,8 @@ const RegistrationRequest = require('../models/RegistrationRequest');
 const mongoose = require('mongoose');
 const Question = require('../models/Question');
 const AuditLog = require('../models/AuditLog');
+const MockBoardExam = require('../models/MockBoardExam');
+const Tag = require('../models/Tag');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -250,4 +252,221 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
-module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs };
+const getDeanDashboardStats = async (req, res) => {
+  try {
+    if (!req.user.department) {
+      return res.status(400).json({ message: 'Dean department is not set' });
+    }
+
+    const department = await Department.findById(req.user.department).select('name code');
+    if (!department) {
+      return res.status(404).json({ message: 'Dean department not found' });
+    }
+
+    const programs = await Program.find({ department: req.user.department, isActive: true }).select('_id name code');
+    const programIds = programs.map((program) => program._id);
+
+    const [
+      studentCountsRaw,
+      approvedQuestionsByProgramRaw,
+      subjectCountsByProgramRaw,
+      mockExamCountsRaw,
+      pendingRegistrations,
+      myQuestionsByStateRaw,
+      recentActivity,
+      approvedQuestionsByTagRaw,
+      tags,
+    ] = await Promise.all([
+      User.aggregate([
+        {
+          $match: {
+            role: 'student',
+            isActive: true,
+            program: { $in: programIds },
+          },
+        },
+        {
+          $group: {
+            _id: '$program',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Question.aggregate([
+        {
+          $match: {
+            program: { $in: programIds },
+            state: 'approved',
+          },
+        },
+        {
+          $group: {
+            _id: '$program',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Tag.aggregate([
+        {
+          $match: {
+            program: { $in: programIds },
+            isActive: true,
+          },
+        },
+        {
+          $group: {
+            _id: '$program',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      MockBoardExam.aggregate([
+        {
+          $match: {
+            program: { $in: programIds },
+          },
+        },
+        {
+          $group: {
+            _id: '$program',
+            total: { $sum: 1 },
+            published: {
+              $sum: { $cond: [{ $eq: ['$status', 'published'] }, 1, 0] },
+            },
+            draft: {
+              $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] },
+            },
+            archived: {
+              $sum: { $cond: [{ $eq: ['$status', 'archived'] }, 1, 0] },
+            },
+          },
+        },
+      ]),
+      RegistrationRequest.countDocuments({
+        department: req.user.department,
+        status: 'pending',
+      }),
+      Question.aggregate([
+        {
+          $match: {
+            createdBy: req.user._id,
+          },
+        },
+        {
+          $group: {
+            _id: '$state',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      AuditLog.find({ admin: req.user._id })
+        .sort({ timestamp: -1 })
+        .limit(8),
+      Question.aggregate([
+        {
+          $match: {
+            program: { $in: programIds },
+            state: 'approved',
+          },
+        },
+        {
+          $group: {
+            _id: '$tag',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Tag.find({ program: { $in: programIds }, isActive: true }).select('_id name program').populate('program', 'name code'),
+    ]);
+
+    const studentCountMap = Object.fromEntries(studentCountsRaw.map((item) => [String(item._id), item.count]));
+    const approvedQuestionMap = Object.fromEntries(approvedQuestionsByProgramRaw.map((item) => [String(item._id), item.count]));
+    const subjectCountMap = Object.fromEntries(subjectCountsByProgramRaw.map((item) => [String(item._id), item.count]));
+    const mockExamMap = Object.fromEntries(mockExamCountsRaw.map((item) => [String(item._id), item]));
+    const approvedQuestionsByTagMap = Object.fromEntries(approvedQuestionsByTagRaw.map((item) => [String(item._id), item.count]));
+    const myQuestionStateMap = Object.fromEntries(myQuestionsByStateRaw.map((item) => [item._id, item.count]));
+
+    const programStudentCount = programs.map((program) => ({
+      programId: program._id,
+      programName: program.name,
+      programCode: program.code,
+      count: studentCountMap[String(program._id)] || 0,
+    }));
+
+    const totalApprovedQuestions = approvedQuestionsByProgramRaw.reduce((sum, item) => sum + item.count, 0);
+    const examsPublished = mockExamCountsRaw.reduce((sum, item) => sum + (item.published || 0), 0);
+    const draftExams = mockExamCountsRaw.reduce((sum, item) => sum + (item.draft || 0), 0);
+    const returnedQuestions = myQuestionStateMap.returned || 0;
+
+    const subjectCoverage = tags
+      .map((tag) => ({
+        tagId: tag._id,
+        name: tag.name,
+        programName: tag.program?.name || tag.program?.code || 'Program',
+        approvedQuestions: approvedQuestionsByTagMap[String(tag._id)] || 0,
+      }))
+      .sort((a, b) => a.approvedQuestions - b.approvedQuestions || a.name.localeCompare(b.name))
+      .slice(0, 6);
+
+    const programOverview = programs.map((program) => {
+      const exams = mockExamMap[String(program._id)] || {};
+      return {
+        programId: program._id,
+        programName: program.name,
+        programCode: program.code,
+        students: studentCountMap[String(program._id)] || 0,
+        approvedQuestions: approvedQuestionMap[String(program._id)] || 0,
+        subjects: subjectCountMap[String(program._id)] || 0,
+        publishedExams: exams.published || 0,
+        draftExams: exams.draft || 0,
+      };
+    });
+
+    const programsWithoutPublishedExams = programOverview.filter((program) => program.publishedExams === 0).length;
+    const lowCoverageSubjects = subjectCoverage.filter((subject) => subject.approvedQuestions < 3).length;
+
+    const attentionItems = [
+      pendingRegistrations > 0
+        ? { key: 'pendingRegistrations', label: `${pendingRegistrations} pending student registrations`, tone: 'warning' }
+        : null,
+      returnedQuestions > 0
+        ? { key: 'returnedQuestions', label: `${returnedQuestions} of your questions were returned for revision`, tone: 'warning' }
+        : null,
+      draftExams > 0
+        ? { key: 'draftExams', label: `${draftExams} mock board exams are still in draft`, tone: 'info' }
+        : null,
+      programsWithoutPublishedExams > 0
+        ? { key: 'programsWithoutPublishedExams', label: `${programsWithoutPublishedExams} programs have no published exam yet`, tone: 'info' }
+        : null,
+      lowCoverageSubjects > 0
+        ? { key: 'lowCoverageSubjects', label: `${lowCoverageSubjects} subjects have low approved-question coverage`, tone: 'warning' }
+        : null,
+    ].filter(Boolean);
+
+    res.status(200).json({
+      department,
+      summary: {
+        totalApprovedQuestions,
+        examsPublished,
+        draftExams,
+        pendingRegistrations,
+        returnedQuestions,
+        myDraftQuestions: myQuestionStateMap.draft || 0,
+        myPendingQuestions: myQuestionStateMap.pending_chair || 0,
+        myApprovedQuestions: myQuestionStateMap.approved || 0,
+      },
+      programStudentCount,
+      subjectCoverage,
+      programOverview,
+      attentionItems,
+      recentActivity,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching dean dashboard stats',
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs, getDeanDashboardStats };
