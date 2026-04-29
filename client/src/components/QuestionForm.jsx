@@ -288,15 +288,15 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               <div className="qf-answer-list">
                 {q.answers.map((answer, idx) => (
                   <div key={idx} className="qf-answer-row">
-                    <label className={`qf-answer-radio ${readOnly ? 'is-disabled' : ''}`}>
+                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
                       <input
+                        className="qf-answer-radio"
                         type="radio"
                         checked={answer.isCorrect}
                         onChange={() => setCorrect(q.id, idx)}
                         title="Mark as correct"
                         disabled={readOnly}
                       />
-                      <span className="qf-radio-indicator" />
                     </label>
 
                     <input

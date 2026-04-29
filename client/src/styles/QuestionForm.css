@@ -119,7 +119,7 @@
   align-items: center;
 }
 
-.qf-answer-radio {
+.qf-answer-radio-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -129,26 +129,16 @@
   cursor: pointer;
 }
 
-.qf-answer-radio input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
+.qf-answer-radio {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary-bg);
   cursor: pointer;
 }
 
-.qf-radio-indicator {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid #96a0d3;
-  background: #fff;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-}
-
-.qf-answer-radio input:checked + .qf-radio-indicator {
-  border-width: 6px;
-  border-color: var(--primary-bg);
+.qf-answer-radio:disabled {
+  cursor: default;
 }
 
 .qf-secondary-btn,
@@ -402,16 +392,12 @@
   opacity: 1;
 }
 
-.qf-shell--readonly .qf-answer-radio.is-disabled {
+.qf-shell--readonly .qf-answer-radio-wrap.is-disabled {
   cursor: default;
 }
 
-.qf-shell--readonly .qf-radio-indicator {
-  border-color: #d1d6ef;
-}
-
-.qf-shell--readonly .qf-answer-radio input:checked + .qf-radio-indicator {
-  border-color: #4a57a2;
+.qf-shell--readonly .qf-answer-radio {
+  accent-color: #4a57a2;
 }
 
 /* Multi-Question Styles */
