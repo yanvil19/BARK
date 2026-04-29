@@ -93,7 +93,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                 <td>{exam.status}</td>
                 <td>
                   <button type="button" onClick={() => handleView(exam._id)}>
-                    View
+                    Details
+                  </button>{' '}
+                  <button type="button" onClick={() => onEditExam(exam._id, 'preview')}>
+                    Preview
+                  </button>{' '}
+                  <button type="button" onClick={() => onEditExam(exam._id, 'testRun')}>
+                    Test Run
                   </button>{' '}
                   <button type="button" onClick={() => onEditExam(exam._id)}>
                     Edit

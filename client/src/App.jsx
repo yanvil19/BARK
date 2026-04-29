@@ -15,6 +15,7 @@ import DeanQuestions from './pages/DeanQuestions.jsx';
 import DeanTags from './pages/DeanTags.jsx';
 import MockBoardExam from './pages/MockBoardExam.jsx';
 import AvailableMockBoardExams from './pages/AvailableMockBoardExams.jsx';
+import DeanExamRunner from './pages/DeanExamRunner.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 
@@ -24,6 +25,8 @@ export default function App() {
   const [meError, setMeError] = useState('');
   const [editingMockBoardExamId, setEditingMockBoardExamId] = useState('');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
+  const [examRunnerId, setExamRunnerId] = useState('');
+  const [examRunnerMode, setExamRunnerMode] = useState('details');
 
   async function refreshMe() {
     const token = getToken();
@@ -65,6 +68,13 @@ export default function App() {
     }
   }, [editingMockBoardExamId, route]);
 
+  useEffect(() => {
+    if (route !== 'deanExamRunner' && examRunnerId) {
+      setExamRunnerId('');
+      setExamRunnerMode('details');
+    }
+  }, [examRunnerId, route]);
+
   function handleLogout() {
     setToken('');
     setMe(null);
@@ -102,10 +112,25 @@ export default function App() {
     page = (
       <AvailableMockBoardExams
         refreshKey={mockBoardExamRefreshKey}
-        onEditExam={(id) => {
-          setEditingMockBoardExamId(id);
-          setRoute('mockBoardExam');
+        onEditExam={(id, action = 'edit') => {
+          if (action === 'edit') {
+            setEditingMockBoardExamId(id);
+            setRoute('mockBoardExam');
+            return;
+          }
+
+          setExamRunnerId(id);
+          setExamRunnerMode(action);
+          setRoute('deanExamRunner');
         }}
+      />
+    );
+  if (route === 'deanExamRunner')
+    page = (
+      <DeanExamRunner
+        examId={examRunnerId}
+        mode={examRunnerMode}
+        onBack={() => setRoute('availableMockBoardExams')}
       />
     );
 
