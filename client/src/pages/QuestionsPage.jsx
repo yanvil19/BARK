@@ -235,11 +235,19 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setShowViewModal(true);
   }
 
-  function handleSaved(newQuestion, isEdit) {
-    if (isEdit) {
-      setQuestions((prev) => prev.map((q) => (q._id === newQuestion._id ? newQuestion : q)));
+  function handleSaved(savedData, isEdit) {
+    if (Array.isArray(savedData)) {
+      if (isEdit && savedData.length === 1) {
+        setQuestions((prev) => prev.map((q) => (q._id === savedData[0]._id ? savedData[0] : q)));
+      } else {
+        setQuestions((prev) => [...savedData, ...prev]);
+      }
     } else {
-      setQuestions((prev) => [newQuestion, ...prev]);
+      if (isEdit) {
+        setQuestions((prev) => prev.map((q) => (q._id === savedData._id ? savedData : q)));
+      } else {
+        setQuestions((prev) => [savedData, ...prev]);
+      }
     }
     closeFormModal();
   }

@@ -120,14 +120,23 @@
   margin: 0 0 1em 0;
 }
 
-/* NORMAL BUTTONS INSIDE MODAL (NOT LOGOUT) */
+/* LOGOUT BUTTON INSIDE MODAL */
 .profile-modal .logout-btn {
-  background-color: red !important;
+  background-color: transparent !important;
+  color: var(--primary-bg) !important;
+  border: 2px solid var(--primary-bg) !important;
   width: 15em;
   align-self: center;
   margin: 2em 0 1em 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 10px;
 }
 
 .profile-modal .logout-btn:hover {
-  background-color: orange !important;
+  background-color: var(--primary-bg) !important;
+  color: var(--accent-yellow) !important;
 }

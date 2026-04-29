@@ -8,7 +8,8 @@
   --font-body: 'Nunito', sans-serif;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
@@ -18,6 +19,7 @@ body {
   background-color: var(--content-bg);
   color: #000;
   font-family: var(--font-body);
+
 }
 
 /* ─── Custom Scrollbar Styling ─────────────────────────────── */
@@ -50,11 +52,13 @@ strong {
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* THIS PUSHES FOOTER DOWN */
 .page-content {
   flex: 1;
   padding: 20px;
+  overflow-y: auto;
 }

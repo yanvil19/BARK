@@ -45,6 +45,7 @@ export default function ChairApprovals({ me }) {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState('newest');
   const itemsPerPage = 10;
   const programLabel = me?.program?.name || me?.program?.code || '';
 
@@ -190,7 +191,7 @@ export default function ChairApprovals({ me }) {
   const filteredQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
 
-    return questions.filter((question) => {
+    const next = questions.filter((question) => {
       if (filter !== 'all' && question.state !== filter) return false;
 
       if (subjectFilter) {
@@ -212,7 +213,16 @@ export default function ChairApprovals({ me }) {
 
       return content.includes(needle);
     });
-  }, [questions, filter, searchQuery, subjectFilter]);
+
+    next.sort((a, b) => {
+      if (sortBy === 'oldest') {
+        return new Date(a.submittedAt || a.createdAt || 0) - new Date(b.submittedAt || b.createdAt || 0);
+      }
+      return new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0);
+    });
+
+    return next;
+  }, [questions, filter, searchQuery, subjectFilter, sortBy]);
 
   const { paginatedQuestions, totalPages } = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -225,7 +235,7 @@ export default function ChairApprovals({ me }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery, subjectFilter]);
+  }, [filter, searchQuery, subjectFilter, sortBy]);
 
   return (
     <main className="ca-page">
@@ -275,6 +285,15 @@ export default function ChairApprovals({ me }) {
               {tag.name}
             </option>
           ))}
+        </select>
+
+        <select
+          className="ca-filter-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="newest">Sort: Newest</option>
+          <option value="oldest">Sort: Oldest</option>
         </select>
       </div>
 
