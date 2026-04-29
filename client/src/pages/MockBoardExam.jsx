@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
 
 const BASE = 'http://localhost:5000';
 
@@ -143,14 +144,16 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
   const filteredApprovedQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
-    return approvedQuestions.filter((question) => {
+    return approvedQuestions
+      .map((question) => organizeQuestionAnswers(question))
+      .filter((question) => {
       if (!needle) return true;
       return [question.title, question.description, question.tag?.name, question.createdBy?.name]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(needle);
-    });
+      });
   }, [approvedQuestions, searchQuery]);
 
   const selectedQuestionIds = useMemo(
@@ -416,7 +419,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                           <ul>
                             {(question.answers || []).map((answer) => (
                               <li key={answer._id || answer.text}>
-                                {answer.text} {answer.isCorrect ? '(Correct)' : ''}
+                                {answer.optionLabel} {answer.text} {answer.isCorrect ? '(Correct)' : ''}
                               </li>
                             ))}
                           </ul>

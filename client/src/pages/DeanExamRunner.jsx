@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
-import { randomizeExamQuestionsAndAnswers } from '../lib/QuestionAnswerRandomizer.js';
+import { organizeExamQuestionsAndAnswers } from '../lib/QuestionOrganizer.js';
 
 const BASE = 'http://localhost:5000';
 
@@ -44,8 +44,8 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
               ...data.exam,
               questions:
                 mode === 'details'
-                  ? data.exam.questions || []
-                  : randomizeExamQuestionsAndAnswers(data.exam.questions || []),
+                  ? organizeExamQuestionsAndAnswers(data.exam.questions || [])
+                  : organizeExamQuestionsAndAnswers(data.exam.questions || [], { randomize: true }),
             }
           : null;
         setExam(nextExam);
@@ -91,7 +91,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
       prev
         ? {
             ...prev,
-            questions: randomizeExamQuestionsAndAnswers(prev.questions || []),
+            questions: organizeExamQuestionsAndAnswers(prev.questions || [], { randomize: true }),
           }
         : prev
     ));
@@ -116,7 +116,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                   disabled={submitted}
                   onChange={() => handleSelect(question._id, answer._id)}
                 />{' '}
-                {answer.text}
+                {answer.optionLabel} {answer.text}
                 {submitted ? ` ${answer.isCorrect ? '(Correct Answer)' : checked ? '(Your Answer)' : ''}` : ''}
               </label>
             );
@@ -124,7 +124,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
 
           return (
             <div key={answer._id || `${question._id}-${index}`} style={{ marginBottom: '8px' }}>
-              {String.fromCharCode(65 + index)}. {answer.text}
+              {answer.optionLabel} {answer.text}
             </div>
           );
         })}

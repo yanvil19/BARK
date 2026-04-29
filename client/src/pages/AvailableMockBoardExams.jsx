@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
+import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
 
 const BASE = 'http://localhost:5000';
 
@@ -159,9 +160,9 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                     <td>{question.tag?.name || '-'}</td>
                     <td>
                       <ul>
-                        {(question.answers || []).map((answer) => (
+                        {(organizeQuestionAnswers(question).answers || []).map((answer) => (
                           <li key={answer._id || answer.text}>
-                            {answer.text} {answer.isCorrect ? '(Correct)' : ''}
+                            {answer.optionLabel} {answer.text} {answer.isCorrect ? '(Correct)' : ''}
                           </li>
                         ))}
                       </ul>
