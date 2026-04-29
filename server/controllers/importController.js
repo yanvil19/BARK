@@ -17,7 +17,7 @@ const uploadAndExtract = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const allowedRoles = ['professor', 'program chair', 'dean'];
+        const allowedRoles = ['professor', 'program_chair', 'dean'];
         if (!allowedRoles.includes(req.user.role?.toLowerCase())) {
             return res.status(403).json({
                 error: 'Only Professors, Chairs, and Deans can import questions.'
