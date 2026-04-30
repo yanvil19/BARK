@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+import Dashboard from './pages/Dashboard/index.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 import Login from './pages/Login.jsx';
 import StudentRegister from './pages/StudentRegister.jsx';
 import DeanApprovals from './pages/DeanApprovals.jsx';
@@ -83,7 +84,13 @@ export default function App() {
   }
 
   let page = null;
-  if (route === 'Dashboard') page = <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
+  if (route === 'Dashboard') {
+    page = me ? (
+      <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />
+    ) : (
+      <LandingPage onNavigate={setRoute} />
+    );
+  }
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
   if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
