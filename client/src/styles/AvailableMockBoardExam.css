@@ -1,0 +1,282 @@
+/* ambe = (A)vailable (M)ock (B)oard (E)xam :3 */
+.ambe-page {
+    margin: -20px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.ambe-page-header {
+    padding: 22px 32px 18px;
+    background: #f9faff;
+    border-bottom: 1px solid rgba(53, 64, 142, 0.3);
+}
+
+/* main header layout */
+.ambe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+/* left side (title + subtitle) */
+.ambe-header-left {
+    display: flex;
+    flex-direction: column;
+}
+
+/* actions / right side */
+.ambe-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* page title */
+.ambe-title {
+    margin: 0 0 4px;
+    font-family: var(--font-title);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-bg);
+    line-height: 1.1;
+}
+
+/* page subtitle */
+.ambe-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: #8b92bc;
+}
+
+
+/* ────────────────── STATES ───────────────────── */
+.ambe-loading,
+.ambe-empty {
+    padding: 48px;
+    text-align: center;
+    color: #9ba3cb;
+}
+
+/* ────────────── TABLE CARD ───────────────────── */
+.ambe-table-card {
+    margin: 1.5em 2em;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid rgba(53, 64, 142, 0.25);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, .08);
+    overflow: hidden;
+}
+
+/* ────────────────── TABLE ───────────────────── */
+.ambe-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ambe-table td {
+    padding: 14px;
+    border-top: 1px solid rgba(53, 64, 142, .12);
+    text-align: center;
+}
+
+.ambe-table tbody tr:hover {
+    background: #f4f6fc;
+}
+
+.ambe-muted {
+    font-size: 12px;
+    color: #9ba3cb;
+}
+
+/* ────────────────── PILLS ───────────────────── */
+.ambe-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 2px 4px 2px 0;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #eef0fb;
+    border: 1px solid rgba(53, 64, 142, .25);
+}
+
+.ambe-pill.program {
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+.ambe-pill.subject {
+    background: #fafafa;
+    color: #374151;
+}
+
+/* ───────────────── STATUS ───────────────────── */
+.ambe-status {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 11px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+
+.ambe-status.draft {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.ambe-status.active {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+/* ─────────────── ACTIONS ────────────────────── */
+.ambe-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ambe-btn {
+    font-size: 12px;
+    padding: 6px 13px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+}
+
+.ambe-btn.view {
+    color: #3f4ab8;
+    border-color: #3f4ab8;
+}
+
+.ambe-btn.primary {
+    background: var(--primary-bg);
+    color: var(--accent-yellow);
+}
+
+.ambe-btn.delete {
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+/* ───────────── DETAILS CARD ─────────────────── */
+.ambe-details {
+    margin: 1.5em 2em;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid rgba(53, 64, 142, 0.25);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.ambe-details-header {
+    padding: 1em 2em;
+    background: #35408e;
+    border-bottom: 1px solid rgba(53, 64, 142, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.ambe-details-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ambe-details-name {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-yellow);
+    line-height: 1;
+}
+
+.ambe-details-program {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.ambe-details-status {
+    flex-shrink: 0;
+}
+
+.ambe-details-instructions {
+    padding: 0.5em;
+    border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+}
+
+.ambe-details-instructions h4 {
+    margin: 0em 2em;
+    font-family: var(--font-title);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8b92bc;
+}
+
+.ambe-details-instructions p {
+    margin: 0em 2em;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #374151;
+}
+
+.ambe-details h3 {
+    margin: 0;
+    padding: 0.5em 2em;
+    font-family: var(--font-title);
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1f4b;
+    background: #eef0f6;
+}
+
+
+/* ───────────── SUB TABLE ────────────────────── */
+.ambe-subtable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* ── Unified AMBE Table Headers ───────────────────────── */
+.ambe-table th,
+.ambe-subtable th {
+    background: #f9faff;
+    padding: 14px;
+    font-family: var(--font-title);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #5a63a8;
+    text-align: center;
+    border-bottom: 1px solid rgba(53, 64, 142, 0.25);
+}
+
+.ambe-subtable th {
+    border-top: 1px solid rgba(53, 64, 142, 0.25);
+}
+
+.ambe-answers {
+    padding-left: 18px;
+    margin: 0;
+}
+
+.ambe-correct {
+    color: #15803d;
+    font-weight: 700;
+}
+
+.ambe-subtable td {
+    padding: 12px 14px;
+    border-top: 1px solid rgba(53, 64, 142, .12);
+    text-align: left;
+    font-size: 12px;
+}

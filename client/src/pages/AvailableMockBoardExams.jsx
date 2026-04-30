@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
+import '../styles/AvailableMockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
 
@@ -32,15 +33,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
         setLoading(false);
       }
     }
-
     fetchExams();
   }, [refreshKey]);
 
   async function handleDelete(exam) {
     if (!window.confirm(`Delete mock board exam "${exam.name}"?`)) return;
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, { method: 'DELETE' });
-      setExams((prev) => prev.filter((item) => item._id !== exam._id));
+      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+        method: 'DELETE',
+      });
+      setExams((prev) => prev.filter((e) => e._id !== exam._id));
       if (selectedExam?._id === exam._id) setSelectedExam(null);
     } catch (err) {
       alert(err.message || 'Failed to delete mock board exam.');
@@ -48,8 +50,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   }
 
   async function handleView(examId) {
+    // If the same exam is clicked again → close details
+    if (selectedExam?._id === examId) {
+      setSelectedExam(null);
+      return;
+    }
+
+    // Otherwise fetch full exam details
     try {
-      const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+      const data = await apiAuth(
+        `${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`
+      );
       setSelectedExam(data.exam || null);
     } catch (err) {
       alert(err.message || 'Failed to load exam details.');
@@ -57,93 +68,176 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   }
 
   return (
-    <main>
-      <h1>Available Mock Board Exams</h1>
-      <p>This page lists the mock board exams created by the dean for department programs.</p>
+    <main className="ambe-page">
+      {/* ── HEADER ───────────────────────── */}
+      <header className="ambe-page-header">
+        <div className="ambe-header">
+          <div className="ambe-header-left">
+            <h1 className="ambe-title">Available Mock Board Exams</h1>
+            <p className="ambe-subtitle">
+              This page lists the mock board exams created by the dean for
+              department programs.
+            </p>
+          </div>
+        </div>
+      </header>
 
-      {loading ? <p>Loading mock board exams...</p> : null}
-      {!loading && exams.length === 0 ? <p>No mock board exams found.</p> : null}
+      {/* ── CONTENT ─────────────────────── */}
+      {loading && <p className="ambe-loading">Loading mock board exams…</p>}
 
-      {!loading && exams.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Exam Name</th>
-              <th>Program</th>
-              <th>Subjects</th>
-              <th>Availability</th>
-              <th>Questions</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {exams.map((exam) => (
-              <tr key={exam._id}>
-                <td>{exam.name}</td>
-                <td>{exam.program?.name || exam.program?.code || '-'}</td>
-                <td>{(exam.subjectTags || []).map((tag) => tag.name).join(', ') || '-'}</td>
-                <td>
-                  {formatDateTime(exam.availabilityStart)}
-                  <br />
-                  to
-                  <br />
-                  {formatDateTime(exam.availabilityEnd)}
-                </td>
-                <td>{exam.questions?.length || 0}</td>
-                <td>{exam.status}</td>
-                <td>
-                  <button type="button" onClick={() => handleView(exam._id)}>
-                    Details
-                  </button>{' '}
-                  <button type="button" onClick={() => onEditExam(exam._id, 'preview')}>
-                    Preview
-                  </button>{' '}
-                  <button type="button" onClick={() => onEditExam(exam._id, 'testRun')}>
-                    Test Run
-                  </button>{' '}
-                  <button type="button" onClick={() => onEditExam(exam._id)}>
-                    Edit
-                  </button>{' '}
-                  <button type="button" onClick={() => handleDelete(exam)}>
-                    Delete
-                  </button>
-                </td>
+      {!loading && exams.length === 0 && (
+        <p className="ambe-empty">No mock board exams found.</p>
+      )}
+
+      {!loading && exams.length > 0 && (
+        <div className="ambe-table-card">
+          <table className="ambe-table">
+            <thead>
+              <tr>
+                <th>Exam Name</th>
+                <th>Program</th>
+                <th>Subjects</th>
+                <th>Availability</th>
+                <th>Questions</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
+            </thead>
+            <tbody>
+              {exams.map((exam) => (
+                <tr key={exam._id}>
+                  <td>{exam.name}</td>
 
-      {selectedExam ? (
-        <section>
-          <h2>Exam Details</h2>
-          <p>
-            <strong>Name:</strong> {selectedExam.name}
-          </p>
-          <p>
-            <strong>Program:</strong> {selectedExam.program?.name || '-'}
-          </p>
-          <p>
-            <strong>Subjects:</strong> {(selectedExam.subjectTags || []).map((tag) => tag.name).join(', ') || '-'}
-          </p>
-          <p>
-            <strong>Availability Start:</strong> {formatDateTime(selectedExam.availabilityStart)}
-          </p>
-          <p>
-            <strong>Availability End:</strong> {formatDateTime(selectedExam.availabilityEnd)}
-          </p>
-          <p>
-            <strong>Status:</strong> {selectedExam.status}
-          </p>
-          <p>
-            <strong>Instructions:</strong> {selectedExam.instructions || 'None'}
-          </p>
+                  <td>
+                    <span className="ambe-pill program">
+                      {exam.program?.name ||
+                        exam.program?.code ||
+                        '-'}
+                    </span>
+                  </td>
 
+                  <td>
+                    {(exam.subjectTags || []).length > 0 ? (
+                      exam.subjectTags.map((tag) => (
+                        <span
+                          key={tag._id || tag.name}
+                          className="ambe-pill subject"
+                        >
+                          {tag.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="ambe-muted">–</span>
+                    )}
+                  </td>
+
+                  <td className="ambe-muted">
+                    {formatDateTime(exam.availabilityStart)}
+                    <br />
+                    to
+                    <br />
+                    {formatDateTime(exam.availabilityEnd)}
+                  </td>
+
+                  <td>{exam.questions?.length || 0}</td>
+
+                  <td>
+                    <span className={`ambe-status ${exam.status}`}>
+                      {exam.status}
+                    </span>
+                  </td>
+
+                  <td>
+                    <div className="ambe-actions">
+                      <button
+                        type="button"
+                        className="ambe-btn view"
+                        onClick={() => handleView(exam._id)}
+                      >
+                        Details
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ambe-btn primary"
+                        onClick={() =>
+                          onEditExam(exam._id, 'preview')
+                        }
+                      >
+                        Preview
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ambe-btn primary"
+                        onClick={() =>
+                          onEditExam(exam._id, 'testRun')
+                        }
+                      >
+                        Test Run
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ambe-btn primary"
+                        onClick={() => onEditExam(exam._id)}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ambe-btn delete"
+                        onClick={() => handleDelete(exam)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── DETAILS ─────────────────────── */}
+      {selectedExam && (
+        <section className="ambe-details">
+          {/* ── Header Row ───────────────── */}
+          <div className="ambe-details-header">
+            <div className="ambe-details-main">
+              <h2 className="ambe-details-name">
+                {selectedExam.name}
+              </h2>
+
+              <div className="ambe-details-program">
+                {selectedExam.program?.name || '-'}
+              </div>
+            </div>
+
+            <div className="ambe-details-status">
+              <span className={`ambe-status ${selectedExam.status}`}>
+                {selectedExam.status}
+              </span>
+            </div>
+          </div>
+
+          {/* ── Instructions ─────────────── */}
+          <div className="ambe-details-instructions">
+            <h4>Instructions</h4>
+            <p>{selectedExam.instructions || 'None'}</p>
+          </div>
+
+          {/* ── Questions ────────────────── */}
           <h3>Questions</h3>
-          {(selectedExam.questions || []).length === 0 ? <p>No questions found.</p> : null}
-          {(selectedExam.questions || []).length > 0 ? (
-            <table>
+
+          {(selectedExam.questions || []).length === 0 && (
+            <p className="ambe-muted">No questions found.</p>
+          )}
+
+          {(selectedExam.questions || []).length > 0 && (
+            <table className="ambe-subtable">
               <thead>
                 <tr>
                   <th>Title</th>
@@ -157,23 +251,43 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                   <tr key={question._id}>
                     <td>{question.title}</td>
                     <td>{question.description}</td>
-                    <td>{question.tag?.name || '-'}</td>
                     <td>
-                      <ul>
-                        {(organizeQuestionAnswers(question).answers || []).map((answer) => (
-                          <li key={answer._id || answer.text}>
-                            {answer.optionLabel} {answer.text} {answer.isCorrect ? '(Correct)' : ''}
-                          </li>
-                        ))}
+                      {question.tag && question.tag.name ? (
+                        <span className="ambe-pill subject">
+                          {question.tag.name}
+                        </span>
+                      ) : (
+                        <span className="ambe-muted">–</span>
+                      )}
+                    </td>
+                    <td>
+                      <ul className="ambe-answers">
+                        {(organizeQuestionAnswers(question).answers || []).map(
+                          (answer) => (
+                            <li
+                              key={
+                                answer._id ||
+                                `${answer.optionLabel}-${answer.text}`
+                              }
+                            >
+                              {answer.optionLabel} {answer.text}{' '}
+                              {answer.isCorrect && (
+                                <span className="ambe-correct">
+                                  (Correct)
+                                </span>
+                              )}
+                            </li>
+                          )
+                        )}
                       </ul>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : null}
+          )}
         </section>
-      ) : null}
+      )}
     </main>
   );
 }
