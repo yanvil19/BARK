@@ -40,6 +40,9 @@ const listApprovals = async (req, res) => {
     let filter = {};
     if (req.user.role === 'program_chair') {
       filter = { state: { $ne: 'draft' }, program: req.user.program };
+    } else if (req.user.role === 'dean') {
+      const programIds = await getAccessibleProgramIds(req.user);
+      filter = { state: { $ne: 'draft' }, program: { $in: programIds } };
     } else {
       return res.status(403).json({ message: 'Not authorized to view approvals' });
     }
@@ -195,8 +198,8 @@ const submitQuestion = async (req, res) => {
 // POST /api/questions/:id/review (Chair only)
 const reviewQuestion = async (req, res) => {
   try {
-    if (req.user.role !== 'program_chair') {
-      return res.status(403).json({ message: 'Only Program Chairs can review questions at this stage' });
+    if (req.user.role !== 'program_chair' && req.user.role !== 'dean') {
+      return res.status(403).json({ message: 'Only Program Chairs and Deans can review questions' });
     }
 
     const { action, note } = req.body; // action: 'approve', 'return', 'reject', 'restore', 'delete'
