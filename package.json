@@ -1,9 +1,11 @@
 {
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "date-fns": "^4.1.0",
     "express-rate-limit": "^8.4.1",
     "mammoth": "^1.12.0",
     "multer": "^2.1.1",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "react-datepicker": "^9.1.0"
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
+import DateTimePicker from '../components/DateTimePicker.jsx';
 import '../styles/MockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
@@ -33,8 +34,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
   const [form, setForm] = useState({
     name: '',
-    availabilityStart: '',
-    availabilityEnd: '',
+    examDate: '',
+    duration: 150,
+    description: '',
     instructions: '',
     status: 'draft',
   });
@@ -78,8 +80,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         setSelectedQuestions(nextQuestions);
         setForm({
           name: exam.name || '',
-          availabilityStart: toLocalDateTimeInput(exam.availabilityStart),
-          availabilityEnd: toLocalDateTimeInput(exam.availabilityEnd),
+          examDate: toLocalDateTimeInput(exam.examDate || exam.availabilityStart),
+          duration: exam.duration || 150,
+          description: exam.description || '',
           instructions: exam.instructions || '',
           status: exam.status || 'draft',
         });
@@ -252,8 +255,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         programId,
         subjectTagIds: selectedTagIds,
         questionIds: selectedQuestions.map((question) => question._id),
-        availabilityStart: form.availabilityStart,
-        availabilityEnd: form.availabilityEnd || null,
+        examDate: form.examDate,
+        duration: form.duration,
+        description: form.description,
         instructions: form.instructions,
         status: form.status,
       };
@@ -272,8 +276,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
       setForm({
         name: '',
-        availabilityStart: '',
-        availabilityEnd: '',
+        examDate: '',
+        duration: 150,
+        description: '',
         instructions: '',
         status: 'draft',
       });
@@ -350,26 +355,23 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             </div>
 
             <div className="mbe-field">
-              <label>
-                Availability Start
-                <input
-                  className="mbe-input"
-                  type="datetime-local"
-                  value={form.availabilityStart}
-                  onChange={(e) => setForm((prev) => ({ ...prev, availabilityStart: e.target.value }))}
-                  required
-                />
-              </label>
+              <label>Exam Date</label>
+              <DateTimePicker
+                value={form.examDate}
+                onChange={(val) => setForm((prev) => ({ ...prev, examDate: val }))}
+              />
             </div>
 
             <div className="mbe-field">
               <label>
-                Availability End
+                Duration (Minutes)
                 <input
                   className="mbe-input"
-                  type="datetime-local"
-                  value={form.availabilityEnd}
-                  onChange={(e) => setForm((prev) => ({ ...prev, availabilityEnd: e.target.value }))}
+                  type="number"
+                  min="1"
+                  value={form.duration}
+                  onChange={(e) => setForm((prev) => ({ ...prev, duration: e.target.value }))}
+                  required
                 />
               </label>
             </div>
@@ -389,7 +391,17 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               </label>
             </div>
 
-            <div className="mbe-field mbe-field--full">
+            <div className="mbe-field mbe-field--full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <label>
+                Description
+                <textarea
+                  className="mbe-input mbe-textarea"
+                  rows="4"
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="General description of the exam..."
+                />
+              </label>
               <label>
                 Instructions
                 <textarea
@@ -397,7 +409,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   rows="4"
                   value={form.instructions}
                   onChange={(e) => setForm((prev) => ({ ...prev, instructions: e.target.value }))}
-                  placeholder="Optional exam instructions..."
+                  placeholder="Exam instructions for students..."
                 />
               </label>
             </div>

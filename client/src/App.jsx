@@ -18,8 +18,11 @@ import DeanTags from './pages/DeanTags.jsx';
 import MockBoardExam from './pages/MockBoardExam.jsx';
 import AvailableMockBoardExams from './pages/AvailableMockBoardExams.jsx';
 import DeanExamRunner from './pages/DeanExamRunner.jsx';
+import MockBoardExamPreview from './pages/MockBoardExamPreview.jsx';
+import MockBoardExamTestRun from './pages/MockBoardExamTestRun.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function App() {
   const [route, setRoute] = useState('Dashboard');
@@ -129,10 +132,36 @@ export default function App() {
             return;
           }
 
+          if (action === 'preview') {
+            setExamRunnerId(id);
+            setRoute('mockBoardExamPreview');
+            return;
+          }
+
+          if (action === 'testRun') {
+            setExamRunnerId(id);
+            setRoute('mockBoardExamTestRun');
+            return;
+          }
+
           setExamRunnerId(id);
           setExamRunnerMode(action);
           setRoute('deanExamRunner');
         }}
+      />
+    );
+  if (route === 'mockBoardExamPreview')
+    page = (
+      <MockBoardExamPreview
+        examId={examRunnerId}
+        onBack={() => setRoute('availableMockBoardExams')}
+      />
+    );
+  if (route === 'mockBoardExamTestRun')
+    page = (
+      <MockBoardExamTestRun
+        examId={examRunnerId}
+        onBack={() => setRoute('availableMockBoardExams')}
       />
     );
   if (route === 'deanExamRunner')

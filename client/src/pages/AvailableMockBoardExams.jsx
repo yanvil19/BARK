@@ -97,7 +97,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                 <th>Exam Name</th>
                 <th>Program</th>
                 <th>Subjects</th>
-                <th>Availability</th>
+                <th>Exam Date</th>
+                <th>Duration</th>
                 <th>Questions</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -132,11 +133,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                   </td>
 
                   <td className="ambe-muted">
-                    {formatDateTime(exam.availabilityStart)}
-                    <br />
-                    to
-                    <br />
-                    {formatDateTime(exam.availabilityEnd)}
+                    {formatDateTime(exam.examDate || exam.availabilityStart)}
+                  </td>
+                  <td className="ambe-muted">
+                    {exam.duration || 150} mins
                   </td>
 
                   <td>{exam.questions?.length || 0}</td>
@@ -224,9 +224,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
 
           {/* ── Instructions ─────────────── */}
-          <div className="ambe-details-instructions">
-            <h4>Instructions</h4>
-            <p>{selectedExam.instructions || 'None'}</p>
+          <div className="ambe-details-instructions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <h4>Description</h4>
+              <p>{selectedExam.description || 'No description'}</p>
+            </div>
+            <div>
+              <h4>Instructions</h4>
+              <p>{selectedExam.instructions || 'None'}</p>
+            </div>
+          </div>
+
+          <div className="ambe-details-instructions" style={{ borderTop: 'none', paddingTop: 0 }}>
+             <h4>Duration</h4>
+             <p>{selectedExam.duration || 150} minutes</p>
           </div>
 
           {/* ── Questions ────────────────── */}

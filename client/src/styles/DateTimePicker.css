@@ -1,0 +1,329 @@
+/* DateTimePicker.css
+   Modal-based date/time picker — navy/yellow design system.
+   Requires react-datepicker/dist/react-datepicker.css loaded before this.
+*/
+
+/* ── Trigger ── */
+.dtp-container {
+  position: relative;
+  width: 100%;
+  font-family: 'Poppins', sans-serif;
+}
+
+.dtp-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f3f5fc;
+  border: 1px solid #d5daf0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.dtp-input:hover {
+  border-color: var(--primary-bg);
+  background: #fff;
+}
+
+.dtp-val {
+  font-size: 14px;
+  color: #4a57a2;
+  font-weight: 500;
+}
+
+/* ── Overlay ── */
+.dtp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 35, 80, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlayIn 0.2s ease;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal card ── */
+.dtp-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(30, 35, 80, 0.22);
+  width: 500px;
+  overflow: hidden;
+  animation: modalIn 0.22s cubic-bezier(0.34, 1.26, 0.64, 1);
+  font-family: 'Poppins', sans-serif;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.93) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Modal header ── */
+.dtp-modal-header {
+  background: var(--primary-bg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dtp-modal-title {
+  color: var(--accent-yellow);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Calendar body ── */
+.dtp-modal-body {
+  padding: 16px 16px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* react-datepicker inline overrides */
+.dtp-modal-body .react-datepicker {
+  font-family: 'Poppins', sans-serif !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: 100%;
+  display: flex !important;
+}
+
+.dtp-modal-body .react-datepicker__month-container {
+  flex: 1;
+}
+
+.dtp-modal-body .react-datepicker__header {
+  background: #fff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 0 0 10px !important;
+  border-radius: 0 !important;
+}
+
+.dtp-modal-body .react-datepicker__current-month {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: var(--primary-bg) !important;
+  margin-bottom: 10px;
+}
+
+.dtp-modal-body .react-datepicker__navigation {
+  top: 0 !important;
+}
+
+.dtp-modal-body .react-datepicker__navigation-icon::before {
+  border-color: #8b92bc !important;
+  border-width: 2px 2px 0 0 !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.dtp-modal-body .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+  border-color: var(--primary-bg) !important;
+}
+
+.dtp-modal-body .react-datepicker__day-name {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  width: 34px !important;
+  line-height: 34px !important;
+  margin: 1px !important;
+}
+
+.dtp-modal-body .react-datepicker__day {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 13px !important;
+  color: #4a5568 !important;
+  width: 34px !important;
+  line-height: 34px !important;
+  border-radius: 8px !important;
+  margin: 1px !important;
+  transition: background 0.15s !important;
+}
+
+.dtp-modal-body .react-datepicker__day:hover {
+  background: #f1f5f9 !important;
+  color: var(--primary-bg) !important;
+}
+
+/* Selected day */
+.dtp-modal-body .react-datepicker__day--selected,
+.dtp-modal-body .react-datepicker__day--keyboard-selected {
+  background: var(--primary-bg) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Today — border only, normal text color */
+.dtp-modal-body .react-datepicker__day--today {
+  font-weight: 700 !important;
+  color: #4a5568 !important;
+  border: 2px solid var(--primary-bg) !important;
+  border-radius: 8px !important;
+}
+
+/* Today AND selected — keep it readable */
+.dtp-modal-body .react-datepicker__day--today.react-datepicker__day--selected {
+  background: var(--primary-bg) !important;
+  color: var(--accent-yellow) !important;
+  border-color: var(--accent-yellow) !important;
+}
+
+.dtp-modal-body .react-datepicker__day--outside-month {
+  color: #cbd5e1 !important;
+}
+
+/* ── Time column ── */
+.dtp-modal-body .react-datepicker__time-container {
+  border-left: 1px solid #f1f5f9 !important;
+  width: 95px !important;
+}
+
+.dtp-modal-body .react-datepicker__header--time {
+  background: #fff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 0 0 10px !important;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 45px;
+}
+
+.dtp-modal-body .react-datepicker-time__header {
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  color: var(--primary-bg) !important;
+}
+
+.dtp-modal-body .react-datepicker__time {
+  background: #fff !important;
+}
+
+.dtp-modal-body .react-datepicker__time-box {
+  width: 95px !important;
+}
+
+.dtp-modal-body .react-datepicker__time-list {
+  height: 212px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: #d5daf0 transparent;
+}
+
+.dtp-modal-body .react-datepicker__time-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dtp-modal-body .react-datepicker__time-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dtp-modal-body .react-datepicker__time-list::-webkit-scrollbar-thumb {
+  background: #d5daf0;
+  border-radius: 4px;
+}
+
+.dtp-modal-body .react-datepicker__time-list-item {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  border-radius: 6px !important;
+  margin: 0 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.15s, color 0.15s !important;
+  height: 32px !important;
+}
+
+.dtp-modal-body .react-datepicker__time-list-item:hover {
+  background: #f1f5f9 !important;
+  color: var(--primary-bg) !important;
+}
+
+.dtp-modal-body .react-datepicker__time-list-item--selected {
+  background: var(--primary-bg) !important;
+  color: var(--accent-yellow) !important;
+  font-weight: 800 !important;
+}
+
+/* ── Selected datetime preview strip ── */
+.dtp-modal-preview {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  background: #f3f5fc;
+  border-radius: 8px;
+  border: 1px solid #d5daf0;
+}
+
+.dtp-modal-preview svg {
+  flex-shrink: 0;
+  color: var(--primary-bg);
+}
+
+.dtp-modal-preview span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a57a2;
+  line-height: 1.3;
+}
+
+/* ── Footer buttons ── */
+.dtp-modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.dtp-btn-cancel {
+  flex: 1;
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dtp-btn-cancel:hover { background: #e2e8f0; }
+
+.dtp-btn-apply {
+  flex: 1;
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.dtp-btn-apply:hover { opacity: 0.88; }

@@ -1,0 +1,299 @@
+/* MockBoardExamPreview.css */
+
+.mbep-page {
+  margin: -20px; /* Offset the parent padding like other pages */
+  min-height: 100vh;
+  background-color: var(--content-bg);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header (Matching Project Standard) ──────────────────── */
+.mbep-header {
+  padding: 22px 32px 18px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.mbep-header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.mbep-title {
+  margin: 0 0 4px;
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-bg);
+  line-height: 1.1;
+}
+
+.mbep-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #8b92bc;
+}
+
+.mbep-exit-btn {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 4px 10px rgba(53, 64, 142, 0.2);
+}
+
+.mbep-exit-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* ── Progress Card ────────────────────────────────────────── */
+.mbep-stats {
+  padding: 24px 32px 0;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mbep-progress-card {
+  background: #fff;
+  padding: 18px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.mbep-progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a63a8;
+  margin-bottom: 10px;
+}
+
+.mbep-progress-bar {
+  height: 8px;
+  background: #f0f1f8;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mbep-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-bg), #5a63a8);
+  transition: width 0.3s ease;
+}
+
+/* ── Question Card ────────────────────────────────────────── */
+.mbep-content {
+  flex: 1;
+  padding: 24px 32px;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mbep-card {
+  background: #fff;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.mbep-card-top {
+  padding: 14px 24px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.1);
+}
+
+.mbep-card-top h4 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: #8b92bc;
+  text-transform: uppercase;
+}
+
+.mbep-card-body {
+  padding: 32px;
+}
+
+.mbep-question-title {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1f4b;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* ── Options (Image Accurate) ────────────────────────────── */
+.mbep-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mbep-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: #f0f3fa;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+
+.mbep-option-circle {
+  width: 34px;
+  height: 34px;
+  background: #dce2f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-title);
+  font-weight: 800;
+  font-size: 14px;
+  color: #8b92bc;
+  flex-shrink: 0;
+}
+
+.mbep-option-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Correct Answer (Green Effect) */
+.mbep-option.is-correct {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+
+.mbep-option.is-correct .mbep-option-circle {
+  background: #22c55e;
+  color: #fff;
+}
+
+.mbep-option.is-correct .mbep-option-text {
+  color: #166534;
+}
+
+/* Test Run Specifics */
+.mbep-option.is-selected-preview {
+  background: #eff6ff;
+  border-color: var(--primary-bg);
+}
+
+.mbep-option.is-selected-preview .mbep-option-circle {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.mbep-option.is-wrong-preview {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.mbep-option.is-wrong-preview .mbep-option-circle {
+  background: #dc2626;
+  color: #fff;
+}
+
+.mbep-nav-circle.is-answered-preview {
+  background: #f0f1f8;
+  border-color: #5a63a8;
+  color: #5a63a8;
+}
+
+/* ── Navigator & Actions ─────────────────────────────────── */
+.mbep-nav-bar {
+  background: #fff;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.mbep-nav-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  background: #fff;
+  color: #8b92bc;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.mbep-nav-circle:hover {
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+.mbep-nav-circle.active {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+/* ── Navigation Buttons ──────────────────────────────────── */
+.mbep-nav-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.mbep-btn-nav {
+  padding: 10px 20px;
+  border: 1.5px solid rgba(53, 64, 142, 0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: #5a63a8;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mbep-btn-nav:hover:not(:disabled) {
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+  background: rgba(53, 64, 142, 0.05);
+}
+
+.mbep-btn-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

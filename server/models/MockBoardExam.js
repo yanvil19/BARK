@@ -33,13 +33,19 @@ const mockBoardExamSchema = new mongoose.Schema(
         required: true,
       },
     ],
-    availabilityStart: {
+    examDate: {
       type: Date,
-      required: [true, 'Availability start date and time is required'],
+      required: [true, 'Exam date is required'],
     },
-    availabilityEnd: {
-      type: Date,
-      default: null,
+    duration: {
+      type: Number,
+      required: [true, 'Duration is required'],
+      default: 150, // 2.5 hours in minutes
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: '',
     },
     instructions: {
       type: String,

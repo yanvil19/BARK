@@ -69,10 +69,13 @@ async function validateExamPayload(user, body) {
   const questionIds = Array.isArray(body.questionIds) ? body.questionIds.filter(Boolean) : [];
   const status = body.status || 'draft';
   const instructions = body.instructions?.trim() || '';
+  const description = body.description?.trim() || '';
+  const duration = parseInt(body.duration, 10);
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
-  if (!body.availabilityStart) errors.push('Availability start date and time is required');
+  if (!body.examDate) errors.push('Exam date is required');
+  if (isNaN(duration) || duration <= 0) errors.push('Valid duration in minutes is required');
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
   if (!['draft', 'published', 'archived'].includes(status)) errors.push('Invalid exam status');
@@ -80,12 +83,9 @@ async function validateExamPayload(user, body) {
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
 
-  const start = body.availabilityStart ? new Date(body.availabilityStart) : null;
-  const end = body.availabilityEnd ? new Date(body.availabilityEnd) : null;
+  const examDate = body.examDate ? new Date(body.examDate) : null;
 
-  if (start && Number.isNaN(start.getTime())) errors.push('Invalid availability start date');
-  if (end && Number.isNaN(end.getTime())) errors.push('Invalid availability end date');
-  if (start && end && end < start) errors.push('Availability end must be later than the start date');
+  if (examDate && Number.isNaN(examDate.getTime())) errors.push('Invalid exam date');
 
   let tags = [];
   if (program && subjectTagIds.length > 0) {
@@ -117,8 +117,9 @@ async function validateExamPayload(user, body) {
       program,
       subjectTagIds,
       questionIds,
-      availabilityStart: start,
-      availabilityEnd: end || null,
+      examDate,
+      duration,
+      description,
       instructions,
       status,
       tags,
@@ -142,8 +143,9 @@ async function createMockBoardExam(req, res) {
       department: payload.program.department,
       subjectTags: payload.subjectTagIds,
       questions: payload.questionIds,
-      availabilityStart: payload.availabilityStart,
-      availabilityEnd: payload.availabilityEnd,
+      examDate: payload.examDate,
+      duration: payload.duration,
+      description: payload.description,
       instructions: payload.instructions,
       status: payload.status,
       createdBy: req.user._id,
@@ -227,8 +229,9 @@ async function updateMockBoardExam(req, res) {
       programId: req.body.programId ?? existing.program.toString(),
       subjectTagIds: req.body.subjectTagIds ?? existing.subjectTags.map((item) => item.toString()),
       questionIds: req.body.questionIds ?? existing.questions.map((item) => item.toString()),
-      availabilityStart: req.body.availabilityStart ?? existing.availabilityStart,
-      availabilityEnd: req.body.availabilityEnd === undefined ? existing.availabilityEnd : req.body.availabilityEnd,
+      examDate: req.body.examDate ?? existing.examDate,
+      duration: req.body.duration ?? existing.duration,
+      description: req.body.description ?? existing.description,
       instructions: req.body.instructions ?? existing.instructions,
       status: req.body.status ?? existing.status,
     };
@@ -241,8 +244,9 @@ async function updateMockBoardExam(req, res) {
     existing.department = payload.program.department;
     existing.subjectTags = payload.subjectTagIds;
     existing.questions = payload.questionIds;
-    existing.availabilityStart = payload.availabilityStart;
-    existing.availabilityEnd = payload.availabilityEnd;
+    existing.examDate = payload.examDate;
+    existing.duration = payload.duration;
+    existing.description = payload.description;
     existing.instructions = payload.instructions;
     existing.status = payload.status;
     await existing.save();
