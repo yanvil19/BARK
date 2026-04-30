@@ -111,9 +111,8 @@
 
 .mbe-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 20px;
-  max-width: 100%;
 }
 
 .mbe-field label {
@@ -124,7 +123,6 @@
   font-size: 13px;
   font-weight: 600;
   color: #4a57a2;
-  max-width: 100%;
 }
 
 .mbe-field--full {
@@ -133,7 +131,6 @@
 
 .mbe-input {
   width: 100%;
-  max-width: 100%;
   border: 1px solid #d5daf0;
   border-radius: 6px;
   padding: 10px 12px;
@@ -202,7 +199,7 @@
 
 .mbe-toolbar {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   margin-bottom: 18px;
@@ -210,15 +207,14 @@
 }
 
 .mbe-search {
-  flex: 1 1 auto;
+  flex: 1;
   min-width: 260px;
-  max-width: 100%;
+  max-width: none;
 }
 
 .mbe-filter-select {
   min-width: 220px;
-  max-width: 280px;
-  flex-shrink: 0;
+  max-width: 260px;
 }
 
 .mbe-toolbar-stats {
@@ -227,7 +223,6 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-left: auto;
-  flex-shrink: 0;
 }
 
 .mbe-toolbar--selected {
