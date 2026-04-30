@@ -14,13 +14,13 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
         id: generateId(),
-        title: q.title || '',
+        title: q.question_title || q.title || '',
         description: q.description || '',
         answers: q.answers?.length >= 2 ? q.answers : [
           { text: '', isCorrect: true },
           { text: '', isCorrect: false },
         ],
-        tagId: '',  // Faculty must select tag manually
+        tagId: q.tagId || '',
         imagePreviews: [],
         uploadedUrls: [],
         uploading: false,

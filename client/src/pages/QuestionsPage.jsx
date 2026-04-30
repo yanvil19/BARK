@@ -324,19 +324,29 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       setImportError(null);
 
       try {
-          const result = await uploadDocumentForImport(file);
+          const result = await uploadDocumentForImport(file, tags);
 
-          const preFilledQuestions = result.questions.map(q => ({
-              title: q.question_text?.substring(0, 100) || '',
-              description: q.question_text || '',
-              answers: Object.entries(q.options || {})
-                  .filter(([, text]) => text !== null)
-                  .map(([key, text]) => ({
-                      text,
-                      isCorrect: key === q.correct_answer,
-                  })),
-              flags: q.flags || [],
-          }));
+          const preFilledQuestions = result.questions.map(q => {
+            const matchedTag = tags.find(
+                t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
+            );
+
+            console.log('suggested_tag:', q.suggested_tag, '| confidence:', q.suggested_tag_confidence, '| matched:', matchedTag?.name);
+
+
+            return {
+                title: q.question_title || q.question_text?.substring(0, 100) || '',
+                description: q.question_text || '',
+                answers: Object.entries(q.options || {})
+                    .filter(([, text]) => text !== null)
+                    .map(([key, text]) => ({
+                        text,
+                        isCorrect: key === q.correct_answer,
+                    })),
+                flags: q.flags || [],
+                tagId: matchedTag?._id || '',
+            };
+        });
 
           if (preFilledQuestions.length === 0) {
               throw new Error('No questions could be extracted from this file. Please check the format and try again.');

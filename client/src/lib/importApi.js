@@ -3,9 +3,10 @@ const BASE = 'http://localhost:5000';
 /**
  * Upload a file for question import
  */
-export const uploadDocumentForImport = async (file) => {
+export const uploadDocumentForImport = async (file, tags = []) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('tags', JSON.stringify(tags.map(t => ({ name: t.name }))));
 
     const response = await fetch(`${BASE}/api/import/upload`, {
         method: 'POST',

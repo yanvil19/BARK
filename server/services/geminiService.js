@@ -10,6 +10,10 @@ Each question in the array must follow this exact structure:
 {
   "question_number": <integer — the order the question appears in the document>,
   "question_text": <string — the full question text exactly as written>,
+  "question_title": <string — a 3 to 5 word summary of the question's core topic.
+                    Do NOT copy the question verbatim. Write a short, descriptive title
+                    e.g. "Cardiac Output Calculation", "OSI Model Layers", "Contract Law Offer".
+                    Never exceed 5 words>,
   "options": {
     "A": <string — option A text>,
     "B": <string — option B text>,
@@ -28,6 +32,9 @@ Each question in the array must follow this exact structure:
   "suggested_tag": <string — your best guess at the subject or topic
                    of this question based on its content.
                    Return null if you cannot determine it>,
+  "suggested_tag_confidence": <string — "high" if you are very confident the suggested_tag
+                              matches an existing tag in the provided tag list.
+                              "low" if uncertain or if no tag list was provided>,
   "confidence": <string — "high" if you are confident all fields are
                 correct. "low" if any field is uncertain or ambiguous>
 }
@@ -45,7 +52,11 @@ Rules you must strictly follow:
 7. Preserve the exact wording of questions and options.
    Do not paraphrase or correct grammar.
 8. If options are labeled 1/2/3/4 instead of A/B/C/D, map them to A/B/C/D.
-9. If you find more than 20 questions, extract only the first 20.`;
+9. If you find more than 20 questions, extract only the first 20.
+10. For suggested_tag: if a tag list is provided at the top of the document text,
+    you must only suggest tags from that list. Set suggested_tag_confidence to "high"
+    only if you are confident the question clearly belongs to one of the provided tags.
+    If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".`;
 
 class GeminiService {
     constructor() {
@@ -74,12 +85,26 @@ class GeminiService {
     }
 
     /**
-     * Calls Gemini API to extract questions from text
+     * Builds a tag context prefix to prepend to the document text.
+     * This tells Gemini which tags are available to pick from.
+     */
+    buildTagContext(tags = []) {
+        if (!tags || tags.length === 0) return '';
+
+        const tagNames = tags.map(t => t.name).join(', ');
+        return `[AVAILABLE TAGS — you must only suggest tags from this list]: ${tagNames}\n\n`;
+    }
+
+    /**
+     * Calls Gemini API to extract questions from text.
+     * Accepts an optional tags array to guide tag suggestion.
      * Includes retry logic for timeouts and malformed JSON
      */
-    async extractQuestions(documentText, retryCount = 0) {
+    async extractQuestions(documentText, retryCount = 0, tags = []) {
         try {
             const cleanedText = this.preprocessText(documentText);
+            const tagContext = this.buildTagContext(tags);
+            const fullPrompt = tagContext + cleanedText;
 
             const response = await this.client.getGenerativeModel({ 
                 model: this.model,
@@ -88,7 +113,7 @@ class GeminiService {
                 contents: [{
                     role: 'user',
                     parts: [{
-                        text: cleanedText
+                        text: fullPrompt
                     }]
                 }],
                 generationConfig: {
@@ -99,6 +124,7 @@ class GeminiService {
 
             const rawJson = response.response.text();
             const questions = JSON.parse(rawJson);
+            console.log('Sample question fields:', Object.keys(questions[0] || {}));
 
             if (!Array.isArray(questions)) {
                 throw new Error('Response is not a JSON array');
@@ -117,7 +143,7 @@ class GeminiService {
                     console.log(`Retrying Gemini extraction (attempt ${retryCount + 1})...`);
                     // Wait 3 seconds before retry on 503
                     await new Promise(resolve => setTimeout(resolve, 3000));
-                    return this.extractQuestions(documentText, retryCount + 1);
+                    return this.extractQuestions(documentText, retryCount + 1, tags);
                 }
 }
             // Re-throw after retry exhausted
@@ -174,8 +200,9 @@ class GeminiService {
             });
         }
 
-        // Check for tag suggestion
-        if (!question.suggested_tag) {
+        // Check for tag suggestion — clear it if confidence is not high
+        if (!question.suggested_tag || question.suggested_tag_confidence !== 'high') {
+            question.suggested_tag = null;
             flags.push({
                 severity: 'WARNING',
                 message: 'No subject tag could be assigned. Please select one before submitting.'

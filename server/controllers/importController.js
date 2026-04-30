@@ -84,9 +84,10 @@ const uploadAndExtract = async (req, res) => {
         // ===== CALL GEMINI =====
         let extractedQuestions = [];
         try {
-            extractedQuestions = await geminiService.extractQuestions(extractedText);
+            const tags = JSON.parse(req.body.tags || '[]');
+            extractedQuestions = await geminiService.extractQuestions(extractedText, 0, tags);
         } catch (error) {
-            console.error('Gemini extraction error:', error);
+            console.error('Gemini extraction error:', error.message, error.status, error);
             markImportEnd(userId);
 
             if (error.message?.includes('timeout')) {
