@@ -8,9 +8,28 @@ function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
 }
 
-export default function QuestionForm({ tags, programId, initialData, onSaved, onClose, readOnly = false }) {
-  const [questionsData, setQuestionsData] = useState([
-    {
+export default function QuestionForm({ tags, programId, initialData, onSaved, onClose, readOnly = false, importedQuestions = [] }) {
+    const [questionsData, setQuestionsData] = useState(() => {
+    // If imported questions are provided, pre-fill all of them
+    if (importedQuestions && importedQuestions.length > 0) {
+      return importedQuestions.map(q => ({
+        id: generateId(),
+        title: q.question_title || q.title || '',
+        description: q.description || '',
+        answers: q.answers?.length >= 2 ? q.answers : [
+          { text: '', isCorrect: true },
+          { text: '', isCorrect: false },
+        ],
+        tagId: q.tagId || '',
+        imagePreviews: [],
+        uploadedUrls: [],
+        uploading: false,
+        error: q.flags?.map(f => f.message).join(' | ') || '',
+      }));
+    }
+
+    // Default — single empty form or edit form
+    return [{
       id: generateId(),
       title: initialData?.title || '',
       description: initialData?.description || '',
@@ -27,8 +46,8 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       uploadedUrls: initialData?.images || [],
       uploading: false,
       error: '',
-    }
-  ]);
+    }];
+  });
   const [saving, setSaving] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
