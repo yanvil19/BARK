@@ -887,7 +887,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
                   <p>Summary of questions created and submitted by each professor</p>
                 </div>
                 <div className="pc-review-header-right">
-                  <span className="pc-see-all" onClick={() => onRoute('chairApprovals')}>Review Questions</span>
+                  <span className="pc-see-all" onClick={() => onRoute('chairQuestionApprovals')}>Review Questions</span>
                   <div className="pc-pending-badge">
                     <span className="pc-pending-number">{pcStats?.pendingQuestionsCount ?? 0}</span>
                     <span className="pc-pending-label">Total Pending</span>
@@ -957,7 +957,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
               <div className="pc-table-notice">
                 Overview of faculty activity in {me?.program?.name || 'your program'}.{' '}
-                <button className="pc-notice-link" onClick={() => onRoute('chairApprovals')}>
+                <button className="pc-notice-link" onClick={() => onRoute('chairQuestionApprovals')}>
                   Go to Approval Queue →
                 </button>
               </div>

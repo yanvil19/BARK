@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiAuth } from '../lib/api.js';
-import '../styles/ChairApprovals.css';
+import '../styles/QuestionApprovals.css';
 
 const BASE = 'http://localhost:5000';
 
@@ -32,7 +32,7 @@ function truncateText(text, max = 100) {
   return `${text.slice(0, max)}...`;
 }
 
-export default function ChairApprovals({ me }) {
+export default function QuestionApprovals({ me }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +42,7 @@ export default function ChairApprovals({ me }) {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
+  const [programFilter, setProgramFilter] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -179,6 +180,18 @@ export default function ChairApprovals({ me }) {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [questions, tags]);
 
+  const programOptions = useMemo(() => {
+    const map = new Map();
+    questions.forEach((q) => {
+      const id = q.program?._id || q.program;
+      const name = q.program?.name || q.program?.code;
+      if (id && name && !map.has(String(id))) {
+        map.set(String(id), { id: String(id), name });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [questions]);
+
   const counts = useMemo(() => {
     const result = { all: questions.length };
     STATE_FILTERS.forEach((state) => {
@@ -197,6 +210,11 @@ export default function ChairApprovals({ me }) {
       if (subjectFilter) {
         const qTag = question.tag?._id || question.tag;
         if (String(qTag) !== String(subjectFilter)) return false;
+      }
+
+      if (programFilter) {
+        const qProgram = question.program?._id || question.program;
+        if (String(qProgram) !== String(programFilter)) return false;
       }
 
       if (!needle) return true;
@@ -222,7 +240,7 @@ export default function ChairApprovals({ me }) {
     });
 
     return next;
-  }, [questions, filter, searchQuery, subjectFilter, sortBy]);
+  }, [questions, filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   const { paginatedQuestions, totalPages } = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -235,7 +253,7 @@ export default function ChairApprovals({ me }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery, subjectFilter, sortBy]);
+  }, [filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   return (
     <main className="ca-page">
@@ -286,6 +304,19 @@ export default function ChairApprovals({ me }) {
             </option>
           ))}
         </select>
+
+        {me?.role === 'dean' && (
+          <select
+            className="ca-filter-select"
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+          >
+            <option value="">Filter: All Programs</option>
+            {programOptions.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
 
         <select
           className="ca-filter-select"
@@ -432,6 +463,14 @@ export default function ChairApprovals({ me }) {
                     <span className="ca-meta-label">Date</span>
                     <div className="ca-meta-value">{formatDate(selectedQuestion.submittedAt)}</div>
                   </div>
+                  {me?.role === 'dean' && (
+                    <div>
+                      <span className="ca-meta-label">Program</span>
+                      <div className="ca-meta-value">
+                        {selectedQuestion.program?.name || selectedQuestion.program?.code || 'N/A'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
 
