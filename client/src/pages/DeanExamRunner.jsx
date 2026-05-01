@@ -163,7 +163,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
               <strong>Subjects:</strong> {(exam.subjectTags || []).map((tag) => tag.name).join(', ') || '-'}
             </p>
             <p>
-              <strong>Availability Start:</strong> {formatDateTime(exam.availabilityStart)}
+              <strong>Exam Date:</strong> {formatDateTime(exam.examDate)}
             </p>
             <p>
               <strong>Availability End:</strong> {formatDateTime(exam.availabilityEnd)}

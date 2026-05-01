@@ -60,7 +60,7 @@ export default function DateTimePicker({ value, onChange }) {
                 onChange={(date) => date && setDraft(date)}
                 showTimeSelect
                 timeFormat="hh:mm aa"
-                timeIntervals={10}
+                timeIntervals={20}
                 dateFormat="MMM d, yyyy h:mm aa"
                 timeCaption="Time"
                 inline  // renders calendar directly, no input/popper

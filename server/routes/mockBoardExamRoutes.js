@@ -6,13 +6,15 @@ const {
   getMockBoardExam,
   updateMockBoardExam,
   deleteMockBoardExam,
+  listPublishedExams,
 } = require('../controllers/mockBoardExamController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // 1. PUBLIC ROUTE: Anyone can see the list of published exam metadata
-router.get('/', listMockBoardExams); 
+router.get('/public', listPublishedExams);
+router.get('/', protect, authorizeRoles('dean'), listMockBoardExams); 
 
 // 2. PROTECTED ROUTES: Only Deans can manage or view specific details/questions
 router.get('/approved-questions', protect, authorizeRoles('dean'), listApprovedQuestions);
