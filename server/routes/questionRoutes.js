@@ -45,7 +45,7 @@ router.post('/', protect, authorizeRoles(...FACULTY), createQuestion);
 router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
 router.post('/:id/submit', protect, authorizeRoles(...FACULTY), submitQuestion);
-router.post('/:id/review', protect, authorizeRoles('program_chair'), reviewQuestion);
+router.post('/:id/review', protect, authorizeRoles('program_chair', 'dean'), reviewQuestion);
 router.post('/:id/dean-return', protect, authorizeRoles('dean'), deanReturnApprovedQuestion);
 
 // Image upload — returns array of URLs

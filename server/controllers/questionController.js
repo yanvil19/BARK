@@ -209,8 +209,17 @@ const reviewQuestion = async (req, res) => {
 
     const question = await Question.findById(req.params.id);
     if (!question) return res.status(404).json({ message: 'Question not found' });
-    if (question.program.toString() !== req.user.program?.toString()) {
-      return res.status(403).json({ message: 'Question does not belong to your program' });
+
+    // Ownership check
+    if (req.user.role === 'program_chair') {
+      if (question.program.toString() !== req.user.program?.toString()) {
+        return res.status(403).json({ message: 'Question does not belong to your program' });
+      }
+    } else if (req.user.role === 'dean') {
+      const accessibleIds = await getAccessibleProgramIds(req.user);
+      if (!accessibleIds.includes(question.program.toString())) {
+        return res.status(403).json({ message: 'Question does not belong to your accessible programs' });
+      }
     }
 
     if (action === 'delete') {
