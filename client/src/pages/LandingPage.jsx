@@ -29,6 +29,34 @@ const LandingPage = ({ onNavigate }) => {
     fetchData();
   }, []);
 
+  // inside LandingPage component
+const [exams, setExams] = useState([]); //
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [deptRes, progRes, examRes] = await Promise.all([
+        fetch('http://localhost:5000/api/catalog/departments'),
+        fetch('http://localhost:5000/api/catalog/programs'),
+        fetch('http://localhost:5000/api/mock-board-exams'), // New call
+      ]);
+      
+      const deptData = await deptRes.json();
+      const progData = await progRes.json();
+      const examData = await examRes.json(); // Data from your new controller
+
+      setDepartments(deptData.departments || []);
+      setPrograms(progData.programs || []);
+      setExams(examData.exams || []); // Store the published exams[cite: 1]
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading landing page data:', error);
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
+
   useEffect(() => {
     if (departments.length === 0) { setActiveDepartmentId(''); return; }
     const hasActive = departments.some(
@@ -172,6 +200,23 @@ const LandingPage = ({ onNavigate }) => {
               </h2>
             </div>
           </div>
+
+          {exams.length > 0 ? (
+    <div className="exams-container">
+      {exams.map((exam) => (
+        <div key={exam._id} className="exams-placeholder-card" style={{ textAlign: 'left', borderLeft: '4px solid #FFD700' }}>
+          <p className="exams-placeholder-title" style={{ marginBottom: '8px' }}>
+            {exam.title}
+          </p>
+          <div className="exams-placeholder-copy" style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
+            <p><strong>Program:</strong> {exam.program?.name || 'N/A'}</p>
+            <p><strong>Department:</strong> {exam.program?.department || 'NU Laguna'}</p>
+            <p><strong>Date Published:</strong> {new Date(exam.updatedAt).toLocaleDateString()}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
           <div className="exams-placeholder-card">
             <p className="exams-placeholder-title">No active exams at the moment.</p>
             <p className="exams-placeholder-copy">
@@ -181,6 +226,7 @@ const LandingPage = ({ onNavigate }) => {
               Sample exam entries and complex tables are intentionally hidden.
             </p>
           </div>
+  )}
           <section className="exam-cta-banner" aria-label="Board exam call to action">
             <div className="exam-cta-content">
               <span className="exam-cta-kicker">Start Strong</span>
