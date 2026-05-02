@@ -1,55 +1,55 @@
 # Concurrency Handling Plan: Question Review Workflow
 
-## Problem Statement
-In the current system, both the **Dean** and **Program Chair** can access and evaluate questions simultaneously. This creates a race condition where both users might try to approve, return, or reject the same question at the same time, leading to inconsistent data or unexpected errors.
+## 1. Problem Statement
+The Dean and Program Chair can simultaneously access the same question queue. Without intervention, they may waste effort evaluating the same question or overwrite each other's actions (Race Condition).
 
-## Proposed Solution: "Reviewing" State & Soft Locking
+## 2. Solution: Three-Layer Defense
 
-The goal is to implement a mechanism that signals when a question is currently being evaluated by another authorized user.
+### Layer 1: Visual Badge (Passive)
+Display a "Being Evaluated 🔍" label on the dashboard if another user is currently viewing the question details. This deters others from picking the same question.
 
-### 1. New Question State: `reviewing`
-We will add a new state to the `Question` model: `reviewing`.
-- **Trigger**: Activated when a Program Chair or Dean clicks on a question to view its details/evaluation modal.
-- **Visual Indicator**: Other users viewing the dashboard will see a badge or label (e.g., "Reviewing...") next to the question.
+### Layer 2: Soft Warning Modal (Active)
+If a user clicks "Evaluate" on a question already being reviewed, a warning modal appears:
+*"[User Name] has been reviewing this for X minutes. Proceeding may cause a conflict."*
+The user can **Go Back** or **Evaluate Anyway**.
 
-### 2. Schema Enhancements
-To support this, the `Question` model should be updated with:
-- `currentReviewer`: (ObjectId) The user who is currently viewing/evaluating the question.
-- `reviewStartedAt`: (Date) Timestamp to help with auto-release of locks.
-
-### 3. Implementation Workflow
-
-#### A. Backend Changes
-1.  **Update Model**: Add `reviewing` to the state enum and add `currentReviewer` / `reviewStartedAt` fields.
-2.  **New Endpoint**: `PATCH /api/questions/:id/lock`
-    - Checks if the question is already in `reviewing` state.
-    - If not, sets state to `reviewing` and sets `currentReviewer`.
-    - If yes, returns the current reviewer's name so the UI can show "Locked by [Name]".
-3.  **New Endpoint**: `PATCH /api/questions/:id/unlock`
-    - Reverts the state back to `pending_chair` (or its previous valid state).
-    - Clears the `currentReviewer`.
-4.  **Action Hook**: Ensure that any action (Approve/Reject/Return) automatically clears the lock and updates to the final state.
-
-#### B. Frontend Changes (`QuestionApprovals.jsx`)
-1.  **On Modal Open**: Call the `/lock` endpoint.
-2.  **On Modal Close (Cancel/X)**: Call the `/unlock` endpoint.
-3.  **Dashboard View**: 
-    - Check the `state` of each question.
-    - If `state === 'reviewing'`, display a "Locked" badge.
-    - Disable the "Evaluate" button if the `currentReviewer` is not the current user.
-
-### 4. Handling Edge Cases
-- **Stale Locks**: If a user's browser crashes or they disconnect, the question might stay in `reviewing`.
-    - *Solution*: A cron job or a periodic check on the server could revert `reviewing` status if `reviewStartedAt` is older than X minutes (e.g., 30 mins).
-- **Simultaneous Click**: If two people click at the exact same millisecond.
-    - *Solution*: Use MongoDB's atomic updates (e.g., `findOneAndUpdate` with a query that checks `state !== 'reviewing'`).
-
-## Alternatives Considered
-- **Optimistic Locking**: Using a `version` field. Easier to implement but doesn't provide visual feedback that someone else is *already* looking at it.
-- **WebSockets (Socket.io)**: Real-time "User X is typing..." style feedback. Best for UX but adds complexity to the tech stack if not already present.
+### Layer 3: Atomic Database Check (Safety Net)
+When submitting an action (Approve/Return/Reject), use an atomic `findOneAndUpdate` to ensure the question is still in `pending_chair` state. If the state changed, the update fails and the user is notified.
 
 ---
-**Next Steps**:
-1. Confirm the preferred state name (e.g., `reviewing`, `evaluating`, `locked`).
-2. Decide on the timeout duration for stale locks.
-3. Review implementation feasibility in `QuestionApprovals.jsx`.
+
+## 3. Implementation Details
+
+### A. Schema Changes (`models/Question.js`)
+Add metadata fields to track the current reviewer without polluting the pipeline `state`.
+```javascript
+currentReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+reviewStartedAt: { type: Date, default: null }
+```
+
+### B. Backend Endpoints (`questionController.js`)
+- **`PATCH /api/questions/:id/lock`**: 
+    - Atomically set `currentReviewer` and `reviewStartedAt`.
+    - If already reviewed by someone else (not stale > 10m), return `423 Locked` with reviewer details.
+- **`PATCH /api/questions/:id/unlock`**: 
+    - Clear `currentReviewer` and `reviewStartedAt`.
+- **Approval Actions**: 
+    - Use `{ state: 'pending_chair' }` as the query filter.
+    - Set `currentReviewer: null` and `reviewStartedAt: null` in the same `$set` operation.
+    - Return `409 Conflict` if `nModified === 0`.
+
+### C. Frontend Logic (`QuestionApprovals.jsx`)
+- **Dashboard**: Use a 10-minute "Lazy Expiration" helper to show the "Being Evaluated" badge.
+- **On Evaluate Click**:
+    1. Call `/lock`. 
+    2. If `200 OK`: Open evaluation sidebar.
+    3. If `423 Locked`: Show **Warning Modal**. If they choose "Evaluate Anyway", open the sidebar.
+- **On Sidebar Close**: Call `/unlock` if no action was taken.
+- **On Action Submit**: Handle `409` errors by showing a "Already Reviewed" message and refreshing the list.
+
+---
+
+## 4. Why This Works
+- **No Hard Locks**: No one is ever "locked out" of a question (crucial if a user leaves their tab open).
+- **Data Integrity**: The atomic check at the end is the ultimate truth.
+- **UX**: The warning modal forces a conscious decision, preventing wasted time.
