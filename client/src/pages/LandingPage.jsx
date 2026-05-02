@@ -8,29 +8,7 @@ const LandingPage = ({ onNavigate }) => {
   const [programs, setPrograms] = useState([]);
   const [activeDepartmentId, setActiveDepartmentId] = useState('');
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [deptRes, progRes] = await Promise.all([
-          fetch('http://localhost:5000/api/catalog/departments'),
-          fetch('http://localhost:5000/api/catalog/programs'),
-        ]);
-        const deptData = await deptRes.json();
-        const progData = await progRes.json();
-        setDepartments(deptData.departments || []);
-        setPrograms(progData.programs || []);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading landing page data:', error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  // inside LandingPage component
-const [exams, setExams] = useState([]);
+  const [exams, setExams] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,9 +26,9 @@ const [exams, setExams] = useState([]);
         setDepartments(deptData.departments || []);
         setPrograms(progData.programs || []);
         setExams(examData.exams || []);
-        setLoading(false);
       } catch (error) {
         console.error('Error loading landing page data:', error);
+      } finally {
         setLoading(false);
       }
     };
@@ -69,6 +47,41 @@ const [exams, setExams] = useState([]);
     const deptId = String(prog.department?._id || prog.department || '');
     return deptId === String(activeDepartmentId);
   });
+
+  const activeDepartment = departments.find(
+    (dept) => String(dept._id) === String(activeDepartmentId)
+  );
+
+  const visibleProgramCodes = filteredPrograms
+    .map((prog) => prog.code)
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const programsById = new Map(
+    programs.map((prog) => [String(prog._id), prog])
+  );
+
+  const resolveExamProgram = (exam) => {
+    const rawProgram = exam.program && typeof exam.program === 'object'
+      ? exam.program
+      : null;
+    const rawProgramId = String(rawProgram?._id || exam.program || '');
+
+    if (rawProgramId && programsById.has(rawProgramId)) {
+      return programsById.get(rawProgramId);
+    }
+
+    const normalizedName = String(rawProgram?.name || '').trim().toLowerCase();
+    const normalizedCode = String(rawProgram?.code || '').trim().toLowerCase();
+
+    return programs.find((prog) => {
+      const sameName = normalizedName && String(prog.name || '').trim().toLowerCase() === normalizedName;
+      const sameCode = normalizedCode && String(prog.code || '').trim().toLowerCase() === normalizedCode;
+      return sameName || sameCode;
+    }) || rawProgram;
+  };
+
+  const featuredExams = exams.slice(0, 7);
 
   return (
     <div className="landing-wrapper">
@@ -172,20 +185,47 @@ const [exams, setExams] = useState([]);
                   );
                 })}
               </div>
-              <div className="schools-programs">
-                {filteredPrograms.length === 0 ? (
-                  <p className="schools-feedback">No programs available for this department yet.</p>
-                ) : (
-                  filteredPrograms.map((prog) => (
-                    <article key={prog._id} className="schools-program-card">
-                      <span className="schools-program-dot" aria-hidden="true"></span>
-                      <div className="schools-program-info">
-                        <p className="schools-program-name">{prog.name}</p>
-                        {prog.code && <span className="schools-program-code">{prog.code}</span>}
-                      </div>
-                    </article>
-                  ))
-                )}
+              <div className="schools-body">
+                <aside className="schools-spotlight">
+                  <span className="schools-spotlight-kicker">Selected School</span>
+                  <h3 className="schools-spotlight-title">
+                    {activeDepartment?.name || 'School Overview'}
+                  </h3>
+                  {activeDepartment?.code ? (
+                    <span className="schools-spotlight-code">{activeDepartment.code}</span>
+                  ) : null}
+                  <div className="schools-spotlight-stat">
+                    <span className="schools-spotlight-value">{filteredPrograms.length}</span>
+                    <span className="schools-spotlight-label">
+                      {filteredPrograms.length === 1 ? 'Program Available' : 'Programs Available'}
+                    </span>
+                  </div>
+                  {visibleProgramCodes.length > 0 ? (
+                    <div className="schools-spotlight-codes" aria-label="Program codes">
+                      {visibleProgramCodes.map((code) => (
+                        <span key={code} className="schools-spotlight-pill">{code}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </aside>
+
+                <div className="schools-programs-panel">
+                  <div className="schools-programs">
+                    {filteredPrograms.length === 0 ? (
+                      <p className="schools-feedback">No programs available for this department yet.</p>
+                    ) : (
+                      filteredPrograms.map((prog) => (
+                        <article key={prog._id} className="schools-program-card">
+                          <span className="schools-program-dot" aria-hidden="true"></span>
+                          <div className="schools-program-info">
+                            <p className="schools-program-name">{prog.name}</p>
+                            {prog.code && <span className="schools-program-code">{prog.code}</span>}
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -201,30 +241,47 @@ const [exams, setExams] = useState([]);
             </div>
           </div>
 
-          {exams.length > 0 ? (
-    <div className="exams-container">
-      {exams.map((exam) => (
-        <div key={exam._id} className="exams-placeholder-card" style={{ textAlign: 'left', borderLeft: '4px solid #FFD700' }}>
-          <p className="exams-placeholder-title" style={{ margin: '0 0 4px 0' }}>
-            {exam.name}
-          </p>
-          <p style={{ fontSize: '0.85rem', color: '#ccc', margin: '0' }}>
-            {exam.program?.name || 'N/A'}
-          </p>
-        </div>
-      ))}
-    </div>
-  ) : (
-          <div className="exams-placeholder-card">
-            <p className="exams-placeholder-title">No active exams at the moment.</p>
-            <p className="exams-placeholder-copy">
-              Check back once the exam module is ready and approved for student use.
-            </p>
-            <p className="exams-placeholder-note">
-              Sample exam entries and complex tables are intentionally hidden.
-            </p>
-          </div>
-  )}
+          {loading ? (
+            <div className="exams-placeholder-card">
+              <p className="exams-placeholder-title">Loading available exams...</p>
+              <p className="exams-placeholder-copy">
+                We&apos;re pulling the latest published mock board exams right now.
+              </p>
+            </div>
+          ) : featuredExams.length > 0 ? (
+            <div className="exams-list">
+              {featuredExams.map((exam) => {
+                const programDetails = resolveExamProgram(exam);
+                const schoolLabel = programDetails?.department?.code
+                  ? String(programDetails.department.code).toUpperCase()
+                  : programDetails?.department?.name || '';
+                const programLabel = exam.program?.name
+                  || programDetails?.name
+                  || exam.program?.code
+                  || programDetails?.code
+                  || 'Program';
+
+                return (
+                  <article key={exam._id} className="exam-row">
+                    <div className="exam-row-copy">
+                      <p className="exam-row-title">{exam.name}</p>
+                      <p className="exam-row-program">{programLabel}</p>
+                    </div>
+                    {schoolLabel ? (
+                      <span className="exam-school-pill">{schoolLabel}</span>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="exams-placeholder-card">
+              <p className="exams-placeholder-title">No active exams at the moment.</p>
+              <p className="exams-placeholder-copy">
+                Check back once new board exam sets are published for students.
+              </p>
+            </div>
+          )}
           <section className="exam-cta-banner" aria-label="Board exam call to action">
             <div className="exam-cta-content">
               <span className="exam-cta-kicker">Start Strong</span>

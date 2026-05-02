@@ -135,8 +135,8 @@ button {
 /* Content Container Wrapper */
 .landing-content-wrap {
     padding: 0 0 72px 0;
-    background-color: #32409a;
-    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+    background-color: #2a347c;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1.35px, transparent 1.35px);
     background-size: 35px 35px;
     background-position: 0 0;
 }
@@ -149,7 +149,10 @@ button {
     width: 100%;
     font-family: var(--font-body);
     border-top: none;
-    box-shadow: none;
+    margin-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 42px rgba(8, 14, 58, 0.18);
+    scroll-margin-top: 96px;
 }
 
 .schools-panel::before,
@@ -163,14 +166,14 @@ button {
 
 .schools-panel::before {
     top: 0;
-    border-top: 3px solid rgba(255, 255, 255, 0.78);
+    border-top: 2px solid rgba(255, 255, 255, 0.72);
 }
 
 .schools-panel::after {
     top: 60px;
     left: 0;
     right: 0;
-    border-top: 5px solid #FAD227;
+    border-top: 3px solid #FAD227;
 }
 
 .schools-header {
@@ -212,6 +215,7 @@ button {
 .schools-tabs {
     display: flex;
     align-items: stretch;
+    justify-content: center;
     gap: 12px;
     padding: 0 10%;
     background-color: rgba(52, 65, 156, 0.82);
@@ -220,14 +224,15 @@ button {
 }
 
 .schools-tab {
-    flex: 1 1 0;
+    flex: 0 0 auto;
+    min-width: 220px;
     background: transparent;
     border: none;
-    border-bottom: 4px solid rgba(122, 138, 232, 0.48);
+    border-bottom: 3px solid rgba(122, 138, 232, 0.48);
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     font-weight: 600;
-    padding: 16px 14px 12px;
+    padding: 16px 20px 12px;
     text-align: center;
     transition: color 0.2s ease, border-color 0.2s ease;
     white-space: nowrap;
@@ -249,63 +254,165 @@ button {
 }
 
 .schools-programs {
-    padding: 28px 10% 60px; 
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 260px)); 
-    justify-content: start;   
-    align-content: start;     
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    justify-content: start;
+    align-content: start;
     gap: 18px 14px;
-    min-height: 320px;       
-    background: rgba(37, 45, 115, 0.42);
+}
+
+.schools-body {
+    display: grid;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    gap: 24px;
+    padding: 26px 10% 44px;
+    background: linear-gradient(180deg, rgba(48, 61, 146, 0.42) 0%, rgba(37, 45, 115, 0.56) 100%);
+}
+
+.schools-spotlight {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(79, 91, 188, 0.58) 0%, rgba(48, 59, 143, 0.82) 100%);
+    box-shadow: 0 16px 34px rgba(12, 18, 62, 0.16);
+}
+
+.schools-spotlight-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #f7cb2d;
+    font-family: var(--font-title);
+}
+
+.schools-spotlight-title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #ffffff;
+}
+
+.schools-spotlight-code {
+    align-self: flex-start;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(59, 72, 168, 0.72);
+    border: 1px solid rgba(247, 203, 45, 0.42);
+    color: #ffe080;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.schools-spotlight-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+}
+
+.schools-spotlight-value {
+    font-family: var(--font-title);
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #ffffff;
+}
+
+.schools-spotlight-label {
+    color: rgba(243, 246, 255, 0.88);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.schools-spotlight-codes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 2px;
+}
+
+.schools-spotlight-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(59, 72, 168, 0.74);
+    border: 1px solid rgba(247, 203, 45, 0.36);
+    color: #ffe080;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.schools-programs-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(44, 54, 132, 0.6) 0%, rgba(40, 49, 122, 0.76) 100%);
 }
 
 .schools-program-card {
     display: flex;
     align-items: center;
     gap: 12px;
-    background-color: #4c59b8;
-    border: none;
-    border-radius: 6px;
-    padding: 14px 16px;
-    min-height: 44px;
+    background: linear-gradient(180deg, rgba(90, 102, 196, 0.82) 0%, rgba(78, 90, 184, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 15px 18px;
+    min-height: 46px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .schools-program-card:hover {
-    background-color: #5a68ca;
+    background: linear-gradient(180deg, rgba(98, 111, 207, 0.88) 0%, rgba(86, 98, 194, 0.94) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(8, 14, 58, 0.22);
+    box-shadow: 0 12px 24px rgba(8, 14, 58, 0.2);
 }
 
 .schools-program-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: #FAD227;
+    background: radial-gradient(circle at 35% 35%, #ffe38a 0%, #f7c519 60%, #d9a300 100%);
     flex-shrink: 0;
-    box-shadow: 0 0 6px rgba(250, 210, 39, 0.5);
+    box-shadow: 0 0 8px rgba(250, 210, 39, 0.36);
 }
 
 .schools-program-info {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     min-width: 0;
 }
 
 .schools-program-name {
     margin: 0;
     color: #ffffff;
-    font-size: 0.92rem;
+    font-size: 0.96rem;
     font-weight: 700;
     line-height: 1.2;
     font-family: var(--font-title);
 }
 
 .schools-program-code {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.75rem;
+    color: rgba(241, 245, 255, 0.9);
+    font-size: 0.76rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -313,7 +420,7 @@ button {
 
 .schools-feedback {
     margin: 0;
-    padding: 24px 10%;
+    padding: 4px 0;
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     font-family: var(--font-body);
@@ -321,8 +428,9 @@ button {
 }
 
 .exams-panel {
-    padding: 52px 10% 0;
+    padding: 56px 10% 0;
     color: #ffffff;
+    scroll-margin-top: 96px;
 }
 
 .exams-section-header {
@@ -335,12 +443,12 @@ button {
 
 .exams-section-label {
     display: inline-block;
-    margin-bottom: 8px;
-    color: #FAD227;
+    margin-bottom: 6px;
+    color: #f3c73b;
     font-family: var(--font-title);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
 }
 
@@ -348,9 +456,10 @@ button {
     margin: 0;
     color: #ffffff;
     font-family: var(--font-title);
-    font-size: 2.35rem;
+    font-size: clamp(2.2rem, 4vw, 3.15rem);
     font-weight: 800;
-    line-height: 1.05;
+    line-height: 1;
+    letter-spacing: -0.03em;
 }
 
 .exams-section-title span {
@@ -358,52 +467,98 @@ button {
 }
 
 .exams-placeholder-card {
-    position: relative;
-    overflow: hidden;
     margin-bottom: 42px;
-    padding: 28px 30px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(52, 65, 156, 0.92) 0%, rgba(43, 54, 137, 0.94) 100%);
-    box-shadow: 0 20px 40px rgba(11, 16, 60, 0.18);
-}
-
-.exams-placeholder-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 45%);
-    pointer-events: none;
-}
-
-.exams-placeholder-title,
-.exams-placeholder-copy,
-.exams-placeholder-note {
-    position: relative;
-    z-index: 1;
+    padding: 24px 22px;
+    border: 1px solid rgba(134, 148, 225, 0.34);
+    border-radius: 8px;
+    background: rgba(50, 63, 145, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .exams-placeholder-title {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     font-family: var(--font-title);
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: #ffffff;
 }
 
 .exams-placeholder-copy {
-    max-width: 780px;
     margin: 0;
-    font-size: 1rem;
-    line-height: 1.7;
-    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(237, 241, 255, 0.8);
 }
 
-.exams-placeholder-note {
-    margin: 14px 0 0;
-    color: #FAD227;
-    font-size: 0.92rem;
+.exams-list {
+    overflow: hidden;
+    margin-bottom: 32px;
+    border: 1px solid rgba(127, 142, 220, 0.28);
+    border-radius: 8px;
+    background: rgba(43, 53, 131, 0.9);
+    box-shadow: 0 18px 36px rgba(10, 16, 58, 0.16);
+}
+
+.exam-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 14px 24px 14px 18px;
+    background: linear-gradient(180deg, rgba(71, 84, 184, 0.18) 0%, rgba(54, 66, 150, 0.24) 100%);
+    transition: background 0.2s ease;
+}
+
+.exam-row:nth-child(even) {
+    background: linear-gradient(180deg, rgba(77, 91, 191, 0.24) 0%, rgba(58, 71, 158, 0.3) 100%);
+}
+
+.exam-row + .exam-row {
+    border-top: 1px solid rgba(154, 167, 233, 0.2);
+}
+
+.exam-row:hover {
+    background: linear-gradient(180deg, rgba(89, 104, 208, 0.28) 0%, rgba(66, 79, 177, 0.36) 100%);
+}
+
+.exam-row-copy {
+    min-width: 0;
+}
+
+.exam-row-title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 1rem;
     font-weight: 600;
+    line-height: 1.35;
+    color: #ffffff;
+}
+
+.exam-row-program {
+    margin: 4px 0 0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: #f3c83e;
+}
+
+.exam-school-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    min-width: 52px;
+    margin-right: 8px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(242, 199, 65, 0.82);
+    background: rgba(245, 195, 40, 0.12);
+    color: #ffdf78;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
 }
 
 .exam-cta-banner {
@@ -666,13 +821,25 @@ button {
         flex-direction: column;
         gap: 4px;
         padding-top: 4px;
+        justify-content: flex-start;
     }
 
     .schools-tab {
+        min-width: 0;
         text-align: left;
         border-bottom-width: 3px;
         padding-left: 0;
         padding-right: 0;
+    }
+
+    .schools-body {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding-top: 20px;
+    }
+
+    .schools-programs-panel {
+        padding: 18px;
     }
 
     .schools-programs {
@@ -691,7 +858,19 @@ button {
         padding: 24px 20px;
     }
 
+    .exam-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 16px;
+    }
+
+    .exam-school-pill {
+        justify-self: flex-start;
+    }
+
     .exam-cta-banner {
+        flex-direction: column;
+        align-items: flex-start;
         padding: 28px 22px;
     }
 
@@ -702,6 +881,6 @@ button {
     .exam-cta-watermark {
         right: 16px;
         bottom: 10px;
-        font-size: 5rem;
+        font-size: 4.6rem;
     }
 }
