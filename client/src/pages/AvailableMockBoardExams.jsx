@@ -205,23 +205,31 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
       {selectedExam && (
         <section className="ambe-details">
           {/* ── Header Row ───────────────── */}
-          <div className="ambe-details-header">
-            <div className="ambe-details-main">
-              <h2 className="ambe-details-name">
-                {selectedExam.name}
-              </h2>
-
+          <div className="ambe-details-header-new">
+            <div className="header-left">
+              <h2 className="ambe-details-name">{selectedExam.name}</h2>
               <div className="ambe-details-program">
                 {selectedExam.program?.name || '-'}
               </div>
             </div>
 
-            <div className="ambe-details-status">
-              <span className={`ambe-status ${selectedExam.status}`}>
-                {selectedExam.status}
-              </span>
+            <div className="header-right">
+              <div className="duration-block">
+                <span className="label">DURATION</span>
+                <span className="value">
+                  {selectedExam.duration || 150} minutes
+                </span>
+              </div>
+
+              <div className="ambe-status-pill">
+                <span className={`ambe-status ${selectedExam.status}`}>
+                  {selectedExam.status?.toUpperCase()}
+                </span>
+              </div>
+
             </div>
           </div>
+
 
           {/* ── Instructions ─────────────── */}
           <div className="ambe-details-instructions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -241,62 +249,64 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
 
           {/* ── Questions ────────────────── */}
-          <h3>Questions</h3>
+          <div className="ambe-questions-container">
+            <h3>Questions</h3>
 
-          {(selectedExam.questions || []).length === 0 && (
-            <p className="ambe-muted">No questions found.</p>
-          )}
+            {(selectedExam.questions || []).length === 0 && (
+              <p className="ambe-muted">No questions found.</p>
+            )}
 
-          {(selectedExam.questions || []).length > 0 && (
-            <table className="ambe-subtable">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Description</th>
-                  <th>Subject</th>
-                  <th>Answers</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedExam.questions.map((question) => (
-                  <tr key={question._id}>
-                    <td>{question.title}</td>
-                    <td>{question.description}</td>
-                    <td>
-                      {question.tag && question.tag.name ? (
-                        <span className="ambe-pill subject">
-                          {question.tag.name}
-                        </span>
-                      ) : (
-                        <span className="ambe-muted">–</span>
-                      )}
-                    </td>
-                    <td>
-                      <ul className="ambe-answers">
-                        {(organizeQuestionAnswers(question).answers || []).map(
-                          (answer) => (
-                            <li
-                              key={
-                                answer._id ||
-                                `${answer.optionLabel}-${answer.text}`
-                              }
-                            >
-                              {answer.optionLabel} {answer.text}{' '}
-                              {answer.isCorrect && (
-                                <span className="ambe-correct">
-                                  (Correct)
-                                </span>
-                              )}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </td>
+            {(selectedExam.questions || []).length > 0 && (
+              <table className="ambe-subtable">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Subject</th>
+                    <th>Answers</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {selectedExam.questions.map((question) => (
+                    <tr key={question._id}>
+                      <td>{question.title}</td>
+                      <td>{question.description}</td>
+                      <td>
+                        {question.tag && question.tag.name ? (
+                          <span className="ambe-pill subject">
+                            {question.tag.name}
+                          </span>
+                        ) : (
+                          <span className="ambe-muted">–</span>
+                        )}
+                      </td>
+                      <td>
+                        <ul className="ambe-answers">
+                          {(organizeQuestionAnswers(question).answers || []).map(
+                            (answer) => (
+                              <li
+                                key={
+                                  answer._id ||
+                                  `${answer.optionLabel}-${answer.text}`
+                                }
+                              >
+                                {answer.optionLabel} {answer.text}{' '}
+                                {answer.isCorrect && (
+                                  <span className="ambe-correct">
+                                    (Correct)
+                                  </span>
+                                )}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </section>
       )}
     </main>

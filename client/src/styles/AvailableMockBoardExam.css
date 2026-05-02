@@ -1,57 +1,42 @@
-/* ambe = (A)vailable (M)ock (B)oard (E)xam :3 */
+/* ambe = (A)vailable (M)ock (B)oard (E)xam */
+
+/* ───────── PAGE ───────── */
 .ambe-page {
     margin: -20px;
 }
 
-/* ── Header ─────────────────────────────────────────────── */
+/* ───────── HEADER ───────── */
 .ambe-page-header {
     padding: 22px 32px 18px;
     background: #f9faff;
     border-bottom: 1px solid rgba(53, 64, 142, 0.3);
 }
 
-/* main header layout */
 .ambe-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
 }
 
-/* left side (title + subtitle) */
 .ambe-header-left {
     display: flex;
     flex-direction: column;
 }
 
-/* actions / right side */
-.ambe-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
-/* page title */
 .ambe-title {
     margin: 0 0 4px;
-    font-family: var(--font-title);
     font-size: 24px;
     font-weight: 700;
-    color: var(--primary-bg);
-    line-height: 1.1;
+    color: #35408e;
 }
 
-/* page subtitle */
 .ambe-subtitle {
     margin: 0;
     font-size: 13px;
     color: #8b92bc;
 }
 
-
-/* ────────────────── STATES ───────────────────── */
+/* ───────── STATES ───────── */
 .ambe-loading,
 .ambe-empty {
     padding: 48px;
@@ -59,7 +44,7 @@
     color: #9ba3cb;
 }
 
-/* ────────────── TABLE CARD ───────────────────── */
+/* ───────── TABLE CARD ───────── */
 .ambe-table-card {
     margin: 1.5em 2em;
     background: #fff;
@@ -69,11 +54,20 @@
     overflow: hidden;
 }
 
-/* ────────────────── TABLE ───────────────────── */
 .ambe-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+}
+
+.ambe-table th {
+    background: #f9faff;
+    padding: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #5a63a8;
+    border-bottom: 1px solid rgba(53, 64, 142, 0.25);
 }
 
 .ambe-table td {
@@ -91,15 +85,13 @@
     color: #9ba3cb;
 }
 
-/* ────────────────── PILLS ───────────────────── */
+/* ───────── PILLS ───────── */
 .ambe-pill {
     display: inline-block;
     padding: 4px 10px;
-    margin: 2px 4px 2px 0;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: #eef0fb;
     border: 1px solid rgba(53, 64, 142, .25);
 }
 
@@ -113,13 +105,18 @@
     color: #374151;
 }
 
-/* ───────────────── STATUS ───────────────────── */
+/* ───────── STATUS ───────── */
 .ambe-status {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 4px 11px;
-    border-radius: 999px;
+    font-size: 12px;
+    padding: 0.5em 1em;
     text-transform: uppercase;
+    color: var(--primary-bg);
+}
+
+.ambe-status-pill {
+    /* border: 1px solid red; */
+    background-color: var(--accent-yellow);
+    border-radius: 999px;
 }
 
 .ambe-status.draft {
@@ -132,141 +129,132 @@
     color: #1d4ed8;
 }
 
-/* ─────────────── ACTIONS ────────────────────── */
-.ambe-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.ambe-btn {
-    font-size: 12px;
-    padding: 6px 13px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1.5px solid transparent;
-}
-
-.ambe-btn.view {
-    color: #3f4ab8;
-    border-color: #3f4ab8;
-}
-
-.ambe-btn.primary {
-    background: var(--primary-bg);
-    color: var(--accent-yellow);
-}
-
-.ambe-btn.delete {
-    color: #dc2626;
-    border-color: #dc2626;
-}
-
-/* ───────────── DETAILS CARD ─────────────────── */
+/* ───────── DETAILS CARD ───────── */
 .ambe-details {
     margin: 1.5em 2em;
     background: #fff;
     border-radius: 14px;
     border: 1px solid rgba(53, 64, 142, 0.25);
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
-.ambe-details-header {
-    padding: 1em 2em;
+.ambe-details-header-new {
+    display: grid;
+    grid-template-columns: 50% 50%;
+
+    align-items: center;
     background: #35408e;
-    border-bottom: 1px solid rgba(53, 64, 142, 0.2);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    padding: 16px 24px;
 }
 
-.ambe-details-main {
+.header-left {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.5em;
 }
 
 .ambe-details-name {
     margin: 0;
-    font-family: var(--font-title);
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
-    color: var(--accent-yellow);
-    line-height: 1;
+    color: #fad227;
 }
 
 .ambe-details-program {
     font-size: 13px;
     font-weight: 600;
-    color: #fff;
+    color: #ffffff;
 }
 
-.ambe-details-status {
-    flex-shrink: 0;
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
+.duration-block {
+    text-align: right;
+}
+
+.duration-block .label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #cfd4ff;
+}
+
+.duration-block .value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+/* ───────── DESCRIPTION / INSTRUCTIONS ───────── */
 .ambe-details-instructions {
-    padding: 0.5em;
-    border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+    padding: 16px 24px;
+    border-top: 1px solid rgba(53, 64, 142, 0.15);
 }
 
 .ambe-details-instructions h4 {
-    margin: 0em 2em;
-    font-family: var(--font-title);
+    margin: 0 0 6px;
     font-size: 12px;
-    text-transform: uppercase;
+    font-weight: 700;
     letter-spacing: 0.05em;
     color: #8b92bc;
 }
 
 .ambe-details-instructions p {
-    margin: 0em 2em;
+    margin: 0;
     font-size: 14px;
-    line-height: 1.6;
     color: #374151;
 }
 
+/* ───────── QUESTIONS ───────── */
 .ambe-details h3 {
     margin: 0;
-    padding: 0.5em 2em;
-    font-family: var(--font-title);
+    padding: 12px 24px;
     font-size: 16px;
     font-weight: 700;
-    color: #1a1f4b;
     background: #eef0f6;
+    color: #1a1f4b;
 }
 
-
-/* ───────────── SUB TABLE ────────────────────── */
 .ambe-subtable {
     width: 100%;
     border-collapse: collapse;
 }
 
-/* ── Unified AMBE Table Headers ───────────────────────── */
-.ambe-table th,
 .ambe-subtable th {
     background: #f9faff;
-    padding: 14px;
-    font-family: var(--font-title);
+    padding: 12px;
     font-size: 12px;
-    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
     color: #5a63a8;
-    text-align: center;
-    border-bottom: 1px solid rgba(53, 64, 142, 0.25);
-}
-
-.ambe-subtable th {
     border-top: 1px solid rgba(53, 64, 142, 0.25);
 }
 
+.ambe-subtable td {
+    padding: 12px;
+    border-top: 1px solid rgba(53, 64, 142, .12);
+    font-size: 12px;
+}
+
+.ambe-subtable td:first-child,
+.ambe-subtable td:nth-child(2) {
+    text-align: left;
+}
+
+.ambe-subtable td:nth-child(3),
+.ambe-subtable td:nth-child(4) {
+    text-align: center;
+}
+
 .ambe-answers {
-    padding-left: 18px;
-    margin: 0;
+    list-style-position: inside;
+    padding-left: 0;
+    text-align: center;
+
 }
 
 .ambe-correct {
@@ -274,9 +262,65 @@
     font-weight: 700;
 }
 
-.ambe-subtable td {
-    padding: 12px 14px;
-    border-top: 1px solid rgba(53, 64, 142, .12);
-    text-align: left;
+/* ───────── BUTTONS (RESTORE VISUALS) ───────── */
+
+.ambe-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Base button */
+.ambe-btn {
     font-size: 12px;
+    padding: 6px 13px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Details */
+.ambe-btn.view {
+    background: #ffffff;
+    color: #3f4ab8;
+    border-color: #3f4ab8;
+}
+
+.ambe-btn.view:hover {
+    background: #eef0fb;
+}
+
+/* Primary (Preview / Test Run / Edit) */
+.ambe-btn.primary {
+    background: #35408e;
+    color: #ffe84b;
+}
+
+.ambe-btn.primary:hover {
+    background: #2c3578;
+}
+
+/* Delete */
+.ambe-btn.delete {
+    background: #fff;
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+.ambe-btn.delete:hover {
+    background: #fee2e2;
+}
+
+.ambe-questions-container {
+    width: 95%;
+    margin: 0 auto 2em auto;
+
+    border: 1px solid rgba(53, 64, 142, 0.25);
+    border-radius: 14px;
+}
+
+.ambe-questions-container h3 {
+    border-radius: 14px 14px 0 0;
 }
