@@ -245,14 +245,14 @@ export default function AdminUsers() {
 
       {/* ── Filters ── */}
       <div className="um-filters">
-        <input 
-          className="um-search" 
-          type="text" 
-          placeholder="Search users by name or email..." 
+        <input
+          className="um-search"
+          type="text"
+          placeholder="Search users by name or email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <select 
+        <select
           className="um-filter-select"
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
@@ -265,7 +265,7 @@ export default function AdminUsers() {
           <option value="program_chair">Program Chair</option>
           <option value="professor">Professor</option>
         </select>
-        <select 
+        <select
           className="um-filter-select"
           value={filterDepartment}
           onChange={(e) => setFilterDepartment(e.target.value)}
@@ -281,34 +281,37 @@ export default function AdminUsers() {
 
       {/* ── User Table ── */}
       <div className="um-table-wrap">
-        {busy ? <p className="um-loading">Loading users...</p> : (
-          <table className="um-table">
-            <thead>
-              <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody>
-              {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
-                paginatedUsers.map((u) => (
-                  <tr key={u._id}>
-                    <td>
-                      <div className="um-user-name">{u.name}</div>
-                      <div className="um-user-email">{u.email}</div>
-                    </td>
-                    <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
-                    <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
-                    <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
-                    <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
-                    <td className="um-actions-cell">
-                      <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
-                      {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
-                                  : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+        <div className="um-table-scroll">
+          {busy ? <p className="um-loading">Loading users...</p> : (
+            <table className="um-table">
+              <thead>
+                <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                  paginatedUsers.map((u) => (
+                    <tr key={u._id}>
+                      <td>
+                        <div className="um-user-name">{u.name}</div>
+                        <div className="um-user-email">{u.email}</div>
+                      </td>
+                      <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
+                      <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
+                      <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
+                      <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td className="um-actions-cell">
+                        <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
+                        {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
+                          : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
       </div>
 
       {/* ── Pagination ── */}
@@ -318,8 +321,8 @@ export default function AdminUsers() {
             Showing {users.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, users.length)} of {users.length} users
           </div>
           <div className="um-pagination-controls">
-            <button 
-              className="um-pagination-btn" 
+            <button
+              className="um-pagination-btn"
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={currentPage === 1}
             >
@@ -336,8 +339,8 @@ export default function AdminUsers() {
                 </button>
               ))}
             </div>
-            <button 
-              className="um-pagination-btn" 
+            <button
+              className="um-pagination-btn"
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
@@ -407,7 +410,7 @@ export default function AdminUsers() {
         </form>
       </Modal>
 
-      <Modal open={modalMode === 'edit'} onClose={closeModal} title={`Editing User   ${selectedUser?.email ? `(${selectedUser.email})`:''}`}>
+      <Modal open={modalMode === 'edit'} onClose={closeModal} title={`Editing User   ${selectedUser?.email ? `(${selectedUser.email})` : ''}`}>
         <form onSubmit={submitEdit}>
           <div className="modal-form-grid">
             <div className="modal-form-group">
