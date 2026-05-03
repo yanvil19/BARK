@@ -91,113 +91,116 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
       {!loading && exams.length > 0 && (
         <div className="ambe-table-card">
-          <table className="ambe-table">
-            <thead>
-              <tr>
-                <th>Exam Name</th>
-                <th>Program</th>
-                <th>Subjects</th>
-                <th>Exam Date</th>
-                <th>Duration</th>
-                <th>Questions</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exams.map((exam) => (
-                <tr key={exam._id}>
-                  <td>{exam.name}</td>
-
-                  <td>
-                    <span className="ambe-pill program">
-                      {exam.program?.name ||
-                        exam.program?.code ||
-                        '-'}
-                    </span>
-                  </td>
-
-                  <td>
-                    {(exam.subjectTags || []).length > 0 ? (
-                      exam.subjectTags.map((tag) => (
-                        <span
-                          key={tag._id || tag.name}
-                          className="ambe-pill subject"
-                        >
-                          {tag.name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="ambe-muted">–</span>
-                    )}
-                  </td>
-
-                  <td className="ambe-muted">
-                    {formatDateTime(exam.examDate || exam.availabilityStart)}
-                  </td>
-                  <td className="ambe-muted">
-                    {exam.duration || 150} mins
-                  </td>
-
-                  <td>{exam.questions?.length || 0}</td>
-
-                  <td>
-                    <span className={`ambe-status ${exam.status}`}>
-                      {exam.status}
-                    </span>
-                  </td>
-
-                  <td>
-                    <div className="ambe-actions">
-                      <button
-                        type="button"
-                        className="ambe-btn view"
-                        onClick={() => handleView(exam._id)}
-                      >
-                        Details
-                      </button>
-
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() =>
-                          onEditExam(exam._id, 'preview')
-                        }
-                      >
-                        Preview
-                      </button>
-
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() =>
-                          onEditExam(exam._id, 'testRun')
-                        }
-                      >
-                        Test Run
-                      </button>
-
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() => onEditExam(exam._id)}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        className="ambe-btn delete"
-                        onClick={() => handleDelete(exam)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="ambe-scroll-x">
+            <table className="ambe-table-x">
+              <thead>
+                <tr>
+                  <th>Exam Name</th>
+                  <th>Program</th>
+                  <th>Subjects</th>
+                  <th>Exam Date</th>
+                  <th>Duration</th>
+                  <th>Questions</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {exams.map((exam) => (
+                  <tr key={exam._id}>
+                    <td>{exam.name}</td>
+
+                    <td>
+                      <span className="ambe-pill program">
+                        {exam.program?.name ||
+                          exam.program?.code ||
+                          '-'}
+                      </span>
+                    </td>
+
+                    <td>
+                      {(exam.subjectTags || []).length > 0 ? (
+                        exam.subjectTags.map((tag) => (
+                          <span
+                            key={tag._id || tag.name}
+                            className="ambe-pill subject"
+                          >
+                            {tag.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="ambe-muted">–</span>
+                      )}
+                    </td>
+
+                    <td className="ambe-muted">
+                      {formatDateTime(exam.examDate || exam.availabilityStart)}
+                    </td>
+                    <td className="ambe-muted">
+                      {exam.duration || 150} mins
+                    </td>
+
+                    <td>{exam.questions?.length || 0}</td>
+
+                    <td>
+                      <span className={`ambe-status ${exam.status}`}>
+                        {exam.status}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="ambe-actions">
+                        <button
+                          type="button"
+                          className="ambe-btn view"
+                          onClick={() => handleView(exam._id)}
+                        >
+                          Details
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={() =>
+                            onEditExam(exam._id, 'preview')
+                          }
+                        >
+                          Preview
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={() =>
+                            onEditExam(exam._id, 'testRun')
+                          }
+                        >
+                          Test Run
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={() => onEditExam(exam._id)}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ambe-btn delete"
+                          onClick={() => handleDelete(exam)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </div>
       )}
 
@@ -244,8 +247,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
 
           <div className="ambe-details-instructions" style={{ borderTop: 'none', paddingTop: 0 }}>
-             <h4>Duration</h4>
-             <p>{selectedExam.duration || 150} minutes</p>
+            <h4>Duration</h4>
+            <p>{selectedExam.duration || 150} minutes</p>
           </div>
 
           {/* ── Questions ────────────────── */}
@@ -257,54 +260,56 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
             )}
 
             {(selectedExam.questions || []).length > 0 && (
-              <table className="ambe-subtable">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Description</th>
-                    <th>Subject</th>
-                    <th>Answers</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedExam.questions.map((question) => (
-                    <tr key={question._id}>
-                      <td>{question.title}</td>
-                      <td>{question.description}</td>
-                      <td>
-                        {question.tag && question.tag.name ? (
-                          <span className="ambe-pill subject">
-                            {question.tag.name}
-                          </span>
-                        ) : (
-                          <span className="ambe-muted">–</span>
-                        )}
-                      </td>
-                      <td>
-                        <ul className="ambe-answers">
-                          {(organizeQuestionAnswers(question).answers || []).map(
-                            (answer) => (
-                              <li
-                                key={
-                                  answer._id ||
-                                  `${answer.optionLabel}-${answer.text}`
-                                }
-                              >
-                                {answer.optionLabel} {answer.text}{' '}
-                                {answer.isCorrect && (
-                                  <span className="ambe-correct">
-                                    (Correct)
-                                  </span>
-                                )}
-                              </li>
-                            )
-                          )}
-                        </ul>
-                      </td>
+              <div className="ambe-scroll-x">
+                <table className="ambe-subtable">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Description</th>
+                      <th>Subject</th>
+                      <th>Answers</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {selectedExam.questions.map((question) => (
+                      <tr key={question._id}>
+                        <td>{question.title}</td>
+                        <td>{question.description}</td>
+                        <td>
+                          {question.tag && question.tag.name ? (
+                            <span className="ambe-pill subject">
+                              {question.tag.name}
+                            </span>
+                          ) : (
+                            <span className="ambe-muted">–</span>
+                          )}
+                        </td>
+                        <td>
+                          <ul className="ambe-answers">
+                            {(organizeQuestionAnswers(question).answers || []).map(
+                              (answer) => (
+                                <li
+                                  key={
+                                    answer._id ||
+                                    `${answer.optionLabel}-${answer.text}`
+                                  }
+                                >
+                                  {answer.optionLabel} {answer.text}{' '}
+                                  {answer.isCorrect && (
+                                    <span className="ambe-correct">
+                                      (Correct)
+                                    </span>
+                                  )}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

@@ -54,13 +54,13 @@
     overflow: hidden;
 }
 
-.ambe-table {
+.ambe-table-x {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
 }
 
-.ambe-table th {
+.ambe-table-x th {
     background: #f9faff;
     padding: 14px;
     font-size: 12px;
@@ -70,13 +70,13 @@
     border-bottom: 1px solid rgba(53, 64, 142, 0.25);
 }
 
-.ambe-table td {
+.ambe-table-x td {
     padding: 14px;
     border-top: 1px solid rgba(53, 64, 142, .12);
     text-align: center;
 }
 
-.ambe-table tbody tr:hover {
+.ambe-table-x tbody tr:hover {
     background: #f4f6fc;
 }
 
@@ -263,14 +263,12 @@
 }
 
 /* ───────── BUTTONS (RESTORE VISUALS) ───────── */
-
 .ambe-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
 }
 
-/* Base button */
 .ambe-btn {
     font-size: 12px;
     padding: 6px 13px;
@@ -281,7 +279,6 @@
     transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* Details */
 .ambe-btn.view {
     background: #ffffff;
     color: #3f4ab8;
@@ -292,7 +289,6 @@
     background: #eef0fb;
 }
 
-/* Primary (Preview / Test Run / Edit) */
 .ambe-btn.primary {
     background: #35408e;
     color: #ffe84b;
@@ -302,7 +298,6 @@
     background: #2c3578;
 }
 
-/* Delete */
 .ambe-btn.delete {
     background: #fff;
     color: #dc2626;
@@ -323,4 +318,76 @@
 
 .ambe-questions-container h3 {
     border-radius: 14px 14px 0 0;
+}
+
+@media (max-width: 768px) {
+
+    .ambe-details-header-new {
+        grid-template-columns: 60% 40%;
+    }
+
+    .header-right {
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .duration-block {
+        text-align: left;
+        margin-right: 8px;
+    }
+
+    .ambe-table-card {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ambe-scroll-x {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    .ambe-table-x {
+        min-width: 1100px;
+    }
+
+    .ambe-subtable {
+        min-width: 900px;
+    }
+
+    .ambe-table-x th,
+    .ambe-table-x td,
+    .ambe-subtable th,
+    .ambe-subtable td {
+        white-space: nowrap;
+    }
+
+    .ambe-table-x td:last-child {
+        text-align: center;
+    }
+
+    .ambe-table-x td:last-child .ambe-actions {
+        justify-content: center;
+        align-items: center;
+    }
+
+    .ambe-table-x td,
+    .ambe-subtable td {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .ambe-table-x td:nth-child(3),
+    .ambe-subtable td:nth-child(3) {
+        white-space: nowrap;
+        word-break: normal;
+    }
+
+    .ambe-table-x td:nth-child(7),
+    .ambe-status,
+    .ambe-status * {
+        white-space: nowrap;
+        word-break: normal;
+    }
+
 }
