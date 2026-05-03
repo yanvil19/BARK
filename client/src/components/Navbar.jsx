@@ -49,12 +49,26 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
   }, [me, route]);
 
   function scrollToSection(sectionId) {
+    const scrollWithOffset = () => {
+      const target = document.getElementById(sectionId);
+      if (!target) return;
+
+      const headerHeight = document.getElementById('Header')?.offsetHeight || 0;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - 18;
+
+      window.scrollTo({
+        top: Math.max(top, 0),
+        behavior: 'smooth',
+      });
+    };
+
     if (route !== 'Dashboard') {
       onRoute('Dashboard');
-      setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setTimeout(scrollWithOffset, 100);
       return;
     }
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+
+    scrollWithOffset();
   }
 
   const isSuperAdmin = me?.role === 'super_admin';
