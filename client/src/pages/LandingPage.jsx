@@ -62,6 +62,12 @@ const LandingPage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState([]);
 
+  /* ── Theme ── */
+  useEffect(() => {
+    document.documentElement.classList.add('landing-theme');
+    return () => document.documentElement.classList.remove('landing-theme');
+  }, []);
+
   /* ── Data Fetch ── */
   useEffect(() => {
     const fetchData = async () => {
@@ -265,7 +271,8 @@ const LandingPage = ({ onNavigate }) => {
                       className={`schools-tab${isActive ? ' active' : ''}`}
                       onClick={() => setActiveDepartmentId(String(dept._id))}
                     >
-                      <span className="schools-tab-name">{dept.name}</span>
+                      <span className="schools-tab-name desktop-only">{dept.name}</span>
+                      <span className="schools-tab-name mobile-only">{dept.code || dept.name}</span>
                     </button>
                   );
                 })}
