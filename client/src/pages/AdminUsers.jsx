@@ -243,76 +243,79 @@ export default function AdminUsers() {
         </div>
       </header>
 
-      {/* ── Filters ── */}
-      <div className="um-filters">
-        <input
-          className="um-search"
-          type="text"
-          placeholder="Search users by name or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <select
-          className="um-filter-select"
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-        >
-          <option value="">Filter: All Roles</option>
-          <option value="student">Student</option>
-          <option value="alumni">Alumni</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="dean">Dean</option>
-          <option value="program_chair">Program Chair</option>
-          <option value="professor">Professor</option>
-        </select>
-        <select
-          className="um-filter-select"
-          value={filterDepartment}
-          onChange={(e) => setFilterDepartment(e.target.value)}
-        >
-          <option value="">Filter: All Departments</option>
-          {departments.map((d) => (
-            <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {error ? <p className="um-error">{error}</p> : null}
-
-      {/* ── User Table ── */}
-      <div className="um-table-wrap">
-        <div className="um-table-scroll">
-          {busy ? <p className="um-loading">Loading users...</p> : (
-            <table className="um-table">
-              <thead>
-                <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
-                  paginatedUsers.map((u) => (
-                    <tr key={u._id}>
-                      <td>
-                        <div className="um-user-name">{u.name}</div>
-                        <div className="um-user-email">{u.email}</div>
-                      </td>
-                      <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
-                      <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
-                      <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
-                      <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
-                      <td className="um-actions-cell">
-                        <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
-                        {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
-                          : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+      <div style={{ padding: '0 20px' }}>
+        {/* ── Filters ── */}
+        <div className="um-filters">
+          <input
+            className="um-search"
+            type="text"
+            placeholder="Search users by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <select
+            className="um-filter-select"
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+          >
+            <option value="">Filter: All Roles</option>
+            <option value="student">Student</option>
+            <option value="alumni">Alumni</option>
+            <option value="super_admin">Super Admin</option>
+            <option value="dean">Dean</option>
+            <option value="program_chair">Program Chair</option>
+            <option value="professor">Professor</option>
+          </select>
+          <select
+            className="um-filter-select"
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+          >
+            <option value="">Filter: All Departments</option>
+            {departments.map((d) => (
+              <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
+            ))}
+          </select>
         </div>
 
+        {error ? <p className="um-error">{error}</p> : null}
+
+        {/* ── User Table ── */}
+        <div className="um-table-wrap">
+          <div className="um-table-scroll">
+            {busy ? <p className="um-loading">Loading users...</p> : (
+              <table className="um-table">
+                <thead>
+                  <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                    paginatedUsers.map((u) => (
+                      <tr key={u._id}>
+                        <td>
+                          <div className="um-user-name">{u.name}</div>
+                          <div className="um-user-email">{u.email}</div>
+                        </td>
+                        <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
+                        <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
+                        <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
+                        <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td className="um-actions-cell">
+                          <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
+                          {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
+                            : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+        </div>
       </div>
+
 
       {/* ── Pagination ── */}
       {!busy && users.length > 0 && (

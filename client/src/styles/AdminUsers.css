@@ -73,6 +73,7 @@
   margin-bottom: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   overflow: visible;
+  /* border:1px solid red; */
 }
 
 .um-table-scroll {
@@ -278,7 +279,7 @@
     align-items: center;
     justify-content: center;
   }
-  
+
   .um-pagination-btn:hover:not(:disabled),
   .um-pagination-page:hover {
     background: #f9fafb;
@@ -413,6 +414,19 @@
     padding: 1em !important;
     font-size: 14px;
     line-height: 1;
+  }
+  
+ .adminCatalog-departments,
+  .adminCatalog-programs {
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+    width: 100%;
+    margin: 0 0 32px;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
 }
