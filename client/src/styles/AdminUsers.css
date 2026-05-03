@@ -210,12 +210,99 @@
   margin-bottom: 12px;
 }
 
+@media (min-width: 769px) {
+  .um-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .um-search {
+    flex: 1;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    background-color: #fafafa;
+    box-sizing: border-box;
+  }
+
+  .um-filter-select {
+    height: 40px;
+    padding: 0 14px;
+    min-width: 170px;
+    box-sizing: border-box;
+  }
+
+
+  .um-pagination {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75em;
+    margin-top: 2em;
+  }
+
+  .um-pagination-info {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    text-align: center;
+  }
+
+  .um-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+  }
+
+  .um-pagination-pages {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .um-pagination-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .um-pagination-page {
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .um-pagination-btn:hover:not(:disabled),
+  .um-pagination-page:hover {
+    background: #f9fafb;
+    border-color: var(--primary-bg);
+    color: var(--primary-bg);
+  }
+
+  .um-pagination-page--active {
+    background: var(--primary-bg);
+    color: #fff;
+    border-color: var(--primary-bg);
+  }
+
+  .um-pagination-page--active:focus,
+  .um-pagination-page--active:active {
+    background: var(--primary-bg);
+    color: #fff;
+    border-color: var(--primary-bg);
+  }
+
+
+}
 
 @media (max-width: 768px) {
-
-  /* ─────────────────────────
-     PAGE HEADER
-  ───────────────────────── */
   .um-header {
     flex-direction: column;
     gap: 14px;
@@ -226,9 +313,6 @@
     width: 100%;
   }
 
-  /* ─────────────────────────
-     FILTERS STACK (SEARCH ON TOP)
-  ───────────────────────── */
   .um-search,
   .um-filter-select {
     box-sizing: border-box;
@@ -248,10 +332,6 @@
     font-size: 12px;
   }
 
-
-  /* ─────────────────────────
-     TABLE – HORIZONTAL SCROLL
-  ───────────────────────── */
   .um-table-wrap {
     overflow: hidden;
   }
@@ -265,10 +345,6 @@
     min-width: 900px;
   }
 
-  /* ─────────────────────────
-     PAGINATION – MOBILE ROW
-     [Prev][1][2][3][Next]
-  ───────────────────────── */
   .um-pagination {
     display: flex;
     flex-direction: column;
@@ -310,9 +386,6 @@
     font-size: 10px;
   }
 
-  /* ─────────────────────────
-     MODAL – SINGLE COLUMN
-  ───────────────────────── */
   .modal-form-grid {
     display: flex !important;
     flex-direction: column;
