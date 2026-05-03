@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
-import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
+import { organizeQuestionAnswers } from '../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../components/DateTimePicker.jsx';
 import '../styles/MockBoardExam.css';
 

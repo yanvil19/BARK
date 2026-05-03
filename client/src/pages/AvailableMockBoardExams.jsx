@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
-import { organizeQuestionAnswers } from '../lib/QuestionOrganizer.js';
+import { organizeQuestionAnswers } from '../lib/DeanTestRunOrganizer.js';
 import '../styles/AvailableMockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
