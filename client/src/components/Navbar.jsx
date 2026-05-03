@@ -6,6 +6,7 @@ import ProfileModal from './ProfileModal.jsx';
 export default function Navbar({ me, route, onRoute, onLogout }) {
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
@@ -13,11 +14,14 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
       }
+      if (mobileMenuOpen && !e.target.closest('#Header')) {
+        setMobileMenuOpen(false);
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (me || route !== 'Dashboard') {
@@ -94,7 +98,7 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             Dashboard
           </button>
         )}
-
+ 
         {me && me.role !== 'student' && !isDean && (
           <button className={route === 'student' ? 'active' : ''} onClick={() => onRoute('student')}>
             Student Register
@@ -177,6 +181,16 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       </nav>
 
       <div className="nav-right" ref={wrapperRef}>
+        <button
+          type="button"
+          className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}
+          aria-label="Toggle navigation menu"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
         {me ? (
           <div className="profile-wrapper">
             <div className="profile-icon avatar-initials" onClick={() => setOpen(!open)}>
@@ -190,6 +204,98 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
           </button>
         )}
       </div>
+
+      {mobileMenuOpen && (
+        <div className="mobile-menu">
+          <nav className="mobile-nav">
+            {me && (
+              <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => { onRoute('Dashboard'); setMobileMenuOpen(false); }}>
+                Dashboard
+              </button>
+            )}
+
+            {me && me.role !== 'student' && !isDean && (
+              <button className={route === 'student' ? 'active' : ''} onClick={() => { onRoute('student'); setMobileMenuOpen(false); }}>
+                Student Register
+              </button>
+            )}
+
+            {isDean && (
+              <>
+                <button className={route === 'studentManager' ? 'active' : ''} onClick={() => { onRoute('studentManager'); setMobileMenuOpen(false); }}>
+                  Student Manager
+                </button>
+                <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => { onRoute('deanQuestions'); setMobileMenuOpen(false); }}>
+                  My Questions
+                </button>
+                <button className={route === 'deanTags' ? 'active' : ''} onClick={() => { onRoute('deanTags'); setMobileMenuOpen(false); }}>
+                  Manage Subjects
+                </button>
+                <button className={route === 'mockBoardExam' ? 'active' : ''} onClick={() => { onRoute('mockBoardExam'); setMobileMenuOpen(false); }}>
+                  Mock Board Exam
+                </button>
+                <button className={route === 'deanQuestionApprovals' ? 'active' : ''} onClick={() => { onRoute('deanQuestionApprovals'); setMobileMenuOpen(false); }}>
+                  Approve Questions
+                </button>
+                <button
+                  className={route === 'availableMockBoardExams' ? 'active' : ''}
+                  onClick={() => { onRoute('availableMockBoardExams'); setMobileMenuOpen(false); }}
+                >
+                  Available Mock Board Exams
+                </button>
+              </>
+            )}
+
+            {isChair && (
+              <>
+                <button className={route === 'chairTags' ? 'active' : ''} onClick={() => { onRoute('chairTags'); setMobileMenuOpen(false); }}>
+                  Manage Subjects
+                </button>
+                <button className={route === 'chairQuestions' ? 'active' : ''} onClick={() => { onRoute('chairQuestions'); setMobileMenuOpen(false); }}>
+                  My Questions
+                </button>
+                <button className={route === 'chairQuestionApprovals' ? 'active' : ''} onClick={() => { onRoute('chairQuestionApprovals'); setMobileMenuOpen(false); }}>
+                  Approve Questions
+                </button>
+              </>
+            )}
+
+            {isProfessor && (
+              <button className={route === 'profQuestions' ? 'active' : ''} onClick={() => { onRoute('profQuestions'); setMobileMenuOpen(false); }}>
+                My Questions
+              </button>
+            )}
+
+            {isSuperAdmin && (
+              <>
+                <button className={route === 'schoolsPrograms' ? 'active' : ''} onClick={() => { onRoute('schoolsPrograms'); setMobileMenuOpen(false); }}>
+                  Schools and Programs
+                </button>
+                <button className={route === 'adminUsers' ? 'active' : ''} onClick={() => { onRoute('adminUsers'); setMobileMenuOpen(false); }}>
+                  User Management
+                </button>
+              </>
+            )}
+
+            {!me && (
+              <>
+                <button className={activeSection === 'about' ? 'nav-active' : ''} onClick={() => { scrollToSection('about'); setMobileMenuOpen(false); }}>
+                  About
+                </button>
+                <button className={activeSection === 'programs' ? 'nav-active' : ''} onClick={() => { scrollToSection('programs'); setMobileMenuOpen(false); }}>
+                  Programs
+                </button>
+                <button className={activeSection === 'mock-exams' ? 'nav-active' : ''} onClick={() => { scrollToSection('mock-exams'); setMobileMenuOpen(false); }}>
+                  Mock Exams
+                </button>
+                <button className={route === 'Register' ? 'active' : ''} onClick={() => { onRoute('Register'); setMobileMenuOpen(false); }}>
+                  Register
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
