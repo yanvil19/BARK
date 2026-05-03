@@ -64,6 +64,9 @@ const questionSchema = new mongoose.Schema(
     revisionNote: { type: String, default: null, trim: true },
     rejectionReason: { type: String, default: null, trim: true },
     submittedAt: { type: Date, default: null },
+    // Concurrency: track who is currently reviewing this question
+    currentReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewStartedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

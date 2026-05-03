@@ -11,6 +11,8 @@ const {
   submitQuestion,
   reviewQuestion,
   deanReturnApprovedQuestion,
+  lockQuestion,
+  unlockQuestion,
 } = require('../controllers/questionController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -47,6 +49,8 @@ router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
 router.post('/:id/submit', protect, authorizeRoles(...FACULTY), submitQuestion);
 router.post('/:id/review', protect, authorizeRoles('program_chair', 'dean'), reviewQuestion);
 router.post('/:id/dean-return', protect, authorizeRoles('dean'), deanReturnApprovedQuestion);
+router.patch('/:id/lock', protect, authorizeRoles('program_chair', 'dean'), lockQuestion);
+router.patch('/:id/unlock', protect, authorizeRoles('program_chair', 'dean'), unlockQuestion);
 
 // Image upload — returns array of URLs
 router.post(

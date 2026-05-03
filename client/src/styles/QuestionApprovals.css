@@ -295,6 +295,14 @@
 }
 
 /* ── State Badges ────────────────────────────────────────– */
+.ca-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .ca-state-badge {
   padding: 4px 11px;
   border-radius: 999px;
@@ -328,6 +336,71 @@
   background: #fff1f2;
   color: #be123c;
   border: 1px solid #fda4af;
+}
+
+/* ── Being Evaluated Badge ──────────────────────────────── */
+.ca-evaluating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ca-evaluating-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3b82f6;
+  animation: evaluatingPulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes evaluatingPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Warning Modal Overrides ────────────────────────────── */
+.ca-modal-header--warning {
+  background: #92400e;
+}
+
+.ca-warning-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.ca-warning-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ca-warning-text {
+  margin: 0;
+  font-size: 14px;
+  color: #44403c;
+  line-height: 1.6;
+}
+
+.ca-btn-submit--warning {
+  background: #b45309;
+}
+
+.ca-btn-submit--warning:hover:not(:disabled) {
+  background: #92400e;
+  opacity: 1;
 }
 
 /* ── Pagination ──────────────────────────────────────────– */
