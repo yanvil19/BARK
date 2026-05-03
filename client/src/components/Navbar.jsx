@@ -75,6 +75,7 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
   const isDean = me?.role === 'dean';
   const isChair = me?.role === 'program_chair';
   const isProfessor = me?.role === 'professor';
+  const isStudent = me?.role === 'student';
 
   const getInitials = (name = '') => {
     const parts = name.trim().split(' ');
@@ -92,6 +93,12 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         {me && (
           <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => onRoute('Dashboard')}>
             Dashboard
+          </button>
+        )}
+
+        {isStudent && (
+          <button className={route === 'studentAvailableExams' ? 'active' : ''} onClick={() => onRoute('studentAvailableExams')}>
+            Available Exams
           </button>
         )}
 

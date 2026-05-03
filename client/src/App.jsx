@@ -20,6 +20,9 @@ import AvailableMockBoardExams from './pages/AvailableMockBoardExams.jsx';
 import DeanExamRunner from './pages/DeanExamRunner.jsx';
 import MockBoardExamPreview from './pages/MockBoardExamPreview.jsx';
 import MockBoardExamTestRun from './pages/MockBoardExamTestRun.jsx';
+import StudentExamRunner from './pages/StudentExamRunner.jsx';
+import StudentExamResult from './pages/StudentExamResult.jsx';
+import StudentAvailableExams from './pages/StudentAvailableExams.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import "react-datepicker/dist/react-datepicker.css";
@@ -32,6 +35,7 @@ export default function App() {
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
   const [examRunnerId, setExamRunnerId] = useState('');
   const [examRunnerMode, setExamRunnerMode] = useState('details');
+  const [studentExamId, setStudentExamId] = useState('');
 
   async function refreshMe() {
     const token = getToken();
@@ -89,7 +93,11 @@ export default function App() {
   let page = null;
   if (route === 'Dashboard') {
     page = me ? (
-      <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />
+      <Dashboard 
+        me={me} 
+        onNavigate={setRoute} 
+        onRoute={setRoute} 
+      />
     ) : (
       <LandingPage onNavigate={setRoute} />
     );
@@ -171,6 +179,26 @@ export default function App() {
         mode={examRunnerMode}
         onBack={() => setRoute('availableMockBoardExams')}
       />
+    );
+  if (route === 'studentAvailableExams')
+    page = (
+      <StudentAvailableExams
+        onTakeExam={(id) => {
+          setStudentExamId(id);
+          setRoute('studentExamRunner');
+        }}
+      />
+    );
+  if (route === 'studentExamRunner')
+    page = (
+      <StudentExamRunner
+        examId={studentExamId}
+        onFinish={() => setRoute('studentExamResult')}
+      />
+    );
+  if (route === 'studentExamResult')
+    page = (
+      <StudentExamResult onReturn={() => setRoute('Dashboard')} />
     );
 
   return (

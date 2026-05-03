@@ -34,12 +34,24 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
   const [form, setForm] = useState({
     name: '',
-    examDate: '',
-    duration: 150,
+    startDateTime: '',
+    endDateTime: '',
     description: '',
     instructions: '',
     status: 'draft',
   });
+
+  const computedDuration = useMemo(() => {
+    if (!form.startDateTime || !form.endDateTime) return null;
+    const start = new Date(form.startDateTime);
+    const end = new Date(form.endDateTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    const diffMins = Math.round((end - start) / 60000);
+    if (diffMins < 0) return 'Invalid (End is before Start)';
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hrs} hours ${mins} minutes`;
+  }, [form.startDateTime, form.endDateTime]);
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -80,8 +92,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         setSelectedQuestions(nextQuestions);
         setForm({
           name: exam.name || '',
-          examDate: toLocalDateTimeInput(exam.examDate || exam.availabilityStart),
-          duration: exam.duration || 150,
+          startDateTime: toLocalDateTimeInput(exam.startDateTime),
+          endDateTime: toLocalDateTimeInput(exam.endDateTime),
           description: exam.description || '',
           instructions: exam.instructions || '',
           status: exam.status || 'draft',
@@ -255,8 +267,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         programId,
         subjectTagIds: selectedTagIds,
         questionIds: selectedQuestions.map((question) => question._id),
-        examDate: form.examDate,
-        duration: form.duration,
+        startDateTime: form.startDateTime,
+        endDateTime: form.endDateTime,
         description: form.description,
         instructions: form.instructions,
         status: form.status,
@@ -276,8 +288,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
       setForm({
         name: '',
-        examDate: '',
-        duration: 150,
+        startDateTime: '',
+        endDateTime: '',
         description: '',
         instructions: '',
         status: 'draft',
@@ -355,25 +367,26 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             </div>
 
             <div className="mbe-field">
-              <label>Exam Date</label>
+              <label>Exam Start</label>
               <DateTimePicker
-                value={form.examDate}
-                onChange={(val) => setForm((prev) => ({ ...prev, examDate: val }))}
+                value={form.startDateTime}
+                onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
               />
             </div>
 
             <div className="mbe-field">
               <label>
-                Duration (Minutes)
-                <input
-                  className="mbe-input"
-                  type="number"
-                  min="1"
-                  value={form.duration}
-                  onChange={(e) => setForm((prev) => ({ ...prev, duration: e.target.value }))}
-                  required
-                />
+                Exam End
+                {computedDuration && (
+                  <span style={{ marginLeft: '10px', fontSize: '0.85em', color: computedDuration.includes('Invalid') ? 'red' : 'gray' }}>
+                    (Duration: {computedDuration})
+                  </span>
+                )}
               </label>
+              <DateTimePicker
+                value={form.endDateTime}
+                onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+              />
             </div>
 
             <div className="mbe-field">

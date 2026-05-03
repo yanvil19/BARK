@@ -97,7 +97,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                 <th>Exam Name</th>
                 <th>Program</th>
                 <th>Subjects</th>
-                <th>Exam Date</th>
+                <th>Exam Start</th>
                 <th>Duration</th>
                 <th>Questions</th>
                 <th>Status</th>
@@ -133,10 +133,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                   </td>
 
                   <td className="ambe-muted">
-                    {formatDateTime(exam.examDate || exam.availabilityStart)}
+                    {formatDateTime(exam.startDateTime)}
                   </td>
                   <td className="ambe-muted">
-                    {exam.duration || 150} mins
+                    {exam.durationMinutes || 0} mins
                   </td>
 
                   <td>{exam.questions?.length || 0}</td>
@@ -217,7 +217,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
               <div className="duration-block">
                 <span className="label">DURATION</span>
                 <span className="value">
-                  {selectedExam.duration || 150} minutes
+                  {selectedExam.durationMinutes || 0} minutes
                 </span>
               </div>
 
@@ -245,7 +245,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
           <div className="ambe-details-instructions" style={{ borderTop: 'none', paddingTop: 0 }}>
              <h4>Duration</h4>
-             <p>{selectedExam.duration || 150} minutes</p>
+             <p>{selectedExam.durationMinutes || 0} minutes</p>
           </div>
 
           {/* ── Questions ────────────────── */}

@@ -41,7 +41,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
       return <ProgramChairDashboard me={me} onRoute={onRoute} />;
     
     case 'student':
-      return <StudentDashboard me={me} />;
+      return <StudentDashboard me={me} onNavigate={onNavigate || onRoute} />;
     
     case 'professor':
       return <ProfessorDashboard me={me} />;

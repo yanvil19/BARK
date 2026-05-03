@@ -72,7 +72,8 @@ async function validateExamPayload(user, body) {
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
-  if (!body.examDate) errors.push('Exam date and time is required');
+  if (!body.startDateTime) errors.push('Start date and time is required');
+  if (!body.endDateTime) errors.push('End date and time is required');
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
   if (!['draft', 'published', 'archived'].includes(status)) errors.push('Invalid exam status');
@@ -80,12 +81,12 @@ async function validateExamPayload(user, body) {
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
 
-  const start = body.examDate ? new Date(body.examDate) : null;
-  const end = body.availabilityEnd ? new Date(body.availabilityEnd) : null;
+  const start = body.startDateTime ? new Date(body.startDateTime) : null;
+  const end = body.endDateTime ? new Date(body.endDateTime) : null;
 
-  if (start && Number.isNaN(start.getTime())) errors.push('Invalid exam date');
-  if (end && Number.isNaN(end.getTime())) errors.push('Invalid availability end date');
-  if (start && end && end < start) errors.push('Availability end must be later than the exam date');
+  if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
+  if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
+  if (start && end && end <= start) errors.push('End date must be later than the start date');
 
   let tags = [];
   if (program && subjectTagIds.length > 0) {
@@ -117,8 +118,8 @@ async function validateExamPayload(user, body) {
       program,
       subjectTagIds,
       questionIds,
-      examDate: start,
-      availabilityEnd: end || null,
+      startDateTime: start,
+      endDateTime: end,
       instructions,
       status,
       tags,
@@ -134,6 +135,9 @@ async function createMockBoardExam(req, res) {
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
+    if (payload.startDateTime && payload.startDateTime <= new Date()) {
+      errors.push('Start date must be in the future');
+    }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
     const exam = await MockBoardExam.create({
@@ -142,8 +146,8 @@ async function createMockBoardExam(req, res) {
       department: payload.program.department,
       subjectTags: payload.subjectTagIds,
       questions: payload.questionIds,
-      examDate: payload.examDate,
-      availabilityEnd: payload.availabilityEnd,
+      startDateTime: payload.startDateTime,
+      endDateTime: payload.endDateTime,
       instructions: payload.instructions,
       status: payload.status,
       createdBy: req.user._id,
@@ -163,6 +167,11 @@ async function createMockBoardExam(req, res) {
 
 async function listMockBoardExams(req, res) {
   try {
+    await MockBoardExam.updateMany(
+      { status: 'published', endDateTime: { $lt: new Date() } },
+      { $set: { status: 'archived' } }
+    );
+
     let query = {};
 
     if (req.user && req.user.role === 'dean') {
@@ -177,7 +186,7 @@ async function listMockBoardExams(req, res) {
     const exams = await MockBoardExam.find(query)
       .populate('program', 'name code department')
       .populate('subjectTags', 'name')
-      .select('name program examDate duration subjectTags questions status createdAt updatedAt')
+      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status createdAt updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({ exams });
@@ -230,8 +239,8 @@ async function updateMockBoardExam(req, res) {
       programId: req.body.programId ?? existing.program.toString(),
       subjectTagIds: req.body.subjectTagIds ?? existing.subjectTags.map((item) => item.toString()),
       questionIds: req.body.questionIds ?? existing.questions.map((item) => item.toString()),
-      examDate: req.body.examDate ?? existing.examDate,
-      availabilityEnd: req.body.availabilityEnd === undefined ? existing.availabilityEnd : req.body.availabilityEnd,
+      startDateTime: req.body.startDateTime ?? existing.startDateTime,
+      endDateTime: req.body.endDateTime ?? existing.endDateTime,
       instructions: req.body.instructions ?? existing.instructions,
       status: req.body.status ?? existing.status,
     };
@@ -244,8 +253,8 @@ async function updateMockBoardExam(req, res) {
     existing.department = payload.program.department;
     existing.subjectTags = payload.subjectTagIds;
     existing.questions = payload.questionIds;
-    existing.examDate = payload.examDate;
-    existing.availabilityEnd = payload.availabilityEnd;
+    existing.startDateTime = payload.startDateTime;
+    existing.endDateTime = payload.endDateTime;
     existing.instructions = payload.instructions;
     existing.status = payload.status;
     await existing.save();
@@ -283,6 +292,11 @@ async function deleteMockBoardExam(req, res) {
 
 async function listPublishedExams(req, res) {
   try {
+    await MockBoardExam.updateMany(
+      { status: 'published', endDateTime: { $lt: new Date() } },
+      { $set: { status: 'archived' } }
+    );
+
     const exams = await MockBoardExam.find({ status: 'published' })
       .populate('program', 'name code')
       .select('name program updatedAt')

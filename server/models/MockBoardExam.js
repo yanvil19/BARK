@@ -33,14 +33,19 @@ const mockBoardExamSchema = new mongoose.Schema(
         required: true,
       },
     ],
-    examDate: {
+    startDateTime: {
       type: Date,
-      required: [true, 'Exam date is required'],
+      required: [true, 'Start date and time is required'],
     },
-    duration: {
-      type: Number,
-      required: [true, 'Duration is required'],
-      default: 150, // 2.5 hours in minutes
+    endDateTime: {
+      type: Date,
+      required: [true, 'End date and time is required'],
+      validate: {
+        validator: function (value) {
+          return value > this.startDateTime;
+        },
+        message: 'endDateTime must be after startDateTime',
+      },
     },
     description: {
       type: String,
@@ -67,5 +72,13 @@ const mockBoardExamSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+mockBoardExamSchema.virtual('durationMinutes').get(function () {
+  if (!this.startDateTime || !this.endDateTime) return null;
+  return Math.round((this.endDateTime - this.startDateTime) / 60000);
+});
+
+mockBoardExamSchema.set('toJSON', { virtuals: true });
+mockBoardExamSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('MockBoardExam', mockBoardExamSchema);

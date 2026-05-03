@@ -1,82 +1,249 @@
-# Implementation Plan: Student Exam System
-
-## 1. Goal Description
-
-The goal is to implement the student exam-taking experience in the BARK platform. This involves allowing students to view published mock board exams for their program, start an exam, answer questions, submit their attempt, and view a submission confirmation. The system will securely track attempts and ensure a realistic, randomized exam environment without revealing results prematurely.
-
-## 2. Constraints & Design Decisions
-
-1.  **Hidden Results:** As requested, scores and correct answers **will NOT be revealed** to the student after submission. The results page will only act as a submission confirmation.
-2.  **Limited Information:** During the exam, students will only see the exam title, description, instructions, questions, and randomized options.
-3.  **Randomization & State Persistence:** As Claude noted, frontend-only randomization breaks if a student refreshes the page (questions/options would shuffle again, losing context of their saved answers). Therefore, **randomization will happen on the backend exactly once** when the `StudentExamAttempt` is created. The backend will shuffle the questions and options, strip out the `isCorrect` flag, and save this specific shuffled order in the attempt document. The frontend will strictly render the order provided by the backend.
-4.  **Exam Availability Window:** Students can only start the exam if the current time is on or after the `examDate`. The `examDate` acts as the release date. The exam must also have a `status` of 'published' and match their program.
-5.  **Attempt Limit:** We will restrict students to **one attempt** per mock board exam to simulate actual board conditions.
-6.  **Disconnection & Resume Logic (Auto-save):** We will save progress to the backend periodically (e.g., every 1-2 minutes). If a student gets disconnected, closes the tab, or refreshes, they can return to the dashboard and click "Resume Exam". The backend will load their existing `in_progress` attempt and previously selected answers. 
-    *   *Crucial Timer Rule:* The timer runs continuously on the backend based on `startTime + duration`. If they disconnect and return *after* their time has expired, the exam will be automatically submitted upon their return.
-7.  **Timer expiration:** The frontend will automatically trigger the "Submit" action when the timer reaches zero. The backend will validate the timestamp on submission to prevent tampering.
-
-## 3. Proposed Changes
+# Exam Window Refactor Plan
+# For: Gemini / AI Code Assistant
+# Project: BARK — Board Exam Mock Reviewer
 
 ---
 
-### A. Database Models
+## What This Plan Is For
 
-#### [NEW] `server/models/StudentExamAttempt.js`
-Create a new schema to track a student's attempt.
--   `student`: ObjectId (User)
--   `exam`: ObjectId (MockBoardExam)
--   `startTime`: Date
--   `endTime`: Date (null until submitted)
--   `status`: Enum `['in_progress', 'submitted', 'abandoned']`
--   `answers`: Map of Question ID to Answer ID (e.g., `{ 'q1_id': 'ans1_id' }`)
--   `randomizedQuestions`: Array representing the exact shuffled order for this student:
-    *   `[{ question: ObjectId, answers: [ObjectId] }]`
--   `score`: Number (overall score, e.g. 50, calculated upon submission)
--   `subjectScores`: Array of objects to track performance per subject tag:
-    *   `[{ tag: ObjectId(Tag), correct: Number, total: Number }]`
-    *   *(Note: Both overall score and subject breakdown are kept hidden from the student, but saved for future Dean/Chair analytics).*
+This is a focused refactor task only. We are changing how the exam window
+is stored and computed across the backend and frontend. Nothing else changes.
 
 ---
 
-### B. Backend Controllers & Routes
+## Current Setup — To Be Replaced
 
-#### [NEW] `server/controllers/studentExamController.js`
-1.  **`getAvailableExams`**: List published, unexpired exams for the student's program.
-2.  **`startExam`**: Check for an existing `in_progress` attempt. If none exists, create a new `StudentExamAttempt`. **Crucial:** Generate a randomized order of questions and answers, save it to `randomizedQuestions`, and strip `isCorrect` from the payload before returning it. If an attempt exists, return the previously saved `randomizedQuestions`.
-3.  **`saveProgress`**: Update the `answers` map in the `StudentExamAttempt` document.
-4.  **`submitExam`**: Finalize the attempt. Iterate through the student's answers, look up the correct answers and their corresponding subject tags, and calculate both the overall `score` and the `subjectScores` breakdown. Save these along with `status: 'submitted'` and `endTime`.
+The exam model currently stores:
+- `examDate`: Date — start of the exam window
+- `duration`: Number (minutes) — how long the exam runs
 
-#### [NEW] `server/routes/studentExamRoutes.js`
-Define endpoints for the above controller functions, protected and restricted to the `student` role. Register this router in `server.js`.
+The student timer currently computes:
+```
+studentEndTime = attempt.startTime + duration
+```
+
+This is wrong and will be replaced entirely.
 
 ---
 
-### C. Frontend Components
+## New Behavior — To Be Implemented
 
-#### [MODIFY] `client/src/pages/Dashboard/StudentDashboard.jsx`
--   Fetch and display available exams.
--   Show past attempts (status only, no scores).
--   Add a "Take Exam" button.
+The exam has a fixed start and a fixed end. All students hard-stop at endDateTime
+regardless of when they started.
 
-#### [NEW] `client/src/pages/StudentExamRunner.jsx`
--   Secure exam environment.
--   Fetch exam via `startExam`.
--   Render questions strictly in the order provided by the backend (do not use frontend randomizers here).
--   Implement a strict countdown timer based on duration and `startTime`.
--   Auto-save functionality.
--   Final submission logic.
+```
+startDateTime: May 4, 2026 @ 9:00 AM  ← Dean sets this
+endDateTime:   May 4, 2026 @ 12:00 PM ← Dean sets this
 
-#### [NEW] `client/src/pages/StudentExamResult.jsx`
--   A simple success page confirming that the exam attempt has been recorded. It will intentionally **not** display the score.
+Student starts at 9:00 AM  → gets 180 minutes remaining
+Student starts at 10:00 AM → gets 120 minutes remaining
+Student starts at 11:45 AM → gets 15 minutes remaining
+```
 
-#### [MODIFY] `client/src/App.jsx`
--   Add routes for `StudentExamRunner` and `StudentExamResult`.
+Student timer rule — always compute on the fly:
+```
+remainingTimeSeconds = endDateTime - now()
+```
 
-## 4. Verification Plan
+Never use duration to compute a student's remaining time.
 
-### Manual Verification
-1.  **Student Login & Dashboard:** Verify the student sees only unexpired, published exams for their program.
-2.  **Start Exam & Security:** Click "Start". Verify the payload in the network tab does **not** contain `isCorrect` flags. Verify questions and answers are randomized.
-3.  **Answer & Save:** Answer questions. Refresh the page to simulate leaving. Verify answers and timer state are preserved via backend validation.
-4.  **Submit Exam:** Submit the exam. Verify redirection to the success page and confirm **no score is shown**.
-5.  **Attempt Limits:** Attempt to take the same exam again and verify the system blocks it.
+---
+
+## Change 1 — MockBoardExam Model
+
+Remove:
+```javascript
+examDate: Date,
+duration: Number
+```
+
+Add:
+```javascript
+startDateTime: {
+    type: Date,
+    required: true
+},
+endDateTime: {
+    type: Date,
+    required: true,
+    validate: {
+        validator: function(value) {
+            return value > this.startDateTime;
+        },
+        message: 'endDateTime must be after startDateTime'
+    }
+}
+```
+
+Add a virtual for display only — do not store this in the database:
+```javascript
+MockBoardExamSchema.virtual('durationMinutes').get(function() {
+    if (!this.startDateTime || !this.endDateTime) return null;
+    return Math.round((this.endDateTime - this.startDateTime) / 60000);
+});
+```
+
+---
+
+## Change 2 — Exam Controller
+
+On create and update:
+- Accept `startDateTime` and `endDateTime` from request body
+- Validate `endDateTime` is after `startDateTime`
+- Validate `startDateTime` is in the future on create
+- Remove all references to `examDate` and `duration`
+
+Student availability check — replace existing check with:
+```javascript
+const now = new Date();
+
+if (now < exam.startDateTime) {
+    return res.status(403).json({
+        error: 'This exam has not started yet.',
+        startsAt: exam.startDateTime
+    });
+}
+
+if (now >= exam.endDateTime) {
+    return res.status(403).json({
+        error: 'This exam window has already closed.'
+    });
+}
+```
+
+---
+
+## Change 3 — Student Exam Controller
+
+In startExam — replace duration timer with remaining time:
+```javascript
+const now = new Date();
+const remainingTimeSeconds = Math.floor((exam.endDateTime - now) / 1000);
+
+return res.json({
+    remainingTimeSeconds,
+    endDateTime: exam.endDateTime,
+    // ... rest of response unchanged
+});
+```
+
+In submitExam — replace duration validation with endDateTime validation:
+```javascript
+const now = new Date();
+const GRACE_PERIOD_MS = 30000; // 30 seconds for network delay
+
+if (now > new Date(exam.endDateTime.getTime() + GRACE_PERIOD_MS)) {
+    attempt.lateSubmission = true;
+}
+// Always accept — never hard reject due to timing
+```
+
+In autoSubmitIfExpired — use endDateTime as the endTime:
+```javascript
+attempt.endTime = exam.endDateTime; // NOT now()
+attempt.autoSubmitted = true;
+```
+
+---
+
+## Change 4 — StudentExamAttempt Model
+
+Add two fields only:
+```javascript
+autoSubmitted: {
+    type: Boolean,
+    default: false
+},
+lateSubmission: {
+    type: Boolean,
+    default: false
+}
+```
+
+---
+
+## Change 5 — Frontend Exam Runner
+
+Timer initialization — use remainingTimeSeconds and endDateTime from backend:
+```javascript
+const { remainingTimeSeconds, endDateTime } = await startExam(examId);
+setExamEndDateTime(new Date(endDateTime));
+```
+
+Timer countdown — drive by endDateTime minus now(), not a simple decrement:
+```javascript
+useEffect(() => {
+    const interval = setInterval(() => {
+        const remaining = Math.floor((examEndDateTime - new Date()) / 1000);
+        if (remaining <= 0) {
+            clearInterval(interval);
+            handleAutoSubmit();
+            return;
+        }
+        setTimeRemaining(remaining);
+    }, 1000);
+    return () => clearInterval(interval);
+}, [examEndDateTime]);
+```
+
+On resume — timer picks up from endDateTime - now(), never resets to full duration.
+
+---
+
+## Change 6 — Frontend Exam Creation Form (Dean)
+
+Remove:
+- examDate date/time picker
+- duration number input (minutes)
+
+Add:
+- startDateTime — date and time picker, label: "Exam Start"
+- endDateTime — date and time picker, label: "Exam End"
+- Read-only computed display: "Duration: X hours Y minutes"
+  (computed from endDateTime - startDateTime, for Dean reference only)
+
+Form validation:
+- endDateTime must be after startDateTime — show inline error
+- startDateTime must be in the future — show inline error
+
+---
+
+## Field Changes Summary
+
+### MockBoardExam:
+| Action | Field | Type |
+|---|---|---|
+| REMOVE | examDate | Date |
+| REMOVE | duration | Number |
+| ADD | startDateTime | Date, required |
+| ADD | endDateTime | Date, required |
+| ADD virtual | durationMinutes | Computed only, not stored |
+
+### StudentExamAttempt:
+| Action | Field | Type |
+|---|---|---|
+| ADD | autoSubmitted | Boolean, default false |
+| ADD | lateSubmission | Boolean, default false |
+
+---
+
+## Hard Rules
+
+1. NEVER use duration to compute a student's remaining time — always use endDateTime - now()
+2. NEVER hard reject a submission due to timing — set lateSubmission: true instead
+3. NEVER reset timer to full duration on resume — always recompute from endDateTime - now()
+4. ALWAYS use exam.endDateTime as endTime on auto-submitted attempts — not now()
+5. Frontend timer must recalculate from endDateTime - now() every second — not decrement a stored value
+
+---
+
+## What Must Not Change
+
+Everything else in the codebase stays untouched. This refactor only affects:
+- How the exam window is stored (model fields)
+- How availability is checked (controller)
+- How remaining time is computed (student exam controller + frontend timer)
+- How the Dean sets the exam window (creation form)
+
+Do not touch question selection, publishing flow, scoring, result release,
+void window logic, randomization, or any other feature.
