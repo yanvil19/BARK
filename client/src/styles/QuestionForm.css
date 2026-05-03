@@ -514,3 +514,9 @@
   background: #fafbff;
   border-color: #aab8ed;
 }
+
+.warning-text {
+  color: red;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}

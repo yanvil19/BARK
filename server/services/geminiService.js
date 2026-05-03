@@ -56,7 +56,16 @@ Rules you must strictly follow:
 10. For suggested_tag: if a tag list is provided at the top of the document text,
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
-    If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".`;
+    If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".
+11. If a question appears to have multiple correct answers (e.g., "Answer: AB"), 
+    set correct_answer to null and set confidence to "low".
+12. Never include the answer indicator in the question_text. 
+    If the document shows "Answer: B" or "Ans: B" or "* B" at the end 
+    of a question, extract it as correct_answer only — do not copy it 
+    into question_text.
+13. If answer choices appear inline with the question text 
+    (e.g. "Question A. option1 B. option2"), extract them into 
+    the options field only — do not include them in question_text.`;
 
 class GeminiService {
     constructor() {
@@ -124,11 +133,12 @@ class GeminiService {
 
             const rawJson = response.response.text();
             const questions = JSON.parse(rawJson);
-            console.log('Sample question fields:', Object.keys(questions[0] || {}));
 
             if (!Array.isArray(questions)) {
                 throw new Error('Response is not a JSON array');
             }
+
+            console.log('Sample question fields:', Object.keys(questions[0] || {}));
 
             return questions;
         } catch (error) {
@@ -145,7 +155,7 @@ class GeminiService {
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     return this.extractQuestions(documentText, retryCount + 1, tags);
                 }
-}
+            }
             // Re-throw after retry exhausted
             throw error;
         }
@@ -154,11 +164,11 @@ class GeminiService {
     /**
      * Validates question structure and adds guardrail flags
      */
-    addGuardrailFlags(question) {
+    addGuardrailFlags(question, previousQuestionNumber = null) {
         const flags = [];
         let blockerCount = 0;
 
-        // Check for empty question text
+        // 1. Check for empty question text
         if (!question.question_text || question.question_text.trim() === '') {
             flags.push({
                 severity: 'BLOCKER',
@@ -167,12 +177,14 @@ class GeminiService {
             blockerCount++;
         }
 
-        // Check option count
-        const optionCount = Object.values(question.options || {}).filter(o => o !== null).length;
+        // 2. Check option count
+        const optionsArray = Object.values(question.options || {}).filter(o => o !== null);
+        const optionCount = optionsArray.length;
+        
         if (optionCount < 4) {
             flags.push({
                 severity: 'BLOCKER',
-                message: 'This question has fewer than 4 answer choices.'
+                message: `This question has only ${optionCount} answer choices (Minimum 4 required).`
             });
             blockerCount++;
         } else if (optionCount > 5) {
@@ -183,7 +195,17 @@ class GeminiService {
             blockerCount++;
         }
 
-        // Check for correct answer
+        // 3. Check for Duplicate Options (UX Fix)
+        const uniqueOptions = new Set(optionsArray.map(o => o.trim().toLowerCase()));
+        if (uniqueOptions.size < optionCount) {
+            flags.push({
+                severity: 'BLOCKER',
+                message: 'Duplicate answer choices detected. Please ensure all options are unique.'
+            });
+            blockerCount++;
+        }
+
+        // 4. Check for correct answer
         if (!question.correct_answer) {
             flags.push({
                 severity: 'BLOCKER',
@@ -192,7 +214,7 @@ class GeminiService {
             blockerCount++;
         }
 
-        // Check AI confidence
+        // 7. Check AI confidence
         if (question.confidence === 'low') {
             flags.push({
                 severity: 'WARNING',
@@ -200,7 +222,7 @@ class GeminiService {
             });
         }
 
-        // Check for tag suggestion — clear it if confidence is not high
+        // 9. Check for tag suggestion
         if (!question.suggested_tag || question.suggested_tag_confidence !== 'high') {
             question.suggested_tag = null;
             flags.push({
@@ -209,11 +231,11 @@ class GeminiService {
             });
         }
 
-        // Check for image without linkage
+        // 10. Check for image without linkage
         if (question.has_image) {
             flags.push({
                 severity: 'WARNING',
-                message: 'This question references an image that could not be automatically linked. Please upload it manually.'
+                message: 'This question references an image. Please upload it manually.'
             });
         }
 
@@ -236,8 +258,11 @@ class GeminiService {
      * Process all extracted questions with guardrails
      */
     processQuestionsWithGuardrails(questions) {
-        return questions.map(q => this.addGuardrailFlags(q));
-    }
+    return questions.map((q, i) => {
+        const prev = i > 0 ? questions[i - 1].question_number : null;
+        return this.addGuardrailFlags(q, prev);
+    });
+}
 }
 
 module.exports = new GeminiService();

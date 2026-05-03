@@ -61,9 +61,17 @@ const questionSchema = new mongoose.Schema(
       default: 'draft',
       index: true,
     },
+    flags: {
+      type: [{
+          severity: { type: String },
+          message: { type: String }
+      }],
+      default: []
+    },
     revisionNote: { type: String, default: null, trim: true },
     rejectionReason: { type: String, default: null, trim: true },
     submittedAt: { type: Date, default: null },
+    
   },
   { timestamps: true }
 );

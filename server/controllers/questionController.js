@@ -62,17 +62,22 @@ const listApprovals = async (req, res) => {
 // POST /api/questions
 const createQuestion = async (req, res) => {
   try {
-    const { title, description, answers, tagId, programId, images } = req.body;
+    const { title, description, answers, tagId, programId, images, isDraft, flags } = req.body;
 
+    // Always required
     if (!title?.trim()) return res.status(400).json({ message: 'Question title is required' });
-    if (!description?.trim()) return res.status(400).json({ message: 'Question description is required' });
-    if (!Array.isArray(answers) || answers.length < 2)
-      return res.status(400).json({ message: 'At least 2 answers are required' });
-    if (!answers.some((a) => a.isCorrect))
-      return res.status(400).json({ message: 'At least one answer must be marked as correct' });
-    if (!tagId) return res.status(400).json({ message: 'A topic tag is required' });
     if (Array.isArray(images) && images.length > 5)
       return res.status(400).json({ message: 'Maximum of 5 images allowed' });
+
+    // Only required on full submit
+    if (!isDraft) {
+      if (!description?.trim()) return res.status(400).json({ message: 'Question description is required' });
+      if (!Array.isArray(answers) || answers.length < 2)
+        return res.status(400).json({ message: 'At least 2 answers are required' });
+      if (!answers.some((a) => a.isCorrect))
+        return res.status(400).json({ message: 'At least one answer must be marked as correct' });
+      if (!tagId) return res.status(400).json({ message: 'A topic tag is required' });
+    }
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
     let resolvedProgramId;
@@ -88,21 +93,26 @@ const createQuestion = async (req, res) => {
 
     if (!resolvedProgramId) return res.status(400).json({ message: 'No program assigned' });
 
-    // Validate tag belongs to resolved program
-    const tag = await Tag.findById(tagId);
-    if (!tag || !tag.isActive) return res.status(400).json({ message: 'Invalid or inactive tag' });
-    if (tag.program.toString() !== resolvedProgramId)
-      return res.status(400).json({ message: 'Tag does not belong to the specified program' });
+    // Only validate tag if one was provided
+    if (tagId) {
+      const tag = await Tag.findById(tagId);
+      if (!tag || !tag.isActive) return res.status(400).json({ message: 'Invalid or inactive tag' });
+      if (tag.program.toString() !== resolvedProgramId)
+        return res.status(400).json({ message: 'Tag does not belong to the specified program' });
+    }
+
+    const cleanedAnswers = (answers || []).filter(a => a.text?.trim());
 
     const question = await Question.create({
       title: title.trim(),
-      description: description.trim(),
+      description: description?.trim() || '',
       images: images || [],
-      answers,
-      tag: tagId,
+      answers: cleanedAnswers,
+      tag: tagId || undefined,
       program: resolvedProgramId,
       createdBy: req.user._id,
       state: 'draft',
+      flags: flags || [],
     });
 
     const populated = await question.populate([
@@ -125,22 +135,30 @@ const updateQuestion = async (req, res) => {
     if (question.state !== 'draft' && question.state !== 'returned')
       return res.status(400).json({ message: 'Only draft or returned questions can be edited' });
 
-    const { title, description, answers, tagId, images } = req.body;
+    const { title, description, answers, tagId, images, isDraft, flags } = req.body;
+    
     if (title) question.title = title.trim();
     if (description) question.description = description.trim();
+    
     if (images !== undefined) {
       if (Array.isArray(images) && images.length > 5)
         return res.status(400).json({ message: 'Maximum of 5 images allowed' });
       question.images = images;
     }
+
     if (answers) {
-      if (!Array.isArray(answers) || answers.length < 2)
-        return res.status(400).json({ message: 'At least 2 answers are required' });
-      if (!answers.some((a) => a.isCorrect))
-        return res.status(400).json({ message: 'At least one correct answer is required' });
-      question.answers = answers;
+      if (!isDraft) {
+        if (!Array.isArray(answers) || answers.length < 2)
+          return res.status(400).json({ message: 'At least 2 answers are required' });
+        if (!answers.some((a) => a.isCorrect))
+          return res.status(400).json({ message: 'At least one correct answer is required' });
+      }
+      const cleanedAnswers = answers.filter(a => a.text?.trim());
+      question.answers = cleanedAnswers;
     }
+
     if (tagId) question.tag = tagId;
+    if (flags !== undefined) question.flags = flags;
 
     await question.save();
     const populated = await question.populate([

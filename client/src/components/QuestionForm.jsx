@@ -9,7 +9,7 @@ function generateId() {
 }
 
 export default function QuestionForm({ tags, programId, initialData, onSaved, onClose, readOnly = false, importedQuestions = [] }) {
-    const [questionsData, setQuestionsData] = useState(() => {
+  const [questionsData, setQuestionsData] = useState(() => {
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
@@ -17,17 +17,20 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         title: q.question_title || q.title || '',
         description: q.description || '',
         answers: q.answers?.length >= 2 ? q.answers : [
-          { text: '', isCorrect: true },
-          { text: '', isCorrect: false },
+            { text: '', isCorrect: true },
+            { text: '', isCorrect: false },
         ],
         tagId: q.tagId || '',
         imagePreviews: [],
         uploadedUrls: [],
         uploading: false,
-        error: q.flags?.map(f => f.message).join(' | ') || '',
+        error: q.flags?.filter(f => f.severity === 'BLOCKER').map(f => f.message).join(' | ') || '',
+        warning: q.flags?.filter(f => f.severity === 'WARNING').map(f => f.message).join(' | ') || '',
+        flags: q.flags || [],  // carry flags forward
       }));
     }
 
+    // Default — single empty form or edit form
     // Default — single empty form or edit form
     return [{
       id: generateId(),
@@ -45,7 +48,9 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       })),
       uploadedUrls: initialData?.images || [],
       uploading: false,
-      error: '',
+      error: initialData?.flags?.filter(f => f.severity === 'BLOCKER').map(f => f.message).join(' | ') || '',
+      warning: initialData?.flags?.filter(f => f.severity === 'WARNING').map(f => f.message).join(' | ') || '',
+      flags: initialData?.flags || [],
     }];
   });
   const [saving, setSaving] = useState(false);
@@ -147,17 +152,24 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       if (!q.description.trim()) return `${prefix}Question description is required.`;
       if (!q.tagId) return `${prefix}Please select a subject.`;
       if (q.answers.some((a) => !a.text.trim())) return `${prefix}All answer fields must be filled in.`;
+      if (q.answers.length < 4) return `${prefix}At least 4 answer choices are required.`;
+      if (q.answers.length > 5) return `${prefix}No more than 5 answer choices are allowed.`;
       if (!q.answers.some((a) => a.isCorrect)) return `${prefix}Mark one answer as correct.`;
+      const answerTexts = q.answers.map(a => a.text.trim().toLowerCase());
+      const uniqueAnswers = new Set(answerTexts);
+      if (uniqueAnswers.size < answerTexts.length) return `${prefix}Duplicate answer choices detected. Please ensure all options are unique.`;
     }
     return '';
   }
 
   async function save(submit = false) {
-    if (readOnly) return;
-    const err = validate();
-    if (err) {
-      alert(err);
-      return;
+    if (submit) {
+        const err = validate();
+        if (err) { alert(err); return; }
+    } else {
+        // lighter check for drafts — just need a title at minimum
+        const err = questionsData.find(q => !q.title.trim());
+        if (err) { alert('Question title is required to save a draft.'); return; }
     }
 
     setSaving(true);
@@ -171,6 +183,8 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
           answers: q.answers,
           tagId: q.tagId,
           images: q.uploadedUrls,
+          isDraft: !submit,
+          flags: submit ? [] : q.flags,  // clear flags on submit
           ...(programId ? { programId } : {}),
         };
 
@@ -391,7 +405,8 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               )}
             </section>
             
-            {q.error ? <p className="error-text">{q.error}</p> : null}
+            {q.error ? <p className="error-text">⛔ {q.error}</p> : null}
+            {q.warning ? <p className="warning-text">⚠️ {q.warning}</p> : null}
           </div>
         ))}
       </div>
