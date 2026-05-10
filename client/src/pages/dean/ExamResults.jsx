@@ -114,7 +114,17 @@ const ExamResults = () => {
   const [activeReport, setActiveReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [computingId, setComputingId] = useState(null);
+  const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
+
+  // Sync threshold with active report when it changes
+  useEffect(() => {
+    if (activeReport?.passingThreshold) {
+      setThreshold(activeReport.passingThreshold);
+    } else {
+      setThreshold(70);
+    }
+  }, [activeReport?.passingThreshold]);
 
   const fetchExams = useCallback(async () => {
     try {
@@ -165,7 +175,7 @@ const ExamResults = () => {
   const handleCompute = async (examId) => {
     setComputingId(examId);
     try {
-      const data = await computeExamResult(examId);
+      const data = await computeExamResult(examId, threshold);
       fetchExams();
       if (selectedExamId === examId) setActiveReport(data.result);
     } catch (err) {
@@ -260,16 +270,32 @@ const ExamResults = () => {
           )}
 
           {selectedExamId && !loading && !activeReport && (
-            <div className="er-empty-report" style={{ textAlign: 'center', padding: '100px', background: '#f9fafb', borderRadius: '12px', border: '2px dashed #e5e7eb' }}>
-              <h2 style={{ color: '#374151', marginBottom: '12px' }}>Results Not Found</h2>
-              <p style={{ color: '#6b7280' }}>The results for this exam haven't been computed yet or there are no student attempts.</p>
+            <div className="er-empty-report" style={{ textAlign: 'center', padding: '60px 100px', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px' }}>📊</div>
+              <h2 style={{ color: '#1e2d6b', marginBottom: '12px', fontWeight: '800' }}>Results Ready to Compute</h2>
+              <p style={{ color: '#6b7280', marginBottom: '32px' }}>Select your passing threshold and generate the analytical breakdown for this exam.</p>
+              
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+                <div className="er-threshold-ctrl">
+                  <span>Passing Threshold:</span>
+                  <input 
+                    type="number" 
+                    className="er-threshold-input" 
+                    value={threshold} 
+                    onChange={(e) => setThreshold(Number(e.target.value))}
+                    min="1" max="100"
+                  />
+                  <span>%</span>
+                </div>
+              </div>
+
               <button 
                 className="er-btn-add" 
-                style={{ marginTop: '24px', background: '#1e2d6b', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '6px', cursor: 'pointer' }}
+                style={{ background: '#1e2d6b', color: 'white', border: 'none', padding: '12px 32px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}
                 onClick={() => handleCompute(selectedExamId)}
                 disabled={computingId === selectedExamId}
               >
-                {computingId === selectedExamId ? 'Processing...' : 'Compute Results Now'}
+                {computingId === selectedExamId ? 'Starting Analysis...' : 'Generate Analysis'}
               </button>
             </div>
           )}
@@ -277,9 +303,30 @@ const ExamResults = () => {
           {activeReport && (
             <div className="er-report-view">
               {/* Exam Specific Header */}
-              <div className="er-report-header" style={{ marginBottom: '24px' }}>
+              <div className="er-report-header">
                 <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#1e2d6b' }}>{activeReport.examName}</h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#8c96ae' }}>Last computed: {summary.computedAt}</p>
+                <div className="er-report-meta">
+                  <span className="er-report-ts">Last computed: {summary.computedAt}</span>
+                  <span className="er-divider">|</span>
+                  <div className="er-threshold-ctrl">
+                    <span>Threshold:</span>
+                    <input 
+                      type="number" 
+                      className="er-threshold-input" 
+                      value={threshold} 
+                      onChange={(e) => setThreshold(Number(e.target.value))}
+                      min="1" max="100"
+                    />
+                    <span>%</span>
+                    <button 
+                      className="er-recompute-btn"
+                      onClick={() => handleCompute(selectedExamId)}
+                      disabled={computingId === selectedExamId}
+                    >
+                      {computingId === selectedExamId ? '...' : 'RE-COMPUTE'}
+                    </button>
+                  </div>
+                </div>
               </div>
               
               {/* Hero Card */}

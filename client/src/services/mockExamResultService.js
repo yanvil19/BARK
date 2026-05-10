@@ -10,9 +10,10 @@ export const getExamResult = async (examId) => {
   return await apiAuth(`${BASE_URL}/${examId}`);
 };
 
-export const computeExamResult = async (examId) => {
+export const computeExamResult = async (examId, passingThreshold = 70) => {
   return await apiAuth(`${BASE_URL}/${examId}/compute`, {
-    method: 'POST'
+    method: 'POST',
+    body: { passingThreshold }
   });
 };
 

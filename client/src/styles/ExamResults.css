@@ -37,6 +37,70 @@
   padding: 0 32px;
 }
 
+/* Report Header (Inner) */
+.er-report-header {
+  margin-bottom: 24px;
+}
+
+.er-report-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.er-report-ts {
+  font-size: 14px;
+  color: #8c96ae;
+}
+
+.er-divider {
+  color: #d1d5db;
+}
+
+.er-threshold-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.er-threshold-input {
+  width: 50px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e2d6b;
+  text-align: center;
+}
+
+.er-recompute-btn {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.er-recompute-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #1e2d6b;
+}
+
+.er-recompute-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Hero Section Card */
 .er-hero-card {
   background: #1e2d6b !important;

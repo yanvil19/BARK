@@ -64,17 +64,9 @@ exports.getResult = async (req, res) => {
 exports.computeResults = async (req, res) => {
   try {
     const { examId } = req.params;
+    const { passingThreshold } = req.body;
 
-    // 1. DUPLICATE CHECK
-    const existing = await MockExamResult.findOne({ examId, status: 'computed' });
-    if (existing) {
-      return res.status(409).json({
-        message: 'Results already computed for this exam.',
-        resultId: existing._id
-      });
-    }
-
-    // 2. EXAM & DEPARTMENT CHECK
+    // 1. EXAM & DEPARTMENT CHECK
     const exam = await MockBoardExam.findOne({
       _id: examId,
       department: req.user.department
@@ -84,14 +76,14 @@ exports.computeResults = async (req, res) => {
       return res.status(403).json({ message: 'Forbidden — exam not in your department' });
     }
 
-    // 3. WINDOW CHECK
+    // 2. WINDOW CHECK
     if (new Date() < new Date(exam.endDateTime)) {
       return res.status(400).json({ 
         message: 'Exam window is still open. Cannot compute results yet.' 
       });
     }
 
-    // 4. FETCH ATTEMPTS
+    // 3. FETCH ATTEMPTS
     const attempts = await StudentExamAttempt.find({ 
       exam: examId, 
       status: 'submitted' 
@@ -103,7 +95,7 @@ exports.computeResults = async (req, res) => {
       });
     }
 
-    // 5. COMPUTE PER-QUESTION RATES
+    // 4. COMPUTE PER-QUESTION RATES
     const totalTakers = attempts.length;
     const questionRates = []; // { qId, tagId, correctRate, label }
 
@@ -130,7 +122,7 @@ exports.computeResults = async (req, res) => {
       });
     }
 
-    // 6. COMPUTE PER-SUBJECT AVERAGES (Average of question rates)
+    // 5. COMPUTE PER-SUBJECT AVERAGES (Average of question rates)
     const tagIds = [...new Set(questionRates.map(qr => qr.tagId))];
     const tags = await Tag.find({ _id: { $in: tagIds } });
 
@@ -162,13 +154,13 @@ exports.computeResults = async (req, res) => {
       };
     });
 
-    // 7. SAVE OR UPDATE MockExamResult
+    // 6. SAVE OR UPDATE MockExamResult
     const resultData = {
       examId,
       examName: exam.name,
       dateConducted: exam.startDateTime,
       totalTakers,
-      passingThreshold: 70, // Or pull from program/exam config
+      passingThreshold: passingThreshold || 70,
       status: 'computed',
       computedAt: new Date(),
       subjects: subjectsArray,
