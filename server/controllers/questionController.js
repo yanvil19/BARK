@@ -309,7 +309,7 @@ const reviewQuestion = async (req, res) => {
       requiredState = 'retired';
       updateSet = { state: 'approved', currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'delete') {
-      requiredState = 'rejected';
+      requiredState = { $in: ['rejected', 'retired'] };
       // delete is handled separately below
     }
 
@@ -324,13 +324,14 @@ const reviewQuestion = async (req, res) => {
 
     // Handle delete atomically
     if (action === 'delete') {
-      const deleted = await Question.findOneAndDelete(ownershipFilter);
-      if (!deleted) {
+      const question = await Question.findOne(ownershipFilter);
+      if (!question) {
         // Check if it exists but state changed
         const exists = await Question.findById(questionId);
         if (!exists) return res.status(404).json({ message: 'Question not found' });
         return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
       }
+      await question.deleteOne();
       return res.json({ message: 'Question deleted' });
     }
 

@@ -119,8 +119,8 @@ export default function StudentExamRunner({ examId, onFinish }) {
   if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
-  const progressPercent = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.values(answers).filter(Boolean).length;
+  const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
   return (
     <div className="mbep-page">

@@ -92,8 +92,8 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
 
   const questions = exam.questions || [];
   const currentQuestion = questions[currentIdx];
-  const progressPercent = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.values(answers).filter(Boolean).length;
+  const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
   return (
     <div className="mbep-page">
