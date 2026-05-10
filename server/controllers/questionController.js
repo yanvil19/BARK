@@ -271,7 +271,7 @@ const reviewQuestion = async (req, res) => {
     }
 
     const { action, note } = req.body; // action: 'approve', 'return', 'reject', 'restore', 'delete'
-    if (!['approve', 'return', 'reject', 'restore', 'delete'].includes(action)) {
+    if (!['approve', 'return', 'reject', 'restore', 'reuse', 'delete'].includes(action)) {
       return res.status(400).json({ message: 'Invalid action' });
     }
 
@@ -281,6 +281,9 @@ const reviewQuestion = async (req, res) => {
     }
     if (action === 'reject' && !note?.trim()) {
       return res.status(400).json({ message: 'Rejection reason is required when rejecting' });
+    }
+    if (action === 'restore' && !note?.trim()) {
+      return res.status(400).json({ message: 'Feedback is required when restoring for review' });
     }
 
     // Build the atomic filter and update based on action
@@ -297,8 +300,14 @@ const reviewQuestion = async (req, res) => {
       requiredState = 'pending_chair';
       updateSet = { state: 'rejected', rejectionReason: note.trim(), currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'restore') {
-      requiredState = 'rejected';
-      updateSet = { state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
+      requiredState = { $in: ['rejected', 'retired'] };
+      updateSet = { state: 'returned', revisionNote: note.trim(), currentReviewer: null, reviewStartedAt: null };
+    } else if (action === 'reuse') {
+      if (req.user.role !== 'dean') {
+        return res.status(403).json({ message: 'Only Deans can mark retired questions for reuse' });
+      }
+      requiredState = 'retired';
+      updateSet = { state: 'approved', currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'delete') {
       requiredState = 'rejected';
       // delete is handled separately below

@@ -2,11 +2,12 @@ const express = require('express');
 const {
   listApprovedQuestions,
   createMockBoardExam,
-  listMockBoardExams, // This is the controller we updated to filter by 'published'
+  listMockBoardExams,
   getMockBoardExam,
   updateMockBoardExam,
   deleteMockBoardExam,
   listPublishedExams,
+  archiveExam,
 } = require('../controllers/mockBoardExamController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,7 @@ router.get('/approved-questions', protect, authorizeRoles('dean'), listApprovedQ
 router.get('/:id', protect, authorizeRoles('dean'), getMockBoardExam);
 router.post('/', protect, authorizeRoles('dean'), createMockBoardExam);
 router.patch('/:id', protect, authorizeRoles('dean'), updateMockBoardExam);
+router.patch('/:id/archive', protect, authorizeRoles('dean'), archiveExam);
 router.delete('/:id', protect, authorizeRoles('dean'), deleteMockBoardExam);
 
 module.exports = router;

@@ -4,13 +4,15 @@ import '../styles/QuestionApprovals.css';
 
 const BASE = 'http://localhost:5000';
 
-const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected'];
+const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected', 'in_use', 'retired'];
 
 const STATE_LABELS = {
   pending_chair: 'Pending Review',
   returned: 'Returned for Revision',
   approved: 'Approved',
   rejected: 'Rejected',
+  in_use: 'In Use',
+  retired: 'Retired',
 };
 
 const LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes
@@ -201,8 +203,12 @@ export default function QuestionApprovals({ me }) {
   }
 
   async function submitAction() {
+    const noteLabel =
+      actionModal.action === 'return' ? 'revision note' :
+      actionModal.action === 'restore' ? 'restore feedback' :
+      'rejection reason';
     if (!note.trim()) {
-      alert(`A ${actionModal.action === 'return' ? 'revision note' : 'rejection reason'} is required.`);
+      alert(`A ${noteLabel} is required.`);
       return;
     }
 
@@ -215,14 +221,17 @@ export default function QuestionApprovals({ me }) {
 
       setActionTaken(true);
       setLockedQuestionId(null);
-      const newState = actionModal.action === 'return' ? 'returned' : 'rejected';
+      const newState =
+        actionModal.action === 'return' ? 'returned' :
+        actionModal.action === 'restore' ? 'returned' :
+        'rejected';
       const updatedQuestion = {
         ...actionModal.question,
         state: newState,
         currentReviewer: null,
         reviewStartedAt: null,
-        ...(newState === 'returned'
-          ? { revisionNote: note.trim() }
+        ...(newState === 'returned' || newState === 'pending_chair'
+          ? { revisionNote: note.trim(), rejectionReason: null }
           : { rejectionReason: note.trim() }),
       };
 
@@ -247,17 +256,15 @@ export default function QuestionApprovals({ me }) {
     }
   }
 
-  async function handleRestore(question) {
-    if (!window.confirm(`Restore "${question.title}" to pending review queue?`)) return;
+  async function handleReuse(question) {
+    if (!window.confirm(`Mark "${question.title}" as approved for reuse?\n\nThis makes it selectable for new exams without sending it back to the creator.`)) return;
     try {
       await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
         method: 'POST',
-        body: { action: 'restore' },
+        body: { action: 'reuse' },
       });
-      const updated = { ...question, state: 'pending_chair', rejectionReason: null, currentReviewer: null, reviewStartedAt: null };
-      setQuestions((prev) => prev.map((item) => (
-        item._id === question._id ? updated : item
-      )));
+      const updated = { ...question, state: 'approved', currentReviewer: null, reviewStartedAt: null };
+      setQuestions((prev) => prev.map((item) => (item._id === question._id ? updated : item)));
       setSelectedQuestion(updated);
     } catch (err) {
       if (err.status === 409) {
@@ -265,7 +272,7 @@ export default function QuestionApprovals({ me }) {
         fetchApprovals();
         setSelectedQuestion(null);
       } else {
-        alert(err.message || 'Failed to restore question.');
+        alert(err.message || 'Failed to mark question for reuse.');
       }
     }
   }
@@ -594,9 +601,15 @@ export default function QuestionApprovals({ me }) {
                   <button className="ca-btn ca-btn--return" onClick={() => { setActionModal({ question: selectedQuestion, action: 'return' }); setNote(''); }}>Return for Revision</button>
                   <button className="ca-btn ca-btn--reject" onClick={() => { setActionModal({ question: selectedQuestion, action: 'reject' }); setNote(''); }}>Reject</button>
                 </>
-              ) : selectedQuestion.state === 'rejected' ? (
+              ) : (selectedQuestion.state === 'rejected') ? (
                 <>
-                  <button className="ca-btn ca-btn--restore" onClick={() => handleRestore(selectedQuestion)}>Restore to Review</button>
+                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore to Review</button>
+                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete Permanently</button>
+                </>
+              ) : (selectedQuestion.state === 'retired') ? (
+                <>
+                  <button className="ca-btn ca-btn--reuse" onClick={() => handleReuse(selectedQuestion)}>Use Again</button>
+                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore to Review</button>
                   <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete Permanently</button>
                 </>
               ) : (
@@ -616,21 +629,33 @@ export default function QuestionApprovals({ me }) {
         <div className="ca-modal-overlay">
           <div className="ca-modal">
             <div className="ca-modal-header">
-              <h3>{actionModal.action === 'return' ? 'Return for Revision' : 'Reject Question'}</h3>
+              <h3>
+                {actionModal.action === 'return' ? 'Return for Revision' :
+                 actionModal.action === 'restore' ? 'Restore for Review' :
+                 'Reject Question'}
+              </h3>
               <button className="ca-modal-close" onClick={() => setActionModal(null)} type="button">x</button>
             </div>
             <div className="ca-modal-body">
               <div><strong>Question:</strong> {actionModal.question.title}</div>
               <div className="ca-form-group">
                 <label className="ca-label">
-                  <strong>{actionModal.action === 'return' ? 'Revision Note (required)' : 'Rejection Reason (required)'}</strong>
+                  <strong>
+                    {actionModal.action === 'return' ? 'Revision Note (required)' :
+                     actionModal.action === 'restore' ? 'Restore Feedback (required)' :
+                     'Rejection Reason (required)'}
+                  </strong>
                 </label>
                 <textarea
                   className="ca-textarea"
                   rows="5"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={actionModal.action === 'return' ? 'Explain what needs to be fixed...' : 'Explain why this question is being rejected...'}
+                  placeholder={
+                    actionModal.action === 'return' ? 'Explain what needs to be fixed...' :
+                    actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
+                    'Explain why this question is being rejected...'
+                  }
                   autoFocus
                 />
               </div>

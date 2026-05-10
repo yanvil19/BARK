@@ -129,6 +129,21 @@
     color: #1d4ed8;
 }
 
+.ambe-status.published {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.ambe-status.finished {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.ambe-status.archived {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 /* ───────── DETAILS CARD ───────── */
 .ambe-details {
     margin: 1.5em 2em;
@@ -311,6 +326,17 @@
 
 .ambe-btn.delete:hover {
     background: #fee2e2;
+}
+
+/* Archive (finished → archived) */
+.ambe-btn.archive {
+    background: #fff;
+    color: #0f766e;
+    border-color: #0f766e;
+}
+
+.ambe-btn.archive:hover {
+    background: #f0fdfa;
 }
 
 .ambe-questions-container {

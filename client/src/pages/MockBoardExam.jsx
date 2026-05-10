@@ -31,6 +31,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [questionFilterTagId, setQuestionFilterTagId] = useState('');
   const [approvedSelectionFilter, setApprovedSelectionFilter] = useState('all');
+  const [questionStateFilter, setQuestionStateFilter] = useState('approved');
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
   const [form, setForm] = useState({
     name: '',
@@ -140,6 +141,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         const params = new URLSearchParams({
           program: programId,
           tags: selectedTagIds.join(','),
+          states: 'approved,in_use,retired'
         });
         const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
@@ -186,9 +188,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           (approvedSelectionFilter === 'selected' && isSelected) ||
           (approvedSelectionFilter === 'unselected' && !isSelected);
 
-        return matchesSearch && matchesTag && matchesSelection;
+        const matchesState = questionStateFilter === 'all' || question.state === questionStateFilter;
+
+        return matchesSearch && matchesTag && matchesSelection && matchesState;
       });
-  }, [approvedQuestions, approvedSelectionFilter, questionFilterTagId, searchQuery, selectedQuestionIds]);
+  }, [approvedQuestions, approvedSelectionFilter, questionFilterTagId, searchQuery, selectedQuestionIds, questionStateFilter]);
 
   const filteredSubjectOptions = useMemo(
     () => subjectOptions.filter((tag) => selectedTagIds.includes(String(tag._id))),
@@ -499,6 +503,16 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   <option value="selected">Selected only</option>
                   <option value="unselected">Not selected yet</option>
                 </select>
+                <select
+                  className="mbe-input mbe-filter-select"
+                  value={questionStateFilter}
+                  onChange={(e) => setQuestionStateFilter(e.target.value)}
+                >
+                  <option value="all">All States</option>
+                  <option value="approved">Approved (New)</option>
+                  <option value="in_use">In Use (Other Exams)</option>
+                  <option value="retired">Retired (Previous Exams)</option>
+                </select>
                 <div className="mbe-toolbar-stats">
                   <span className="mbe-toolbar-pill">{filteredApprovedQuestions.length} available</span>
                   <span className="mbe-toolbar-pill mbe-toolbar-pill--selected">{selectedQuestions.length} selected</span>
@@ -530,7 +544,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                             </div>
 
                             <div className="mbe-question-headline mbe-question-headline--compact">
-                              <h3>{question.title}</h3>
+                              <h3>
+                                {question.title}
+                                {question.state === 'retired' && <span className="mbe-state-badge mbe-state-badge--retired">Retired</span>}
+                                {question.state === 'in_use' && <span className="mbe-state-badge mbe-state-badge--inuse">In Use</span>}
+                              </h3>
                               <p>{question.description || 'No description provided.'}</p>
                             </div>
 

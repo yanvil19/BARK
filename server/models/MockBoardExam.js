@@ -59,7 +59,7 @@ const mockBoardExamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'published', 'archived'],
+      enum: ['draft', 'published', 'finished', 'archived'],
       default: 'draft',
       index: true,
     },

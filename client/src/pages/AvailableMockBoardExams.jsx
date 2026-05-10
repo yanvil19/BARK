@@ -49,6 +49,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
     }
   }
 
+  async function handleArchive(exam) {
+    if (!window.confirm(`Archive "${exam.name}"? This will move it out of the active list.`)) return;
+    try {
+      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/archive`, { method: 'PATCH' });
+      setExams((prev) => prev.map((e) => e._id === exam._id ? { ...e, status: 'archived' } : e));
+      if (selectedExam?._id === exam._id) setSelectedExam((prev) => ({ ...prev, status: 'archived' }));
+    } catch (err) {
+      alert(err.message || 'Failed to archive exam.');
+    }
+  }
+
   async function handleView(examId) {
     // If the same exam is clicked again → close details
     if (selectedExam?._id === examId) {
@@ -160,9 +171,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                       <button
                         type="button"
                         className="ambe-btn primary"
-                        onClick={() =>
-                          onEditExam(exam._id, 'preview')
-                        }
+                        onClick={() => onEditExam(exam._id, 'preview')}
                       >
                         Preview
                       </button>
@@ -170,20 +179,48 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                       <button
                         type="button"
                         className="ambe-btn primary"
-                        onClick={() =>
-                          onEditExam(exam._id, 'testRun')
-                        }
+                        onClick={() => onEditExam(exam._id, 'testRun')}
                       >
                         Test Run
                       </button>
 
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() => onEditExam(exam._id)}
-                      >
-                        Edit
-                      </button>
+                      {exam.status !== 'finished' && exam.status !== 'archived' && (
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={async () => {
+                            if (exam.status === 'published') {
+                              if (!window.confirm(`Editing "${exam.name}" will immediately revert it to Draft and take it offline. Continue?`)) return;
+                              
+                              try {
+                                // Perform immediate revert to draft
+                                await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+                                  method: 'PATCH',
+                                  body: { status: 'draft' }
+                                });
+                                // Update local state so UI reflects it immediately
+                                setExams(prev => prev.map(e => e._id === exam._id ? { ...e, status: 'draft' } : e));
+                              } catch (err) {
+                                alert('Failed to revert exam to draft: ' + err.message);
+                                return;
+                              }
+                            }
+                            onEditExam(exam._id);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+
+                      {exam.status === 'finished' && (
+                        <button
+                          type="button"
+                          className="ambe-btn archive"
+                          onClick={() => handleArchive(exam)}
+                        >
+                          Archive
+                        </button>
+                      )}
 
                       <button
                         type="button"

@@ -59,10 +59,27 @@ async function autoSubmitIfExpired(attempt) {
 async function getAvailableExams(req, res) {
   try {
     const now = new Date();
-    await MockBoardExam.updateMany(
-      { status: 'published', endDateTime: { $lt: now } },
-      { $set: { status: 'archived' } }
-    );
+    const examsToArchive = await MockBoardExam.find({ 
+      status: 'published', 
+      endDateTime: { $lt: now } 
+    }).select('_id questions');
+
+    if (examsToArchive.length > 0) {
+      const examIds = examsToArchive.map(e => e._id);
+      const questionIdsToRetire = examsToArchive.flatMap(e => e.questions);
+
+      if (questionIdsToRetire.length > 0) {
+        await Question.updateMany(
+          { _id: { $in: questionIdsToRetire } },
+          { $set: { state: 'retired' } }
+        );
+      }
+
+      await MockBoardExam.updateMany(
+        { _id: { $in: examIds } },
+        { $set: { status: 'finished' } }
+      );
+    }
 
     const exams = await MockBoardExam.find({
       program: req.user.program,
@@ -128,7 +145,24 @@ async function startExam(req, res) {
         startTime: now,
         randomizedQuestions: randomizedStructure,
       });
-      await attempt.save();
+      
+      try {
+        await attempt.save();
+      } catch (saveErr) {
+        // If a concurrent request already created the attempt, fetch it instead of failing
+        if (saveErr.code === 11000) {
+          attempt = await StudentExamAttempt.findOne({
+            student: req.user._id,
+            exam: examId,
+            status: 'in_progress'
+          });
+          if (!attempt) {
+            throw new Error('Failed to retrieve concurrent attempt');
+          }
+        } else {
+          throw saveErr; // Rethrow other errors
+        }
+      }
     }
 
     if (await autoSubmitIfExpired(attempt)) {

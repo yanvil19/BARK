@@ -17,8 +17,7 @@ const STATE_LABELS = {
   rejected: 'Rejected',
 };
 
-const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved'];
-const ARCHIVAL_FILTERS = ['in_use', 'retired', 'rejected'];
+const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved', 'rejected'];
 
 function formatDate(iso) {
   if (!iso) return '-';
@@ -59,10 +58,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const moreMenuRef = useRef(null);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -99,27 +96,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     fetchTags();
   }, [fetchTags]);
 
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
-        setShowMoreMenu(false);
-      }
-    }
-
-    function handleEscape(event) {
-      if (event.key === 'Escape') {
-        setShowMoreMenu(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -157,7 +133,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
   const counts = useMemo(() => {
     const result = { all: baseQuestions.length };
-    [...STATE_FILTERS, ...ARCHIVAL_FILTERS].forEach((state) => {
+    STATE_FILTERS.forEach((state) => {
       if (state === 'all') return;
       result[state] = baseQuestions.filter((q) => q.state === state).length;
     });
@@ -407,37 +383,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           </button>
         ))}
 
-        <div className="qp-more-wrap" ref={moreMenuRef}>
-          <button
-            type="button"
-            className={`qp-state-pill qp-state-pill--more ${ARCHIVAL_FILTERS.includes(filter) ? 'qp-state-pill--active' : ''}`}
-            onClick={() => setShowMoreMenu((prev) => !prev)}
-            aria-expanded={showMoreMenu}
-          >
-            <span>More</span>
-            <span className={`qp-more-caret ${showMoreMenu ? 'is-open' : ''}`}>^</span>
-          </button>
-
-          {showMoreMenu ? (
-            <div className="qp-more-menu">
-              <div className="qp-more-menu-label">Archival States</div>
-              {ARCHIVAL_FILTERS.map((state) => (
-                <button
-                  key={state}
-                  type="button"
-                  className={`qp-more-item ${filter === state ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setFilter(state);
-                    setShowMoreMenu(false);
-                  }}
-                >
-                  <span>{formatStateLabel(state)}</span>
-                  <span className="qp-more-count">{counts[state] || 0}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
 
         {role === 'dean' && (
           <select

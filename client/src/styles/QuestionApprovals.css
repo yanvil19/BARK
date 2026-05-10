@@ -338,6 +338,18 @@
   border: 1px solid #fda4af;
 }
 
+.ca-state--in_use {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.ca-state--retired {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
 /* ── Being Evaluated Badge ──────────────────────────────── */
 .ca-evaluating-badge {
   display: inline-flex;
@@ -755,6 +767,17 @@
 .ca-btn--restore:hover {
   background: #c7d2fe;
   border-color: #a5b4fc;
+}
+
+.ca-btn--reuse {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.ca-btn--reuse:hover {
+  background: #a7f3d0;
+  border-color: #34d399;
 }
 
 .ca-btn--delete {
