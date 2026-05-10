@@ -5,35 +5,27 @@
     margin: -20px;
 }
 
-/* ───────── HEADER ───────── */
-.ambe-page-header {
-    padding: 22px 32px 18px;
-    background: #f9faff;
-    border-bottom: 1px solid rgba(53, 64, 142, 0.3);
+/* Global Standard Header */
+.bark-page-header {
+  padding: 32px 40px;
+  background: white !important;
+  border-bottom: 1px solid #eef0f7 !important;
+  margin-bottom: 24px;
+  display: block !important;
 }
 
-.ambe-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+.bark-page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e2d6b !important;
+  margin: 0 !important;
+  line-height: 1.2;
 }
 
-.ambe-header-left {
-    display: flex;
-    flex-direction: column;
-}
-
-.ambe-title {
-    margin: 0 0 4px;
-    font-size: 24px;
-    font-weight: 700;
-    color: #35408e;
-}
-
-.ambe-subtitle {
-    margin: 0;
-    font-size: 13px;
-    color: #8b92bc;
+.bark-page-subtitle {
+  font-size: 13px;
+  color: #8c96ae !important;
+  margin: 6px 0 0 0 !important;
 }
 
 /* ───────── STATES ───────── */

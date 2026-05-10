@@ -376,16 +376,9 @@ export default function QuestionApprovals({ me }) {
 
   return (
     <main className="ca-page">
-      <header className="ca-page-header">
-        <div className="ca-header">
-          <div>
-            <h1 className="ca-title">Questions for Review and Approval</h1>
-            <p className="ca-subtitle">Questions submitted by faculty for Program Chair review</p>
-          </div>
-          <div className="ca-header-actions">
-            {programLabel ? <span className="ca-program-chip">{programLabel}</span> : null}
-          </div>
-        </div>
+      <header className="page-header">
+        <h1 className="page-header-title">Questions for Review and Approval</h1>
+        <p className="page-header-subtitle">Questions submitted by faculty for Program Chair review</p>
       </header>
 
       <div className="ca-state-pills">

@@ -60,3 +60,28 @@ strong {
   flex: 1;
   padding: 20px;
 }
+
+/* Page Header Standard Styles */
+.page-header {
+  padding: 16px 40px;
+  background: white;
+  border-bottom: 1px solid #eef0f7;
+  margin-bottom: 24px;
+}
+
+.page-header-title {
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e2d6b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.page-header-subtitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #8c96ae;
+  margin: 2px 0 0 0;
+  font-weight: 400;
+}

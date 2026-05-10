@@ -80,17 +80,12 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
   return (
     <main className="ambe-page">
-      {/* ── HEADER ───────────────────────── */}
-      <header className="ambe-page-header">
-        <div className="ambe-header">
-          <div className="ambe-header-left">
-            <h1 className="ambe-title">Available Mock Board Exams</h1>
-            <p className="ambe-subtitle">
-              This page lists the mock board exams created by the dean for
-              department programs.
-            </p>
-          </div>
-        </div>
+      <header className="page-header">
+        <h1 className="page-header-title">Available Mock Board Exams</h1>
+        <p className="page-header-subtitle">
+          This page lists the mock board exams created by the dean for
+          department programs.
+        </p>
       </header>
 
       {/* ── CONTENT ─────────────────────── */}

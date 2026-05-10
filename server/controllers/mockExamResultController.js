@@ -47,7 +47,7 @@ exports.getResult = async (req, res) => {
     });
 
     if (!result) {
-      return res.status(404).json({ message: 'Result not found or not yet computed' });
+      return res.json({ result: null, message: 'Result not yet computed' });
     }
 
     res.json({ result });
@@ -179,7 +179,7 @@ exports.computeResults = async (req, res) => {
     const finalResult = await MockExamResult.findOneAndUpdate(
       { examId },
       resultData,
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json({ result: finalResult });

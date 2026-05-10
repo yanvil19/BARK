@@ -3,76 +3,108 @@ import { listExamsWithStatus, getExamResult, computeExamResult } from '../../ser
 import '../../styles/ExamResults.css';
 
 // --- SHARED UI HELPERS ---
-const getPriorityBadge = (avg, threshold) => {
-  if (avg >= threshold) return <span className="er-badge er-badge-on-track">On track</span>;
-  if (avg >= threshold * 0.7) return <span className="er-badge er-badge-attention">Needs attention</span>;
-  return <span className="er-badge er-badge-focus">Priority focus</span>;
+const getStatusClass = (avg, threshold) => {
+  if (avg >= threshold) return 'green';
+  if (avg >= threshold * 0.7) return 'orange';
+  return 'red';
 };
 
-const getBarColor = (avg, threshold) => {
-  if (avg >= threshold) return '#22c55e';
-  if (avg >= threshold * 0.7) return '#eab308';
-  return '#ef4444';
+const getQuestionTagInfo = (rate) => {
+  if (rate >= 75) return { text: 'Most got this right', className: 'tag-green' };
+  if (rate >= 50) return { text: 'Mixed results', className: 'tag-yellow' };
+  return { text: 'Most got this wrong', className: 'tag-red' };
 };
 
-const getQuestionTag = (rate) => {
-  if (rate >= 75) return <span className="er-tag er-tag-right">Most got this right</span>;
-  if (rate >= 50) return <span className="er-tag er-tag-mixed">Mixed results</span>;
-  return <span className="er-tag er-tag-wrong">Most got this wrong</span>;
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 };
 
 // --- MEMOIZED COMPONENTS ---
 
-const QuestionRow = memo(({ question }) => (
-  <div className="er-question-item">
-    <div className="er-q-header">
-      <span className="er-q-label">{question.label}</span>
-      <span className="er-q-rate">{question.correctRate}%</span>
-    </div>
-    {getQuestionTag(question.correctRate)}
-  </div>
-));
-
-const SubjectBar = memo(({ subject, isExpanded, onToggle }) => (
-  <div className="er-subject-row">
-    <div className="er-subject-info">
-      <div className="er-subject-name-wrap">
-        <h3>{subject.name}</h3>
-        {subject.badge}
+const QuestionRow = memo(({ question }) => {
+  const tagInfo = getQuestionTagInfo(question.correctRate);
+  return (
+    <div className="er-question-item">
+      <div className="er-q-header">
+        <span className="er-q-label">{question.label}</span>
+        <span className="er-q-rate">{question.correctRate}%</span>
       </div>
-      <div className="er-subject-stats">
-        <div className="er-subject-avg">{subject.averageScore}%</div>
-        <div className="er-subject-frac">
-          {subject.correctCount} / {subject.totalItems} Items Avg.
+      <div className={`er-q-tag ${tagInfo.className}`}>
+        {tagInfo.text}
+      </div>
+    </div>
+  );
+});
+
+const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
+  const status = getStatusClass(subject.averageScore, subject.threshold);
+  
+  return (
+    <div className="er-topic-wrapper">
+      <div className="er-topic-row" onClick={onToggle}>
+        <div className={`er-topic-name status-${status}`}>{subject.name}</div>
+        <div className="er-topic-bar-bg">
+          <div 
+            className={`er-topic-bar-fill bg-${status}`} 
+            style={{ width: `${subject.averageScore}%` }} 
+          />
+        </div>
+        <div className={`er-topic-pct status-${status}`}>{subject.averageScore}%</div>
+        <div className="er-topic-fraction">{subject.correctCount}/{subject.totalItems}</div>
+        <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
       </div>
-    </div>
-    
-    <div className="er-perf-bar-bg">
-      <div 
-        className="er-perf-bar-fill" 
-        style={{ 
-          width: `${subject.averageScore}%`, 
-          backgroundColor: subject.color 
-        }}
-      />
-      <div className="er-threshold-line" style={{ left: `${subject.threshold}%` }} />
-    </div>
 
-    <button className="er-expand-btn" onClick={onToggle}>
-      {isExpanded ? '▴ Hide Question Breakdown' : '▾ View Question Breakdown'}
-    </button>
+      {isExpanded && (
+        <div className="er-questions-grid">
+          {subject.questions.map((q, idx) => (
+            <QuestionRow key={idx} question={q} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
-    {/* Lazy Rendering of Questions */}
-    {isExpanded && (
-      <div className="er-questions-grid">
-        {subject.questions.map((q, idx) => (
-          <QuestionRow key={idx} question={q} />
-        ))}
+// Circular Progress Component
+const CircularProgress = ({ percentage, threshold }) => {
+  const radius = 80;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="er-circular-container">
+      <svg className="er-circular-svg">
+        <circle className="er-circular-bg" cx="90" cy="90" r={radius} />
+        <circle 
+          className="er-circular-fill" 
+          cx="90" cy="90" r={radius} 
+          style={{ 
+            strokeDasharray: circumference, 
+            strokeDashoffset: offset 
+          }} 
+        />
+      </svg>
+      <div className="er-circular-text">
+        <span className="big-pct">{percentage}%</span>
+        <span className="small-total">/ 100%</span>
+        <div className="er-threshold-label">Threshold: {threshold}%</div>
       </div>
-    )}
-  </div>
-));
+    </div>
+  );
+};
 
 // --- MAIN PAGE ---
 
@@ -100,54 +132,42 @@ const ExamResults = () => {
     setLoading(true);
     try {
       const data = await getExamResult(examId);
-      setActiveReport(data.result);
+      // Gracefully handle "not computed" without 404
+      setActiveReport(data.result || null);
       setExpandedSubjectName(null);
     } catch (err) {
       setActiveReport(null);
-      if (err.message !== 'Result not found or not yet computed') {
-        console.warn('Report load warning:', err.message);
-      }
+      console.warn('Could not load report:', err.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Auto-polling for pending status - Ensures cleanup and prevents memory leaks
   useEffect(() => {
-    // Only poll if an exam is selected AND we either have no report or it's still pending
-    if (!selectedExamId || (activeReport && activeReport.status === 'computed')) return;
+    fetchExams();
+  }, [fetchExams]);
 
+  // Polling for pending status
+  useEffect(() => {
+    if (!selectedExamId || (activeReport && activeReport.status === 'computed')) return;
     const pollInterval = setInterval(async () => {
       try {
         const data = await getExamResult(selectedExamId);
         if (data.result) {
           setActiveReport(data.result);
-          // If it just finished computing, the interval will be cleared on the next effect run
-          // because activeReport.status will be 'computed'
+          fetchExams(); // Refresh sidebar status too
         }
-      } catch (err) {
-        // Silently ignore 404s during polling
-        if (err.message !== 'Result not found or not yet computed') {
-          console.error('Polling error:', err);
-        }
-      }
+      } catch (err) {}
     }, 30000);
-
     return () => clearInterval(pollInterval);
-  }, [selectedExamId, activeReport?.status]);
-
-  useEffect(() => {
-    fetchExams();
-  }, [fetchExams]);
+  }, [selectedExamId, activeReport?.status, fetchExams]);
 
   const handleCompute = async (examId) => {
     setComputingId(examId);
     try {
       const data = await computeExamResult(examId);
       fetchExams();
-      if (selectedExamId === examId) {
-        setActiveReport(data.result);
-      }
+      if (selectedExamId === examId) setActiveReport(data.result);
     } catch (err) {
       alert('Computation failed: ' + err.message);
     } finally {
@@ -155,49 +175,40 @@ const ExamResults = () => {
     }
   };
 
-  // Stable props for SubjectBar via useMemo
+  // Enriched data for rendering
   const enrichedSubjects = useMemo(() => {
     if (!activeReport) return [];
     return activeReport.subjects.map(s => ({
       ...s,
-      color: getBarColor(s.averageScore, activeReport.passingThreshold),
-      badge: getPriorityBadge(s.averageScore, activeReport.passingThreshold),
       threshold: activeReport.passingThreshold
     }));
   }, [activeReport]);
 
-  // Summary Metrics
   const summary = useMemo(() => {
     if (!activeReport) return null;
-    const threshold = activeReport.passingThreshold;
+    const avg = Math.round(activeReport.subjects.reduce((acc, s) => acc + s.averageScore, 0) / activeReport.subjects.length);
     return {
-      totalSubjects: activeReport.subjects.length,
-      overallAvg: (activeReport.subjects.reduce((acc, s) => acc + s.averageScore, 0) / activeReport.subjects.length).toFixed(1),
-      onTrack: activeReport.subjects.filter(s => s.averageScore >= threshold).length,
-      needsFocus: activeReport.subjects.filter(s => s.averageScore < threshold).length
+      overallAvg: avg,
+      takers: activeReport.totalTakers,
+      date: new Date(activeReport.dateConducted).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      computedAt: formatDateTime(activeReport.computedAt)
     };
   }, [activeReport]);
 
   return (
     <div className="er-page">
-      <header className="er-header">
-        <div className="er-header-title">
-          <h1>Mock Board Exam Results</h1>
-          <p>Automated performance analysis for department mock board exams.</p>
-        </div>
-        <button className="er-btn-add" onClick={fetchExams} disabled={loading}>
-          {loading ? 'Refreshing...' : 'Refresh List'}
-        </button>
+      <header className="page-header">
+        <h1 className="page-header-title">Mock Board Exam Results</h1>
+        <p className="page-header-subtitle">Select an exam to view analysis</p>
       </header>
 
-      <div className="er-layout" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '24px', padding: '0 24px' }}>
+      <div className="er-layout">
         
-        {/* Exam List Sidebar */}
+        {/* Sidebar */}
         <aside className="er-sidebar">
-          <div className="er-exam-list-card" style={{ background: 'white', borderRadius: '12px', border: '1px solid #e1e3ed', padding: '16px' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: 'var(--primary-bg)' }}>Exams</h3>
-            <div className="er-sidebar-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '70vh', overflowY: 'auto' }}>
-              {exams.length === 0 && !loading && <p style={{ color: '#8c96ae', fontSize: '13px' }}>No exams found.</p>}
+          <div className="er-sidebar-card" style={{ background: 'white', borderRadius: '12px', border: '1px solid #e1e3ed', padding: '16px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', color: '#8c96ae' }}>Exams</h3>
+            <div className="er-sidebar-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '75vh', overflowY: 'auto' }}>
               {exams.map(exam => (
                 <div 
                   key={exam._id} 
@@ -206,34 +217,31 @@ const ExamResults = () => {
                   style={{ 
                     padding: '12px', 
                     borderRadius: '8px', 
-                    border: '1px solid #f3f4f6', 
+                    border: '1px solid #f0f4ff', 
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: selectedExamId === exam._id ? '#f0f4ff' : 'white',
-                    borderColor: selectedExamId === exam._id ? '#3b82f6' : '#f3f4f6'
+                    background: selectedExamId === exam._id ? '#1e2d6b' : 'white',
                   }}
                 >
-                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>{exam.name}</div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                    {new Date(exam.startDateTime).toLocaleDateString()} • {exam.status.toUpperCase()}
+                  <div className="side-name" style={{ fontWeight: '600', fontSize: '13px', color: selectedExamId === exam._id ? 'white' : '#1f2937' }}>{exam.name}</div>
+                  <div className="side-meta" style={{ fontSize: '11px', color: selectedExamId === exam._id ? 'rgba(255,255,255,0.7)' : '#6b7280', marginTop: '2px' }}>
+                    {new Date(exam.startDateTime).toLocaleDateString()}
                   </div>
+                  
+                  {/* Status Indicator */}
                   <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ 
                       fontSize: '10px', 
-                      padding: '2px 8px', 
-                      borderRadius: '10px', 
-                      background: exam.computationStatus === 'computed' ? '#dcfce7' : '#f3f4f6',
-                      color: exam.computationStatus === 'computed' ? '#166534' : '#6b7280'
+                      fontWeight: '700',
+                      color: selectedExamId === exam._id ? 'rgba(255,255,255,0.8)' : (exam.computationStatus === 'computed' ? '#16a34a' : '#9ca3af')
                     }}>
-                      {exam.computationStatus === 'computed' ? 'Results Ready' : 'Processing'}
+                      {exam.computationStatus === 'computed' ? '● READY' : '○ PENDING'}
                     </span>
-                    {exam.status === 'finished' && (
+                    {exam.computationStatus !== 'computed' && exam.status === 'finished' && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleCompute(exam._id); }}
-                        disabled={computingId === exam._id}
-                        style={{ fontSize: '10px', background: 'var(--primary-bg)', color: '#fad227', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                        style={{ fontSize: '10px', background: '#f5c518', color: '#1e2d6b', border: 'none', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}
                       >
-                        {computingId === exam._id ? '...' : 'Compute'}
+                        {computingId === exam._id ? '...' : 'COMPUTE'}
                       </button>
                     )}
                   </div>
@@ -243,17 +251,21 @@ const ExamResults = () => {
           </div>
         </aside>
 
-        {/* Report Content */}
+        {/* Content */}
         <main className="er-content">
-          {loading && !activeReport && <div style={{ textAlign: 'center', padding: '100px' }}>Loading Report...</div>}
-          
-          {!loading && !activeReport && selectedExamId && (
+          {!selectedExamId && (
+            <div style={{ textAlign: 'center', padding: '100px', opacity: 0.5 }}>
+              <h3>Choose an exam to begin analysis</h3>
+            </div>
+          )}
+
+          {selectedExamId && !loading && !activeReport && (
             <div className="er-empty-report" style={{ textAlign: 'center', padding: '100px', background: '#f9fafb', borderRadius: '12px', border: '2px dashed #e5e7eb' }}>
-              <h3>Result Not Computed</h3>
-              <p style={{ color: '#6b7280' }}>The results for this exam haven't been processed yet.</p>
+              <h2 style={{ color: '#374151', marginBottom: '12px' }}>Results Not Found</h2>
+              <p style={{ color: '#6b7280' }}>The results for this exam haven't been computed yet or there are no student attempts.</p>
               <button 
                 className="er-btn-add" 
-                style={{ marginTop: '16px' }}
+                style={{ marginTop: '24px', background: '#1e2d6b', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '6px', cursor: 'pointer' }}
                 onClick={() => handleCompute(selectedExamId)}
                 disabled={computingId === selectedExamId}
               >
@@ -262,66 +274,50 @@ const ExamResults = () => {
             </div>
           )}
 
-          {!selectedExamId && !loading && (
-            <div className="er-empty-report" style={{ textAlign: 'center', padding: '100px', background: '#f9fafb', borderRadius: '12px', border: '2px dashed #e5e7eb' }}>
-              <h2 style={{ color: '#374151' }}>Select an Exam</h2>
-              <p style={{ color: '#6b7280' }}>Choose an exam from the left sidebar to view its performance analysis.</p>
-            </div>
-          )}
-
           {activeReport && (
-            <div className="er-report-container">
-              {/* Summary Metrics */}
-              {summary && (
-                <div className="er-summary-grid" style={{ margin: '0 0 24px 0' }}>
-                  <div className="er-summary-card">
-                    <h3>Total Subjects</h3>
-                    <div className="value">{summary.totalSubjects}</div>
+            <div className="er-report-view">
+              {/* Exam Specific Header */}
+              <div className="er-report-header" style={{ marginBottom: '24px' }}>
+                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#1e2d6b' }}>{activeReport.examName}</h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#8c96ae' }}>Last computed: {summary.computedAt}</p>
+              </div>
+              
+              {/* Hero Card */}
+              <section className="er-hero-card">
+                <CircularProgress percentage={summary.overallAvg} threshold={activeReport.passingThreshold} />
+                <div className="er-hero-metrics">
+                  <div className="er-metric-item">
+                    <span className="m-value">{summary.overallAvg}%</span>
+                    <span className="m-label">Avg Score</span>
                   </div>
-                  <div className="er-summary-card">
-                    <h3>Overall Average</h3>
-                    <div className="value">{summary.overallAvg}%</div>
+                  <div className="er-metric-item">
+                    <span className="m-value">{summary.takers}</span>
+                    <span className="m-label">Total Takers</span>
                   </div>
-                  <div className="er-summary-card">
-                    <h3>On Track</h3>
-                    <div className="value" style={{ color: '#16a34a' }}>{summary.onTrack}</div>
-                  </div>
-                  <div className="er-summary-card">
-                    <h3>Needs Focus</h3>
-                    <div className="value" style={{ color: '#dc2626' }}>{summary.needsFocus}</div>
+                  <div className="er-metric-item">
+                    <span className="m-value">{summary.date}</span>
+                    <span className="m-label">Date Conducted</span>
                   </div>
                 </div>
-              )}
+              </section>
 
-              {/* Report Header */}
-              <div className="er-exam-card" style={{ marginBottom: '24px' }}>
-                <div className="er-exam-header" style={{ borderBottom: 'none' }}>
-                  <div className="er-exam-title-wrap">
-                    <h2>{activeReport.examName} Analysis</h2>
-                    <div className="er-exam-meta">
-                      <span>📅 Conducted: {new Date(activeReport.dateConducted).toLocaleDateString()}</span>
-                      <span>👥 {activeReport.totalTakers} Takers</span>
-                      <span>🎯 Threshold: {activeReport.passingThreshold}%</span>
-                    </div>
-                  </div>
-                  <button onClick={() => handleCompute(selectedExamId)} className="er-btn-add" style={{ padding: '6px 12px', fontSize: '12px' }}>Re-Compute</button>
+              {/* Breakdown Card */}
+              <section className="er-breakdown-card">
+                <div className="er-breakdown-header">
+                  <h2>Score Breakdown by Topic</h2>
+                  <p>Performance across each subject area in this exam</p>
                 </div>
-              </div>
-
-              {/* Subjects List */}
-              <div className="er-results-list" style={{ margin: 0 }}>
-                {enrichedSubjects.map((subject, idx) => (
-                  <div key={idx} className="er-exam-card" style={{ marginBottom: '16px' }}>
-                    <div className="er-subjects-container" style={{ padding: '20px' }}>
-                      <SubjectBar 
-                        subject={subject}
-                        isExpanded={expandedSubjectName === subject.name}
-                        onToggle={() => setExpandedSubjectName(prev => prev === subject.name ? null : subject.name)}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                <div className="er-topic-list">
+                  {enrichedSubjects.map((subject, idx) => (
+                    <TopicRow 
+                      key={idx} 
+                      subject={subject} 
+                      isExpanded={expandedSubjectName === subject.name}
+                      onToggle={() => setExpandedSubjectName(prev => prev === subject.name ? null : subject.name)}
+                    />
+                  ))}
+                </div>
+              </section>
 
             </div>
           )}
