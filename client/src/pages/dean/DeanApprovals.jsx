@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import '../styles/StudentManager.css';
+import { apiAuth } from '../../lib/api.js';
+import '../../styles/StudentManager.css';
 
 export default function DeanApprovals({ embedded = false }) {
   const [status, setStatus] = useState('pending');

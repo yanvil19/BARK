@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import QuestionsPage from './QuestionsPage.jsx';
+import { apiAuth } from '../../lib/api.js';
+import QuestionsPage from '../professor/QuestionsPage.jsx';
 
 const BASE = 'http://localhost:5000';
 

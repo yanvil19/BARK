@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiAuth } from '../lib/api';
-import '../styles/Dashboard.css';
+import { apiAuth } from '../../lib/api';
+import '../../styles/Dashboard.css';
 
 const BASE = 'http://localhost:5000';
 

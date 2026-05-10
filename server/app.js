@@ -11,6 +11,7 @@ const questionRoutes = require('./routes/questionRoutes');
 const mockBoardExamRoutes = require('./routes/mockBoardExamRoutes');
 const importRoutes = require('./routes/importRoutes');
 const studentExamRoutes = require('./routes/studentExamRoutes');
+const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/mock-board-exams', mockBoardExamRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/student-exams', studentExamRoutes);
+app.use('/api/mock-exam-results', mockExamResultRoutes);
 
 app.get('/', (req, res) => {
     res.send('API is running...');

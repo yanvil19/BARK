@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import { organizeQuestionAnswers } from '../lib/DeanTestRunOrganizer.js';
-import DateTimePicker from '../components/DateTimePicker.jsx';
-import '../styles/MockBoardExam.css';
+import { apiAuth } from '../../lib/api.js';
+import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import DateTimePicker from '../../components/DateTimePicker.jsx';
+import '../../styles/MockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
 

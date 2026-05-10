@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import '../styles/AdminUsers.css';
-import { Modal } from '../components/Modal.jsx';
+import { apiAuth } from '../../lib/api.js';
+import '../../styles/AdminUsers.css';
+import { Modal } from '../../components/Modal.jsx';
 
 export default function AdminUsers() {
   const [busy, setBusy] = useState(false);

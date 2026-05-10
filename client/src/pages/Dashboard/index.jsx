@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import SuperAdminDashboard from './SuperAdminDashboard.jsx';
-import DeanDashboard from './DeanDashboard.jsx';
-import ProgramChairDashboard from './ProgramChairDashboard.jsx';
-import StudentDashboard from './StudentDashboard.jsx';
-import ProfessorDashboard from './ProfessorDashboard.jsx';
+import SuperAdminDashboard from '../admin/SuperAdminDashboard.jsx';
+import DeanDashboard from '../dean/DeanDashboard.jsx';
+import ProgramChairDashboard from '../chair/ProgramChairDashboard.jsx';
+import StudentDashboard from '../student/StudentDashboard.jsx';
+import ProfessorDashboard from '../professor/ProfessorDashboard.jsx';
 
 const Dashboard = ({ me, onNavigate, onRoute }) => {
   const [stats, setStats] = useState(null);

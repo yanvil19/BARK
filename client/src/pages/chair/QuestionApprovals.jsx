@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { apiAuth } from '../lib/api.js';
-import '../styles/QuestionApprovals.css';
+import { apiAuth } from '../../lib/api.js';
+import '../../styles/QuestionApprovals.css';
 
 const BASE = 'http://localhost:5000';
 

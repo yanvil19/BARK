@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import StudentRegister from './StudentRegister.jsx';
+import StudentRegister from '../student/StudentRegister.jsx';
 import DeanApprovals from './DeanApprovals.jsx';
-import '../styles/StudentManager.css';
+import '../../styles/StudentManager.css';
 
 export default function StudentManager({ onNavigate }) {
   const [tab, setTab] = useState('register');

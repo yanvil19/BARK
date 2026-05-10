@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api.js';
+import { api } from '../../lib/api.js';
 import {
   ID_FORMATS,
   validateStudentId,
   validateAlumniId,
   getStudentIdErrorMessage,
   getAlumniIdErrorMessage,
-} from '../lib/idFormats.js';
-import '../styles/StudentRegister.css';
+} from '../../lib/idFormats.js';
+import '../../styles/StudentRegister.css';
 
 const REG_KEY = 'nu_board_registration';
 

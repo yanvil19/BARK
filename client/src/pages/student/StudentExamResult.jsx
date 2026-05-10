@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/MockBoardExamPreview.css';
+import '../../styles/MockBoardExamPreview.css';
 
 export default function StudentExamResult({ onReturn }) {
   return (

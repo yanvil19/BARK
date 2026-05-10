@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api } from '../lib/api.js';
-import '../styles/Login.css';
+import { api } from '../../lib/api.js';
+import '../../styles/Login.css';
 
 export default function Login({ onLogin, onNavigate }) {
   const [email, setEmail] = useState('');

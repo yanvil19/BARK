@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import { uploadDocumentForImport, submitImportedQuestions } from '../lib/importApi.js';
-import QuestionForm from '../components/QuestionForm.jsx';
-import { Modal } from '../components/Modal.jsx';
-import '../styles/QuestionsPage.css';
+import { apiAuth } from '../../lib/api.js';
+import { uploadDocumentForImport, submitImportedQuestions } from '../../lib/importApi.js';
+import QuestionForm from '../../components/QuestionForm.jsx';
+import { Modal } from '../../components/Modal.jsx';
+import '../../styles/QuestionsPage.css';
 
 const BASE = 'http://localhost:5000';
 

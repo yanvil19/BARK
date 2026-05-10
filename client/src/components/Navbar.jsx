@@ -131,6 +131,12 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             >
               Available Mock Board Exams
             </button>
+            <button
+              className={route === 'examResults' ? 'active' : ''}
+              onClick={() => onRoute('examResults')}
+            >
+              Exam Results
+            </button>
           </>
         )}
 

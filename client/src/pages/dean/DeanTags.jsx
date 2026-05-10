@@ -1,4 +1,4 @@
-import ChairTags from './ChairTags.jsx';
+import ChairTags from '../chair/ChairTags.jsx';
 
 export default function DeanTags({ me }) {
   return <ChairTags me={me} />;

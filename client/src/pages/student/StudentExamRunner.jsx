@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { apiAuth } from '../lib/api.js';
-import '../styles/MockBoardExamPreview.css'; 
+import { apiAuth } from '../../lib/api.js';
+import '../../styles/MockBoardExamPreview.css'; 
 
 const BASE = 'http://localhost:5000';
 

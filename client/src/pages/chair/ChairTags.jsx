@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import { Modal } from '../components/Modal.jsx';
-import '../styles/SubjectTags.css';
-import '../styles/global.css';
+import { apiAuth } from '../../lib/api.js';
+import { Modal } from '../../components/Modal.jsx';
+import '../../styles/SubjectTags.css';
+import '../../styles/global.css';
 
 const BASE = 'http://localhost:5000';
 

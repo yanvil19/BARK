@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../lib/api.js';
-import { organizeExamQuestionsAndAnswers } from '../lib/DeanTestRunOrganizer.js';
-import '../styles/MockBoardExamPreview.css'; // Reusing the established premium style
+import { apiAuth } from '../../lib/api.js';
+import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
 
 const BASE = 'http://localhost:5000';
 
