@@ -128,12 +128,6 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             <button className={cls('deanQuestionApprovals')} onClick={handle('deanQuestionApprovals')}>Approve Questions</button>
             <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Available Mock Board Exams</button>
             <button className={cls('examResults')} onClick={handle('examResults')}>Exam Results</button>
-            <button
-              className={route === 'examResults' ? 'active' : ''}
-              onClick={() => onRoute('examResults')}
-            >
-              Exam Results
-            </button>
           </>
         )}
 
