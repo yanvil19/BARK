@@ -252,7 +252,7 @@ export default function QuestionApprovals({ me }) {
         method: 'POST',
         body: { action: 'reuse' },
       });
-      const updated = { ...question, state: 'approved', currentReviewer: null, reviewStartedAt: null };
+      const updated = { ...question, state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
       setQuestions((prev) => prev.map((item) => (item._id === question._id ? updated : item)));
       setSelectedQuestion(updated);
     } catch (err) {

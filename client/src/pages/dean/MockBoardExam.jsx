@@ -142,7 +142,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         const params = new URLSearchParams({
           program: programId,
           tags: selectedTagIds.join(','),
-          states: 'approved,in_use,retired'
+          states: 'approved,in_use,retired,in_draft'
         });
         const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
@@ -511,6 +511,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                 >
                   <option value="all">All States</option>
                   <option value="approved">Approved (New)</option>
+                  <option value="in_draft">In Draft (This/Other Drafts)</option>
                   <option value="in_use">In Use (Other Exams)</option>
                   <option value="retired">Retired (Previous Exams)</option>
                 </select>
@@ -549,6 +550,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                 {question.title}
                                 {question.state === 'retired' && <span className="mbe-state-badge mbe-state-badge--retired">Retired</span>}
                                 {question.state === 'in_use' && <span className="mbe-state-badge mbe-state-badge--inuse">In Use</span>}
+                                {question.state === 'in_draft' && <span className="mbe-state-badge mbe-state-badge--indraft">In Draft</span>}
                               </h3>
                               <p>{question.description || 'No description provided.'}</p>
                             </div>

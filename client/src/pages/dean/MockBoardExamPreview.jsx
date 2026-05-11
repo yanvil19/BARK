@@ -47,7 +47,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
     );
   }
 
-  if (error || !exam) {
+  if (error || (!exam && examId)) {
     return (
       <div className="mbep-page">
         <header className="mbep-header">
@@ -58,6 +58,15 @@ export default function MockBoardExamPreview({ examId, onBack }) {
         </header>
         <div style={{ padding: '80px', textAlign: 'center', color: '#dc2626' }}>
           <p>{error || 'Exam not found.'}</p>
+        </div>
+      </div>
+    );
+  }
+  if (!exam) {
+    return (
+      <div className="mbep-page">
+        <div style={{ padding: '80px', textAlign: 'center', color: '#9ba3cb' }}>
+          <h3>Preparing preview...</h3>
         </div>
       </div>
     );

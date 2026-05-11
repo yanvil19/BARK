@@ -163,21 +163,25 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         Details
                       </button>
 
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() => onEditExam(exam._id, 'preview')}
-                      >
-                        Preview
-                      </button>
+                      {exam.status !== 'finished' && exam.status !== 'archived' && exam.status !== 'draft' && (
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={() => onEditExam(exam._id, 'preview')}
+                        >
+                          Preview
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        className="ambe-btn primary"
-                        onClick={() => onEditExam(exam._id, 'testRun')}
-                      >
-                        Test Run
-                      </button>
+                      {exam.status !== 'finished' && exam.status !== 'archived' && (
+                        <button
+                          type="button"
+                          className="ambe-btn primary"
+                          onClick={() => onEditExam(exam._id, 'testRun')}
+                        >
+                          Test Run
+                        </button>
+                      )}
 
                       {exam.status !== 'finished' && exam.status !== 'archived' && (
                         <button
@@ -217,13 +221,15 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        className="ambe-btn delete"
-                        onClick={() => handleDelete(exam)}
-                      >
-                        Delete
-                      </button>
+                      {exam.status !== 'finished' && (
+                        <button
+                          type="button"
+                          className="ambe-btn delete"
+                          onClick={() => handleDelete(exam)}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

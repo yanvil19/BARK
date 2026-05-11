@@ -89,6 +89,11 @@ async function validateExamPayload(user, body) {
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
   if (start && end && end <= start) errors.push('End date must be later than the start date');
+  
+  const now = new Date();
+  if (status === 'published' && end && end <= now) {
+    errors.push('Cannot publish an exam that has already expired. Please adjust the end date and time.');
+  }
 
   let tags = [];
   if (program && subjectTagIds.length > 0) {
@@ -104,7 +109,7 @@ async function validateExamPayload(user, body) {
     questions = await Question.find({
       _id: { $in: questionIds },
       program: program._id,
-      state: { $in: ['approved', 'in_use', 'retired'] },
+      state: { $in: ['approved', 'in_use', 'retired', 'in_draft'] },
       tag: { $in: allowedTagIds },
     }).select('_id title tag program state');
 
@@ -182,6 +187,32 @@ async function listMockBoardExams(req, res) {
     if (req.user && req.user.role === 'dean') {
       const programs = await getDeanPrograms(req.user);
       const programIds = programs.map((program) => program._id);
+      
+      // Auto-archive expired exams for the Dean as well
+      const now = new Date();
+      const expiredExams = await MockBoardExam.find({
+        program: { $in: programIds },
+        status: 'published',
+        endDateTime: { $lt: now }
+      }).select('_id questions');
+
+      if (expiredExams.length > 0) {
+        const expiredIds = expiredExams.map(e => e._id);
+        const qIdsToRetire = expiredExams.flatMap(e => e.questions);
+
+        if (qIdsToRetire.length > 0) {
+          await Question.updateMany(
+            { _id: { $in: qIdsToRetire } },
+            { $set: { state: 'retired' } }
+          );
+        }
+
+        await MockBoardExam.updateMany(
+          { _id: { $in: expiredIds } },
+          { $set: { status: 'finished' } }
+        );
+      }
+
       query = { program: { $in: programIds } };
     } 
     else {
@@ -356,6 +387,14 @@ async function archiveExam(req, res) {
 
     exam.status = 'archived';
     await exam.save();
+
+    // Ensure questions turn to 'retired' when archived
+    if (exam.questions && exam.questions.length > 0) {
+      await Question.updateMany(
+        { _id: { $in: exam.questions } },
+        { $set: { state: 'retired' } }
+      );
+    }
 
     res.json({ message: 'Exam archived successfully', exam: { _id: exam._id, status: exam.status } });
   } catch (err) {
