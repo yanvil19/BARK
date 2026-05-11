@@ -1,8 +1,12 @@
+/* ================================================
+   NAVBAR BASE STYLES
+   ================================================ */
+
 #Header {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  padding: 12px 28px;
+  padding: 12px 40px;
   background-color: var(--primary-bg);
   color: var(--text-light);
   border-bottom: 4px solid var(--accent-yellow);
@@ -22,13 +26,21 @@
   cursor: pointer;
 }
 
+/* ================================================
+   DESKTOP NAV CENTER
+   ================================================ */
+
 .nav-center {
   display: flex;
-  gap: 12px;
+  gap: 4px;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* ================================================
+   NAV RIGHT (avatar + hamburger)
+   ================================================ */
 
 .nav-right {
   justify-self: end;
@@ -38,23 +50,19 @@
   white-space: nowrap;
 }
 
-.user-info {
-  font-size: 14px;
-  opacity: 0.9;
-}
+/* ================================================
+   DESKTOP BUTTONS
+   ================================================ */
 
 #Header button {
   background: transparent;
   border: none;
-
   color: var(--text-light);
-
   padding: 6px 14px;
   border-radius: 6px;
-
   cursor: pointer;
   font-family: var(--font-body);
-
+  font-size: 14px;
   transition: 0.2s ease;
   white-space: nowrap;
 }
@@ -65,10 +73,18 @@
   font-weight: 600;
 }
 
+#Header button.nav-active {
+  color: var(--accent-yellow);
+}
+
 #Header button:disabled {
   color: var(--accent-yellow);
   cursor: not-allowed;
 }
+
+/* ================================================
+   AVATAR
+   ================================================ */
 
 #Header img,
 .avatar-initials {
@@ -77,6 +93,7 @@
   border-radius: 50%;
   border: 2px solid var(--accent-yellow);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .avatar-initials {
@@ -88,138 +105,192 @@
   font-size: 1rem;
   font-weight: 700;
   font-family: 'Poppins', sans-serif;
-  flex-shrink: 0;
 }
 
-#Header button.nav-active {
-  color: var(--accent-yellow);
-}
+/* ================================================
+   HAMBURGER BUTTON
+   Always hidden on desktop, shown on tablet/phone
+   ================================================ */
 
-/* Hamburger Menu */
 .hamburger {
   display: none;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: 38px;
   height: 38px;
   background: transparent;
   border: 2px solid var(--accent-yellow);
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   padding: 6px;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease;
 }
 
-.hamburger:hover,
-.hamburger:focus-visible {
+.hamburger:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
 .hamburger span {
   display: block;
-  width: 22px;
-  height: 3px;
+  width: 20px;
+  height: 2px;
   background: var(--text-light);
   border-radius: 2px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .hamburger.open span:nth-child(1) {
-  transform: translateY(5px) rotate(45deg);
+  transform: translateY(7px) rotate(45deg);
 }
 
 .hamburger.open span:nth-child(2) {
   opacity: 0;
+  transform: translateX(-8px);
 }
 
 .hamburger.open span:nth-child(3) {
-  transform: translateY(-5px) rotate(-45deg);
+  transform: translateY(-7px) rotate(-45deg);
 }
 
-/* Mobile Menu */
+/* ================================================
+   MOBILE DROPDOWN MENU
+   Drops below the sticky header — not fullscreen
+   ================================================ */
+
 .mobile-menu {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background-color: var(--primary-bg);
-  border-bottom: 4px solid var(--accent-yellow);
+  background-color: #1e2d6b;
+  border-bottom: 3px solid #f5c518;
   z-index: 999;
+  display: flex;
+  flex-direction: column;
 }
 
+.mobile-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid #2a3a7c;
+}
+
+.mobile-menu-header strong {
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #f5c518;
+  cursor: pointer;
+}
+
+.mobile-menu-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Mobile nav list */
 .mobile-nav {
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  gap: 10px;
+  gap: 0;
+  margin: 0;
+  padding: 0;
 }
 
-.mobile-nav button {
-  text-align: left;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* Override #Header button styles for mobile nav items */
+#Header .mobile-nav-item,
+.mobile-nav-item {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: 52px !important;
+  padding: 0 24px !important;
+  margin: 0 !important;
+  background-color: #1e2d6b !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-bottom: 1px solid #2a3a7c !important;
+  border-radius: 0 !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+  box-sizing: border-box !important;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  #Header {
-    padding: 10px 20px;
-  }
+#Header .mobile-nav-item:last-child,
+.mobile-nav-item:last-child {
+  border-bottom: none !important;
+}
 
-  #Header strong {
-    font-size: 20px;
+#Header .mobile-nav-item.active,
+.mobile-nav-item.active {
+  background-color: #2a3a7c !important;
+  color: #f5c518 !important;
+  font-weight: 700 !important;
+  border-left: 4px solid #f5c518 !important;
+  padding-left: 20px !important;
+}
+
+#Header .mobile-nav-item:not(.active):hover,
+.mobile-nav-item:not(.active):hover {
+  background-color: #243070 !important;
+  color: #f5c518 !important;
+}
+
+/* ================================================
+   RESPONSIVE BREAKPOINTS
+   ================================================ */
+
+/* DESKTOP — 1025px and above */
+@media (min-width: 1025px) {
+  .hamburger {
+    display: none !important;
   }
 
   .nav-center {
-    display: none;
-    gap: 8px;
+    display: flex !important;
+  }
+}
+
+/* TABLET & PHONE — 1024px and below */
+@media (max-width: 1024px) {
+  #Header {
+    padding: 12px 20px;
   }
 
-  #Header button {
-    padding: 5px 10px;
-    font-size: 14px;
-  }
-
-  .avatar-initials {
-    width: 30px;
-    height: 30px;
-    font-size: 0.9rem;
+  .nav-center {
+    display: none !important;
   }
 
   .hamburger {
-    display: flex;
-  }
-
-  .mobile-menu {
-    display: block;
+    display: flex !important;
   }
 }
 
-@media (max-width: 768px) {
-  #Header {
-    grid-template-columns: auto 1fr auto;
-    padding: 12px 16px;
-  }
-}
-
+/* PHONE — 480px and below */
 @media (max-width: 480px) {
+  #Header {
+    padding: 10px 16px;
+  }
+
   #Header strong {
     font-size: 18px;
   }
 
-  .mobile-nav {
-    padding: 15px;
+  .mobile-nav-item {
+    font-size: 0.95rem;
+    min-height: 58px;
+    padding: 0 20px;
   }
 
-  .hamburger {
-    width: 25px;
-    height: 25px;
-  }
-
-  .hamburger span {
-    height: 2px;
+  .mobile-nav-item.active {
+    padding-left: 16px;
   }
 }
