@@ -316,6 +316,41 @@ export default function AdminUsers() {
         </div>
       </div>
 
+      {error ? <p className="um-error">{error}</p> : null}
+
+      {/* ── User Table ── */}
+      <div className="um-table-wrap">
+        {busy ? <p className="um-loading">Loading users...</p> : (
+          <div className="scroll-x">
+            <table className="um-table">
+              <thead>
+                <tr><th style={{ width: '200px' }}>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                  paginatedUsers.map((u) => (
+                    <tr key={u._id}>
+                      <td>
+                        <div className="um-user-name">{u.name}</div>
+                        <div className="um-user-email">{u.email}</div>
+                      </td>
+                      <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
+                      <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
+                      <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
+                      <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td className="um-actions-cell">
+                        <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
+                        {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
+                                    : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* ── Pagination ── */}
       {!busy && users.length > 0 && (
