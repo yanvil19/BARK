@@ -231,13 +231,14 @@ export default function SchoolsPrograms() {
           <div className="table-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e4e7ec', background: '#fafbff' }}>
             <h3 className="um-user-name" style={{ fontSize: '16px' }}>Schools of NU Laguna</h3>
           </div>
-          <table className="um-table">
+          <div className="scroll-x">
+            <table className="um-table">
             <thead>
               <tr>
-                <th style={{ width: '120px' }}>Acronym</th>
-                <th>School Name</th>
-                <th style={{ width: '150px', textAlign: 'center' }}>Programs</th>
-                <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '100px' }}>Acronym</th>
+                <th style={{ width: '250px' }}>School Name</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Programs</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Status</th>
                 <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -253,7 +254,7 @@ export default function SchoolsPrograms() {
                   return (
                     <tr key={d._id}>
                       <td><span className="um-badge um-badge--dept">{d.code}</span></td>
-                      <td style={{ fontWeight: '600' }}>{d.name}</td>
+                      <td style={{ fontWeight: '600', maxWidth: '220px', wordBreak: 'break-word', whiteSpace: 'normal'}}>{d.name}</td>
                       <td style={{ textAlign: 'center', color: '#666' }}>{programCount}</td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`um-status ${d.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
@@ -275,6 +276,8 @@ export default function SchoolsPrograms() {
               )}
             </tbody>
           </table>
+          </div>
+          
         </section>
 
         {/* ── Programs Section ── */}
@@ -295,11 +298,12 @@ export default function SchoolsPrograms() {
               </select>
             </div>
           </div>
-          <table className="um-table">
+          <div className="scroll-x">
+            <table className="um-table">
             <thead>
               <tr>
                 <th style={{ width: '120px' }}>Code</th>
-                <th>Program Name</th>
+                <th style={{ width: '250px' }}>Program Name</th>
                 <th style={{ width: '150px' }}>Department</th>
                 <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
                 <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
@@ -333,6 +337,8 @@ export default function SchoolsPrograms() {
               )}
             </tbody>
           </table>
+          </div>
+         
         </section>
       </div>
 

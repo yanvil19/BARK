@@ -35,10 +35,11 @@
 .dashboard-box {
   background: #ffffff;
   border-radius: 8px;
-  border: 1px solid #e1e3ed;
+  border: 1px solid rgba(53, 64, 142, 0.37);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  /* border: 1px solid red; */
 }
 
 .dashboard-box.box-wide {
@@ -110,13 +111,11 @@
   text-transform: capitalize;
 
   padding-top: 10px;
-  
-  background-image: linear-gradient(
-    to right,
-    #8c96ae 0%,
-    #8c96ae 80%,
-    transparent 80%
-  );
+
+  background-image: linear-gradient(to right,
+      #8c96ae 0%,
+      #8c96ae 80%,
+      transparent 80%);
   background-size: 100% 1px;
   background-repeat: no-repeat;
   background-position: top left;
@@ -139,7 +138,8 @@
 
 .db-gauge-fill {
   width: 100%;
-  background-color: #2ab930; /* Green fill */
+  background-color: #2ab930;
+  /* Green fill */
   transition: height 0.5s ease, background-color 0.5s ease;
 }
 
@@ -220,7 +220,7 @@
   text-align: center;
 }
 
-.modern-table tbody td:last-child {
+.modern-table tbody td:last-child > div {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -300,6 +300,15 @@
   opacity: 0.5;
   cursor: not-allowed;
   background: #f5f5f5;
+}
+
+.scroll-x {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.scroll-x table {
+  min-width: 700px;
 }
 
 @media (max-width: 1024px) {
@@ -408,14 +417,13 @@
   text-align: center;
 
   padding-top: 10px;
-  
-  background-image: linear-gradient(
-    to right,
-    #8c96ae 0%,
-    #8c96ae 80%,
-    transparent 80%
-  );
-  background-size: 100% 1px;  /* line thickness */
+
+  background-image: linear-gradient(to right,
+      #8c96ae 0%,
+      #8c96ae 80%,
+      transparent 80%);
+  background-size: 100% 1px;
+  /* line thickness */
   background-repeat: no-repeat;
   background-position: top left;
 }
@@ -497,10 +505,21 @@
 }
 
 @keyframes pc-blink {
-  0%   { content: ''; }
-  33%  { opacity: 0.4; }
-  66%  { opacity: 0.7; }
-  100% { opacity: 1; }
+  0% {
+    content: '';
+  }
+
+  33% {
+    opacity: 0.4;
+  }
+
+  66% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Review table header */
@@ -655,7 +674,9 @@
   font-family: inherit;
 }
 
-.pc-notice-link:hover { color: #1a2560; }
+.pc-notice-link:hover {
+  color: #1a2560;
+}
 
 /* ===========================
    SUBJECT DETAIL MODAL
@@ -683,8 +704,15 @@
 }
 
 @keyframes pc-modal-in {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .pc-modal-header {
@@ -723,7 +751,9 @@
   font-family: inherit;
 }
 
-.pc-modal-close:hover { background: rgba(255, 255, 255, 0.15); }
+.pc-modal-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
 
 .pc-modal-body {
   padding: 20px;
@@ -759,13 +789,82 @@
   padding: 24px 0;
 }
 
+/* ... EVERYTHING ABOVE REMAINS EXACTLY THE SAME ... */
+
 /* Responsive */
 @media (max-width: 1024px) {
+
   .dashboard-pc-top-row,
   .dashboard-pc-stats-row {
     grid-template-columns: 1fr;
   }
+
   .pc-subject-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scroll-x {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .scroll-x::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .scroll-x::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+  }
+}
+
+.modern-table th,
+.modern-table td {
+  white-space: nowrap;
+}
+
+.scroll-x {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+
+  .scroll-x table {
+    min-width: 900px;
+  }
+
+  .mobile-hide {
+    display: none;
+  }
+
+  .dashboard-sa-bottom-row {
+    grid-template-columns: 1fr !important;
+  }
+
+}
+
+.mobile-table-toggle {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+}
+
+.mobile-table-toggle button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: #e1e3ed;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-table-toggle button.active {
+  background: #2b3980;
+  color: #ffffff;
+}
+
+@media (min-width: 769px) {
+  .mobile-table-toggle {
+    display: none;
   }
 }

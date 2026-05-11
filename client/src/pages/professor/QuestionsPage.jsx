@@ -293,53 +293,53 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }
 
   async function handleFileSelected(e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      setImportLoading(true);
-      setImportError(null);
+    setImportLoading(true);
+    setImportError(null);
 
-      try {
-          const result = await uploadDocumentForImport(file, tags);
+    try {
+      const result = await uploadDocumentForImport(file, tags);
 
-          const preFilledQuestions = result.questions.map(q => {
-            const matchedTag = tags.find(
-                t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
-            );
+      const preFilledQuestions = result.questions.map(q => {
+        const matchedTag = tags.find(
+          t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
+        );
 
-            console.log('suggested_tag:', q.suggested_tag, '| confidence:', q.suggested_tag_confidence, '| matched:', matchedTag?.name);
+        console.log('suggested_tag:', q.suggested_tag, '| confidence:', q.suggested_tag_confidence, '| matched:', matchedTag?.name);
 
 
-            return {
-                title: q.question_title || q.question_text?.substring(0, 100) || '',
-                description: q.question_text || '',
-                answers: Object.entries(q.options || {})
-                    .filter(([, text]) => text !== null)
-                    .map(([key, text]) => ({
-                        text,
-                        isCorrect: key === q.correct_answer,
-                    })),
-                flags: q.flags || [],
-                tagId: matchedTag?._id || '',
-            };
-        });
+        return {
+          title: q.question_title || q.question_text?.substring(0, 100) || '',
+          description: q.question_text || '',
+          answers: Object.entries(q.options || {})
+            .filter(([, text]) => text !== null)
+            .map(([key, text]) => ({
+              text,
+              isCorrect: key === q.correct_answer,
+            })),
+          flags: q.flags || [],
+          tagId: matchedTag?._id || '',
+        };
+      });
 
-          if (preFilledQuestions.length === 0) {
-              throw new Error('No questions could be extracted from this file. Please check the format and try again.');
-          }
-
-          setImportedQuestions(preFilledQuestions);
-          setShowImportModal(false);
-          setEditQuestion(null);
-          setShowForm(true);
-
-      } catch (error) {
-          console.error('Import error:', error);
-          setImportError(error.message || 'Failed to import questions. Please try again.');
-      } finally {
-          setImportLoading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
+      if (preFilledQuestions.length === 0) {
+        throw new Error('No questions could be extracted from this file. Please check the format and try again.');
       }
+
+      setImportedQuestions(preFilledQuestions);
+      setShowImportModal(false);
+      setEditQuestion(null);
+      setShowForm(true);
+
+    } catch (error) {
+      console.error('Import error:', error);
+      setImportError(error.message || 'Failed to import questions. Please try again.');
+    } finally {
+      setImportLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
 
   return (
@@ -382,7 +382,16 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             <span>{state === 'all' ? 'All' : formatStateLabel(state)}</span>
           </button>
         ))}
+      </div>
 
+      <div className="qp-filters">
+        <input
+          className="qp-search"
+          type="text"
+          placeholder="Search question"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
 
         {role === 'dean' && (
           <select
@@ -398,19 +407,9 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             ))}
           </select>
         )}
-      </div>
-
-      <div className="qp-filters">
-        <input
-          className="qp-search"
-          type="text"
-          placeholder="Search question"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
 
         <select
-          className="qp-filter-select"
+          className="qp-filter-select qp-filter-select--subject"
           value={subjectFilter}
           onChange={(e) => setSubjectFilter(e.target.value)}
         >
@@ -423,7 +422,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </select>
 
         <select
-          className="qp-filter-select"
+          className="qp-filter-select qp-sort"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
         >
@@ -444,12 +443,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           <table className="qp-table">
             <thead>
               <tr>
-                <th>Question</th>
+                <th style={{ width: '320px' }}>Question</th>
                 <th>Subject</th>
                 {role === 'dean' && <th>Program</th>}
                 <th>Status</th>
                 <th>Updated</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -545,8 +544,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
           </div>
           <div className="qp-pagination-controls">
-            <button 
-              className="qp-pagination-btn" 
+            <button
+              className="qp-pagination-btn"
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={currentPage === 1}
             >
@@ -563,8 +562,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                 </button>
               ))}
             </div>
-            <button 
-              className="qp-pagination-btn" 
+            <button
+              className="qp-pagination-btn"
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
@@ -575,35 +574,35 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       )}
 
       <Modal
-          open={showForm}
-          onClose={closeFormModal}
-          title={editQuestion ? 'Edit Question' : 'Create Question'}
+        open={showForm}
+        onClose={closeFormModal}
+        title={editQuestion ? 'Edit Question' : 'Create Question'}
       >
-          <div className="qp-modal-copy">
-              <p className="qp-modal-subtitle">
-                  {editQuestion
-                      ? 'Update the question details and save your changes.'
-                      : importedQuestions.length > 0
-                          ? `${importedQuestions.length} questions extracted. Review, assign tags, and save.`
-                          : 'Add a new question draft for your program.'}
-              </p>
-              {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
-          </div>
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            {editQuestion
+              ? 'Update the question details and save your changes.'
+              : importedQuestions.length > 0
+                ? `${importedQuestions.length} questions extracted. Review, assign tags, and save.`
+                : 'Add a new question draft for your program.'}
+          </p>
+          {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
+        </div>
 
-          <QuestionForm
-              tags={tags}
-              programId={programId}
-              initialData={editQuestion}
-              importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
-              onSaved={(savedData, isEdit) => {
-                  handleSaved(savedData, isEdit);
-                  setImportedQuestions([]); // Clear after save
-              }}
-              onClose={() => {
-                  closeFormModal();
-                  setImportedQuestions([]);
-              }}
-          />
+        <QuestionForm
+          tags={tags}
+          programId={programId}
+          initialData={editQuestion}
+          importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
+          onSaved={(savedData, isEdit) => {
+            handleSaved(savedData, isEdit);
+            setImportedQuestions([]); // Clear after save
+          }}
+          onClose={() => {
+            closeFormModal();
+            setImportedQuestions([]);
+          }}
+        />
       </Modal>
 
       <Modal

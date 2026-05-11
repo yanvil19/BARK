@@ -482,7 +482,7 @@ export default function QuestionApprovals({ me }) {
                     Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
                   </div>
                   <div className="ca-pagination-controls">
-                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>← Previous</button>
                     <div className="ca-pagination-pages">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
@@ -494,7 +494,7 @@ export default function QuestionApprovals({ me }) {
                         </button>
                       ))}
                     </div>
-                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>Next</button>
+                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>Next →</button>
                   </div>
                 </div>
               )}

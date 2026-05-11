@@ -66,6 +66,12 @@
   margin-bottom: 16px;
 }
 
+
+.register-debug-output {
+  display: none;
+}
+
+
 .register-banner {
   padding: 11px 14px;
   border-radius: 8px;

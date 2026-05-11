@@ -217,7 +217,7 @@
 .er-breakdown-card {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   border: 1px solid #e1e3ed;
   overflow: hidden;
 }
@@ -324,16 +324,16 @@
   align-items: center;
 }
 
-.er-q-label { 
+.er-q-label {
   font-size: 13px;
   font-weight: 700;
-  color: #4b5563; 
+  color: #4b5563;
 }
 
-.er-q-rate { 
+.er-q-rate {
   font-size: 14px;
   font-weight: 800;
-  color: #1e2d6b; 
+  color: #1e2d6b;
 }
 
 .er-q-tag {
@@ -345,18 +345,45 @@
 }
 
 /* Question Tag Colors */
-.tag-green { background: #dcfce7; color: #15803d; }
-.tag-yellow { background: #fef9c3; color: #a16207; }
-.tag-red { background: #fee2e2; color: #b91c1c; }
+.tag-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tag-yellow {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.tag-red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
 
 /* Dynamic Colors based on threshold */
-.status-green { color: #22c55e !important; }
-.status-orange { color: #f5c518 !important; }
-.status-red { color: #ef4444 !important; }
+.status-green {
+  color: #22c55e !important;
+}
 
-.bg-green { background-color: #22c55e !important; }
-.bg-orange { background-color: #f5c518 !important; }
-.bg-red { background-color: #ef4444 !important; }
+.status-orange {
+  color: #f5c518 !important;
+}
+
+.status-red {
+  color: #ef4444 !important;
+}
+
+.bg-green {
+  background-color: #22c55e !important;
+}
+
+.bg-orange {
+  background-color: #f5c518 !important;
+}
+
+.bg-red {
+  background-color: #ef4444 !important;
+}
 
 /* Sidebar Overrides */
 .er-sidebar-card {
@@ -367,4 +394,12 @@
 .er-sidebar-item.active {
   background: #1e2d6b !important;
   color: white !important;
+}
+
+@media (max-width: 900px) {
+  
+  .er-page {
+    padding-bottom: 0 !important;
+  }
+
 }
