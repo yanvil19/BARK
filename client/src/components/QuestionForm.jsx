@@ -229,17 +229,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
   return (
     <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
-      {!readOnly && !initialData && (
-        <div className="qf-global-ocr">
-          <div className="qf-global-ocr-text">
-            <strong>Have a photo of a quiz?</strong>
-            <p>Use OCR to quickly extract text and import questions.</p>
-          </div>
-          <button type="button" className="qf-ocr-btn" title="Upload images using OCR technology">
-            + Upload with OCR
-          </button>
-        </div>
-      )}
+      {/* OCR upload removed — unused UI element */}
 
       <div className="qf-questions-list">
         {questionsData.map((q, index) => (
