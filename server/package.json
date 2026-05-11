@@ -27,6 +27,7 @@
     "mongodb": "^7.1.1",
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
     "pdf-parse": "^1.1.1",
     "rate-limit-redis": "^4.3.1"
   },

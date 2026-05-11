@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import { getStatusLabel } from '../../utils/statusLabels.js';
+import '../../styles/MockBoardExamPreview.css';
 
 const BASE = 'http://localhost:5000';
 
@@ -169,7 +171,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
               <strong>Availability End:</strong> {formatDateTime(exam.availabilityEnd)}
             </p>
             <p>
-              <strong>Status:</strong> {exam.status}
+              <strong>Status:</strong> {getStatusLabel(exam.status)}
             </p>
             <p>
               <strong>Instructions:</strong> {exam.instructions || 'None'}

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
@@ -168,11 +169,38 @@ exports.computeResults = async (req, res) => {
       department: req.user.department
     };
 
-    const finalResult = await MockExamResult.findOneAndUpdate(
-      { examId },
-      resultData,
-      { upsert: true, returnDocument: 'after' }
-    );
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    let finalResult;
+    try {
+      finalResult = await MockExamResult.findOneAndUpdate(
+        { examId },
+        resultData,
+        { upsert: true, returnDocument: 'after', session }
+      );
+
+      await MockBoardExam.findByIdAndUpdate(
+        examId,
+        { status: 'archived' },
+        { session }
+      );
+
+      if (exam.questions.length > 0) {
+        const questionIds = exam.questions.map(q => q._id);
+        await Question.updateMany(
+          { _id: { $in: questionIds } },
+          { $set: { state: 'retired' } },
+          { session }
+        );
+      }
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
 
     res.json({ result: finalResult });
   } catch (err) {

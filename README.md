@@ -36,6 +36,8 @@ cd server
 npm install
 ```
 
+*(Note: This includes recently added packages like `node-cron` for scheduled background jobs, so make sure to run this if you're pulling new code!)*
+
 (why: downloads required packages for the API)
 
 ### 3) Create your backend `.env`

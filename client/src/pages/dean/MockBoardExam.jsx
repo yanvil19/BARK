@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/MockBoardExam.css';
 
@@ -328,7 +329,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               <p>Set the exam details, availability, and publishing status.</p>
             </div>
             <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>
-              {form.status}
+              {getStatusLabel(form.status)}
             </span>
           </div>
 

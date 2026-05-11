@@ -16,6 +16,8 @@ async function start() {
     const connectWithRetry = async () => {
         try {
             await connectDB();
+            const { startExamExpiryJob } = require('./services/examExpiryJob');
+            startExamExpiryJob();
         } catch (err) {
             console.error(err);
             if (failFast) {

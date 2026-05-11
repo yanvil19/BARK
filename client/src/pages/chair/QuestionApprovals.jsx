@@ -4,16 +4,9 @@ import '../../styles/QuestionApprovals.css';
 
 const BASE = 'http://localhost:5000';
 
-const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected', 'in_use', 'retired'];
+import { getStatusLabel } from '../../utils/statusLabels.js';
 
-const STATE_LABELS = {
-  pending_chair: 'Pending Review',
-  returned: 'Returned for Revision',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  in_use: 'In Use',
-  retired: 'Retired',
-};
+const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected', 'in_use', 'retired'];
 
 const LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -24,10 +17,6 @@ function formatDate(iso) {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function formatStateLabel(state) {
-  return STATE_LABELS[state] || state;
 }
 
 function truncateText(text, max = 100) {
@@ -390,7 +379,7 @@ export default function QuestionApprovals({ me }) {
             onClick={() => setFilter(state)}
           >
             <span className="ca-state-pill-count">{counts[state] || 0}</span>
-            <span>{state === 'all' ? 'All' : formatStateLabel(state)}</span>
+            <span>{state === 'all' ? 'All' : getStatusLabel(state)}</span>
           </button>
         ))}
       </div>
@@ -457,7 +446,7 @@ export default function QuestionApprovals({ me }) {
                       </div>
                       <div className="ca-card-badges">
                         <div className={`ca-state-badge ca-state--${question.state}`}>
-                          {question.state === 'pending_chair' ? 'Pending' : formatStateLabel(question.state)}
+                          {question.state === 'pending_chair' ? 'Pending' : getStatusLabel(question.state)}
                         </div>
                         {isBeingEvaluated(question, me?._id) && (
                           <div className="ca-evaluating-badge">
@@ -596,14 +585,14 @@ export default function QuestionApprovals({ me }) {
                 </>
               ) : (selectedQuestion.state === 'rejected') ? (
                 <>
-                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore to Review</button>
-                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete Permanently</button>
+                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore for Revision</button>
+                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
                 </>
               ) : (selectedQuestion.state === 'retired') ? (
                 <>
                   <button className="ca-btn ca-btn--reuse" onClick={() => handleReuse(selectedQuestion)}>Use Again</button>
-                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore to Review</button>
-                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete Permanently</button>
+                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore for Revision</button>
+                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
                 </>
               ) : (
                 <p className="ca-no-actions">No actions available for this question.</p>

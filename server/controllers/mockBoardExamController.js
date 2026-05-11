@@ -156,9 +156,10 @@ async function createMockBoardExam(req, res) {
     });
 
     if (payload.questionIds.length > 0) {
+      const questionState = payload.status === 'draft' ? 'in_draft' : 'in_use';
       await Question.updateMany(
         { _id: { $in: payload.questionIds } },
-        { $set: { state: 'in_use' } }
+        { $set: { state: questionState } }
       );
     }
 
@@ -176,27 +177,6 @@ async function createMockBoardExam(req, res) {
 
 async function listMockBoardExams(req, res) {
   try {
-    const examsToArchive = await MockBoardExam.find(
-      { status: 'published', endDateTime: { $lt: new Date() } }
-    ).select('_id questions');
-
-    if (examsToArchive.length > 0) {
-      const examIds = examsToArchive.map((e) => e._id);
-      const questionIdsToRetire = examsToArchive.flatMap((e) => e.questions);
-
-      if (questionIdsToRetire.length > 0) {
-        await Question.updateMany(
-          { _id: { $in: questionIdsToRetire } },
-          { $set: { state: 'retired' } }
-        );
-      }
-
-      await MockBoardExam.updateMany(
-        { _id: { $in: examIds } },
-        { $set: { status: 'finished' } }
-      );
-    }
-
     let query = {};
 
     if (req.user && req.user.role === 'dean') {
@@ -280,6 +260,7 @@ async function updateMockBoardExam(req, res) {
     const oldQuestionIds = existing.questions.map((id) => id.toString());
     const newQuestionIds = payload.questionIds.map((id) => id.toString());
 
+    const oldStatus = existing.status;
     existing.name = payload.name;
     existing.program = payload.program._id;
     existing.department = payload.program.department;
@@ -291,17 +272,21 @@ async function updateMockBoardExam(req, res) {
     existing.status = payload.status;
     await existing.save();
 
-    // Diff questions and update states regardless of exam status transitions
+    // Handle question state transitions based on exam status
+    const targetState = payload.status === 'draft' ? 'in_draft' : 'in_use';
     const removedIds = oldQuestionIds.filter((id) => !newQuestionIds.includes(id));
     const addedIds = newQuestionIds.filter((id) => !oldQuestionIds.includes(id));
 
     if (removedIds.length > 0) {
       await Question.updateMany({ _id: { $in: removedIds } }, { $set: { state: 'approved' } });
     }
-    if (addedIds.length > 0) {
-      await Question.updateMany({ _id: { $in: addedIds } }, { $set: { state: 'in_use' } });
+    
+    const statusChanged = oldStatus !== payload.status;
+    const idsToUpdate = statusChanged ? newQuestionIds : addedIds;
+
+    if (idsToUpdate.length > 0) {
+      await Question.updateMany({ _id: { $in: idsToUpdate } }, { $set: { state: targetState } });
     }
-    // draft → draft: no question state changes
 
     const populated = await MockBoardExam.findById(existing._id)
       .populate('program', 'name code')
@@ -342,27 +327,6 @@ async function deleteMockBoardExam(req, res) {
 
 async function listPublishedExams(req, res) {
   try {
-    const examsToArchive = await MockBoardExam.find(
-      { status: 'published', endDateTime: { $lt: new Date() } }
-    ).select('_id questions');
-
-    if (examsToArchive.length > 0) {
-      const examIds = examsToArchive.map((e) => e._id);
-      const questionIdsToRetire = examsToArchive.flatMap((e) => e.questions);
-
-      if (questionIdsToRetire.length > 0) {
-        await Question.updateMany(
-          { _id: { $in: questionIdsToRetire } },
-          { $set: { state: 'retired' } }
-        );
-      }
-
-      await MockBoardExam.updateMany(
-        { _id: { $in: examIds } },
-        { $set: { status: 'archived' } }
-      );
-    }
-
     const exams = await MockBoardExam.find({ status: 'published' })
       .populate('program', 'name code')
       .select('name program updatedAt')

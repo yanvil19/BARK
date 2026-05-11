@@ -7,15 +7,7 @@ import '../../styles/QuestionsPage.css';
 
 const BASE = 'http://localhost:5000';
 
-const STATE_LABELS = {
-  draft: 'Draft',
-  pending_chair: 'Pending Chair Review',
-  returned: 'Returned for Revision',
-  approved: 'Approved',
-  in_use: 'In Use',
-  retired: 'Retired',
-  rejected: 'Rejected',
-};
+import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved', 'rejected'];
 
@@ -26,10 +18,6 @@ function formatDate(iso) {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function formatStateLabel(state) {
-  return STATE_LABELS[state] || state;
 }
 
 function truncateText(text, max = 100) {
@@ -379,7 +367,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             onClick={() => setFilter(state)}
           >
             <span className="qp-state-pill-count">{counts[state] || 0}</span>
-            <span>{state === 'all' ? 'All' : formatStateLabel(state)}</span>
+            <span>{state === 'all' ? 'All' : getStatusLabel(state)}</span>
           </button>
         ))}
 
@@ -458,7 +446,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                   <td colSpan={role === 'dean' ? 6 : 5} className="qp-empty">
                     {filter === 'all'
                       ? 'No questions found. Create your first one!'
-                      : `No ${formatStateLabel(filter)} questions found.`}
+                      : `No ${getStatusLabel(filter)} questions found.`}
                   </td>
                 </tr>
               ) : (
@@ -504,7 +492,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                     <td>
                       <span className={`qp-status qp-status--${question.state}`}>
                         <span className="qp-status-dot" />
-                        {formatStateLabel(question.state)}
+                        {getStatusLabel(question.state)}
                       </span>
                     </td>
 

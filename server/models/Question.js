@@ -13,6 +13,7 @@ const QUESTION_STATES = [
   'pending_chair',
   'returned',
   'approved',
+  'in_draft',
   'in_use',
   'retired',
   'rejected',
