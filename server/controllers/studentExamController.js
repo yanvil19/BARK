@@ -86,10 +86,36 @@ async function getAvailableExams(req, res) {
       status: 'published',
       endDateTime: { $gt: now },
     })
-      .select('name description startDateTime endDateTime durationMinutes')
-      .sort({ startDateTime: 1 });
+      .select('name startDateTime endDateTime status program subjectTags questions')
+      .populate('program', 'name code')
+      .populate('subjectTags', 'name')
+      .sort({ startDateTime: 1 })
+      .lean();
 
-    res.json({ exams });
+    const enriched = exams.map((exam) => {
+      const questionCount = exam.questions?.length ?? 0;
+      delete exam.questions;
+
+      const durationMinutes =
+        exam.startDateTime && exam.endDateTime
+          ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
+          : null;
+
+      let examCardStatus;
+      if (!exam.startDateTime || !exam.endDateTime) {
+        examCardStatus = 'upcoming';
+      } else if (now < new Date(exam.startDateTime)) {
+        examCardStatus = 'upcoming';
+      } else if ((new Date(exam.endDateTime) - now) / (1000 * 60 * 60) <= 24) {
+        examCardStatus = 'closing_soon';
+      } else {
+        examCardStatus = 'open';
+      }
+
+      return { ...exam, durationMinutes, questionCount, examCardStatus };
+    });
+
+    res.json({ exams: enriched });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
