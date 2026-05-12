@@ -107,12 +107,6 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
           </button>
         )}
 
-        {isStudent && (
-          <button className={route === 'studentAvailableExams' ? 'active' : ''} onClick={() => onRoute('studentAvailableExams')}>
-            Available Exams
-          </button>
-        )}
-
         {me && me.role !== 'student' && !isDean && (
           <button className={cls('student')} onClick={handle('student')}>
             Student Register
@@ -148,6 +142,12 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             <button className={cls('schoolsPrograms')} onClick={handle('schoolsPrograms')}>Schools and Programs</button>
             <button className={cls('adminUsers')} onClick={handle('adminUsers')}>User Management</button>
           </>
+        )}
+
+        {isStudent && (
+          <button className={cls('studentAvailableExams')} onClick={handle('studentAvailableExams')}>
+            Available Exams
+          </button>
         )}
 
         {!me && (
