@@ -4,25 +4,6 @@
   background: linear-gradient(180deg, #eef0f8 0%, #e5e7f2 100%);
 }
 
-.sm-page-header {
-  padding: 18px 32px 12px;
-  background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.sm-page-header h1 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 24px;
-  color: var(--primary-bg);
-}
-
-.sm-page-header p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #8b92bc;
-}
-
 .sm-tabs {
   display: flex;
   gap: 0;

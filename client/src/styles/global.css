@@ -63,10 +63,12 @@ strong {
 
 /* Page Header Standard Styles */
 .page-header {
+  width: 100%;
   padding: 16px 40px;
   background: white;
   border-bottom: 1px solid #eef0f7;
   margin-bottom: 24px;
+  box-sizing: border-box;
 }
 
 .page-header-title {

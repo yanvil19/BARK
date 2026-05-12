@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { uploadDocumentForImport, submitImportedQuestions } from '../../lib/importApi.js';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/QuestionsPage.css';
 
 const BASE = 'http://localhost:5000';
@@ -332,31 +333,24 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
   return (
     <main className="qp-page">
-      <header className="qp-page-header">
-        <div className="qp-header">
-          <div>
-            <h1 className="qp-title">{getPageTitle()}</h1>
-            <p className="qp-subtitle">{getPageSubtitle()}</p>
-          </div>
+      <PageHeader title={getPageTitle()} subtitle={getPageSubtitle()} />
 
-          <div className="qp-header-actions">
-            {role !== 'dean' && programLabel ? (
-              <span className="qp-program-chip">{programLabel}</span>
-            ) : null}
+      <div className="qp-header-actions">
+        {role !== 'dean' && programLabel ? (
+          <span className="qp-program-chip">{programLabel}</span>
+        ) : null}
 
-            {canCreateQuestion && (
-              <div className="qp-header-actions-buttons">
-                <button type="button" className="qp-btn-add" onClick={openImportModal}>
-                  + Import Questions
-                </button>
-                <button type="button" className="qp-btn-add" onClick={openCreateModal}>
-                  + Create Question
-                </button>
-              </div>
-            )}
+        {canCreateQuestion && (
+          <div className="qp-header-actions-buttons">
+            <button type="button" className="qp-btn-add" onClick={openImportModal}>
+              + Import Questions
+            </button>
+            <button type="button" className="qp-btn-add" onClick={openCreateModal}>
+              + Create Question
+            </button>
           </div>
-        </div>
-      </header>
+        )}
+      </div>
 
       <div className="qp-state-pills">
         {STATE_FILTERS.map((state) => (

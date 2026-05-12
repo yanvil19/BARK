@@ -2,34 +2,6 @@
   padding: 0;
 }
 
-.um-page-header {
-  margin: -20px -20px 20px;
-  padding: 18px 32px 12px;
-  background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.um-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.um-title {
-  margin: 0 0 4px;
-  font-family: var(--font-title);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--primary-bg);
-}
-
-.um-subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: #8b92bc;
-}
-
 .um-btn-add {
   background-color: var(--primary-bg);
   color: #fff;

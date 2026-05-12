@@ -4,38 +4,7 @@
   padding: 0;
 }
 
-/* Reusing qp- classes from global or shared context if possible,
-   but since they are in QuestionsPage.css, we redefine the necessary ones here
-   to ensure the Manage Subjects page looks identical. */
-
-.qp-page-header {
-  margin: -20px -20px 20px;
-  padding: 18px 32px 12px;
-  background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.qp-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.qp-title {
-  margin: 0 0 4px;
-  font-family: var(--font-title);
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--primary-bg);
-}
-
-.qp-subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: #8b92bc;
-}
+/* Header now uses shared `.page-header*` classes from `client/src/styles/global.css`. */
 
 .qp-btn-add {
   background-color: var(--primary-bg);

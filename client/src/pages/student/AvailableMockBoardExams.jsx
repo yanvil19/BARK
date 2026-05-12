@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
@@ -80,13 +81,12 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
   return (
     <main className="ambe-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Available Mock Board Exams</h1>
-        <p className="page-header-subtitle">
-          This page lists the mock board exams created by the dean for
-          department programs.
-        </p>
-      </header>
+      <PageHeader
+        title="Available Mock Board Exams"
+        subtitle={
+          'This page lists the mock board exams created by the dean for department programs.'
+        }
+      />
 
       {/* ── CONTENT ─────────────────────── */}
       {loading && <p className="ambe-loading">Loading mock board exams…</p>}

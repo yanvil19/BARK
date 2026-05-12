@@ -1,11 +1,14 @@
 import React from 'react';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const ProfessorDashboard = ({ me }) => {
   return (
     <main>
-      <h1>Welcome, Professor {me?.firstName || 'Professor'}</h1>
-      <p>Professor dashboard content coming soon.</p>
+      <PageHeader
+        title={`Welcome, Professor ${me?.firstName || 'Professor'}`}
+        subtitle="Professor dashboard content coming soon."
+      />
     </main>
   );
 };

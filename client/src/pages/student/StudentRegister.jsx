@@ -7,6 +7,7 @@ import {
   getStudentIdErrorMessage,
   getAlumniIdErrorMessage,
 } from '../../lib/idFormats.js';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/StudentRegister.css';
 
 const REG_KEY = 'nu_board_registration';
@@ -297,10 +298,10 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
   return (
     <main className="register-page-container">
       {!embedded ? (
-        <header className="register-page-header">
-          <h2>Student Registration</h2>
-          <p className="register-subtitle">Manage student registration requests</p>
-        </header>
+        <PageHeader
+          title="Student Registration"
+          subtitle="Manage student registration requests"
+        />
       ) : null}
 
       <div className="register-shell">

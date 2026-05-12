@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
 import '../../styles/ExamResults.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // --- SHARED UI HELPERS ---
 const getStatusClass = (avg, threshold) => {
@@ -207,10 +208,10 @@ const ExamResults = () => {
 
   return (
     <div className="er-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Mock Board Exam Results</h1>
-        <p className="page-header-subtitle">Select an exam to view analysis</p>
-      </header>
+      <PageHeader
+        title="Mock Board Exam Results"
+        subtitle="Select an exam to view analysis"
+      />
 
       <div className="er-layout">
         

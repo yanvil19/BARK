@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentManager.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 export default function DeanApprovals({ embedded = false }) {
   const [status, setStatus] = useState('pending');
@@ -51,7 +52,7 @@ export default function DeanApprovals({ embedded = false }) {
 
   return (
     <main>
-      {!embedded ? <h2>Dean: Registration Approvals</h2> : null}
+      {!embedded ? <PageHeader title="Dean: Registration Approvals" /> : null}
 
       {!embedded ? (
         <>

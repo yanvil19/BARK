@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 
 export default function AdminUsers() {
   const [busy, setBusy] = useState(false);
@@ -231,17 +232,18 @@ export default function AdminUsers() {
   return (
     <main className="um-page">
       {/* ── Page Header ── */}
-      <header className="um-page-header">
-        <div className="um-header">
-          <div>
-            <h1 className="um-title">User Management</h1>
-            <p className="um-subtitle">Create, edit, and manage all system users</p>
-          </div>
+      <PageHeader
+        title="User Management"
+        subtitle="Create, edit, and manage all system users"
+      />
+
+      <div style={{ padding: '0 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0 0 12px' }}>
           <button className="um-btn-add" onClick={startCreate}>
             + Add User
           </button>
         </div>
-      </header>
+      </div>
 
       <div style={{ padding: '0 20px' }}>
         {/* ── Filters ── */}

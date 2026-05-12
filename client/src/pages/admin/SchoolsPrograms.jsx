@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 
 export default function SchoolsPrograms() {
   const [deptName, setDeptName] = useState('');
@@ -206,22 +207,21 @@ export default function SchoolsPrograms() {
   return (
     <main className="um-page">
       {/* ── Page Header ── */}
-      <header className="um-page-header">
-        <div className="um-header">
-          <div>
-            <h1 className="um-title">Schools and Program</h1>
-            <p className="um-subtitle">Manage system-wide departments and programs</p>
-          </div>
-          <div className="um-actions" style={{ display: 'flex', gap: '12px' }}>
-            <button className="um-btn-add" onClick={() => setShowForm(true)}>
-              + Add School
-            </button>
-            <button className="um-btn-add" style={{ background: '#f0f2f8', color: 'var(--primary-bg)', border: '1px solid #d0d5dd' }} onClick={() => setShowProgramForm(true)}>
-              + Add Program
-            </button>
-          </div>
+      <PageHeader
+        title="Schools and Program"
+        subtitle="Manage system-wide departments and programs"
+      />
+
+      <div style={{ padding: '0 20px' }}>
+        <div className="um-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', margin: '0 0 12px' }}>
+          <button className="um-btn-add" onClick={() => setShowForm(true)}>
+            + Add School
+          </button>
+          <button className="um-btn-add" style={{ background: '#f0f2f8', color: 'var(--primary-bg)', border: '1px solid #d0d5dd' }} onClick={() => setShowProgramForm(true)}>
+            + Add Program
+          </button>
         </div>
-      </header>
+      </div>
 
       {error ? <p className="um-error" style={{ margin: '0 20px 16px' }}>{error}</p> : null}
 

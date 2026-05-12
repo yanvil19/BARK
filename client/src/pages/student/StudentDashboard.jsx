@@ -1,10 +1,11 @@
 import React from 'react';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const StudentDashboard = ({ me, onNavigate }) => {
   return (
     <main style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>Welcome, {me?.firstName || 'Student'}</h1>
+      <PageHeader title={`Welcome, ${me?.firstName || 'Student'}`} />
       
       <section style={{ marginTop: '30px' }}>
         <div style={{ border: '1px solid var(--border-color)', padding: '30px', borderRadius: '8px', background: '#fff', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>

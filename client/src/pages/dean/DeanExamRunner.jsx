@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import '../../styles/MockBoardExamPreview.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const BASE = 'http://localhost:5000';
 
@@ -136,14 +137,16 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
 
   return (
     <main>
-      <h1>{getModeTitle(mode)}</h1>
-      <p>
-        {mode === 'details'
-          ? 'Review the stored mock board exam record and its included questions.'
-          : mode === 'preview'
-            ? 'Review how the exam content will appear before it is used.'
-            : 'Take the exam in a dean-only test mode to verify the student-facing flow.'}
-      </p>
+      <PageHeader
+        title={getModeTitle(mode)}
+        subtitle={
+          mode === 'details'
+            ? 'Review the stored mock board exam record and its included questions.'
+            : mode === 'preview'
+              ? 'Review how the exam content will appear before it is used.'
+              : 'Take the exam in a dean-only test mode to verify the student-facing flow.'
+        }
+      />
 
       <div>
         <button type="button" onClick={onBack}>

@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { Modal } from '../../components/Modal.jsx';
 import '../../styles/SubjectTags.css';
 import '../../styles/global.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const BASE = 'http://localhost:5000';
 
@@ -138,22 +139,22 @@ export default function ChairTags({ me }) {
 
   return (
     <main className="qp-page ct-page">
-      <header className="qp-page-header">
-        <div className="qp-header">
-          <div>
-            <h1 className="qp-title">Manage Subjects</h1>
-            <p className="qp-subtitle">
-              {isDean
-                ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'
-                : 'Create and manage subjects for your program. Professors will use these subjects to categorize their questions.'}
-            </p>
-          </div>
+      <PageHeader
+        title="Manage Subjects"
+        subtitle={
+          isDean
+            ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'
+            : 'Create and manage subjects for your program. Professors will use these subjects to categorize their questions.'
+        }
+      />
 
+      <div style={{ padding: '0 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0 0 12px' }}>
           <button type="button" className="qp-btn-add" onClick={() => setShowAddModal(true)} disabled={isDean && !programId}>
             + Add New Subject
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="ct-controls-row">
         <div className="qp-state-pill qp-state-pill--active">

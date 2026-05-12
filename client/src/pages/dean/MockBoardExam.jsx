@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/MockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
@@ -316,10 +317,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
   return (
     <main className="mbe-page">
-      <header className="mbe-page-header">
-        <h1>Mock Board Exam</h1>
-        <p>Create a mock board exam by selecting the program first, then the subjects, then the approved questions.</p>
-      </header>
+      <PageHeader
+        title="Mock Board Exam"
+        subtitle="Create a mock board exam by selecting the program first, then the subjects, then the approved questions."
+      />
 
       <form className="mbe-form" onSubmit={handleSubmit}>
         <section className="mbe-card mbe-form-card">
