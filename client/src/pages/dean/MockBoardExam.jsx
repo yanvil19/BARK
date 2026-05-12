@@ -41,6 +41,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     description: '',
     instructions: '',
     status: 'draft',
+    passingThreshold: 70,
   });
 
   const computedDuration = useMemo(() => {
@@ -99,6 +100,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           description: exam.description || '',
           instructions: exam.instructions || '',
           status: exam.status || 'draft',
+          passingThreshold: exam.passingThreshold || 70,
         });
       } catch (err) {
         alert(err.message || 'Failed to load mock board exam.');
@@ -277,6 +279,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: form.description,
         instructions: form.instructions,
         status: form.status,
+        passingThreshold: form.passingThreshold,
       };
 
       if (editingExamId) {
@@ -298,6 +301,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: '',
         instructions: '',
         status: 'draft',
+        passingThreshold: 70,
       });
       setSelectedTagIds([]);
       setApprovedQuestions([]);
@@ -406,6 +410,21 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   <option value="published">Published</option>
                   <option value="archived">Archived</option>
                 </select>
+              </label>
+            </div>
+
+            <div className="mbe-field">
+              <label>
+                Passing Threshold (%)
+                <input
+                  className="mbe-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.passingThreshold}
+                  onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                  required
+                />
               </label>
             </div>
 

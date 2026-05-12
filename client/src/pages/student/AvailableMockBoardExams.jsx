@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 const BASE = 'http://localhost:5000';
@@ -20,6 +21,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
+  const [schedulingExamId, setSchedulingExamId] = useState(null);
 
   useEffect(() => {
     async function fetchExams() {
@@ -57,6 +59,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
       if (selectedExam?._id === exam._id) setSelectedExam((prev) => ({ ...prev, status: 'archived' }));
     } catch (err) {
       alert(err.message || 'Failed to archive exam.');
+    }
+  }
+
+  async function handleScheduleResults(examId, date) {
+    try {
+      await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
+        method: 'PATCH',
+        body: { resultsReleaseDate: date },
+      });
+      setExams((prev) => prev.map((e) => e._id === examId ? { ...e, resultsReleaseDate: date } : e));
+      setSchedulingExamId(null);
+      alert('Results release scheduled successfully.');
+    } catch (err) {
+      alert(err.message || 'Failed to schedule results release.');
     }
   }
 
@@ -151,6 +167,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                     <span className={`ambe-status ${exam.status}`}>
                       {exam.status}
                     </span>
+                    {exam.resultsReleaseDate && (
+                      <div className="ambe-release-date">
+                        Release: {formatDateTime(exam.resultsReleaseDate)}
+                      </div>
+                    )}
                   </td>
 
                   <td>
@@ -209,6 +230,27 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         >
                           Edit
                         </button>
+                      )}
+
+                      {exam.status === 'finished' && (
+                        <div className="ambe-schedule-container">
+                          {schedulingExamId === exam._id ? (
+                            <DateTimePicker
+                              value={exam.resultsReleaseDate}
+                              autoOpen={true}
+                              onCancel={() => setSchedulingExamId(null)}
+                              onChange={(date) => handleScheduleResults(exam._id, date)}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className="ambe-btn primary"
+                              onClick={() => setSchedulingExamId(exam._id)}
+                            >
+                              {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       {exam.status === 'finished' && (

@@ -1,79 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-// All of this will be replaced with real API calls once the backend endpoint
-// GET /api/student-exams/my-attempts is implemented.
-
-const MOCK_ATTEMPTS = [
-  {
-    id: '1',
-    examName: 'Structural Analysis — Set A',
-    date: new Date('2025-04-10T09:04:00'),
-    totalItems: 60,
-    durationMinutes: 134,
-    rawScore: 92,
-    totalScore: 100,
-    status: 'passed',
-    subjectScores: [
-      { name: 'Structural Analysis', correct: 9,  total: 10 },
-      { name: 'Fluid Mechanics',     correct: 11, total: 13 },
-      { name: 'Geotech Engineering', correct: 8,  total: 10 },
-      { name: 'Engineering Math',    correct: 9,  total: 16 },
-      { name: 'Mixed Topics',        correct: 3,  total:  9 },
-    ],
-    resultReleasedAt: new Date('2025-04-12T09:00:00'),
-  },
-  {
-    id: '2',
-    examName: 'Geotechnical Engineering',
-    date: new Date('2025-03-22T14:30:00'),
-    totalItems: 50,
-    durationMinutes: 118,
-    rawScore: 84,
-    totalScore: 100,
-    status: 'passed',
-    subjectScores: [],
-    resultReleasedAt: new Date('2025-03-24T09:00:00'),
-  },
-  {
-    id: '3',
-    examName: 'Engineering Mathematics',
-    date: new Date('2025-03-05T10:00:00'),
-    totalItems: 80,
-    durationMinutes: 180,
-    rawScore: 72,
-    totalScore: 100,
-    status: 'near_pass',
-    subjectScores: [],
-    resultReleasedAt: new Date('2025-03-07T09:00:00'),
-  },
-  {
-    id: '4',
-    examName: 'Mixed Topics',
-    date: new Date('2025-02-14T08:00:00'),
-    totalItems: 70,
-    durationMinutes: 165,
-    rawScore: 61,
-    totalScore: 100,
-    status: 'failed',
-    subjectScores: [],
-    resultReleasedAt: new Date('2025-02-16T09:00:00'),
-  },
-  // Demo: unreleased result — far future date keeps countdown visible
-  {
-    id: '5',
-    examName: 'CE Board Exam Set B',
-    date: new Date('2026-05-10T09:00:00'),
-    totalItems: 100,
-    durationMinutes: null,
-    rawScore: null,
-    totalScore: 100,
-    status: null,
-    subjectScores: [],
-    resultReleasedAt: new Date('2099-06-05T21:00:00'),
-  },
-];
+const BASE = 'http://localhost:5000';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -93,7 +22,11 @@ function formatDate(date) {
 }
 
 function formatReleaseDate(date) {
-  return new Date(date).toLocaleString('en-PH', {
+  if (!date) return 'TBA';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'TBA';
+  
+  return d.toLocaleString('en-PH', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -131,6 +64,11 @@ function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
+    if (!targetDate) {
+      setTimeLeft('TBA');
+      return;
+    }
+
     function compute() {
       const diff = new Date(targetDate) - new Date();
       if (diff <= 0) { setTimeLeft(''); return; }
@@ -262,8 +200,37 @@ function SubjectBar({ subject }) {
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 const StudentDashboard = ({ me, onNavigate }) => {
-  const releasedAttempts = MOCK_ATTEMPTS.filter(isReleased);
-  const totalTaken = MOCK_ATTEMPTS.length;
+  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
+  useEffect(() => {
+    async function fetchAttempts() {
+      setLoading(true);
+      try {
+        const data = await apiAuth(`${BASE}/api/student-exams/my-attempts`);
+        const sorted = (data.attempts || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+        setAttempts(sorted);
+        
+        // Default selection: latest with subject scores
+        const released = sorted.filter(isReleased);
+        const defaultSelected = released.find(a => a.subjectScores?.length > 0) ?? null;
+        setSelectedAttempt(defaultSelected);
+      } catch (err) {
+        console.error('Failed to load attempts:', err);
+        setError(err.message || 'Failed to load dashboard data.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAttempts();
+  }, []);
+
+  const releasedAttempts = attempts.filter(isReleased);
+  const totalTaken = attempts.length;
   const passed     = releasedAttempts.filter(a => a.status === 'passed').length;
   const toImprove  = releasedAttempts.filter(a => a.status !== 'passed').length;
 
@@ -275,14 +242,14 @@ const StudentDashboard = ({ me, onNavigate }) => {
   const highAttempt = releasedAttempts.find(a => a.rawScore === highScore);
   const lowAttempt  = releasedAttempts.find(a => a.rawScore === lowScore);
 
-  // Selected attempt for the right panel — defaults to the latest with subject data
-  const defaultSelected = releasedAttempts.find(a => a.subjectScores?.length > 0) ?? null;
-  const [selectedAttempt, setSelectedAttempt] = useState(defaultSelected);
-
-  // All attempts newest-first for the log
-  const sortedAttempts = [...MOCK_ATTEMPTS].sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Pagination logic
+  const totalPages = Math.ceil(attempts.length / pageSize);
+  const paginatedAttempts = attempts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const firstName = me?.firstName || me?.name?.split(' ')[0] || 'Student';
+
+  if (loading) return <div className="sd-loading">Loading dashboard...</div>;
+  if (error) return <div className="sd-error">{error}</div>;
 
   return (
     <main className="s-dashboard-container">
@@ -332,19 +299,44 @@ const StudentDashboard = ({ me, onNavigate }) => {
               <span className="sd-card-title">Chronological log of all attempts</span>
             </div>
             <div className="sd-card-body">
-              {sortedAttempts.length === 0 ? (
+              {attempts.length === 0 ? (
                 <p className="sd-empty">No attempts yet.</p>
               ) : (
-                <div className="sd-timeline">
-                  {sortedAttempts.map(a => (
-                    <AttemptRow
-                      key={a.id}
-                      attempt={a}
-                      isSelected={selectedAttempt?.id === a.id}
-                      onClick={() => setSelectedAttempt(a)}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="sd-timeline">
+                    {paginatedAttempts.map(a => (
+                      <AttemptRow
+                        key={a.id}
+                        attempt={a}
+                        isSelected={selectedAttempt?.id === a.id}
+                        onClick={() => setSelectedAttempt(a)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="sd-pagination">
+                      <button
+                        className="sd-pag-btn"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
+                      >
+                        Previous
+                      </button>
+                      <span className="sd-pag-info">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        className="sd-pag-btn"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

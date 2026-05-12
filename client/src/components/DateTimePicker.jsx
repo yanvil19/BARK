@@ -7,8 +7,8 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/DateTimePicker.css';
 
-export default function DateTimePicker({ value, onChange }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function DateTimePicker({ value, onChange, onCancel, autoOpen = false }) {
+  const [isOpen, setIsOpen] = useState(autoOpen);
   // Hold a draft date inside the modal — only commit on Apply
   const [draft, setDraft] = useState(value ? new Date(value) : new Date());
 
@@ -24,6 +24,7 @@ export default function DateTimePicker({ value, onChange }) {
 
   const handleCancel = () => {
     setIsOpen(false);
+    if (onCancel) onCancel();
   };
 
   const displayValue = value
@@ -63,6 +64,7 @@ export default function DateTimePicker({ value, onChange }) {
                 timeIntervals={1}
                 dateFormat="MMM d, yyyy h:mm aa"
                 timeCaption="Time"
+                minDate={new Date()}
                 inline  // renders calendar directly, no input/popper
               />
             </div>

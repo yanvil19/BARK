@@ -117,14 +117,8 @@ const ExamResults = () => {
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
 
-  // Sync threshold with active report when it changes
-  useEffect(() => {
-    if (activeReport?.passingThreshold) {
-      setThreshold(activeReport.passingThreshold);
-    } else {
-      setThreshold(70);
-    }
-  }, [activeReport?.passingThreshold]);
+  // Threshold state is strictly managed via handleViewReport (from MockBoardExam metadata).
+  // This ensures the current exam setting always wins over legacy computed reports.
 
   const fetchExams = useCallback(async () => {
     try {
@@ -140,6 +134,13 @@ const ExamResults = () => {
   const handleViewReport = useCallback(async (examId) => {
     setSelectedExamId(examId);
     setLoading(true);
+    
+    // Auto-sync threshold from exam list
+    const exam = exams.find(e => e._id === examId);
+    if (exam && (exam.passingThreshold !== undefined && exam.passingThreshold !== null)) {
+      setThreshold(exam.passingThreshold);
+    }
+
     try {
       const data = await getExamResult(examId);
       // Gracefully handle "not computed" without 404
@@ -151,7 +152,7 @@ const ExamResults = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [exams]);
 
   useEffect(() => {
     fetchExams();
@@ -190,9 +191,9 @@ const ExamResults = () => {
     if (!activeReport) return [];
     return activeReport.subjects.map(s => ({
       ...s,
-      threshold: activeReport.passingThreshold
+      threshold: threshold // Use the metadata threshold for breakdown colors
     }));
-  }, [activeReport]);
+  }, [activeReport, threshold]);
 
   const summary = useMemo(() => {
     if (!activeReport) return null;
@@ -201,9 +202,10 @@ const ExamResults = () => {
       overallAvg: avg,
       takers: activeReport.totalTakers,
       date: new Date(activeReport.dateConducted).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      computedAt: formatDateTime(activeReport.computedAt)
+      computedAt: formatDateTime(activeReport.computedAt),
+      currentThreshold: threshold // Use the metadata threshold
     };
-  }, [activeReport]);
+  }, [activeReport, threshold]);
 
   return (
     <div className="er-page">
@@ -276,16 +278,8 @@ const ExamResults = () => {
               <p style={{ color: '#6b7280', marginBottom: '32px' }}>Select your passing threshold and generate the analytical breakdown for this exam.</p>
               
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <div className="er-threshold-ctrl">
-                  <span>Passing Threshold:</span>
-                  <input 
-                    type="number" 
-                    className="er-threshold-input" 
-                    value={threshold} 
-                    onChange={(e) => setThreshold(Number(e.target.value))}
-                    min="1" max="100"
-                  />
-                  <span>%</span>
+                <div style={{ fontSize: '15px', fontWeight: '600', color: '#35408e', background: '#f0f4ff', padding: '8px 16px', borderRadius: '8px' }}>
+                  Threshold: <strong>{threshold}%</strong>
                 </div>
               </div>
 
@@ -308,30 +302,15 @@ const ExamResults = () => {
                 <div className="er-report-meta">
                   <span className="er-report-ts">Last computed: {summary.computedAt}</span>
                   <span className="er-divider">|</span>
-                  <div className="er-threshold-ctrl">
-                    <span>Threshold:</span>
-                    <input 
-                      type="number" 
-                      className="er-threshold-input" 
-                      value={threshold} 
-                      onChange={(e) => setThreshold(Number(e.target.value))}
-                      min="1" max="100"
-                    />
-                    <span>%</span>
-                    <button 
-                      className="er-recompute-btn"
-                      onClick={() => handleCompute(selectedExamId)}
-                      disabled={computingId === selectedExamId}
-                    >
-                      {computingId === selectedExamId ? '...' : 'RE-COMPUTE'}
-                    </button>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#35408e', background: '#f0f4ff', padding: '4px 12px', borderRadius: '6px' }}>
+                    Threshold: {threshold}%
                   </div>
                 </div>
               </div>
               
               {/* Hero Card */}
               <section className="er-hero-card">
-                <CircularProgress percentage={summary.overallAvg} threshold={activeReport.passingThreshold} />
+                <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
                 <div className="er-hero-metrics">
                   <div className="er-metric-item">
                     <span className="m-value">{summary.overallAvg}%</span>

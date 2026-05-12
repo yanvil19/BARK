@@ -318,9 +318,70 @@ async function submitExam(req, res) {
     }
 }
 
+async function getMyAttempts(req, res) {
+  try {
+    const attempts = await StudentExamAttempt.find({
+      student: req.user._id,
+      status: 'submitted',
+    })
+      .populate({
+        path: 'exam',
+        select: 'name resultsReleaseDate questions passingThreshold',
+      })
+      .populate({
+        path: 'subjectScores.tag',
+        select: 'name',
+      })
+      .sort({ startTime: -1 })
+      .lean();
+
+    const enrichedAttempts = attempts.map((attempt) => {
+      const exam = attempt.exam;
+      const totalItems = exam?.questions?.length || 0;
+      const resultsReleaseDate = exam?.resultsReleaseDate || null;
+      const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null) 
+        ? exam.passingThreshold 
+        : 70;
+      
+      const durationMinutes = attempt.endTime && attempt.startTime
+        ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
+        : null;
+
+      // Determine status based on the exam's specific threshold
+      const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+      let status = 'failed';
+      if (pct >= threshold) status = 'passed';
+      else if (pct >= threshold - 10) status = 'near_pass';
+
+      return {
+        id: attempt._id,
+        examName: exam?.name || 'Unknown Exam',
+        date: attempt.startTime,
+        totalItems,
+        durationMinutes,
+        rawScore: attempt.score,
+        totalScore: totalItems,
+        status,
+        passingThreshold: threshold,
+        subjectScores: (attempt.subjectScores || []).map(ss => ({
+          name: ss.tag?.name || 'Unknown Subject',
+          correct: ss.correct,
+          total: ss.total,
+        })),
+        resultReleasedAt: resultsReleaseDate,
+      };
+    });
+
+    res.json({ attempts: enrichedAttempts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 module.exports = {
     getAvailableExams,
     startExam,
     saveProgress,
-    submitExam
+    submitExam,
+    getMyAttempts,
 };

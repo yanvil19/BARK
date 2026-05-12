@@ -131,6 +131,7 @@ async function validateExamPayload(user, body) {
       status,
       tags,
       questions,
+      passingThreshold: body.passingThreshold ?? 70,
     },
   };
 }
@@ -157,6 +158,7 @@ async function createMockBoardExam(req, res) {
       endDateTime: payload.endDateTime,
       instructions: payload.instructions,
       status: payload.status,
+      passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
     });
 
@@ -222,7 +224,7 @@ async function listMockBoardExams(req, res) {
     const exams = await MockBoardExam.find(query)
       .populate('program', 'name code department')
       .populate('subjectTags', 'name')
-      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status createdAt updatedAt')
+      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status passingThreshold createdAt updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({ exams });
@@ -301,6 +303,7 @@ async function updateMockBoardExam(req, res) {
     existing.endDateTime = payload.endDateTime;
     existing.instructions = payload.instructions;
     existing.status = payload.status;
+    existing.passingThreshold = payload.passingThreshold;
     await existing.save();
 
     // Handle question state transitions based on exam status
@@ -402,6 +405,45 @@ async function archiveExam(req, res) {
   }
 }
 
+async function setResultsReleaseDate(req, res) {
+  try {
+    if (req.user.role !== 'dean') {
+      return res.status(403).json({ message: 'Only Deans can schedule result releases' });
+    }
+
+    const { resultsReleaseDate } = req.body;
+    if (!resultsReleaseDate) {
+      return res.status(400).json({ message: 'Results release date is required' });
+    }
+
+    const releaseDate = new Date(resultsReleaseDate);
+    if (Number.isNaN(releaseDate.getTime())) {
+      return res.status(400).json({ message: 'Invalid release date' });
+    }
+
+    if (releaseDate <= new Date()) {
+      return res.status(400).json({ message: 'Results release date must be in the future' });
+    }
+
+    const exam = await MockBoardExam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ message: 'Mock board exam not found' });
+
+    const accessible = await ensureDeanProgramAccess(req.user, exam.program);
+    if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
+
+    if (exam.status !== 'finished' && exam.status !== 'archived') {
+      return res.status(400).json({ message: 'Can only schedule results release for finished or archived exams' });
+    }
+
+    exam.resultsReleaseDate = releaseDate;
+    await exam.save();
+
+    res.json({ message: 'Results release date scheduled successfully', resultsReleaseDate: exam.resultsReleaseDate });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 module.exports = {
   listApprovedQuestions,
   createMockBoardExam,
@@ -411,4 +453,5 @@ module.exports = {
   deleteMockBoardExam,
   listPublishedExams,
   archiveExam,
+  setResultsReleaseDate,
 };

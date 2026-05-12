@@ -69,6 +69,14 @@ const mockBoardExamSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    resultsReleaseDate: {
+      type: Date,
+      default: null,
+    },
+    passingThreshold: {
+      type: Number,
+      default: 70,
+    },
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

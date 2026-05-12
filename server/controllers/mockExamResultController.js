@@ -156,12 +156,16 @@ exports.computeResults = async (req, res) => {
     });
 
     // 6. SAVE OR UPDATE MockExamResult
+    const finalThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null) 
+      ? exam.passingThreshold 
+      : (passingThreshold !== undefined && passingThreshold !== null ? passingThreshold : 70);
+
     const resultData = {
       examId,
       examName: exam.name,
       dateConducted: exam.startDateTime,
       totalTakers,
-      passingThreshold: passingThreshold || 70,
+      passingThreshold: finalThreshold,
       status: 'computed',
       computedAt: new Date(),
       subjects: subjectsArray,
@@ -178,21 +182,6 @@ exports.computeResults = async (req, res) => {
         resultData,
         { upsert: true, returnDocument: 'after', session }
       );
-
-      await MockBoardExam.findByIdAndUpdate(
-        examId,
-        { status: 'archived' },
-        { session }
-      );
-
-      if (exam.questions.length > 0) {
-        const questionIds = exam.questions.map(q => q._id);
-        await Question.updateMany(
-          { _id: { $in: questionIds } },
-          { $set: { state: 'retired' } },
-          { session }
-        );
-      }
 
       await session.commitTransaction();
     } catch (err) {
