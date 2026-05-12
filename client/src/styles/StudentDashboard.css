@@ -1,0 +1,25 @@
+.s-dashboard-container {
+  margin: -20px;
+  min-height: 100%;
+  background: linear-gradient(180deg, #eef0f8 0%, #e5e7f2 100%);
+}
+
+.s-dashboard-header {
+  padding: 18px 32px 12px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.s-dashboard-header h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--primary-bg);
+}
+
+.s-dashboard-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8b92bc;
+}

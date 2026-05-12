@@ -7,29 +7,31 @@
   --ae-bg: #f2f4fb;
 }
 
-.ae-page {
-  width: 100%;
-  margin: 0;
-  padding: 0;
+.sae-page-container {
+  margin: -20px;
+  min-height: 100%;
+  background:#e5e7f2;
   overflow-x: hidden;
 }
 
-.ae-header {
-  width: 100%;
-  padding: 16px 28px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
-  box-sizing: border-box;
+.sae-page-header {
+  padding: 18px 32px 12px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
 }
 
-/* Apply the same edge-to-edge header styling to the actual header element */
-.ae-page .page-header {
-  width: 100%;
+.sae-page-header h2 {
   margin: 0;
-  padding: 16px 28px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
-  box-sizing: border-box;
+  font-family: var(--font-title);
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--primary-bg);
+}
+
+.sae-header-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #8b92bc;
 }
 
 .ae-grid {

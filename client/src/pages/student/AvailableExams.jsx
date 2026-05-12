@@ -124,12 +124,11 @@ export default function AvailableExams({ onTakeExam }) {
   const hasResults = filteredExams.length > 0;
 
   return (
-    <main className="ae-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Available Mock Board Exams</h1>
-        <p className="page-header-subtitle">
-          Browse and take available mock board exams for your program
-        </p>
+    <main className="sae-page-container">
+
+      <header className="sae-page-header">
+        <h2>Available Exams</h2>
+        <p className="sae-header-subtitle">Browse and take available mock board exams for your program</p>
       </header>
 
       <div className="ca-state-pills ae-state-pills" role="tablist" aria-label="Exam status filters">
