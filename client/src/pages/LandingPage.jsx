@@ -143,11 +143,39 @@ const LandingPage = ({ onNavigate }) => {
 
   const featuredExams = exams.slice(0, 7);
 
+  /* ── Interactive Grid Follow & 3D Tilt ── */
+  const heroRef = useRef(null);
+  const handleMouseMove = (e) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Aura coordinates
+    heroRef.current.style.setProperty('--mouse-x', `${x}px`);
+    heroRef.current.style.setProperty('--mouse-y', `${y}px`);
+
+    // 3D Tilt Calculation (Center based)
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const percentX = (x - centerX) / centerX; // -1 to 1
+    const percentY = (y - centerY) / centerY; // -1 to 1
+
+    // Max tilt of 6 degrees
+    heroRef.current.style.setProperty('--rotate-x', `${-percentY * 6}deg`);
+    heroRef.current.style.setProperty('--rotate-y', `${percentX * 6}deg`);
+  };
+
   return (
     <div className="landing-wrapper">
 
       {/* ══ HERO ══════════════════════════════════════════════ */}
-      <header className="hero-main">
+      <header className="hero-main" ref={heroRef} onMouseMove={handleMouseMove}>
+        <div className="hero-static-bg" aria-hidden="true" />
+        <div className="hero-grid-3d-wrapper" aria-hidden="true">
+          <div className="hero-base-dots" />
+          <div className="hero-interactive-grid" />
+        </div>
         <div className="hero-accent-bar" aria-hidden="true" />
         <div className="hero-inner">
           <h2 className="hero-subtitle">Engineered for Excellence.</h2>

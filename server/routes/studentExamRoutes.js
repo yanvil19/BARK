@@ -4,6 +4,7 @@ const {
   startExam,
   saveProgress,
   submitExam,
+  getMyAttempts,
 } = require('../controllers/studentExamController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -13,6 +14,7 @@ router.use(protect);
 router.use(authorizeRoles('student'));
 
 router.get('/available', getAvailableExams);
+router.get('/my-attempts', getMyAttempts);
 router.post('/:id/start', startExam);
 router.patch('/attempt/:attemptId/progress', saveProgress);
 router.post('/attempt/:attemptId/submit', submitExam);

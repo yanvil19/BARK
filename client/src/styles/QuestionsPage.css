@@ -237,11 +237,11 @@
   font-size: 14px;
   color: #555;
   background-color: #fafafa;
-  min-width: 190px;
+  min-width: 100px;
 }
 
 .qp-filter-select--program {
-  min-width: 220px;
+  min-width: 100px;
   margin-left: auto;
 }
 
@@ -265,7 +265,8 @@
   background: #fff;
   border-radius: 8px;
   border: 1px solid #e4e7ec;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin-bottom: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -278,10 +279,11 @@
 }
 
 .qp-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .qp-table thead tr {
@@ -589,27 +591,97 @@
 }
 
 @media (max-width: 980px) {
+
   .qp-state-pills,
-  .qp-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .qp-filter-select,
-  .qp-filter-select--program {
-    min-width: 0;
+  .qp-filters,
+  .qp-header {
+    max-width: 900px;
     width: 100%;
-    margin-left: 0;
+    margin: 0 auto;
   }
 
-  .qp-more-menu {
-    left: 0;
-    right: 0;
-    min-width: 0;
+  .qp-state-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0 16px;
+    box-sizing: border-box;
   }
+
+  .qp-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .qp-filter-select--program {
+    width: 100%;
+
+    grid-column: 2;
+    grid-row: 1;
+
+    margin: 0;
+  }
+
+  .qp-search {
+    width: 100%;
+    grid-column: 1;
+    grid-row: 1;
+
+    flex: unset;
+  }
+
+  .qp-filter-select:not(.qp-filter-select--program):not(.qp-sort) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .qp-sort {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .qp-search,
+  .qp-filter-select--program,
+  .qp-filter-select--subject,
+  .qp-sort {
+    box-sizing: border-box;
+    
+  }
+
+  .qp-header {
+    margin-bottom: 10px;
+  }
+
+  .qp-pagination {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .qp-pagination-info {
+    width: 100%;
+    text-align: center;
+  }
+
+  .qp-pagination-controls {
+    justify-content: center;
+  }
+  
+  .qp-filters {
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+
 }
 
 @media (max-width: 860px) {
+  .qp-header-actions-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
   .qp-page-header {
     padding-left: 18px;
     padding-right: 18px;
@@ -757,4 +829,3 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-

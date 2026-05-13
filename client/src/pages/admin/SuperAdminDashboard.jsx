@@ -10,7 +10,7 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsPage, setLogsPage] = useState(1);
   const [totalLogsPages, setTotalLogsPages] = useState(1);
-  const [mobileTable, setMobileTable] = useState('schools');
+  const [mobileTableView, setMobileTableView] = useState('schools');
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +102,7 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
             <p style={{ fontSize: '12px' }}>Latest system changes and admin actions</p>
           </div>
         </div>
-        <div className="table-scroll-mobile">
+        <div className="scroll-x">
           <table className="modern-table">
             <thead>
               <tr>
@@ -147,6 +147,7 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
             </tbody>
           </table>
         </div>
+        
         <div className="audit-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', background: '#f9faff', borderTop: '1px solid #e1e3ed' }}>
           <span style={{ fontSize: '12px', color: '#888' }}>Page {logsPage} of {totalLogsPages}</span>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -163,27 +164,24 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
           </div>
         </div>
       </section>
-
-      <div className="dashboard-sa-bottom-row" style={{ gap: '24px', padding: '0 20px 24px' }}>
-
-        <div className="mobile-table-tabs">
+      
+      <div className="mobile-table-toggle">
           <button
-            className={mobileTable === 'schools' ? 'active' : ''}
-            onClick={() => setMobileTable('schools')}
+            className={mobileTableView === 'schools' ? 'active' : ''}
+            onClick={() => setMobileTableView('schools')}
           >
             Schools
           </button>
           <button
-            className={mobileTable === 'programs' ? 'active' : ''}
-            onClick={() => setMobileTable('programs')}
+            className={mobileTableView === 'programs' ? 'active' : ''}
+            onClick={() => setMobileTableView('programs')}
           >
             Programs
           </button>
         </div>
 
-
-        <section className={`dashboard-table-section mobile-table ${mobileTable !== 'schools' ? 'mobile-hidden' : ''}`} style={{ margin: 0 }}>
-
+      <div className="dashboard-sa-bottom-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '0 20px 24px' }}>
+        <section className={`dashboard-table-section ${mobileTableView !== 'schools' ? 'mobile-hide' : ''}`} style={{ margin: 0 }}>
           <div className="table-section-header">
             <div>
               <h2 style={{ fontSize: '18px' }}>Schools</h2>
@@ -191,7 +189,7 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
             </div>
             <button className="view-btn" onClick={() => navigate('schoolsPrograms')}>Manage</button>
           </div>
-          <div className="table-scroll-mobile">
+          <div className="scroll-x">
             <table className="modern-table">
               <thead>
                 <tr><th>Code</th><th>School Name</th><th>Users</th><th>Status</th></tr>
@@ -214,10 +212,9 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
               </tbody>
             </table>
           </div>
-
         </section>
 
-        <section className={`dashboard-table-section mobile-table ${mobileTable !== 'programs' ? 'mobile-hidden' : ''}`} style={{ margin: 0 }}>
+        <section className={`dashboard-table-section ${mobileTableView !== 'programs' ? 'mobile-hide' : ''}`} style={{ margin: 0 }}>
           <div className="table-section-header">
             <div>
               <h2 style={{ fontSize: '18px' }}>Programs</h2>
@@ -225,7 +222,7 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
             </div>
             <button className="view-btn" onClick={() => navigate('schoolsPrograms')}>Manage</button>
           </div>
-          <div className="table-scroll-mobile">
+          <div className="scroll-x">
             <table className="modern-table">
               <thead>
                 <tr><th>Code</th><th>Program Name</th><th>Users</th><th>Status</th></tr>

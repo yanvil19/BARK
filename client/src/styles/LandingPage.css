@@ -107,18 +107,79 @@ html.landing-theme::-webkit-scrollbar-thumb:hover {
   color: #ffffff;
   overflow: hidden;
 
+  background-color: #1a2260;
+  
+  /* Enable 3D context for children */
+  perspective: 1200px;
+  transform-style: preserve-3d;
+
+  animation: heroBgShift 18s ease-in-out infinite alternate;
+}
+
+/* Static Background Layer (Locked) */
+.hero-static-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.13) 1.8px, transparent 1.8px),
     linear-gradient(135deg,
       rgba(28, 38, 120, 0.88) 0%,
       rgba(42, 52, 155, 0.82) 40%,
       rgba(20, 28, 90, 0.96) 100%),
     url('../assets/henrysyhall.jpg');
-  background-size: 36px 36px, 100% 100%, cover;
-  background-position: 0 0, 0 0, center;
-  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: translateZ(-1px); /* Keep it behind everything in 3D space */
+}
 
-  animation: heroBgShift 18s ease-in-out infinite alternate;
+/* 3D Grid Wrapper */
+.hero-grid-3d-wrapper {
+  position: absolute;
+  inset: -150px; /* More bleed for safety */
+  z-index: 2;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  transform: 
+    rotateX(var(--rotate-x, 0deg)) 
+    rotateY(var(--rotate-y, 0deg))
+    translateZ(10px); /* Lift it slightly off the background */
+  transition: transform 0.2s ease-out;
+}
+
+.hero-base-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.13) 1.8px, transparent 1.8px);
+  background-size: 36px 36px;
+  opacity: 0.8;
+}
+
+/* Interactive Grid Reveal */
+.hero-interactive-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #FAD227 1.8px, transparent 1.8px);
+  background-size: 36px 36px;
+  background-position: 0 0;
+  
+  /* The Magic Mask - Note: We add 150px to offset the bleed (inset: -150px) */
+  -webkit-mask-image: radial-gradient(
+    circle 250px at calc(var(--mouse-x, -1000px) + 150px) calc(var(--mouse-y, -1000px) + 150px), 
+    rgba(0,0,0,1) 0%, 
+    rgba(0,0,0,0.4) 40%, 
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle 250px at calc(var(--mouse-x, -1000px) + 150px) calc(var(--mouse-y, -1000px) + 150px), 
+    rgba(0,0,0,1) 0%, 
+    rgba(0,0,0,0.4) 40%, 
+    transparent 100%
+  );
+  
+  transition: opacity 0.3s ease;
 }
 
 @keyframes heroBgShift {

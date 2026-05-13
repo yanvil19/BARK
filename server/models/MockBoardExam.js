@@ -69,16 +69,21 @@ const mockBoardExamSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    resultsReleaseDate: {
+      type: Date,
+      default: null,
+    },
+    passingThreshold: {
+      type: Number,
+      default: 70,
+    },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
 mockBoardExamSchema.virtual('durationMinutes').get(function () {
   if (!this.startDateTime || !this.endDateTime) return null;
   return Math.round((this.endDateTime - this.startDateTime) / 60000);
 });
-
-mockBoardExamSchema.set('toJSON', { virtuals: true });
-mockBoardExamSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('MockBoardExam', mockBoardExamSchema);

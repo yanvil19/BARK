@@ -907,3 +907,9 @@
   color: #d97706;
   border: 1px solid #fef3c7;
 }
+
+.mbe-state-badge--indraft {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+}

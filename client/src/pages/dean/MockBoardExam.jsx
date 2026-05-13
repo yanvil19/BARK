@@ -41,6 +41,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     description: '',
     instructions: '',
     status: 'draft',
+    passingThreshold: 70,
   });
 
   const computedDuration = useMemo(() => {
@@ -99,6 +100,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           description: exam.description || '',
           instructions: exam.instructions || '',
           status: exam.status || 'draft',
+          passingThreshold: exam.passingThreshold || 70,
         });
       } catch (err) {
         alert(err.message || 'Failed to load mock board exam.');
@@ -142,7 +144,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         const params = new URLSearchParams({
           program: programId,
           tags: selectedTagIds.join(','),
-          states: 'approved,in_use,retired'
+          states: 'approved,in_use,retired,in_draft'
         });
         const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
@@ -277,6 +279,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: form.description,
         instructions: form.instructions,
         status: form.status,
+        passingThreshold: form.passingThreshold,
       };
 
       if (editingExamId) {
@@ -298,6 +301,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: '',
         instructions: '',
         status: 'draft',
+        passingThreshold: 70,
       });
       setSelectedTagIds([]);
       setApprovedQuestions([]);
@@ -409,6 +413,21 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               </label>
             </div>
 
+            <div className="mbe-field">
+              <label>
+                Passing Threshold (%)
+                <input
+                  className="mbe-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.passingThreshold}
+                  onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                  required
+                />
+              </label>
+            </div>
+
             <div className="mbe-field mbe-field--full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <label>
                 Description
@@ -511,6 +530,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                 >
                   <option value="all">All States</option>
                   <option value="approved">Approved (New)</option>
+                  <option value="in_draft">In Draft (This/Other Drafts)</option>
                   <option value="in_use">In Use (Other Exams)</option>
                   <option value="retired">Retired (Previous Exams)</option>
                 </select>
@@ -549,6 +569,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                 {question.title}
                                 {question.state === 'retired' && <span className="mbe-state-badge mbe-state-badge--retired">Retired</span>}
                                 {question.state === 'in_use' && <span className="mbe-state-badge mbe-state-badge--inuse">In Use</span>}
+                                {question.state === 'in_draft' && <span className="mbe-state-badge mbe-state-badge--indraft">In Draft</span>}
                               </h3>
                               <p>{question.description || 'No description provided.'}</p>
                             </div>

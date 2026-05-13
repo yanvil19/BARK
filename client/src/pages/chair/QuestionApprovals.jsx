@@ -252,7 +252,7 @@ export default function QuestionApprovals({ me }) {
         method: 'POST',
         body: { action: 'reuse' },
       });
-      const updated = { ...question, state: 'approved', currentReviewer: null, reviewStartedAt: null };
+      const updated = { ...question, state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
       setQuestions((prev) => prev.map((item) => (item._id === question._id ? updated : item)));
       setSelectedQuestion(updated);
     } catch (err) {
@@ -471,7 +471,7 @@ export default function QuestionApprovals({ me }) {
                     Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
                   </div>
                   <div className="ca-pagination-controls">
-                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>← Previous</button>
                     <div className="ca-pagination-pages">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
@@ -483,7 +483,7 @@ export default function QuestionApprovals({ me }) {
                         </button>
                       ))}
                     </div>
-                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>Next</button>
+                    <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>Next →</button>
                   </div>
                 </div>
               )}

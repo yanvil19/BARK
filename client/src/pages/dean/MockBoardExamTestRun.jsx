@@ -12,7 +12,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({}); // { questionId: answerId }
   const [submitted, setSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(2 * 60 * 60 + 30 * 60); // 2:30:00
+  const [timeLeft, setTimeLeft] = useState(0);
 
   // Fetch and randomize questions for Test Run
   useEffect(() => {
@@ -30,8 +30,8 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
             ...data.exam,
             questions
           });
-          if (data.exam.duration) {
-            setTimeLeft(data.exam.duration * 60);
+          if (data.exam.durationMinutes) {
+            setTimeLeft(data.exam.durationMinutes * 60);
           }
         } else {
           setError('Exam not found.');
@@ -88,7 +88,8 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   };
 
   if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Test Run...</h3></div></div>;
-  if (error || !exam) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
+  if (error || (!exam && examId)) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
+  if (!exam) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Preparing Exam...</h3></div></div>;
 
   const questions = exam.questions || [];
   const currentQuestion = questions[currentIdx];

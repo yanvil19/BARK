@@ -86,10 +86,36 @@ async function getAvailableExams(req, res) {
       status: 'published',
       endDateTime: { $gt: now },
     })
-      .select('name description startDateTime endDateTime durationMinutes')
-      .sort({ startDateTime: 1 });
+      .select('name startDateTime endDateTime status program subjectTags questions')
+      .populate('program', 'name code')
+      .populate('subjectTags', 'name')
+      .sort({ startDateTime: 1 })
+      .lean();
 
-    res.json({ exams });
+    const enriched = exams.map((exam) => {
+      const questionCount = exam.questions?.length ?? 0;
+      delete exam.questions;
+
+      const durationMinutes =
+        exam.startDateTime && exam.endDateTime
+          ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
+          : null;
+
+      let examCardStatus;
+      if (!exam.startDateTime || !exam.endDateTime) {
+        examCardStatus = 'upcoming';
+      } else if (now < new Date(exam.startDateTime)) {
+        examCardStatus = 'upcoming';
+      } else if ((new Date(exam.endDateTime) - now) / (1000 * 60 * 60) <= 24) {
+        examCardStatus = 'closing_soon';
+      } else {
+        examCardStatus = 'open';
+      }
+
+      return { ...exam, durationMinutes, questionCount, examCardStatus };
+    });
+
+    res.json({ exams: enriched });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -292,9 +318,70 @@ async function submitExam(req, res) {
     }
 }
 
+async function getMyAttempts(req, res) {
+  try {
+    const attempts = await StudentExamAttempt.find({
+      student: req.user._id,
+      status: 'submitted',
+    })
+      .populate({
+        path: 'exam',
+        select: 'name resultsReleaseDate questions passingThreshold',
+      })
+      .populate({
+        path: 'subjectScores.tag',
+        select: 'name',
+      })
+      .sort({ startTime: -1 })
+      .lean();
+
+    const enrichedAttempts = attempts.map((attempt) => {
+      const exam = attempt.exam;
+      const totalItems = exam?.questions?.length || 0;
+      const resultsReleaseDate = exam?.resultsReleaseDate || null;
+      const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null) 
+        ? exam.passingThreshold 
+        : 70;
+      
+      const durationMinutes = attempt.endTime && attempt.startTime
+        ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
+        : null;
+
+      // Determine status based on the exam's specific threshold
+      const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+      let status = 'failed';
+      if (pct >= threshold) status = 'passed';
+      else if (pct >= threshold - 10) status = 'near_pass';
+
+      return {
+        id: attempt._id,
+        examName: exam?.name || 'Unknown Exam',
+        date: attempt.startTime,
+        totalItems,
+        durationMinutes,
+        rawScore: attempt.score,
+        totalScore: totalItems,
+        status,
+        passingThreshold: threshold,
+        subjectScores: (attempt.subjectScores || []).map(ss => ({
+          name: ss.tag?.name || 'Unknown Subject',
+          correct: ss.correct,
+          total: ss.total,
+        })),
+        resultReleasedAt: resultsReleaseDate,
+      };
+    });
+
+    res.json({ attempts: enrichedAttempts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 module.exports = {
     getAvailableExams,
     startExam,
     saveProgress,
-    submitExam
+    submitExam,
+    getMyAttempts,
 };

@@ -231,53 +231,53 @@ export default function SchoolsPrograms() {
           <div className="table-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e4e7ec', background: '#fafbff' }}>
             <h3 className="um-user-name" style={{ fontSize: '16px' }}>Schools of NU Laguna</h3>
           </div>
-          <div className="um-table-scroll">
+          <div className="scroll-x">
             <table className="um-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '120px' }}>Acronym</th>
-                  <th>School Name</th>
-                  <th style={{ width: '150px', textAlign: 'center' }}>Programs</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
-                  <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departments.length === 0 ? (
-                  <tr><td colSpan="5" className="um-empty">No departments found.</td></tr>
-                ) : (
-                  departments.map((d) => {
-                    const programCount = programs.filter(
-                      (p) => (p.department?._id || p.department) === d._id
-                    ).length;
+            <thead>
+              <tr>
+                <th style={{ width: '100px' }}>Acronym</th>
+                <th style={{ width: '250px' }}>School Name</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Programs</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {departments.length === 0 ? (
+                <tr><td colSpan="5" className="um-empty">No departments found.</td></tr>
+              ) : (
+                departments.map((d) => {
+                  const programCount = programs.filter(
+                    (p) => (p.department?._id || p.department) === d._id
+                  ).length;
 
-                    return (
-                      <tr key={d._id}>
-                        <td><span className="um-badge um-badge--dept">{d.code}</span></td>
-                        <td style={{ fontWeight: '600' }}>{d.name}</td>
-                        <td style={{ textAlign: 'center', color: '#666' }}>{programCount}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`um-status ${d.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
-                            ● {d.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="um-actions-cell" style={{ textAlign: 'right' }}>
-                          <button className="um-btn-edit" onClick={() => startEditDepartment(d)}>Edit</button>
-                          <button
-                            className={d.isActive ? "um-btn-deactivate" : "um-btn-activate"}
-                            onClick={() => handleToggleDepartment(d)}
-                          >
-                            {d.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                  return (
+                    <tr key={d._id}>
+                      <td><span className="um-badge um-badge--dept">{d.code}</span></td>
+                      <td style={{ fontWeight: '600', maxWidth: '220px', wordBreak: 'break-word', whiteSpace: 'normal'}}>{d.name}</td>
+                      <td style={{ textAlign: 'center', color: '#666' }}>{programCount}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`um-status ${d.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
+                          ● {d.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="um-actions-cell" style={{ textAlign: 'right' }}>
+                        <button className="um-btn-edit" onClick={() => startEditDepartment(d)}>Edit</button>
+                        <button 
+                          className={d.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
+                          onClick={() => handleToggleDepartment(d)}
+                        >
+                          {d.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
           </div>
-
+          
         </section>
 
         {/* ── Programs Section ── */}
@@ -297,47 +297,47 @@ export default function SchoolsPrograms() {
               </select>
             </div>
           </div>
-          <div className="um-table-scroll">
+          <div className="scroll-x">
             <table className="um-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '120px' }}>Code</th>
-                  <th>Program Name</th>
-                  <th style={{ width: '150px' }}>Department</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
-                  <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {programs.length === 0 ? (
-                  <tr><td colSpan="5" className="um-empty">No programs found.</td></tr>
-                ) : (
-                  programs.map((p) => (
-                    <tr key={p._id}>
-                      <td><span className="um-badge um-badge--dept">{p.code}</span></td>
-                      <td style={{ fontWeight: '600' }}>{p.name}</td>
-                      <td><span className="um-badge um-badge--dept" style={{ background: '#f0f2f8', color: '#555', border: '1px solid #d0d5dd' }}>{p.department?.code || p.department}</span></td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`um-status ${p.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
-                          ● {p.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="um-actions-cell" style={{ textAlign: 'right' }}>
-                        <button className="um-btn-edit" onClick={() => startEditProgram(p)}>Edit</button>
-                        <button
-                          className={p.isActive ? "um-btn-deactivate" : "um-btn-activate"}
-                          onClick={() => handleToggleProgram(p)}
-                        >
-                          {p.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            <thead>
+              <tr>
+                <th style={{ width: '120px' }}>Code</th>
+                <th style={{ width: '250px' }}>Program Name</th>
+                <th style={{ width: '150px' }}>Department</th>
+                <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {programs.length === 0 ? (
+                <tr><td colSpan="5" className="um-empty">No programs found.</td></tr>
+              ) : (
+                programs.map((p) => (
+                  <tr key={p._id}>
+                    <td><span className="um-badge um-badge--dept">{p.code}</span></td>
+                    <td style={{ fontWeight: '600' }}>{p.name}</td>
+                    <td><span className="um-badge um-badge--dept" style={{ background: '#f0f2f8', color: '#555', border: '1px solid #d0d5dd' }}>{p.department?.code || p.department}</span></td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`um-status ${p.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
+                        ● {p.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="um-actions-cell" style={{ textAlign: 'right' }}>
+                      <button className="um-btn-edit" onClick={() => startEditProgram(p)}>Edit</button>
+                      <button 
+                        className={p.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
+                        onClick={() => handleToggleProgram(p)}
+                      >
+                        {p.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
           </div>
-
+         
         </section>
       </div>
 

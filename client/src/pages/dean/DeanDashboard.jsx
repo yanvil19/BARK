@@ -130,7 +130,8 @@ const DeanDashboard = ({ me }) => {
               </div>
             </div>
 
-            <table className="modern-table">
+            <div className="scroll-x">
+              <table className="modern-table">
               <thead>
                 <tr>
                   <th>Program</th>
@@ -165,6 +166,8 @@ const DeanDashboard = ({ me }) => {
                 )}
               </tbody>
             </table>
+            </div>
+            
           </section>
 
           <section className="dashboard-table-section">
@@ -174,8 +177,9 @@ const DeanDashboard = ({ me }) => {
                 <p>Your latest dean-side actions and decisions</p>
               </div>
             </div>
-
-            <table className="modern-table">
+            
+            <div className="scroll-x">
+              <table className="modern-table">
               <thead>
                 <tr>
                   <th>Action</th>
@@ -209,6 +213,8 @@ const DeanDashboard = ({ me }) => {
                 )}
               </tbody>
             </table>
+            </div>
+            
           </section>
         </>
       )}

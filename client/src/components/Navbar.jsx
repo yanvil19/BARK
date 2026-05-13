@@ -6,6 +6,7 @@ import ProfileModal from './ProfileModal.jsx';
 export default function Navbar({ me, route, onRoute, onLogout }) {
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
@@ -14,7 +15,6 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
         setOpen(false);
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -32,9 +32,7 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
 
       const observer = new IntersectionObserver(
         ([entry]) => {
-          if (entry.isIntersecting) {
-            setActiveSection(id);
-          }
+          if (entry.isIntersecting) setActiveSection(id);
         },
         { threshold: 0.1, rootMargin: '0px 0px -60% 0px' }
       );
@@ -43,23 +41,28 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       return observer;
     });
 
-    return () => {
-      observers.forEach((obs) => obs?.disconnect());
-    };
+    return () => observers.forEach((obs) => obs?.disconnect());
   }, [me, route]);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   function scrollToSection(sectionId) {
     const scrollWithOffset = () => {
       const target = document.getElementById(sectionId);
       if (!target) return;
-
       const headerHeight = document.getElementById('Header')?.offsetHeight || 0;
       const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - 18;
-
-      window.scrollTo({
-        top: Math.max(top, 0),
-        behavior: 'smooth',
-      });
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
     };
 
     if (route !== 'Dashboard') {
@@ -67,8 +70,12 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
       setTimeout(scrollWithOffset, 100);
       return;
     }
-
     scrollWithOffset();
+  }
+
+  function navigate(routeName) {
+    onRoute(routeName);
+    setMobileMenuOpen(false);
   }
 
   const isSuperAdmin = me?.role === 'super_admin';
@@ -83,112 +90,111 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
     return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
   };
 
-  return (
-    <header id="Header">
-      <div className="nav-left">
-        <strong onClick={() => onRoute('Dashboard')}>BARK</strong>
-      </div>
+  // Shared nav links builder for both desktop and mobile
+  const renderNavLinks = (isMobile = false) => {
+    const cls = (r) =>
+      isMobile
+        ? `mobile-nav-item${route === r ? ' active' : ''}`
+        : route === r ? 'active' : '';
 
-      <nav className="nav-center">
+    const handle = (r) => isMobile ? () => navigate(r) : () => onRoute(r);
+
+    return (
+      <>
         {me && (
-          <button className={route === 'Dashboard' ? 'active' : ''} onClick={() => onRoute('Dashboard')}>
+          <button className={cls('Dashboard')} onClick={handle('Dashboard')}>
             Dashboard
           </button>
         )}
 
-        {isStudent && (
-          <button className={route === 'studentAvailableExams' ? 'active' : ''} onClick={() => onRoute('studentAvailableExams')}>
-            Available Exams
-          </button>
-        )}
-
         {me && me.role !== 'student' && !isDean && (
-          <button className={route === 'student' ? 'active' : ''} onClick={() => onRoute('student')}>
+          <button className={cls('student')} onClick={handle('student')}>
             Student Register
           </button>
         )}
 
         {isDean && (
           <>
-            <button className={route === 'studentManager' ? 'active' : ''} onClick={() => onRoute('studentManager')}>
-              Student Manager
-            </button>
-            <button className={route === 'deanQuestions' ? 'active' : ''} onClick={() => onRoute('deanQuestions')}>
-              My Questions
-            </button>
-            <button className={route === 'deanTags' ? 'active' : ''} onClick={() => onRoute('deanTags')}>
-              Manage Subjects
-            </button>
-            <button className={route === 'mockBoardExam' ? 'active' : ''} onClick={() => onRoute('mockBoardExam')}>
-              Mock Board Exam
-            </button>
-            <button className={route === 'deanQuestionApprovals' ? 'active' : ''} onClick={() => onRoute('deanQuestionApprovals')}>
-              Approve Questions
-            </button>
-            <button
-              className={route === 'availableMockBoardExams' ? 'active' : ''}
-              onClick={() => onRoute('availableMockBoardExams')}
-            >
-              Available Mock Board Exams
-            </button>
-            <button
-              className={route === 'examResults' ? 'active' : ''}
-              onClick={() => onRoute('examResults')}
-            >
-              Exam Results
-            </button>
+            <button className={cls('studentManager')} onClick={handle('studentManager')}>Student Manager</button>
+            <button className={cls('deanQuestions')} onClick={handle('deanQuestions')}>My Questions</button>
+            <button className={cls('deanTags')} onClick={handle('deanTags')}>Manage Subjects</button>
+            <button className={cls('mockBoardExam')} onClick={handle('mockBoardExam')}>Mock Board Exam</button>
+            <button className={cls('deanQuestionApprovals')} onClick={handle('deanQuestionApprovals')}>Approve Questions</button>
+            <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Available Mock Board Exams</button>
+            <button className={cls('examResults')} onClick={handle('examResults')}>Exam Results</button>
           </>
         )}
 
         {isChair && (
           <>
-            <button className={route === 'chairTags' ? 'active' : ''} onClick={() => onRoute('chairTags')}>
-              Manage Subjects
-            </button>
-            <button className={route === 'chairQuestions' ? 'active' : ''} onClick={() => onRoute('chairQuestions')}>
-              My Questions
-            </button>
-            <button className={route === 'chairQuestionApprovals' ? 'active' : ''} onClick={() => onRoute('chairQuestionApprovals')}>
-              Approve Questions
-            </button>
+            <button className={cls('chairTags')} onClick={handle('chairTags')}>Manage Subjects</button>
+            <button className={cls('chairQuestions')} onClick={handle('chairQuestions')}>My Questions</button>
+            <button className={cls('chairQuestionApprovals')} onClick={handle('chairQuestionApprovals')}>Approve Questions</button>
           </>
         )}
 
         {isProfessor && (
-          <button className={route === 'profQuestions' ? 'active' : ''} onClick={() => onRoute('profQuestions')}>
-            My Questions
-          </button>
+          <button className={cls('profQuestions')} onClick={handle('profQuestions')}>My Questions</button>
         )}
 
         {isSuperAdmin && (
           <>
-            <button className={route === 'schoolsPrograms' ? 'active' : ''} onClick={() => onRoute('schoolsPrograms')}>
-              Schools and Programs
-            </button>
-            <button className={route === 'adminUsers' ? 'active' : ''} onClick={() => onRoute('adminUsers')}>
-              User Management
-            </button>
+            <button className={cls('schoolsPrograms')} onClick={handle('schoolsPrograms')}>Schools and Programs</button>
+            <button className={cls('adminUsers')} onClick={handle('adminUsers')}>User Management</button>
           </>
+        )}
+
+        {isStudent && (
+          <button className={cls('studentAvailableExams')} onClick={handle('studentAvailableExams')}>
+            Available Exams
+          </button>
         )}
 
         {!me && (
           <>
-            <button className={activeSection === 'about' ? 'nav-active' : ''} onClick={() => scrollToSection('about')}>
+            <button
+              className={isMobile ? `mobile-nav-item${activeSection === 'about' ? ' active' : ''}` : activeSection === 'about' ? 'nav-active' : ''}
+              onClick={() => { scrollToSection('about'); if (isMobile) setMobileMenuOpen(false); }}
+            >
               About
             </button>
-            <button className={activeSection === 'programs' ? 'nav-active' : ''} onClick={() => scrollToSection('programs')}>
+            <button
+              className={isMobile ? `mobile-nav-item${activeSection === 'programs' ? ' active' : ''}` : activeSection === 'programs' ? 'nav-active' : ''}
+              onClick={() => { scrollToSection('programs'); if (isMobile) setMobileMenuOpen(false); }}
+            >
               Programs
             </button>
-            <button className={activeSection === 'mock-exams' ? 'nav-active' : ''} onClick={() => scrollToSection('mock-exams')}>
+            <button
+              className={isMobile ? `mobile-nav-item${activeSection === 'mock-exams' ? ' active' : ''}` : activeSection === 'mock-exams' ? 'nav-active' : ''}
+              onClick={() => { scrollToSection('mock-exams'); if (isMobile) setMobileMenuOpen(false); }}
+            >
               Mock Exams
             </button>
-            <button className={route === 'Register' ? 'active' : ''} onClick={() => onRoute('Register')}>
+            <button
+              className={isMobile ? `mobile-nav-item${route === 'Register' ? ' active' : ''}` : route === 'Register' ? 'active' : ''}
+              onClick={() => { onRoute('Register'); if (isMobile) setMobileMenuOpen(false); }}
+            >
               Register
             </button>
           </>
         )}
+      </>
+    );
+  };
+
+  return (
+    <header id="Header">
+      {/* LEFT — BARK Logo */}
+      <div className="nav-left">
+        <strong onClick={() => onRoute('Dashboard')}>BARK</strong>
+      </div>
+
+      {/* CENTER — Desktop nav links */}
+      <nav className="nav-center">
+        {renderNavLinks(false)}
       </nav>
 
+      {/* RIGHT — Avatar + Hamburger */}
       <div className="nav-right" ref={wrapperRef}>
         {me ? (
           <div className="profile-wrapper">
@@ -202,7 +208,28 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             Login
           </button>
         )}
+
+        {/* Hamburger — only visible on tablet/phone via CSS */}
+        <button
+          type="button"
+          className={`hamburger${mobileMenuOpen ? ' open' : ''}`}
+          aria-label="Toggle navigation menu"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
+
+      {/* MOBILE DROPDOWN — nav links only */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu">
+          <nav className="mobile-nav">
+            {renderNavLinks(true)}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
