@@ -112,8 +112,8 @@
 }
 
 .ambe-status.draft {
-    background: #f3f4f6;
-    color: #6b7280;
+    background: #fff7ed;
+    color: #ea580c;
 }
 
 .ambe-status.active {
@@ -127,8 +127,8 @@
 }
 
 .ambe-status.finished {
-    background: #fff7ed;
-    color: #c2410c;
+    background: #f5f3ff;
+    color: #7c3aed;
 }
 
 .ambe-status.archived {
@@ -314,6 +314,16 @@
 
 .ambe-btn.primary:hover {
     background: #2c3578;
+}
+
+/* Publish */
+.ambe-btn.publish {
+    background: #15803d;
+    color: #ffffff;
+}
+
+.ambe-btn.publish:hover {
+    background: #166534;
 }
 
 /* Delete */

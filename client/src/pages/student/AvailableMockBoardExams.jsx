@@ -62,6 +62,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
     }
   }
 
+  async function handlePublish(exam) {
+    if (!window.confirm(`Publish "${exam.name}"? This will make it available to students.`)) return;
+    try {
+      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+        method: 'PATCH',
+        body: { status: 'published' }
+      });
+      setExams((prev) => prev.map((e) => e._id === exam._id ? { ...e, status: 'published' } : e));
+      if (selectedExam?._id === exam._id) setSelectedExam(prev => ({ ...prev, status: 'published' }));
+    } catch (err) {
+      alert(err.message || 'Failed to publish exam.');
+    }
+  }
+
   async function handleScheduleResults(examId, date) {
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
@@ -184,13 +198,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         Details
                       </button>
 
-                      {exam.status !== 'finished' && exam.status !== 'archived' && exam.status !== 'draft' && (
+                      {exam.status === 'draft' && (
                         <button
                           type="button"
-                          className="ambe-btn primary"
-                          onClick={() => onEditExam(exam._id, 'preview')}
+                          className="ambe-btn publish"
+                          onClick={() => handlePublish(exam)}
                         >
-                          Preview
+                          Published
                         </button>
                       )}
 
@@ -263,7 +277,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         </button>
                       )}
 
-                      {exam.status !== 'finished' && (
+                      {exam.status === 'archived' && (
                         <button
                           type="button"
                           className="ambe-btn delete"
@@ -294,19 +308,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
             </div>
 
             <div className="header-right">
-              <div className="duration-block">
-                <span className="label">DURATION</span>
-                <span className="value">
-                  {selectedExam.durationMinutes || 0} minutes
-                </span>
-              </div>
-
               <div className="ambe-status-pill">
                 <span className={`ambe-status ${selectedExam.status}`}>
                   {selectedExam.status?.toUpperCase()}
                 </span>
               </div>
-
             </div>
           </div>
 
@@ -323,9 +329,31 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
             </div>
           </div>
 
-          <div className="ambe-details-instructions" style={{ borderTop: 'none', paddingTop: 0 }}>
-             <h4>Duration</h4>
-             <p>{selectedExam.durationMinutes || 0} minutes</p>
+          <div className="ambe-details-instructions" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', borderTop: 'none', paddingTop: 0 }}>
+            <div>
+              <h4>Exam Start</h4>
+              <p>{formatDateTime(selectedExam.startDateTime)}</p>
+            </div>
+            <div>
+              <h4>Exam End</h4>
+              <p>{formatDateTime(selectedExam.endDateTime)}</p>
+            </div>
+            <div>
+              <h4>Duration</h4>
+              <p>{selectedExam.durationMinutes || 0} minutes</p>
+            </div>
+            <div>
+              <h4>Passing Threshold</h4>
+              <p>{selectedExam.passingThreshold || 0}%</p>
+            </div>
+            <div>
+              <h4>Total Items</h4>
+              <p>{(selectedExam.questions || []).length} items</p>
+            </div>
+            <div>
+              <h4>Subjects</h4>
+              <p>{(selectedExam.subjectTags || []).length} subjects</p>
+            </div>
           </div>
 
           {/* ── Questions ────────────────── */}
