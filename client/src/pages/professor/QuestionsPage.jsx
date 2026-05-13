@@ -651,15 +651,24 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         onClose={closeImportModal}
         title="Import Questions"
       >
-        <div className="qp-modal-copy">
+        <div className="qp-modal-copy qp-modal-copy--import">
           <p className="qp-modal-subtitle">
             Upload a PDF or DOCX file containing multiple choice questions. An AI will extract the questions for your review.
           </p>
-          <p className="qp-modal-info">
-            <strong>Supported formats:</strong> PDF (typed), DOCX<br />
-            <strong>File size:</strong> Up to 10MB<br />
-            <strong>Max questions:</strong> 20 per upload
-          </p>
+          <div className="qp-import-guidelines">
+            <div className="qp-import-guideline">
+              <strong>Supported formats</strong>
+              <span>PDF (typed), DOCX</span>
+            </div>
+            <div className="qp-import-guideline">
+              <strong>File size</strong>
+              <span>Up to 10MB</span>
+            </div>
+            <div className="qp-import-guideline">
+              <strong>Max questions</strong>
+              <span>20 per upload</span>
+            </div>
+          </div>
           {importError && (
             <div className="import-error-banner">
               {importError}
@@ -676,14 +685,22 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             style={{ display: 'none' }}
             disabled={importLoading}
           />
-          <button
-            type="button"
-            className="qp-btn-upload"
-            onClick={triggerFileInput}
-            disabled={importLoading}
-          >
-            {importLoading ? 'Processing...' : '📁 Choose File'}
-          </button>
+          <div className={`import-drop-zone ${importLoading ? 'is-loading' : ''}`}>
+            <div className="import-drop-zone-copy">
+              <h3>{importLoading ? 'Extracting your questions...' : 'Upload your question file'}</h3>
+            </div>
+            <button
+              type="button"
+              className="qp-btn-upload qp-btn-upload--large"
+              onClick={triggerFileInput}
+              disabled={importLoading}
+            >
+              {importLoading ? 'Processing...' : '📁Choose File'}
+            </button>
+            <span className="import-drop-zone-footnote">
+              This feature uses AI to extract information and may occasionally produce incorrect or incomplete results.
+            </span>
+          </div>
         </div>
 
         <div className="modal-actions qp-modal-actions">

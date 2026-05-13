@@ -1,60 +1,73 @@
 .custom-modal {
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 18px;
   background-color: transparent;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.28);
   max-width: 1000px;
-  width: 90%;
+  width: min(92vw, 1000px);
   margin: auto;
 }
 
 .custom-modal::backdrop {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
+  background: rgba(18, 24, 48, 0.56);
+  backdrop-filter: blur(4px);
 }
 
 .custom-modal-dialog {
   background: #fff;
-  border-radius: 8px;
+  border: none;
+  border-radius: 18px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  max-height: min(88vh, 920px);
 }
 
 .custom-modal-header {
-  background-color: var(--primary-bg, #35408E);
-  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--primary-bg, #35408E) 0%, #4653a7 100%);
+  padding: 18px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(250, 210, 39, 0.18);
 }
 
 .custom-modal-header h2 {
   color: var(--accent-yellow, #FAD227);
   font-family: var(--font-title, sans-serif);
   margin: 0;
-  font-size: 20px;
+  font-size: 21px;
+  line-height: 1.2;
 }
 
 .custom-modal-close {
-  background: transparent;
-  border: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
   color: #fff;
   font-size: 24px;
   cursor: pointer;
   line-height: 1;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  opacity: 0.9;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .custom-modal-close:hover {
   opacity: 1;
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .custom-modal-body {
   padding: 24px;
   font-family: var(--font-body, sans-serif);
+  overflow-y: auto;
 }
 
 /* Modal form grid */
@@ -199,4 +212,20 @@
 
 .modal-btn-danger:hover {
   background-color: #fff5f5;
+}
+
+@media (max-width: 640px) {
+  .custom-modal {
+    width: calc(100vw - 20px);
+  }
+
+  .custom-modal-header,
+  .custom-modal-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .custom-modal-header h2 {
+    font-size: 18px;
+  }
 }
