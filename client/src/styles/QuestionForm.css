@@ -514,3 +514,50 @@
   background: #fafbff;
   border-color: #aab8ed;
 }
+/* Real-time Flags Styles */
+.qf-flags-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #eef1fb;
+}
+
+.qf-flag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+  animation: qf-flag-in 0.3s ease-out;
+}
+
+@keyframes qf-flag-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.qf-flag--error {
+  background: #fff0f0;
+  color: #a13030;
+  border: 1px solid #f0c1c1;
+}
+
+.qf-flag--warning {
+  background: #fff9ed;
+  color: #8a6d3b;
+  border: 1px solid #faebcc;
+}
+
+.qf-flag-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.qf-flag-message {
+  flex: 1;
+}
