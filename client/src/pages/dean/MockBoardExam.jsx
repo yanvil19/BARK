@@ -32,7 +32,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [questionFilterTagId, setQuestionFilterTagId] = useState('');
   const [approvedSelectionFilter, setApprovedSelectionFilter] = useState('all');
-  const [questionStateFilter, setQuestionStateFilter] = useState('approved');
+  const [questionStateFilter, setQuestionStateFilter] = useState('all');
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
   const [form, setForm] = useState({
     name: '',
@@ -144,7 +144,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         const params = new URLSearchParams({
           program: programId,
           tags: selectedTagIds.join(','),
-          states: 'approved,in_use,retired,in_draft'
+          states: 'approved'
         });
         const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
@@ -522,17 +522,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   <option value="all">All questions</option>
                   <option value="selected">Selected only</option>
                   <option value="unselected">Not selected yet</option>
-                </select>
-                <select
-                  className="mbe-input mbe-filter-select"
-                  value={questionStateFilter}
-                  onChange={(e) => setQuestionStateFilter(e.target.value)}
-                >
-                  <option value="all">All States</option>
-                  <option value="approved">Approved (New)</option>
-                  <option value="in_draft">In Draft (This/Other Drafts)</option>
-                  <option value="in_use">In Use (Other Exams)</option>
-                  <option value="retired">Retired (Previous Exams)</option>
                 </select>
                 <div className="mbe-toolbar-stats">
                   <span className="mbe-toolbar-pill">{filteredApprovedQuestions.length} available</span>
