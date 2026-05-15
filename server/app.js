@@ -17,9 +17,14 @@ const studentExamRoutes = require('./routes/studentExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 
 const app = express();
+app.use(cors());
 
 // Set security HTTP headers
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // Global Rate Limiting: 100 requests per 15 minutes per IP
 const limiter = rateLimit({
@@ -31,7 +36,6 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-app.use(cors());
 app.use(express.json({ limit: '10kb' })); // Body limit to prevent large payload attacks
 
 // Serve uploaded files (question images, etc.)
