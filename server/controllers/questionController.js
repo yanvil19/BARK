@@ -132,13 +132,14 @@ const createQuestion = async (req, res) => {
   try {
     const { title, description, answers, tagId, programId, images } = req.body;
 
-    if (!title?.trim()) return res.status(400).json({ message: 'Question title is required' });
-    if (!description?.trim()) return res.status(400).json({ message: 'Question description is required' });
-    if (!Array.isArray(answers) || answers.length < 2)
-      return res.status(400).json({ message: 'At least 2 answers are required' });
-    if (!answers.some((a) => a.isCorrect))
-      return res.status(400).json({ message: 'At least one answer must be marked as correct' });
-    if (!tagId) return res.status(400).json({ message: 'A topic tag is required' });
+    if (!title?.trim()) return res.status(400).json({ message: 'Question title is required to save a draft' });
+    
+    // Other fields are optional for drafts, but we still do basic structure checks if provided
+    if (Array.isArray(answers) && answers.length > 0) {
+      if (!answers.some((a) => a.isCorrect)) {
+        // We allow no correct answer in drafts, but if they provide answers, we just log a warning or let it pass
+      }
+    }
     if (Array.isArray(images) && images.length > 5)
       return res.status(400).json({ message: 'Maximum of 5 images allowed' });
 
@@ -156,18 +157,20 @@ const createQuestion = async (req, res) => {
 
     if (!resolvedProgramId) return res.status(400).json({ message: 'No program assigned' });
 
-    // Validate tag belongs to resolved program
-    const tag = await Tag.findById(tagId);
-    if (!tag || !tag.isActive) return res.status(400).json({ message: 'Invalid or inactive tag' });
-    if (tag.program.toString() !== resolvedProgramId)
-      return res.status(400).json({ message: 'Tag does not belong to the specified program' });
+    // Validate tag if provided
+    if (tagId) {
+      const tag = await Tag.findById(tagId);
+      if (!tag || !tag.isActive) return res.status(400).json({ message: 'Invalid or inactive tag' });
+      if (tag.program.toString() !== resolvedProgramId)
+        return res.status(400).json({ message: 'Tag does not belong to the specified program' });
+    }
 
     const question = await Question.create({
       title: title.trim(),
       description: description.trim(),
       images: images || [],
       answers,
-      tag: tagId,
+      tag: tagId || null,
       program: resolvedProgramId,
       createdBy: req.user._id,
       state: 'draft',
@@ -202,13 +205,12 @@ const updateQuestion = async (req, res) => {
       question.images = images;
     }
     if (answers) {
-      if (!Array.isArray(answers) || answers.length < 2)
-        return res.status(400).json({ message: 'At least 2 answers are required' });
-      if (!answers.some((a) => a.isCorrect))
-        return res.status(400).json({ message: 'At least one correct answer is required' });
+      // Basic structure check for updates
+      if (!Array.isArray(answers))
+        return res.status(400).json({ message: 'Answers must be an array' });
       question.answers = answers;
     }
-    if (tagId) question.tag = tagId;
+    if (tagId !== undefined) question.tag = tagId || null;
 
     await question.save();
     const populated = await question.populate([
@@ -247,6 +249,33 @@ const submitQuestion = async (req, res) => {
       return res.status(403).json({ message: 'Not your question' });
     if (question.state !== 'draft' && question.state !== 'returned')
       return res.status(400).json({ message: 'Only draft or returned questions can be submitted' });
+
+    // --- STRICT SUBMISSION VALIDATION ---
+    if (!question.title?.trim()) return res.status(400).json({ message: 'Title is required for submission' });
+    if (!question.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
+    if (!question.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
+
+    const answers = question.answers || [];
+    const filledOptions = answers.filter(a => a.text?.trim() !== '').length;
+    
+    if (filledOptions < 4 || filledOptions > 5) {
+      return res.status(400).json({ message: 'Questions must have exactly 4 or 5 filled options for board exams' });
+    }
+
+    const correctCount = answers.filter(a => a.isCorrect).length;
+    if (correctCount === 0) {
+      return res.status(400).json({ message: 'No correct answer selected' });
+    } else if (correctCount > 1) {
+      return res.status(400).json({ message: 'Multiple correct answers selected' });
+    }
+
+    // Check for duplicates
+    const texts = answers.map(a => a.text?.trim().toLowerCase()).filter(t => t);
+    const uniqueTexts = new Set(texts);
+    if (uniqueTexts.size < texts.length) {
+      return res.status(400).json({ message: 'Duplicate answer choices detected' });
+    }
+    // ------------------------------------
 
     question.state = 'pending_chair';
     question.submittedAt = new Date();

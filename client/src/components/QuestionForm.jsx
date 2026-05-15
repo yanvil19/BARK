@@ -24,7 +24,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         imagePreviews: [],
         uploadedUrls: [],
         uploading: false,
-        error: q.flags?.map(f => f.message).join(' | ') || '',
+        aiFlags: q.flags || [], // Store original AI flags separately
       }));
     }
 
@@ -45,7 +45,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       })),
       uploadedUrls: initialData?.images || [],
       uploading: false,
-      error: '',
+      aiFlags: [],
     }];
   });
   const [saving, setSaving] = useState(false);
@@ -139,22 +139,75 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     }));
   }
 
-  function validate() {
+  /**
+   * Computes real-time flags for a question block
+   */
+  function getQuestionFlags(q) {
+    const flags = [...(q.aiFlags || [])];
+
+    // 1. Content Flags
+    if (!q.title.trim()) {
+      flags.push({ severity: 'ERROR', message: 'Title is required.', field: 'title' });
+    }
+    if (!q.description.trim()) {
+      flags.push({ severity: 'ERROR', message: 'Question text is required.', field: 'description' });
+    }
+    if (!q.tagId) {
+      flags.push({ severity: 'ERROR', message: 'No subject assigned.', field: 'tag' });
+    }
+
+    // 2. Option Count Flags (Exactly 4 or 5)
+    // Only count non-empty answers
+    const filledOptions = q.answers.filter(a => a.text.trim() !== '').length;
+    if (filledOptions < 4) {
+      flags.push({ severity: 'ERROR', message: 'Board exam questions must have at least 4 filled options.' });
+    } else if (filledOptions > 5) {
+      flags.push({ severity: 'ERROR', message: 'Maximum 5 options allowed for board exams.' });
+    }
+
+    // 3. Answer Consistency Flags
+    const correctCount = q.answers.filter(a => a.isCorrect).length;
+    if (correctCount === 0) {
+      flags.push({ severity: 'ERROR', message: 'No correct answer selected.' });
+    } else if (correctCount > 1) {
+      flags.push({ severity: 'ERROR', message: 'Multiple correct answers selected.' });
+    }
+
+    // 4. Duplicate Answer Text
+    const texts = q.answers.map(a => a.text.trim().toLowerCase()).filter(t => t !== '');
+    const uniqueTexts = new Set(texts);
+    if (uniqueTexts.size < texts.length) {
+      flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected.' });
+    }
+
+    return flags;
+  }
+
+  function validate(isSubmit = false) {
     for (let i = 0; i < questionsData.length; i++) {
       const q = questionsData[i];
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
-      if (!q.title.trim()) return `${prefix}Question title is required.`;
-      if (!q.description.trim()) return `${prefix}Question description is required.`;
-      if (!q.tagId) return `${prefix}Please select a subject.`;
-      if (q.answers.some((a) => !a.text.trim())) return `${prefix}All answer fields must be filled in.`;
-      if (!q.answers.some((a) => a.isCorrect)) return `${prefix}Mark one answer as correct.`;
+
+      // Drafts only require a title
+      if (!q.title.trim()) {
+        return `${prefix}Question title is required to save a draft.`;
+      }
+
+      // Submissions require resolving all ERRORS and BLOCKERS
+      if (isSubmit) {
+        const flags = getQuestionFlags(q);
+        const firstError = flags.find(f => f.severity === 'ERROR' || f.severity === 'BLOCKER');
+        if (firstError) {
+          return `${prefix}${firstError.message} Please resolve all errors before submitting.`;
+        }
+      }
     }
     return '';
   }
 
   async function save(submit = false) {
     if (readOnly) return;
-    const err = validate();
+    const err = validate(submit);
     if (err) {
       alert(err);
       return;
@@ -396,7 +449,19 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               )}
             </section>
             
-            {q.error ? <p className="error-text">{q.error}</p> : null}
+            {/* Real-time Flags Section */}
+            {!readOnly && (
+              <div className="qf-flags-container">
+                {getQuestionFlags(q).map((flag, fIdx) => (
+                  <div key={fIdx} className={`qf-flag qf-flag--${flag.severity.toLowerCase()}`}>
+                    <span className="qf-flag-icon">
+                      {flag.severity === 'ERROR' ? '⚠️' : '🔔'}
+                    </span>
+                    <span className="qf-flag-message">{flag.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
