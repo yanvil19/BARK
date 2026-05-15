@@ -124,7 +124,7 @@ class GeminiService {
 
             const rawJson = response.response.text();
             const questions = JSON.parse(rawJson);
-            console.log('Sample question fields:', Object.keys(questions[0] || {}));
+            // Process questions
 
             if (!Array.isArray(questions)) {
                 throw new Error('Response is not a JSON array');
