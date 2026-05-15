@@ -47,6 +47,7 @@ export default function Login({ onLogin, onNavigate }) {
                 <label htmlFor="login-email">Email Address</label>
                 <input
                   id="login-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -57,6 +58,7 @@ export default function Login({ onLogin, onNavigate }) {
                 <label htmlFor="login-password">Password</label>
                 <input
                   id="login-password"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

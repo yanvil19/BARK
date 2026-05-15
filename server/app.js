@@ -3,7 +3,6 @@ const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
 const { rateLimit } = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
@@ -34,9 +33,6 @@ app.use('/api', limiter);
 
 app.use(cors());
 app.use(express.json({ limit: '10kb' })); // Body limit to prevent large payload attacks
-
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
 
 // Serve uploaded files (question images, etc.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

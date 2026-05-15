@@ -373,7 +373,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       </div>
 
       <div className="qp-filters">
+        <label htmlFor="qp-search-input" className="sr-only">Search questions</label>
         <input
+          id="qp-search-input"
+          name="search"
           className="qp-search"
           type="text"
           placeholder="Search question"
@@ -382,21 +385,29 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         />
 
         {role === 'dean' && (
-          <select
-            className="qp-filter-select qp-filter-select--program"
-            value={programId || ''}
-            onChange={(e) => onProgramChange(e.target.value)}
-          >
-            <option value="">Filter: Program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
+          <>
+            <label htmlFor="qp-program-filter" className="sr-only">Filter by program</label>
+            <select
+              id="qp-program-filter"
+              name="programFilter"
+              className="qp-filter-select qp-filter-select--program"
+              value={programId || ''}
+              onChange={(e) => onProgramChange(e.target.value)}
+            >
+              <option value="">Filter: Program</option>
+              {programs.map((program) => (
+                <option key={program._id} value={program._id}>
+                  {program.name} ({program.code})
+                </option>
+              ))}
+            </select>
+          </>
         )}
 
+        <label htmlFor="qp-subject-filter" className="sr-only">Filter by subject</label>
         <select
+          id="qp-subject-filter"
+          name="subjectFilter"
           className="qp-filter-select qp-filter-select--subject"
           value={subjectFilter}
           onChange={(e) => setSubjectFilter(e.target.value)}
@@ -409,7 +420,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           ))}
         </select>
 
+        <label htmlFor="qp-sort-by" className="sr-only">Sort questions</label>
         <select
+          id="qp-sort-by"
+          name="sortBy"
           className="qp-filter-select qp-sort"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}

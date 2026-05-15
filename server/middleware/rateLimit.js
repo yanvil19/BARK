@@ -12,7 +12,6 @@ function rateLimit({ windowMs, max, message }) {
     message: message || 'Too many requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => req.ip,
   });
 }
 

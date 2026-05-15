@@ -243,8 +243,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
             
             <div className="qf-grid">
               <div className="qf-field">
-                <label>Question Title *</label>
+                <label htmlFor={`q-title-${q.id}`}>Question Title *</label>
                 <input
+                  id={`q-title-${q.id}`}
+                  name="title"
                   type="text"
                   placeholder="e.g. Beam Deflection Problem #1"
                   value={q.title}
@@ -255,8 +257,14 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               </div>
 
               <div className="qf-field">
-                <label>Subject *</label>
-                <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
+                <label htmlFor={`q-tag-${q.id}`}>Subject *</label>
+                <select
+                  id={`q-tag-${q.id}`}
+                  name="tagId"
+                  value={q.tagId}
+                  onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))}
+                  disabled={readOnly}
+                >
                   <option value="">Select a subject</option>
                   {tags.map((tag) => (
                     <option key={tag._id} value={tag._id}>{tag.name}</option>
@@ -270,8 +278,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               </div>
 
               <div className="qf-field qf-field--full">
-                <label>Question *</label>
+                <label htmlFor={`q-desc-${q.id}`}>Question *</label>
                 <textarea
+                  id={`q-desc-${q.id}`}
+                  name="description"
                   placeholder="Write the full question here..."
                   value={q.description}
                   onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
@@ -297,8 +307,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               <div className="qf-answer-list">
                 {q.answers.map((answer, idx) => (
                   <div key={idx} className="qf-answer-row">
-                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
+                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`} htmlFor={`q-${q.id}-ans-radio-${idx}`}>
                       <input
+                        id={`q-${q.id}-ans-radio-${idx}`}
+                        name={`q-${q.id}-correct`}
                         className="qf-answer-radio"
                         type="radio"
                         checked={answer.isCorrect}
@@ -309,12 +321,15 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
                     </label>
 
                     <input
+                      id={`q-${q.id}-ans-text-${idx}`}
+                      name={`q-${q.id}-ans-text-${idx}`}
                       className="qf-answer-input"
                       type="text"
                       placeholder={`Answer ${idx + 1}`}
                       value={answer.text}
                       onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
                       disabled={readOnly}
+                      aria-label={`Answer option ${idx + 1}`}
                     />
 
                     {q.answers.length > 2 && !readOnly ? (
