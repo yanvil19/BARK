@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import '../../styles/MockBoardExamPreview.css'; 
 
 // const BASE = 'http://localhost:5000'; // Removed for env variables
@@ -23,7 +23,7 @@ export default function StudentExamRunner({ examId, onFinish }) {
   useEffect(() => {
     async function startOrResumeExam() {
       try {
-        const data = await apiAuth(`${BASE}/api/student-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
+        const data = await apiAuth(`/api/student-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
         
         setExamInfo(data.exam);
         setQuestions(data.questions);
@@ -80,7 +80,7 @@ export default function StudentExamRunner({ examId, onFinish }) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        await apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/progress`, {
+        await apiAuth(`/api/student-exams/attempt/${attemptId}/progress`, {
           method: 'PATCH',
           body: { answers: newAnswers }
         });
@@ -93,7 +93,7 @@ export default function StudentExamRunner({ examId, onFinish }) {
   const submitFinal = async (finalAnswers) => {
     setSubmitting(true);
     try {
-      await apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/submit`, {
+      await apiAuth(`/api/student-exams/attempt/${attemptId}/submit`, {
         method: 'POST',
         body: { answers: finalAnswers }
       });
@@ -165,7 +165,7 @@ export default function StudentExamRunner({ examId, onFinish }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                    <img key={i} src={img.startsWith('/') ? `${BASE_URL}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
                   ))}
                 </div>
               )}
