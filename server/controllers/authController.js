@@ -69,7 +69,7 @@ async function ensureDeptProgramValid({ departmentId, programId }) {
 // Generate JWT token
 const generateToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: '7d',
+    expiresIn: '1d',
   });
 
 // @desc    Register a new user (admin-created accounts)
