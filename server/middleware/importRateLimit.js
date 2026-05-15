@@ -1,8 +1,12 @@
 const { rateLimit } = require('express-rate-limit');
 
-// Per-user hourly limit: 10 imports per hour
+// [FIX 3]
+// Per-user hourly import limiter
+// Default: 15 imports per hour (configurable via IMPORT_USER_HOURLY_LIMIT)
 const importHourlyLimiter = rateLimit({
-    keyGenerator: (req) => req.user?._id?.toString() || ipKeyGenerator(req.ip),
+    // [SECURITY FIX 1]
+    // protect middleware ensures req.user is always present
+    keyGenerator: (req) => req.user._id.toString(),
     windowMs: 60 * 60 * 1000, // 1 hour
     max: parseInt(process.env.IMPORT_USER_HOURLY_LIMIT || '15'),
     message: 'You have reached your hourly import limit. Please try again later.',

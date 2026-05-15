@@ -4,6 +4,7 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const upload = require('../middleware/importValidation');
 const { 
     importHourlyLimiter,
+    geminiMinuteLimiter,
     geminiDailyLimiter
 } = require('../middleware/importRateLimit');
 const importController = require('../controllers/importController');
@@ -16,6 +17,8 @@ router.post(
     '/upload',
     protect,
     importHourlyLimiter, // Per-user hourly limit
+    // [SECURITY FIX 2]
+    geminiMinuteLimiter, // Global burst limit
     geminiDailyLimiter, // Global daily limit
     upload.single('file'),
     importController.uploadAndExtract
