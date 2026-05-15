@@ -5,6 +5,8 @@ import ProgramChairDashboard from '../chair/ProgramChairDashboard.jsx';
 import StudentDashboard from '../student/StudentDashboard.jsx';
 import ProfessorDashboard from '../professor/ProfessorDashboard.jsx';
 
+import { BASE_URL } from '../../lib/api.js';
+
 const Dashboard = ({ me, onNavigate, onRoute }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,7 +15,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const statsRes = await fetch('http://localhost:5000/api/stats/summary');
+        const statsRes = await fetch(`${BASE_URL}/api/stats/summary`);
         const statsData = await statsRes.json();
         setStats(statsData);
         setLoading(false);

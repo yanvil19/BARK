@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import QuestionsPage from '../professor/QuestionsPage.jsx';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 export default function DeanQuestions({ me }) {
   const [programs, setPrograms] = useState([]);
@@ -12,7 +12,7 @@ export default function DeanQuestions({ me }) {
     async function fetchPrograms() {
       try {
         // Fetch programs for the Dean's department
-        const data = await apiAuth(`${BASE}/api/catalog/programs`);
+        const data = await apiAuth(`/api/catalog/programs`);
         const deptId = me?.department?._id || me?.department;
         const deptPrograms = (data.programs || []).filter((p) => {
           const pDept = p.department?._id || p.department;

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import '../../styles/MockBoardExamPreview.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 function formatDateTime(value) {
   if (!value) return '-';
@@ -40,7 +40,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
 
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+        const data = await apiAuth(`/api/mock-board-exams/${encodeURIComponent(examId)}`);
         const nextExam = data.exam
           ? {
               ...data.exam,
@@ -224,7 +224,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                       <ul>
                         {question.images.map((image, imageIndex) => (
                           <li key={`${question._id}-image-${imageIndex}`}>
-                            <a href={image.startsWith('/') ? `${BASE}${image}` : image} target="_blank" rel="noreferrer">
+                            <a href={image.startsWith('/') ? `${BASE_URL}${image}` : image} target="_blank" rel="noreferrer">
                               Image {imageIndex + 1}
                             </a>
                           </li>
@@ -279,7 +279,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                           <ul>
                             {currentQuestion.images.map((image, imageIndex) => (
                               <li key={`${currentQuestion._id}-image-${imageIndex}`}>
-                                <a href={image.startsWith('/') ? `${BASE}${image}` : image} target="_blank" rel="noreferrer">
+                                <a href={image.startsWith('/') ? `${BASE_URL}${image}` : image} target="_blank" rel="noreferrer">
                                   Image {imageIndex + 1}
                                 </a>
                               </li>

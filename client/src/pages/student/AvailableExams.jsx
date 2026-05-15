@@ -3,7 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import '../../styles/AvailableExams.css';
 import '../../styles/QuestionApprovals.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 function formatStartDateTime(value) {
   return value
@@ -83,7 +83,7 @@ export default function AvailableExams({ onTakeExam }) {
     async function fetchExams() {
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/student-exams/available`);
+        const data = await apiAuth(`/api/student-exams/available`);
         if (!mounted) return;
         setExams(Array.isArray(data.exams) ? data.exams : []);
       } catch (err) {

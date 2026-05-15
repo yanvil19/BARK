@@ -618,7 +618,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
             ) : null}
 
             {statusError ? <p className="error-message">{statusError}</p> : null}
-            {showAdvanced && statusData ? <pre className="register-debug-output">{JSON.stringify(statusData, null, 2)}</pre> : null}
+            {/* register-debug-output removed for security */}
           </div>
         </section>
       </div>

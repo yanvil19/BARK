@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { apiAuth, apiAuthUpload } from '../lib/api.js';
+import { apiAuth, apiAuthUpload, BASE_URL } from '../lib/api.js';
 import '../styles/QuestionForm.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
@@ -39,7 +39,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       ],
       tagId: initialData?.tag?._id || initialData?.tag || '',
       imagePreviews: (initialData?.images || []).map((url) => ({
-        url: url.startsWith('/') ? `${BASE}${url}` : url,
+        url: url.startsWith('/') ? `${BASE_URL}${url}` : url,
         file: null,
         existing: true,
       })),
@@ -116,7 +116,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     try {
       const fd = new FormData();
       files.forEach((file) => fd.append('images', file));
-      const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
+      const data = await apiAuthUpload(`/api/questions/upload-image`, fd);
       updateQuestion(qId, q => ({ ...q, uploadedUrls: [...q.uploadedUrls, ...data.urls], uploading: false }));
     } catch (err) {
       updateQuestion(qId, q => ({
@@ -176,15 +176,15 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
         let question;
         if (initialData && questionsData.length === 1) {
-          const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
+          const data = await apiAuth(`/api/questions/${initialData._id}`, { method: 'PATCH', body });
           question = data.question;
         } else {
-          const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
+          const data = await apiAuth(`/api/questions`, { method: 'POST', body });
           question = data.question;
         }
 
         if (submit) {
-          await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
+          await apiAuth(`/api/questions/${question._id}/submit`, { method: 'POST' });
           savedQuestions.push({ ...question, state: 'pending_chair' });
         } else {
           savedQuestions.push(question);

@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'nu_board_token';
+export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export function getToken() {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -22,7 +23,8 @@ async function parseJsonResponse(res) {
 }
 
 export async function api(path, { method = 'GET', body, headers } = {}) {
-  const res = await fetch(path, {
+  const url = path.startsWith('http') ? path : `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  const res = await fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -49,7 +51,8 @@ export async function apiAuth(path, options = {}) {
 // For FormData uploads — browser sets Content-Type (multipart boundary) automatically
 export async function apiAuthUpload(path, formData) {
   const token = getToken();
-  const res = await fetch(path, {
+  const url = path.startsWith('http') ? path : `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

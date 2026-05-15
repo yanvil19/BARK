@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/MockBoardExam.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed in favor of environment variables
 
 function toLocalDateTimeInput(value) {
   if (!value) return '';
@@ -60,7 +60,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     async function fetchPrograms() {
       setLoadingPrograms(true);
       try {
-        const data = await apiAuth(`${BASE}/api/catalog/programs`);
+        const data = await apiAuth(`/api/catalog/programs`);
         const deptId = me?.department?._id || me?.department;
         const deptPrograms = (data.programs || []).filter((program) => {
           const programDept = program.department?._id || program.department;
@@ -82,7 +82,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     async function loadExamForEdit() {
       if (!editingExamId) return;
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`);
+        const data = await apiAuth(`/api/mock-board-exams/${encodeURIComponent(editingExamId)}`);
         const exam = data.exam;
         const nextTagIds = (exam.subjectTags || []).map((tag) => tag._id || tag);
         const nextQuestions = (exam.questions || []).map((question) => ({
@@ -119,7 +119,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       }
       setLoadingSubjects(true);
       try {
-        const data = await apiAuth(`${BASE}/api/tags?program=${encodeURIComponent(programId)}`);
+        const data = await apiAuth(`/api/tags?program=${encodeURIComponent(programId)}`);
         setSubjectOptions(data.tags || []);
       } catch (err) {
         console.error('Failed to load subjects:', err);
@@ -146,7 +146,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           tags: selectedTagIds.join(','),
           states: 'approved'
         });
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
+        const data = await apiAuth(`/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
       } catch (err) {
         console.error('Failed to load approved questions:', err);
@@ -230,7 +230,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   }
 
   function resolveImageUrl(image) {
-    return image?.startsWith('/') ? `${BASE}${image}` : image;
+    return image?.startsWith('/') ? `${BASE_URL}${image}` : image;
   }
 
   function handleQuestionToggle(question) {
@@ -253,7 +253,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
 
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/dean-return`, {
+      await apiAuth(`/api/questions/${question._id}/dean-return`, {
         method: 'POST',
         body: { note: note.trim() },
       });
@@ -283,12 +283,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       };
 
       if (editingExamId) {
-        await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`, {
+        await apiAuth(`/api/mock-board-exams/${encodeURIComponent(editingExamId)}`, {
           method: 'PATCH',
           body: payload,
         });
       } else {
-        await apiAuth(`${BASE}/api/mock-board-exams`, {
+        await apiAuth(`/api/mock-board-exams`, {
           method: 'POST',
           body: payload,
         });
