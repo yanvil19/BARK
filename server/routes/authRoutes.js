@@ -20,7 +20,6 @@ const router = express.Router();
 
 // @route   POST /api/auth/login
 // @access  Public
-router.post('/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }), loginUser);
 
 // @route   POST /api/auth/register
 // @access  Private - Super Admin only
