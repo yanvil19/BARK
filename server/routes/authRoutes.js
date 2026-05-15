@@ -1,4 +1,5 @@
 const express = require('express');
+const { rateLimit: expressRateLimit } = require('express-rate-limit');
 const {
   registerUser,
   loginUser,
@@ -18,9 +19,23 @@ const rateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
 
+// [SECURITY FIX 2]
+const loginRateLimiter = expressRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { message: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // @route   POST /api/auth/login
 // @access  Public
-router.post('/login', loginUser);
+router.post(
+  '/login',
+  // [SECURITY FIX 2]
+  loginRateLimiter,
+  loginUser
+);
 
 // @route   POST /api/auth/register
 // @access  Private - Super Admin only

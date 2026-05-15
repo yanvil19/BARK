@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const upload = require('../middleware/importValidation');
 const { 
     importHourlyLimiter,
@@ -28,6 +28,8 @@ router.post(
 router.get(
     '/status/:jobId',
     protect,
+    // [SECURITY FIX 1]
+    authorizeRoles('professor', 'program_chair', 'dean'),
     importController.getStatus
 );
 
@@ -38,6 +40,8 @@ router.get(
 router.post(
     '/submit',
     protect,
+    // [SECURITY FIX 1]
+    authorizeRoles('professor', 'program_chair', 'dean'),
     importController.submitQuestions
 );
 
