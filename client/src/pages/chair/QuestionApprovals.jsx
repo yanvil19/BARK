@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
@@ -66,7 +66,7 @@ export default function QuestionApprovals({ me }) {
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiAuth(`${BASE}/api/questions/approvals`);
+      const data = await apiAuth(`/api/questions/approvals`);
       setQuestions(data.questions || []);
     } catch (err) {
       console.error('Failed to load approvals:', err);
@@ -77,7 +77,7 @@ export default function QuestionApprovals({ me }) {
 
   const fetchTags = useCallback(async () => {
     try {
-      const data = await apiAuth(`${BASE}/api/tags`);
+      const data = await apiAuth(`/api/tags`);
       setTags(data.tags || []);
     } catch (err) {
       console.error('Failed to load tags:', err);
@@ -96,7 +96,7 @@ export default function QuestionApprovals({ me }) {
       if (!id) return;
       const token = window.localStorage.getItem('nu_board_token');
       if (!token) return;
-      fetch(`${BASE}/api/questions/${id}/unlock`, {
+      fetch(`${BASE_URL}/api/questions/${id}/unlock`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({}),
@@ -110,7 +110,7 @@ export default function QuestionApprovals({ me }) {
   async function unlockCurrent() {
     if (!lockedQuestionId) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${lockedQuestionId}/unlock`, { method: 'PATCH' });
+      await apiAuth(`/api/questions/${lockedQuestionId}/unlock`, { method: 'PATCH' });
     } catch { /* best effort */ }
     setLockedQuestionId(null);
   }
@@ -129,7 +129,7 @@ export default function QuestionApprovals({ me }) {
     // Only lock pending_chair questions (the ones that can be acted on concurrently)
     if (question.state === 'pending_chair') {
       try {
-        await apiAuth(`${BASE}/api/questions/${question._id}/lock`, { method: 'PATCH' });
+        await apiAuth(`/api/questions/${question._id}/lock`, { method: 'PATCH' });
         setLockedQuestionId(question._id);
         setSelectedQuestion(question);
       } catch (err) {
@@ -168,7 +168,7 @@ export default function QuestionApprovals({ me }) {
   async function handleApprove(question) {
     if (!window.confirm(`Approve "${question.title}"? It will be marked as approved and ready to use.`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
+      await apiAuth(`/api/questions/${question._id}/review`, {
         method: 'POST',
         body: { action: 'approve' },
       });
@@ -203,7 +203,7 @@ export default function QuestionApprovals({ me }) {
 
     setSubmitting(true);
     try {
-      await apiAuth(`${BASE}/api/questions/${actionModal.question._id}/review`, {
+      await apiAuth(`/api/questions/${actionModal.question._id}/review`, {
         method: 'POST',
         body: { action: actionModal.action, note: note.trim() },
       });
@@ -248,7 +248,7 @@ export default function QuestionApprovals({ me }) {
   async function handleReuse(question) {
     if (!window.confirm(`Mark "${question.title}" as approved for reuse?\n\nThis makes it selectable for new exams without sending it back to the creator.`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
+      await apiAuth(`/api/questions/${question._id}/review`, {
         method: 'POST',
         body: { action: 'reuse' },
       });
@@ -269,7 +269,7 @@ export default function QuestionApprovals({ me }) {
   async function handleDelete(question) {
     if (!window.confirm(`Permanently delete "${question.title}"? This cannot be undone.`)) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
+      await apiAuth(`/api/questions/${question._id}/review`, {
         method: 'POST',
         body: { action: 'delete' },
       });
@@ -512,10 +512,10 @@ export default function QuestionApprovals({ me }) {
                     {selectedQuestion.images.map((img, i) => (
                       <img
                         key={i}
-                        src={img.startsWith('/') ? `${BASE}${img}` : img}
+                        src={img.startsWith('/') ? `${BASE_URL}${img}` : img}
                         alt={`Question image ${i + 1}`}
                         className="ca-image"
-                        onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
+                        onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE_URL}${img}` : img)}
                       />
                     ))}
                   </div>

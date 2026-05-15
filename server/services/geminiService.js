@@ -9,7 +9,7 @@ markdown formatting, code fences, or text outside the JSON array.
 Each question in the array must follow this exact structure:
 {
   "question_number": <integer — the order the question appears in the document>,
-  "question_text": <string — the full question text exactly as written>,
+  "question_text": <string — the question stem ONLY. Do NOT include the multiple choice options or the correct answer label here>,
   "question_title": <string — a 3 to 5 word summary of the question's core topic.
                     Do NOT copy the question verbatim. Write a short, descriptive title
                     e.g. "Cardiac Output Calculation", "OSI Model Layers", "Contract Law Offer".
@@ -56,7 +56,8 @@ Rules you must strictly follow:
 10. For suggested_tag: if a tag list is provided at the top of the document text,
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
-    If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".`;
+    If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".
+11. EXCLUSION RULE: The "question_text" field must only contain the question itself. Do NOT include the options (A, B, C, D) or any text indicating the correct answer (e.g., "Answer: A") in this field. Those belong in the "options" and "correct_answer" fields respectively.`;
 
 class GeminiService {
     constructor() {
@@ -124,7 +125,7 @@ class GeminiService {
 
             const rawJson = response.response.text();
             const questions = JSON.parse(rawJson);
-            console.log('Sample question fields:', Object.keys(questions[0] || {}));
+            // Process questions
 
             if (!Array.isArray(questions)) {
                 throw new Error('Response is not a JSON array');
@@ -151,14 +152,11 @@ class GeminiService {
         }
     }
 
-    /**
-     * Validates question structure and adds guardrail flags
-     */
     addGuardrailFlags(question) {
         const flags = [];
         let blockerCount = 0;
 
-        // Check for empty question text
+        // 1. Missing text check (Critical extraction failure)
         if (!question.question_text || question.question_text.trim() === '') {
             flags.push({
                 severity: 'BLOCKER',
@@ -167,53 +165,19 @@ class GeminiService {
             blockerCount++;
         }
 
-        // Check option count
-        const optionCount = Object.values(question.options || {}).filter(o => o !== null).length;
-        if (optionCount < 4) {
-            flags.push({
-                severity: 'BLOCKER',
-                message: 'This question has fewer than 4 answer choices.'
-            });
-            blockerCount++;
-        } else if (optionCount > 5) {
-            flags.push({
-                severity: 'BLOCKER',
-                message: 'This question has more than 5 answer choices.'
-            });
-            blockerCount++;
-        }
-
-        // Check for correct answer
-        if (!question.correct_answer) {
-            flags.push({
-                severity: 'BLOCKER',
-                message: 'No correct answer was detected. Please mark the correct option.'
-            });
-            blockerCount++;
-        }
-
-        // Check AI confidence
-        if (question.confidence === 'low') {
-            flags.push({
-                severity: 'WARNING',
-                message: 'AI was not confident about this extraction. Please review carefully.'
-            });
-        }
-
-        // Check for tag suggestion — clear it if confidence is not high
-        if (!question.suggested_tag || question.suggested_tag_confidence !== 'high') {
-            question.suggested_tag = null;
-            flags.push({
-                severity: 'WARNING',
-                message: 'No subject tag could be assigned. Please select one before submitting.'
-            });
-        }
-
-        // Check for image without linkage
+        // 2. Image reference check (Human action needed)
         if (question.has_image) {
             flags.push({
                 severity: 'WARNING',
                 message: 'This question references an image that could not be automatically linked. Please upload it manually.'
+            });
+        }
+
+        // 3. AI confidence check
+        if (question.confidence === 'low') {
+            flags.push({
+                severity: 'WARNING',
+                message: 'AI was not confident about this extraction. Please review carefully.'
             });
         }
 

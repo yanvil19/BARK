@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/MockBoardExam.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed in favor of environment variables
 
 function toLocalDateTimeInput(value) {
   if (!value) return '';
@@ -60,7 +60,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     async function fetchPrograms() {
       setLoadingPrograms(true);
       try {
-        const data = await apiAuth(`${BASE}/api/catalog/programs`);
+        const data = await apiAuth(`/api/catalog/programs`);
         const deptId = me?.department?._id || me?.department;
         const deptPrograms = (data.programs || []).filter((program) => {
           const programDept = program.department?._id || program.department;
@@ -82,7 +82,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     async function loadExamForEdit() {
       if (!editingExamId) return;
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`);
+        const data = await apiAuth(`/api/mock-board-exams/${encodeURIComponent(editingExamId)}`);
         const exam = data.exam;
         const nextTagIds = (exam.subjectTags || []).map((tag) => tag._id || tag);
         const nextQuestions = (exam.questions || []).map((question) => ({
@@ -119,7 +119,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       }
       setLoadingSubjects(true);
       try {
-        const data = await apiAuth(`${BASE}/api/tags?program=${encodeURIComponent(programId)}`);
+        const data = await apiAuth(`/api/tags?program=${encodeURIComponent(programId)}`);
         setSubjectOptions(data.tags || []);
       } catch (err) {
         console.error('Failed to load subjects:', err);
@@ -146,7 +146,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           tags: selectedTagIds.join(','),
           states: 'approved'
         });
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/approved-questions?${params.toString()}`);
+        const data = await apiAuth(`/api/mock-board-exams/approved-questions?${params.toString()}`);
         setApprovedQuestions(data.questions || []);
       } catch (err) {
         console.error('Failed to load approved questions:', err);
@@ -230,7 +230,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   }
 
   function resolveImageUrl(image) {
-    return image?.startsWith('/') ? `${BASE}${image}` : image;
+    return image?.startsWith('/') ? `${BASE_URL}${image}` : image;
   }
 
   function handleQuestionToggle(question) {
@@ -253,7 +253,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
 
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/dean-return`, {
+      await apiAuth(`/api/questions/${question._id}/dean-return`, {
         method: 'POST',
         body: { note: note.trim() },
       });
@@ -283,12 +283,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       };
 
       if (editingExamId) {
-        await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`, {
+        await apiAuth(`/api/mock-board-exams/${encodeURIComponent(editingExamId)}`, {
           method: 'PATCH',
           body: payload,
         });
       } else {
-        await apiAuth(`${BASE}/api/mock-board-exams`, {
+        await apiAuth(`/api/mock-board-exams`, {
           method: 'POST',
           body: payload,
         });
@@ -339,40 +339,40 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
           <div className="mbe-form-grid">
             <div className="mbe-field">
-              <label>
-                Exam Name
-                <input
-                  className="mbe-input"
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </label>
+              <label htmlFor="exam-name">Exam Name</label>
+              <input
+                id="exam-name"
+                name="name"
+                className="mbe-input"
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                required
+              />
             </div>
 
             <div className="mbe-field">
-              <label>
-                Program
-                <select
-                  className="mbe-input"
-                  value={programId}
-                  onChange={(e) => {
-                    setProgramId(e.target.value);
-                    setSelectedTagIds([]);
-                    setSelectedQuestions([]);
-                  }}
-                  required
-                  disabled={loadingPrograms}
-                >
-                  <option value="">Select a program</option>
-                  {programs.map((program) => (
-                    <option key={program._id} value={program._id}>
-                      {program.name} {program.code ? `(${program.code})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <label htmlFor="exam-program">Program</label>
+              <select
+                id="exam-program"
+                name="programId"
+                className="mbe-input"
+                value={programId}
+                onChange={(e) => {
+                  setProgramId(e.target.value);
+                  setSelectedTagIds([]);
+                  setSelectedQuestions([]);
+                }}
+                required
+                disabled={loadingPrograms}
+              >
+                <option value="">Select a program</option>
+                {programs.map((program) => (
+                  <option key={program._id} value={program._id}>
+                    {program.name} {program.code ? `(${program.code})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="mbe-field">
@@ -399,56 +399,60 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             </div>
 
             <div className="mbe-field">
-              <label>
-                Status
-                <select
-                  className="mbe-input"
-                  value={form.status}
-                  onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </label>
+              <label htmlFor="exam-status">Status</label>
+              <select
+                id="exam-status"
+                name="status"
+                className="mbe-input"
+                value={form.status}
+                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
 
             <div className="mbe-field">
-              <label>
-                Passing Threshold (%)
-                <input
-                  className="mbe-input"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.passingThreshold}
-                  onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
-                  required
-                />
-              </label>
+              <label htmlFor="exam-threshold">Passing Threshold (%)</label>
+              <input
+                id="exam-threshold"
+                name="passingThreshold"
+                className="mbe-input"
+                type="number"
+                min="0"
+                max="100"
+                value={form.passingThreshold}
+                onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                required
+              />
             </div>
 
             <div className="mbe-field mbe-field--full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <label>
-                Description
+              <div className="mbe-textarea-group">
+                <label htmlFor="exam-description">Description</label>
                 <textarea
+                  id="exam-description"
+                  name="description"
                   className="mbe-input mbe-textarea"
                   rows="4"
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="General description of the exam..."
                 />
-              </label>
-              <label>
-                Instructions
+              </div>
+              <div className="mbe-textarea-group">
+                <label htmlFor="exam-instructions">Instructions</label>
                 <textarea
+                  id="exam-instructions"
+                  name="instructions"
                   className="mbe-input mbe-textarea"
                   rows="4"
                   value={form.instructions}
                   onChange={(e) => setForm((prev) => ({ ...prev, instructions: e.target.value }))}
                   placeholder="Exam instructions for students..."
                 />
-              </label>
+              </div>
             </div>
           </div>
         </section>
@@ -468,8 +472,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           {programId && !loadingSubjects && subjectOptions.length > 0 ? (
             <div className="mbe-tag-grid">
               {subjectOptions.map((tag) => (
-                <label key={tag._id} className="mbe-tag-option">
+                <label key={tag._id} className="mbe-tag-option" htmlFor={`tag-${tag._id}`}>
                   <input
+                    id={`tag-${tag._id}`}
+                    name={`tag-${tag._id}`}
                     type="checkbox"
                     checked={selectedTagIds.includes(String(tag._id))}
                     onChange={() => handleTagChange(String(tag._id))}
@@ -495,14 +501,20 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           {programId && selectedTagIds.length > 0 ? (
             <>
               <div className="mbe-toolbar">
+                <label htmlFor="question-search" className="sr-only">Search approved questions</label>
                 <input
+                  id="question-search"
+                  name="search"
                   className="mbe-input mbe-search"
                   type="text"
                   placeholder="Search approved question"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                <label htmlFor="subject-filter" className="sr-only">Filter by subject</label>
                 <select
+                  id="subject-filter"
+                  name="subjectFilter"
                   className="mbe-input mbe-filter-select"
                   value={questionFilterTagId}
                   onChange={(e) => setQuestionFilterTagId(e.target.value)}
@@ -514,7 +526,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     </option>
                   ))}
                 </select>
+                <label htmlFor="selection-filter" className="sr-only">Filter by selection status</label>
                 <select
+                  id="selection-filter"
+                  name="selectionFilter"
                   className="mbe-input mbe-filter-select"
                   value={approvedSelectionFilter}
                   onChange={(e) => setApprovedSelectionFilter(e.target.value)}

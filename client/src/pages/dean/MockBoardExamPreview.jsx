@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import '../../styles/MockBoardExamPreview.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 export default function MockBoardExamPreview({ examId, onBack }) {
   const [exam, setExam] = useState(null);
@@ -19,7 +19,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
       }
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+        const data = await apiAuth(`/api/mock-board-exams/${encodeURIComponent(examId)}`);
         if (data.exam) {
           setExam({
             ...data.exam,
@@ -126,7 +126,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
                   {currentQuestion.images.map((img, i) => (
                     <img 
                       key={i} 
-                      src={img.startsWith('/') ? `${BASE}${img}` : img} 
+                      src={img.startsWith('/') ? `${BASE_URL}${img}` : img} 
                       alt="Ref"
                       style={{ 
                         maxWidth: '100%', 

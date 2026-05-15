@@ -4,7 +4,7 @@ import { Modal } from '../../components/Modal.jsx';
 import '../../styles/SubjectTags.css';
 import '../../styles/global.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 export default function ChairTags({ me }) {
   const isDean = me?.role === 'dean';
@@ -26,7 +26,7 @@ export default function ChairTags({ me }) {
     if (!isDean) return;
     setLoadingPrograms(true);
     try {
-      const data = await apiAuth(`${BASE}/api/catalog/programs`);
+      const data = await apiAuth(`/api/catalog/programs`);
       const deptId = me?.department?._id || me?.department;
       const deptPrograms = (data.programs || []).filter((program) => {
         const programDept = program.department?._id || program.department;
@@ -52,7 +52,7 @@ export default function ChairTags({ me }) {
       return;
     }
     try {
-      const path = isDean ? `${BASE}/api/tags?program=${encodeURIComponent(programId)}` : `${BASE}/api/tags`;
+      const path = isDean ? `/api/tags?program=${encodeURIComponent(programId)}` : `/api/tags`;
       const data = await apiAuth(path);
       setTags(data.tags || []);
     } catch (err) {
@@ -79,7 +79,7 @@ export default function ChairTags({ me }) {
     setSaving(true);
     try {
       const body = isDean ? { name: newName.trim(), programId } : { name: newName.trim() };
-      const data = await apiAuth(`${BASE}/api/tags`, { method: 'POST', body });
+      const data = await apiAuth(`/api/tags`, { method: 'POST', body });
       setTags((prev) => [...prev, data.tag].sort((a, b) => a.name.localeCompare(b.name)));
       setNewName('');
       setShowAddModal(false);
@@ -102,7 +102,7 @@ export default function ChairTags({ me }) {
     const name = editValues[tag._id];
     if (!name?.trim()) return;
     try {
-      const data = await apiAuth(`${BASE}/api/tags/${tag._id}`, { method: 'PATCH', body: { name: name.trim() } });
+      const data = await apiAuth(`/api/tags/${tag._id}`, { method: 'PATCH', body: { name: name.trim() } });
       setTags((prev) => prev.map((t) => (t._id === tag._id ? data.tag : t)).sort((a, b) => a.name.localeCompare(b.name)));
       cancelEdit(tag._id);
     } catch (err) {
@@ -119,7 +119,7 @@ export default function ChairTags({ me }) {
     if (!tagToDelete) return;
     setSaving(true);
     try {
-      await apiAuth(`${BASE}/api/tags/${tagToDelete._id}`, { method: 'DELETE' });
+      await apiAuth(`/api/tags/${tagToDelete._id}`, { method: 'DELETE' });
       setTags((prev) => prev.filter((t) => t._id !== tagToDelete._id));
       setShowDeleteModal(false);
       setTagToDelete(null);

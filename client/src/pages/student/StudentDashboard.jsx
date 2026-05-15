@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
     async function fetchAttempts() {
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/student-exams/my-attempts`);
+        const data = await apiAuth(`/api/student-exams/my-attempts`);
         const sorted = (data.attempts || []).sort((a, b) => new Date(b.date) - new Date(a.date));
         setAttempts(sorted);
         

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { BASE_URL } from '../lib/api.js';
 import '../styles/LandingPage.css';
 
 /* ── Scroll Reveal Hook ────────────────────────────────────── */
@@ -72,14 +73,14 @@ const LandingPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Starting fetch...');
+        // Fetching catalog data
         const [deptRes, progRes, examRes] = await Promise.all([
-          fetch('http://localhost:5000/api/catalog/departments'),
-          fetch('http://localhost:5000/api/catalog/programs'),
-          fetch('http://localhost:5000/api/mock-board-exams/public'),
+          fetch(`${BASE_URL}/api/catalog/departments`),
+          fetch(`${BASE_URL}/api/catalog/programs`),
+          fetch(`${BASE_URL}/api/mock-board-exams/public`),
         ]);
         
-        console.log('Fetch responses:', { deptRes, progRes, examRes });
+        // Response received
         
         if (!deptRes.ok) throw new Error(`Dept fetch failed: ${deptRes.status}`);
         if (!progRes.ok) throw new Error(`Programs fetch failed: ${progRes.status}`);
@@ -89,13 +90,13 @@ const LandingPage = ({ onNavigate }) => {
         const progData = await progRes.json();
         const examData = await examRes.json();
         
-        console.log('Fetched data:', { deptData, progData, examData });
+        // Data processed
         
         setDepartments(deptData.departments || []);
         setPrograms(progData.programs || []);
         setExams(examData.exams || []);
       } catch (error) {
-        console.error('Error loading landing page data:', error);
+        
       } finally {
         setLoading(false);
       }

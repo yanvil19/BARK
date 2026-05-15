@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const answerSchema = new mongoose.Schema(
   {
-    text: { type: String, required: true, trim: true },
+    text: { type: String, trim: true },
     isCorrect: { type: Boolean, default: false },
   },
   { _id: true }
@@ -28,21 +28,15 @@ const questionSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: [true, 'Question description is required'],
       trim: true,
     },
     images: [{ type: String }],
     answers: {
       type: [answerSchema],
-      validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length >= 2,
-        message: 'At least 2 answers are required',
-      },
     },
     tag: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Tag',
-      required: [true, 'A topic tag is required'],
     },
     program: {
       type: mongoose.Schema.Types.ObjectId,

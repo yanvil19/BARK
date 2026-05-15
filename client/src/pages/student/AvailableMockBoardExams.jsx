@@ -4,7 +4,7 @@ import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 function formatDateTime(value) {
   if (!value) return '-';
@@ -27,7 +27,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
     async function fetchExams() {
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams`);
+        const data = await apiAuth(`/api/mock-board-exams`);
         setExams(data.exams || []);
       } catch (err) {
         console.error('Failed to load mock board exams:', err);
@@ -41,7 +41,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   async function handleDelete(exam) {
     if (!window.confirm(`Delete mock board exam "${exam.name}"?`)) return;
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+      await apiAuth(`/api/mock-board-exams/${exam._id}`, {
         method: 'DELETE',
       });
       setExams((prev) => prev.filter((e) => e._id !== exam._id));
@@ -54,7 +54,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   async function handleArchive(exam) {
     if (!window.confirm(`Archive "${exam.name}"? This will move it out of the active list.`)) return;
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/archive`, { method: 'PATCH' });
+      await apiAuth(`/api/mock-board-exams/${exam._id}/archive`, { method: 'PATCH' });
       setExams((prev) => prev.map((e) => e._id === exam._id ? { ...e, status: 'archived' } : e));
       if (selectedExam?._id === exam._id) setSelectedExam((prev) => ({ ...prev, status: 'archived' }));
     } catch (err) {
@@ -65,7 +65,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   async function handlePublish(exam) {
     if (!window.confirm(`Publish "${exam.name}"? This will make it available to students.`)) return;
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+      await apiAuth(`/api/mock-board-exams/${exam._id}`, {
         method: 'PATCH',
         body: { status: 'published' }
       });
@@ -78,7 +78,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
   async function handleScheduleResults(examId, date) {
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
+      await apiAuth(`/api/mock-board-exams/${examId}/release-results`, {
         method: 'PATCH',
         body: { resultsReleaseDate: date },
       });
@@ -100,7 +100,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
     // Otherwise fetch full exam details
     try {
       const data = await apiAuth(
-        `${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`
+        `/api/mock-board-exams/${encodeURIComponent(examId)}`
       );
       setSelectedExam(data.exam || null);
     } catch (err) {
@@ -228,7 +228,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                               
                               try {
                                 // Perform immediate revert to draft
-                                await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+                                await apiAuth(`/api/mock-board-exams/${exam._id}`, {
                                   method: 'PATCH',
                                   body: { status: 'draft' }
                                 });

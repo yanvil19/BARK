@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { apiAuth, apiAuthUpload } from '../lib/api.js';
+import { apiAuth, apiAuthUpload, BASE_URL } from '../lib/api.js';
 import '../styles/QuestionForm.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
@@ -24,7 +24,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         imagePreviews: [],
         uploadedUrls: [],
         uploading: false,
-        error: q.flags?.map(f => f.message).join(' | ') || '',
+        aiFlags: q.flags || [], // Store original AI flags separately
       }));
     }
 
@@ -39,13 +39,13 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
       ],
       tagId: initialData?.tag?._id || initialData?.tag || '',
       imagePreviews: (initialData?.images || []).map((url) => ({
-        url: url.startsWith('/') ? `${BASE}${url}` : url,
+        url: url.startsWith('/') ? `${BASE_URL}${url}` : url,
         file: null,
         existing: true,
       })),
       uploadedUrls: initialData?.images || [],
       uploading: false,
-      error: '',
+      aiFlags: [],
     }];
   });
   const [saving, setSaving] = useState(false);
@@ -116,7 +116,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     try {
       const fd = new FormData();
       files.forEach((file) => fd.append('images', file));
-      const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
+      const data = await apiAuthUpload(`/api/questions/upload-image`, fd);
       updateQuestion(qId, q => ({ ...q, uploadedUrls: [...q.uploadedUrls, ...data.urls], uploading: false }));
     } catch (err) {
       updateQuestion(qId, q => ({
@@ -139,22 +139,75 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     }));
   }
 
-  function validate() {
+  /**
+   * Computes real-time flags for a question block
+   */
+  function getQuestionFlags(q) {
+    const flags = [...(q.aiFlags || [])];
+
+    // 1. Content Flags
+    if (!q.title.trim()) {
+      flags.push({ severity: 'ERROR', message: 'Title is required.', field: 'title' });
+    }
+    if (!q.description.trim()) {
+      flags.push({ severity: 'ERROR', message: 'Question text is required.', field: 'description' });
+    }
+    if (!q.tagId) {
+      flags.push({ severity: 'ERROR', message: 'No subject assigned.', field: 'tag' });
+    }
+
+    // 2. Option Count Flags (Exactly 4 or 5)
+    // Only count non-empty answers
+    const filledOptions = q.answers.filter(a => a.text.trim() !== '').length;
+    if (filledOptions < 4) {
+      flags.push({ severity: 'ERROR', message: 'Board exam questions must have at least 4 filled options.' });
+    } else if (filledOptions > 5) {
+      flags.push({ severity: 'ERROR', message: 'Maximum 5 options allowed for board exams.' });
+    }
+
+    // 3. Answer Consistency Flags
+    const correctCount = q.answers.filter(a => a.isCorrect).length;
+    if (correctCount === 0) {
+      flags.push({ severity: 'ERROR', message: 'No correct answer selected.' });
+    } else if (correctCount > 1) {
+      flags.push({ severity: 'ERROR', message: 'Multiple correct answers selected.' });
+    }
+
+    // 4. Duplicate Answer Text
+    const texts = q.answers.map(a => a.text.trim().toLowerCase()).filter(t => t !== '');
+    const uniqueTexts = new Set(texts);
+    if (uniqueTexts.size < texts.length) {
+      flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected.' });
+    }
+
+    return flags;
+  }
+
+  function validate(isSubmit = false) {
     for (let i = 0; i < questionsData.length; i++) {
       const q = questionsData[i];
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
-      if (!q.title.trim()) return `${prefix}Question title is required.`;
-      if (!q.description.trim()) return `${prefix}Question description is required.`;
-      if (!q.tagId) return `${prefix}Please select a subject.`;
-      if (q.answers.some((a) => !a.text.trim())) return `${prefix}All answer fields must be filled in.`;
-      if (!q.answers.some((a) => a.isCorrect)) return `${prefix}Mark one answer as correct.`;
+
+      // Drafts only require a title
+      if (!q.title.trim()) {
+        return `${prefix}Question title is required to save a draft.`;
+      }
+
+      // Submissions require resolving all ERRORS and BLOCKERS
+      if (isSubmit) {
+        const flags = getQuestionFlags(q);
+        const firstError = flags.find(f => f.severity === 'ERROR' || f.severity === 'BLOCKER');
+        if (firstError) {
+          return `${prefix}${firstError.message} Please resolve all errors before submitting.`;
+        }
+      }
     }
     return '';
   }
 
   async function save(submit = false) {
     if (readOnly) return;
-    const err = validate();
+    const err = validate(submit);
     if (err) {
       alert(err);
       return;
@@ -176,15 +229,15 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
         let question;
         if (initialData && questionsData.length === 1) {
-          const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
+          const data = await apiAuth(`/api/questions/${initialData._id}`, { method: 'PATCH', body });
           question = data.question;
         } else {
-          const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
+          const data = await apiAuth(`/api/questions`, { method: 'POST', body });
           question = data.question;
         }
 
         if (submit) {
-          await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
+          await apiAuth(`/api/questions/${question._id}/submit`, { method: 'POST' });
           savedQuestions.push({ ...question, state: 'pending_chair' });
         } else {
           savedQuestions.push(question);
@@ -243,8 +296,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
             
             <div className="qf-grid">
               <div className="qf-field">
-                <label>Question Title *</label>
+                <label htmlFor={`q-title-${q.id}`}>Question Title *</label>
                 <input
+                  id={`q-title-${q.id}`}
+                  name="title"
                   type="text"
                   placeholder="e.g. Beam Deflection Problem #1"
                   value={q.title}
@@ -255,8 +310,14 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               </div>
 
               <div className="qf-field">
-                <label>Subject *</label>
-                <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
+                <label htmlFor={`q-tag-${q.id}`}>Subject *</label>
+                <select
+                  id={`q-tag-${q.id}`}
+                  name="tagId"
+                  value={q.tagId}
+                  onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))}
+                  disabled={readOnly}
+                >
                   <option value="">Select a subject</option>
                   {tags.map((tag) => (
                     <option key={tag._id} value={tag._id}>{tag.name}</option>
@@ -270,8 +331,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               </div>
 
               <div className="qf-field qf-field--full">
-                <label>Question *</label>
+                <label htmlFor={`q-desc-${q.id}`}>Question *</label>
                 <textarea
+                  id={`q-desc-${q.id}`}
+                  name="description"
                   placeholder="Write the full question here..."
                   value={q.description}
                   onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
@@ -297,8 +360,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               <div className="qf-answer-list">
                 {q.answers.map((answer, idx) => (
                   <div key={idx} className="qf-answer-row">
-                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
+                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`} htmlFor={`q-${q.id}-ans-radio-${idx}`}>
                       <input
+                        id={`q-${q.id}-ans-radio-${idx}`}
+                        name={`q-${q.id}-correct`}
                         className="qf-answer-radio"
                         type="radio"
                         checked={answer.isCorrect}
@@ -309,12 +374,15 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
                     </label>
 
                     <input
+                      id={`q-${q.id}-ans-text-${idx}`}
+                      name={`q-${q.id}-ans-text-${idx}`}
                       className="qf-answer-input"
                       type="text"
                       placeholder={`Answer ${idx + 1}`}
                       value={answer.text}
                       onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
                       disabled={readOnly}
+                      aria-label={`Answer option ${idx + 1}`}
                     />
 
                     {q.answers.length > 2 && !readOnly ? (
@@ -381,7 +449,19 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
               )}
             </section>
             
-            {q.error ? <p className="error-text">{q.error}</p> : null}
+            {/* Real-time Flags Section */}
+            {!readOnly && (
+              <div className="qf-flags-container">
+                {getQuestionFlags(q).map((flag, fIdx) => (
+                  <div key={fIdx} className={`qf-flag qf-flag--${flag.severity.toLowerCase()}`}>
+                    <span className="qf-flag-icon">
+                      {flag.severity === 'ERROR' ? '⚠️' : '🔔'}
+                    </span>
+                    <span className="qf-flag-message">{flag.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

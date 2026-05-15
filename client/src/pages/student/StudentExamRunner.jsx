@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/MockBoardExamPreview.css'; 
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 export default function StudentExamRunner({ examId, onFinish }) {
   const [loading, setLoading] = useState(true);

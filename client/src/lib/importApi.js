@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:5000';
+import { BASE_URL } from './api.js';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 /**
  * Upload a file for question import
@@ -8,7 +9,7 @@ export const uploadDocumentForImport = async (file, tags = []) => {
     formData.append('file', file);
     formData.append('tags', JSON.stringify(tags.map(t => ({ name: t.name }))));
 
-    const response = await fetch(`${BASE}/api/import/upload`, {
+    const response = await fetch(`${BASE_URL}/api/import/upload`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${localStorage.getItem('nu_board_token')}`,
@@ -33,7 +34,7 @@ export const uploadDocumentForImport = async (file, tags = []) => {
  * Submit extracted questions to draft
  */
 export const submitImportedQuestions = async (questions, programId) => {
-    const response = await fetch(`${BASE}/api/import/submit`, {
+    const response = await fetch(`${BASE_URL}/api/import/submit`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -59,7 +60,7 @@ export const submitImportedQuestions = async (questions, programId) => {
  * Poll job status
  */
 export const getImportJobStatus = async (jobId) => {
-    const response = await fetch(`${BASE}/api/import/status/${jobId}`, {
+    const response = await fetch(`${BASE_URL}/api/import/status/${jobId}`, {
         headers: {
             'Authorization': `Bearer ${localStorage.getItem('nu_board_token')}`,
         }

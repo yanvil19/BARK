@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
+
 const authRoutes = require('./routes/authRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
 const adminCatalogRoutes = require('./routes/adminCatalogRoutes');
@@ -14,9 +17,26 @@ const studentExamRoutes = require('./routes/studentExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 
 const app = express();
-
 app.use(cors());
-app.use(express.json());
+
+// Set security HTTP headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+
+// Global Rate Limiting: 100 requests per 15 minutes per IP
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
+
+app.use(express.json({ limit: '10kb' })); // Body limit to prevent large payload attacks
 
 // Serve uploaded files (question images, etc.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

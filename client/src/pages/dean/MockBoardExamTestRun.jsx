@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, BASE_URL } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 export default function MockBoardExamTestRun({ examId, onBack }) {
   const [exam, setExam] = useState(null);
@@ -23,7 +23,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
       }
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+        const data = await apiAuth(`/api/mock-board-exams/${encodeURIComponent(examId)}`);
         if (data.exam) {
           const questions = organizeExamQuestionsAndAnswers(data.exam.questions || [], { randomize: true });
           setExam({
@@ -161,7 +161,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                    <img key={i} src={img.startsWith('/') ? `${BASE_URL}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
                   ))}
                 </div>
               )}

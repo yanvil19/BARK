@@ -5,7 +5,7 @@ import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import '../../styles/QuestionsPage.css';
 
-const BASE = 'http://localhost:5000';
+// const BASE = 'http://localhost:5000'; // Removed for env variables
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
@@ -52,7 +52,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiAuth(`${BASE}/api/questions`);
+      const data = await apiAuth(`/api/questions`);
       setQuestions(data.questions || []);
     } catch (err) {
       console.error('Failed to load questions:', err);
@@ -68,7 +68,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     }
 
     try {
-      const url = role === 'dean' ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
+      const url = role === 'dean' ? `/api/tags?program=${programId}` : `/api/tags`;
       const data = await apiAuth(url);
       setTags(data.tags || []);
     } catch (err) {
@@ -232,7 +232,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   async function confirmDelete() {
     if (!questionToDelete) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
+      await apiAuth(`/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
       setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
       setShowDeleteModal(false);
       setQuestionToDelete(null);
@@ -245,7 +245,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     if (!window.confirm(`Submit "${question.title}" for Chair review? You won't be able to edit it after this.`)) return;
 
     try {
-      const data = await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
+      const data = await apiAuth(`/api/questions/${question._id}/submit`, { method: 'POST' });
       setQuestions((prev) => prev.map((item) => (item._id === question._id ? data.question : item)));
     } catch (err) {
       alert(err.message || 'Failed to submit question.');
@@ -295,7 +295,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
         );
 
-        console.log('suggested_tag:', q.suggested_tag, '| confidence:', q.suggested_tag_confidence, '| matched:', matchedTag?.name);
+        // suggested_tag matching log removed
 
 
         return {
@@ -373,7 +373,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       </div>
 
       <div className="qp-filters">
+        <label htmlFor="qp-search-input" className="sr-only">Search questions</label>
         <input
+          id="qp-search-input"
+          name="search"
           className="qp-search"
           type="text"
           placeholder="Search question"
@@ -382,21 +385,29 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         />
 
         {role === 'dean' && (
-          <select
-            className="qp-filter-select qp-filter-select--program"
-            value={programId || ''}
-            onChange={(e) => onProgramChange(e.target.value)}
-          >
-            <option value="">Filter: Program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
+          <>
+            <label htmlFor="qp-program-filter" className="sr-only">Filter by program</label>
+            <select
+              id="qp-program-filter"
+              name="programFilter"
+              className="qp-filter-select qp-filter-select--program"
+              value={programId || ''}
+              onChange={(e) => onProgramChange(e.target.value)}
+            >
+              <option value="">Filter: Program</option>
+              {programs.map((program) => (
+                <option key={program._id} value={program._id}>
+                  {program.name} ({program.code})
+                </option>
+              ))}
+            </select>
+          </>
         )}
 
+        <label htmlFor="qp-subject-filter" className="sr-only">Filter by subject</label>
         <select
+          id="qp-subject-filter"
+          name="subjectFilter"
           className="qp-filter-select qp-filter-select--subject"
           value={subjectFilter}
           onChange={(e) => setSubjectFilter(e.target.value)}
@@ -409,7 +420,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           ))}
         </select>
 
+        <label htmlFor="qp-sort-by" className="sr-only">Sort questions</label>
         <select
+          id="qp-sort-by"
+          name="sortBy"
           className="qp-filter-select qp-sort"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}

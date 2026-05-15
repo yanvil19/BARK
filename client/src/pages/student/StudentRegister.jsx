@@ -331,6 +331,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <label htmlFor="student-register-name">Full Name</label>
                   <input
                     id="student-register-name"
+                    name="name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -342,6 +343,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <label htmlFor="student-register-email">Email Address</label>
                   <input
                     id="student-register-email"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -357,6 +359,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <div className="password-input-wrapper">
                     <input
                       id="student-register-password"
+                      name="password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -376,6 +379,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <div className="password-input-wrapper">
                     <input
                       id="student-register-confirm-password"
+                      name="confirmPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -397,6 +401,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <label htmlFor="student-register-department">Department</label>
                   <select
                     id="student-register-department"
+                    name="departmentId"
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
                     disabled={disableForm}
@@ -413,6 +418,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <label htmlFor="student-register-program">Program</label>
                   <select
                     id="student-register-program"
+                    name="programId"
                     value={programId}
                     onChange={(e) => setProgramId(e.target.value)}
                     disabled={!departmentId || disableForm}
@@ -460,6 +466,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <label htmlFor="student-register-id">{idLabel}</label>
                   <input
                     id="student-register-id"
+                    name="identification"
                     type="text"
                     value={idValue}
                     onChange={(e) => updateIdValue(e.target.value)}
@@ -551,8 +558,14 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
             )}
 
             <div className="register-checkbox-row">
-              <label className="register-checkbox">
-                <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
+              <label className="register-checkbox" htmlFor="advanced-tracking-checkbox">
+                <input
+                  id="advanced-tracking-checkbox"
+                  name="showAdvanced"
+                  type="checkbox"
+                  checked={showAdvanced}
+                  onChange={(e) => setShowAdvanced(e.target.checked)}
+                />
                 Advanced tracking tools
               </label>
             </div>
@@ -564,6 +577,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                     <label htmlFor="student-register-request-id">Request ID</label>
                     <input
                       id="student-register-request-id"
+                      name="requestId"
                       value={statusRequestId}
                       onChange={(e) => setStatusRequestId(e.target.value)}
                       placeholder="Paste request ID"
@@ -585,6 +599,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                     <label htmlFor="student-register-token">Token</label>
                     <input
                       id="student-register-token"
+                      name="token"
                       value={statusToken}
                       onChange={(e) => setStatusToken(e.target.value)}
                       placeholder="Paste tracking token"
@@ -618,7 +633,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
             ) : null}
 
             {statusError ? <p className="error-message">{statusError}</p> : null}
-            {showAdvanced && statusData ? <pre className="register-debug-output">{JSON.stringify(statusData, null, 2)}</pre> : null}
+            {/* register-debug-output removed for security */}
           </div>
         </section>
       </div>
