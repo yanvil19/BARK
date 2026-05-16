@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
+import '../../styles/global.css';
 
 const BASE = 'http://localhost:5000';
 
@@ -25,7 +26,7 @@ function formatReleaseDate(date) {
   if (!date) return 'TBA';
   const d = new Date(date);
   if (isNaN(d.getTime())) return 'TBA';
-  
+
   return d.toLocaleString('en-PH', {
     month: 'long',
     day: 'numeric',
@@ -45,10 +46,10 @@ function formatDuration(minutes) {
 
 function getStatusMeta(status) {
   switch (status) {
-    case 'passed':    return { label: 'Passed',    color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' };
-    case 'near_pass': return { label: 'Near pass', color: '#d97706', bg: '#fffbeb', border: '#fde68a' };
-    case 'failed':    return { label: 'Failed',    color: '#dc2626', bg: '#fef2f2', border: '#fecaca' };
-    default:          return null;
+    case 'passed': return { label: 'Passed', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', padding: '4px 8px' };
+    case 'near_pass': return { label: 'Near pass', color: '#d97706', bg: '#fffbeb', border: '#fde68a', padding: '4px 8px' };
+    case 'failed': return { label: 'Failed', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', padding: '3px 10px', borderRadius: '9999px', marginTop: '0.5em' };
+    default: return null;
   }
 }
 
@@ -72,13 +73,13 @@ function useCountdown(targetDate) {
     function compute() {
       const diff = new Date(targetDate) - new Date();
       if (diff <= 0) { setTimeLeft(''); return; }
-      const days  = Math.floor(diff / 86400000);
+      const days = Math.floor(diff / 86400000);
       const hours = Math.floor((diff % 86400000) / 3600000);
-      const mins  = Math.floor((diff % 3600000) / 60000);
-      const secs  = Math.floor((diff % 60000) / 1000);
-      if (days > 0)       setTimeLeft(`${days}d ${hours}h ${mins}m`);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (days > 0) setTimeLeft(`${days}d ${hours}h ${mins}m`);
       else if (hours > 0) setTimeLeft(`${hours}h ${mins}m ${secs}s`);
-      else                setTimeLeft(`${mins}m ${secs}s`);
+      else setTimeLeft(`${mins}m ${secs}s`);
     }
     compute();
     const id = setInterval(compute, 1000);
@@ -90,9 +91,9 @@ function useCountdown(targetDate) {
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
-function StatCard({ accentColor, bigLabel, subLabel, subtitle }) {
+function StatCard({ accentColor, bigLabel, subLabel, subtitle, className = "", subtitleClass = "" }) {
   return (
-    <div className="sd-stat-card" style={{ '--sd-accent': accentColor }}>
+    <div className={`sd-stat-card ${className}`} style={{ '--sd-accent': accentColor }}>
       <div className="sd-stat-top-bar" />
       <div className="sd-stat-body">
         <div className="sd-stat-big">{bigLabel}</div>
@@ -104,18 +105,18 @@ function StatCard({ accentColor, bigLabel, subLabel, subtitle }) {
 }
 
 function AttemptRow({ attempt, isSelected, onClick }) {
-  const released   = isReleased(attempt);
+  const released = isReleased(attempt);
   const statusMeta = released ? getStatusMeta(attempt.status) : null;
-  const countdown  = useCountdown(attempt.resultReleasedAt);
-  const duration   = formatDuration(attempt.durationMinutes);
+  const countdown = useCountdown(attempt.resultReleasedAt);
+  const duration = formatDuration(attempt.durationMinutes);
   const isClickable = released;
 
   return (
     <div
       className={[
         'sd-attempt-row',
-        !released   ? 'sd-attempt-row--pending'  : '',
-        isSelected  ? 'sd-attempt-row--selected' : '',
+        !released ? 'sd-attempt-row--pending' : '',
+        isSelected ? 'sd-attempt-row--selected' : '',
         isClickable ? 'sd-attempt-row--clickable' : '',
       ].filter(Boolean).join(' ')}
       onClick={isClickable ? onClick : undefined}
@@ -158,6 +159,9 @@ function AttemptRow({ attempt, isSelected, onClick }) {
                   color: statusMeta.color,
                   background: statusMeta.bg,
                   border: `1px solid ${statusMeta.border}`,
+                  padding: statusMeta.padding,
+                  borderRadius: statusMeta.borderRadius || '9999px',
+                  marginTop: statusMeta.marginTop || '0',
                 }}
               >
                 {statusMeta.label}
@@ -179,7 +183,7 @@ function AttemptRow({ attempt, isSelected, onClick }) {
 }
 
 function SubjectBar({ subject }) {
-  const pct   = Math.round((subject.correct / subject.total) * 100);
+  const pct = Math.round((subject.correct / subject.total) * 100);
   const color = getBarColor(pct);
 
   return (
@@ -214,7 +218,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
         const data = await apiAuth(`${BASE}/api/student-exams/my-attempts`);
         const sorted = (data.attempts || []).sort((a, b) => new Date(b.date) - new Date(a.date));
         setAttempts(sorted);
-        
+
         // Default selection: latest with subject scores
         const released = sorted.filter(isReleased);
         const defaultSelected = released.find(a => a.subjectScores?.length > 0) ?? null;
@@ -231,16 +235,43 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
   const releasedAttempts = attempts.filter(isReleased);
   const totalTaken = attempts.length;
-  const passed     = releasedAttempts.filter(a => a.status === 'passed').length;
-  const toImprove  = releasedAttempts.filter(a => a.status !== 'passed').length;
+  const passed = releasedAttempts.filter(a => a.status === 'passed').length;
+  const toImprove = releasedAttempts.filter(a => a.status !== 'passed').length;
 
-  const scores    = releasedAttempts.map(a => a.rawScore).filter(s => s != null);
-  const avgScore  = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-  const highScore = scores.length ? Math.max(...scores) : null;
-  const lowScore  = scores.length ? Math.min(...scores) : null;
+  const scoredAttempts = releasedAttempts.filter(
+    a => a.rawScore != null && a.totalScore && a.totalScore > 0
+  );
 
-  const highAttempt = releasedAttempts.find(a => a.rawScore === highScore);
-  const lowAttempt  = releasedAttempts.find(a => a.rawScore === lowScore);
+  const totalEarned = scoredAttempts.reduce(
+    (sum, a) => sum + a.rawScore,
+    0
+  );
+
+  const totalPossible = scoredAttempts.reduce(
+    (sum, a) => sum + a.totalScore,
+    0
+  );
+
+  const overallScore =
+    totalPossible > 0 ? `${totalEarned}/${totalPossible}` : '—';
+
+  const highestAttempt = scoredAttempts.length
+    ? scoredAttempts.reduce((prev, curr) =>
+      (curr.rawScore / curr.totalScore) >
+        (prev.rawScore / prev.totalScore)
+        ? curr
+        : prev
+    )
+    : null;
+
+  const lowestAttempt = scoredAttempts.length
+    ? scoredAttempts.reduce((prev, curr) =>
+      (curr.rawScore / curr.totalScore) <
+        (prev.rawScore / prev.totalScore)
+        ? curr
+        : prev
+    )
+    : null;
 
   // Pagination logic
   const totalPages = Math.ceil(attempts.length / pageSize);
@@ -262,118 +293,170 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
       <div className="sd-body">
 
-        {/* ── STAT CARDS ─────────────────────────────────────────── */}
-        <div className="sd-stats-row">
-          <StatCard
-            accentColor="#35408E"
-            bigLabel={totalTaken}
-            subLabel="Exams taken"
-            subtitle={`${passed} passed · ${toImprove} to improve`}
-          />
-          <StatCard
-            accentColor="#16a34a"
-            bigLabel={avgScore != null ? `${avgScore}/100` : '—/100'}
-            subLabel="Average score"
-            subtitle="Across all exams"
-          />
-          <StatCard
-            accentColor="#d97706"
-            bigLabel={highScore != null ? `${highScore}/100` : '—/100'}
-            subLabel="Highest score"
-            subtitle={highAttempt?.examName ?? '—'}
-          />
-          <StatCard
-            accentColor="#dc2626"
-            bigLabel={lowScore != null ? `${lowScore}/100` : '—/100'}
-            subLabel="Lowest score"
-            subtitle={lowAttempt?.examName ?? '—'}
-          />
-        </div>
+        <div className="sd-grid">
 
-        {/* ── BOTTOM GRID ────────────────────────────────────────── */}
-        <div className="sd-bottom-grid">
+          {/* 0 — Exam Breakdown */}
+          <div className="sd-grid-item sd-grid-item-0">
+            <div className="sd-card">
+              <div className="sd-card-header">
+                <span className="sd-card-title">Exam breakdown</span>
+                {selectedAttempt && (
+                  <span className="sd-card-subtitle">
+                    · {selectedAttempt.examName}
+                  </span>
+                )}
+              </div>
 
-          {/* LEFT — Attempt Log */}
-          <div className="sd-card">
-            <div className="sd-card-header">
-              <span className="sd-card-title">Chronological log of all attempts</span>
-            </div>
-            <div className="sd-card-body">
-              {attempts.length === 0 ? (
-                <p className="sd-empty">No attempts yet.</p>
-              ) : (
-                <>
-                  <div className="sd-timeline">
-                    {paginatedAttempts.map(a => (
-                      <AttemptRow
-                        key={a.id}
-                        attempt={a}
-                        isSelected={selectedAttempt?.id === a.id}
-                        onClick={() => setSelectedAttempt(a)}
-                      />
-                    ))}
+              <div className="">
+                {!selectedAttempt ? (
+                  <div className="sd-empty-state">
+                    <p className="sd-empty-text">No exam selected.</p>
+                    <p className="sd-empty-hint">
+                      Click an attempt below.
+                    </p>
                   </div>
+                ) : !isReleased(selectedAttempt) ? (
+                  <div className="sd-empty-state">
+                    <p className="sd-empty-text">Results not yet released.</p>
+                  </div>
+                ) : selectedAttempt.subjectScores?.length === 0 ? (
+                  <div className="sd-empty-state">
+                    <p className="sd-empty-text">No subject breakdown.</p>
+                  </div>
+                ) : (
+                  <div className="sd-subject-list">
 
-                  {/* Pagination Controls */}
-                  {totalPages > 1 && (
-                    <div className="sd-pagination">
-                      <button
-                        className="sd-pag-btn"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => p - 1)}
-                      >
-                        Previous
-                      </button>
-                      <span className="sd-pag-info">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <button
-                        className="sd-pag-btn"
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => p + 1)}
-                      >
-                        Next
-                      </button>
+                    <div className="sd-subject-header">
+                      <span>Subject</span>
+                      <span>Progress</span>
+                      <span></span>
+                      <span className="sd-header-score">Score</span>
                     </div>
-                  )}
-                </>
-              )}
+
+                    <div className="sd-subject-list">
+                      {selectedAttempt.subjectScores.map((s, i) => (
+                        <SubjectBar key={i} subject={s} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* RIGHT — Selected Exam Subject Breakdown */}
-          <div className="sd-card">
-            <div className="sd-card-header">
-              <span className="sd-card-title">Exam breakdown</span>
-              {selectedAttempt && (
-                <span className="sd-card-subtitle">
-                  · {selectedAttempt.examName}
+          {/* 1 — Exams Taken */}
+          <div className="sd-grid-item sd-grid-item-1">
+            <StatCard
+              div={true}
+              className="stat-card-inside"
+              accentColor="#35408E"
+              bigLabel={totalTaken}
+              subLabel="Exams taken"
+              subtitle={
+                <div className="sd-pill-group">
+                  <span className="sd-pill sd-pill-pass">
+                    {passed} passed
+                  </span>
+                  <span className="sd-pill sd-pill-improve">
+                    {toImprove} to improve
+                  </span>
+                </div>
+              }
+
+            />
+          </div>
+
+          {/* 2 — Average */}
+          <div className="sd-grid-item sd-grid-item-2">
+            <StatCard
+              accentColor="#16a34a"
+
+              bigLabel={overallScore}
+
+              subLabel="Average score"
+            />
+          </div>
+
+          {/* 3 — Highest */}
+          <div className="sd-grid-item sd-grid-item-3">
+            <StatCard
+              accentColor="#d97706"
+              bigLabel={
+                highestAttempt
+                  ? `${highestAttempt.rawScore}/${highestAttempt.totalScore}`
+                  : '—'
+              }
+              subLabel="Highest score"
+              subtitle={highestAttempt?.examName ?? '—'}
+            />
+          </div>
+
+          {/* 4 — Lowest */}
+          <div className="sd-grid-item sd-grid-item-4">
+            <StatCard
+              accentColor="#dc2626"
+              bigLabel={
+                lowestAttempt
+                  ? `${lowestAttempt.rawScore}/${lowestAttempt.totalScore}`
+                  : '—'
+              }
+              subtitle={lowestAttempt?.examName ?? '—'}
+            />
+          </div>
+
+          {/* 5 — Chronological Log */}
+          <div className="sd-grid-item sd-grid-item-5">
+            <div className="sd-card">
+              <div className="sd-card-header chrono-header">
+                <span className="sd-card-title chrono-title">
+                  Chronological log of all attempts
                 </span>
-              )}
-            </div>
-            <div className="sd-card-body">
-              {!selectedAttempt ? (
-                <div className="sd-empty-state">
-                  <p className="sd-empty-text">No exam selected.</p>
-                  <p className="sd-empty-hint">Click an attempt from the log to view its breakdown.</p>
-                </div>
-              ) : !isReleased(selectedAttempt) ? (
-                <div className="sd-empty-state">
-                  <p className="sd-empty-text">Results not yet released.</p>
-                  <p className="sd-empty-hint">The Dean hasn't released results for this exam yet.</p>
-                </div>
-              ) : selectedAttempt.subjectScores?.length === 0 ? (
-                <div className="sd-empty-state">
-                  <p className="sd-empty-text">No subject breakdown for this exam.</p>
-                  <p className="sd-empty-hint">Subject-level data wasn't recorded for this attempt.</p>
-                </div>
-              ) : (
-                <div className="sd-subject-list">
-                  {selectedAttempt.subjectScores.map((s, i) => (
-                    <SubjectBar key={i} subject={s} />
-                  ))}
-                </div>
-              )}
+              </div>
+
+              <div className="sd-card-body">
+                {attempts.length === 0 ? (
+                  <p className="sd-empty">No attempts yet.</p>
+                ) : (
+                  <>
+                    <div className="sd-timeline-wrapper">
+                      <div className="sd-timeline">
+                        {paginatedAttempts.map(a => (
+                          <AttemptRow
+                            key={a.id}
+                            attempt={a}
+                            isSelected={selectedAttempt?.id === a.id}
+                            onClick={() => setSelectedAttempt(a)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {totalPages > 1 && (
+                      <div className="sd-pagination">
+                        <button
+                          className="sd-pag-btn"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(p => p - 1)}
+                        >
+                          Previous
+                        </button>
+
+                        <span className="sd-pag-info">
+                          Page {currentPage} of {totalPages}
+                        </span>
+
+                        <button
+                          className="sd-pag-btn"
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(p => p + 1)}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
