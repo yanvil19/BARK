@@ -72,14 +72,11 @@ const LandingPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Starting fetch...');
         const [deptRes, progRes, examRes] = await Promise.all([
           fetch('http://localhost:5000/api/catalog/departments'),
           fetch('http://localhost:5000/api/catalog/programs'),
           fetch('http://localhost:5000/api/mock-board-exams/public'),
         ]);
-        
-        console.log('Fetch responses:', { deptRes, progRes, examRes });
         
         if (!deptRes.ok) throw new Error(`Dept fetch failed: ${deptRes.status}`);
         if (!progRes.ok) throw new Error(`Programs fetch failed: ${progRes.status}`);
@@ -88,8 +85,6 @@ const LandingPage = ({ onNavigate }) => {
         const deptData = await deptRes.json();
         const progData = await progRes.json();
         const examData = await examRes.json();
-        
-        console.log('Fetched data:', { deptData, progData, examData });
         
         setDepartments(deptData.departments || []);
         setPrograms(progData.programs || []);
