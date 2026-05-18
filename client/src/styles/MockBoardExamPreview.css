@@ -1,12 +1,98 @@
 /* MockBoardExamPreview.css */
 
 .mbep-page {
-  margin: -20px; /* Offset the parent padding like other pages */
+  margin: -20px;
+  /* Offset the parent padding like other pages */
   min-height: 100vh;
   background-color: var(--content-bg);
   font-family: var(--font-body);
   display: flex;
   flex-direction: column;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.mbep-watermark-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-repeat: repeat;
+}
+
+.mbep-blurred-state {
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.mbep-warning-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  pointer-events: auto;
+  /* ensure we can click the modal buttons */
+}
+
+.mbep-warning-content {
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 12px;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.mbep-warning-title {
+  color: #dc2626;
+  margin-top: 0;
+  font-size: 1.5rem;
+}
+
+.mbep-warning-text {
+  color: #374151;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.mbep-warning-subtext {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.mbep-warning-btn {
+  width: 100%;
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2);
+}
+
+.mbep-warning-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 /* ── Header (Matching Project Standard) ──────────────────── */

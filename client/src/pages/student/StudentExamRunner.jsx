@@ -1,38 +1,109 @@
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/MockBoardExamPreview.css'; 
+import '../../styles/MockBoardExamPreview.css';
 
 const BASE = 'http://localhost:5000';
 
-export default function StudentExamRunner({ examId, onFinish }) {
+export default function StudentExamRunner({ examId, onFinish, me }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [examInfo, setExamInfo] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [attemptId, setAttemptId] = useState(null);
-  
+
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); 
-  
+  const [answers, setAnswers] = useState({});
+
   const [examEndDateTime, setExamEndDateTime] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [isBlurred, setIsBlurred] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
   const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleContextMenu = (e) => e.preventDefault();
+    const handleKeyDown = (e) => {
+      if (e.key === 'PrintScreen' || (e.metaKey && e.shiftKey)) {
+        setIsBlurred(true);
+        e.preventDefault();
+      }
+
+      if (e.key === 'F12') e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        if (['c', 'v', 'p', 's'].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    let unblurTimeout;
+
+    const unblurWithDelay = (showWarn = false) => {
+      clearTimeout(unblurTimeout);
+      unblurTimeout = setTimeout(() => {
+        setIsBlurred(prev => {
+          if (prev && showWarn) setShowWarning(true);
+          return false;
+        });
+      }, 700); // Add a 0.7s delay before unblurring
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.key === 'PrintScreen' || e.key === 'Meta' || e.key === 'Shift') {
+        setTimeout(() => {
+          if (document.hasFocus()) {
+            unblurWithDelay(false);
+          }
+        }, 100);
+      }
+    };
+
+    const handleBlur = () => {
+      clearTimeout(unblurTimeout);
+      setIsBlurred(true);
+    };
+    const handleFocus = () => unblurWithDelay(true);
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(unblurTimeout);
+        setIsBlurred(true);
+      } else if (document.hasFocus()) {
+        unblurWithDelay(true);
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     async function startOrResumeExam() {
       try {
         const data = await apiAuth(`${BASE}/api/student-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
-        
+
         setExamInfo(data.exam);
         setQuestions(data.questions);
         setAttemptId(data.attemptId);
         setAnswers(data.answers || {});
-        
+
         setExamEndDateTime(new Date(data.endDateTime));
         setTimeRemaining(data.remainingTimeSeconds);
-        
+
       } catch (err) {
         setError(err.message || 'Failed to start exam. The window may be closed.');
       } finally {
@@ -42,7 +113,6 @@ export default function StudentExamRunner({ examId, onFinish }) {
     startOrResumeExam();
   }, [examId]);
 
-  // Timer logic strictly based on endDateTime - now()
   useEffect(() => {
     if (!examEndDateTime || loading || submitting || error) return;
 
@@ -61,6 +131,24 @@ export default function StudentExamRunner({ examId, onFinish }) {
 
     return () => clearInterval(interval);
   }, [examEndDateTime, loading, submitting, error]);
+
+  useEffect(() => {
+    const studentName = me?.name || me?.firstName || 'STUDENT';
+    const identifier = `STUDENT: ${studentName.toUpperCase()}`;
+
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+        <text transform="rotate(-15 100,50)" fill="black" font-size="9" font-family="monospace" font-weight="bold" text-anchor="middle">
+          <tspan x="100" y="55">${identifier}</tspan>
+        </text>
+      </svg>
+    `;
+    const encodedSvg = encodeURIComponent(svgContent);
+    const watermarkElement = document.getElementById('mbep-watermark-overlay');
+    if (watermarkElement) {
+      watermarkElement.style.backgroundImage = `url("data:image/svg+xml;utf8,${encodedSvg}")`;
+    }
+  }, [attemptId, me]);
 
   const formatTimer = (seconds) => {
     if (seconds <= 0) return '0:00:00';
@@ -123,101 +211,125 @@ export default function StudentExamRunner({ examId, onFinish }) {
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
   return (
-    <div className="mbep-page">
-      <header className="mbep-header">
-        <div className="mbep-header-info">
-          <h1 className="mbep-title">{examInfo?.name}</h1>
-          <p className="mbep-subtitle">{examInfo?.description || 'Mock Board Exam'}</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="mbep-exit-btn" onClick={handleManualSubmit} style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }} disabled={submitting}>
-            {submitting ? 'Submitting...' : '+ Submit Exam'}
-          </button>
-        </div>
-      </header>
+    <>
+      {/* 3. Anti-AI Watermark Layer */}
+      <div id="mbep-watermark-overlay" className="mbep-watermark-overlay"></div>
 
-      <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px' }}>
-        <div className="mbep-progress-card">
-          <div className="mbep-progress-info">
-            <span>Progress ({answeredCount} answered)</span>
-            <span>{currentIdx + 1} / {questions.length}</span>
-          </div>
-          <div className="mbep-progress-bar">
-            <div className="mbep-progress-fill" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-        <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: timeRemaining < 300 ? 'red' : 'var(--primary-bg)' }}>
-            {formatTimer(timeRemaining)}
-          </span>
-        </div>
-      </div>
-
-      <main className="mbep-content">
-        {currentQuestion ? (
-          <article className="mbep-card">
-            <div className="mbep-card-top">
-              <h4>Question {currentIdx + 1}</h4>
+      <div className={`mbep-page ${isBlurred ? 'mbep-blurred-state' : ''}`}>
+        {showWarning && (
+          <div className="mbep-warning-modal">
+            <div className="mbep-warning-content">
+              <h3 className="mbep-warning-title">⚠️ Security Warning</h3>
+              <p className="mbep-warning-text">
+                Switching windows, taking screenshots, or opening other applications during the exam is strictly prohibited.
+              </p>
+              <p className="mbep-warning-subtext">
+                Repeated violations are logged and may result in an automatic failure or disciplinary action.
+              </p>
+              <button
+                onClick={() => setShowWarning(false)}
+                className="mbep-warning-btn"
+              >
+                I Understand
+              </button>
             </div>
-            <div className="mbep-card-body">
-              <div className="mbep-question-title">{currentQuestion.title}</div>
+          </div>
+        )}
+        <header className="mbep-header">
+          <div className="mbep-header-info">
+            <h1 className="mbep-title">{examInfo?.name}</h1>
+            <p className="mbep-subtitle">{examInfo?.description || 'Mock Board Exam'}</p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="mbep-exit-btn" onClick={handleManualSubmit} style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }} disabled={submitting}>
+              {submitting ? 'Submitting...' : '+ Submit Exam'}
+            </button>
+          </div>
+        </header>
 
-              {currentQuestion.images?.length > 0 && (
-                <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {currentQuestion.images.map((img, i) => (
-                    <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
-                  ))}
-                </div>
-              )}
+        <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px' }}>
+          <div className="mbep-progress-card">
+            <div className="mbep-progress-info">
+              <span>Progress ({answeredCount} answered)</span>
+              <span>{currentIdx + 1} / {questions.length}</span>
+            </div>
+            <div className="mbep-progress-bar">
+              <div className="mbep-progress-fill" style={{ width: `${progressPercent}%` }}></div>
+            </div>
+          </div>
+          <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: timeRemaining < 300 ? 'red' : 'var(--primary-bg)' }}>
+              {formatTimer(timeRemaining)}
+            </span>
+          </div>
+        </div>
 
-              <div className="mbep-options">
-                {(currentQuestion.answers || []).map((answer, i) => {
-                  const isSelected = String(answers[currentQuestion._id]) === String(answer._id);
-                  let optionClass = "mbep-option";
-                  if (isSelected) optionClass += " is-selected-preview"; 
-
-                  return (
-                    <div 
-                      key={answer._id} 
-                      className={optionClass}
-                      onClick={() => handleSelect(currentQuestion._id, answer._id)}
-                    >
-                      <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
-                      <div className="mbep-option-text">{answer.text}</div>
-                    </div>
-                  );
-                })}
+        <main className="mbep-content">
+          {currentQuestion ? (
+            <article className="mbep-card">
+              <div className="mbep-card-top">
+                <h4>Question {currentIdx + 1}</h4>
               </div>
+              <div className="mbep-card-body">
+                <div className="mbep-question-title">{currentQuestion.title}</div>
+
+                {currentQuestion.images?.length > 0 && (
+                  <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {currentQuestion.images.map((img, i) => (
+                      <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                    ))}
+                  </div>
+                )}
+
+                <div className="mbep-options">
+                  {(currentQuestion.answers || []).map((answer, i) => {
+                    const isSelected = String(answers[currentQuestion._id]) === String(answer._id);
+                    let optionClass = "mbep-option";
+                    if (isSelected) optionClass += " is-selected-preview";
+
+                    return (
+                      <div
+                        key={answer._id}
+                        className={optionClass}
+                        onClick={() => handleSelect(currentQuestion._id, answer._id)}
+                      >
+                        <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
+                        <div className="mbep-option-text">{answer.text}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </article>
+          ) : null}
+
+          <div className="mbep-navigator-wrap">
+            <div className="mbep-nav-bar">
+              {questions.map((q, i) => {
+                const isAnswered = !!answers[q._id];
+                let dotClass = "mbep-nav-circle";
+                if (currentIdx === i) dotClass += " active";
+                else if (isAnswered) dotClass += " is-answered-preview";
+
+                return (
+                  <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
+                    {i + 1}
+                  </button>
+                );
+              })}
             </div>
-          </article>
-        ) : null}
 
-        <div className="mbep-navigator-wrap">
-          <div className="mbep-nav-bar">
-            {questions.map((q, i) => {
-               const isAnswered = !!answers[q._id];
-               let dotClass = "mbep-nav-circle";
-               if (currentIdx === i) dotClass += " active";
-               else if (isAnswered) dotClass += " is-answered-preview";
-
-               return (
-                <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
-                  {i + 1}
-                </button>
-               );
-            })}
+            <div className="mbep-nav-actions">
+              <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}>
+                ← Previous
+              </button>
+              <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
+                Next →
+              </button>
+            </div>
           </div>
-
-          <div className="mbep-nav-actions">
-            <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}>
-              ← Previous
-            </button>
-            <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
-              Next →
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }

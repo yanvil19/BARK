@@ -195,6 +195,7 @@ export default function App() {
     page = (
       <StudentExamRunner
         examId={studentExamId}
+        me={me}
         onFinish={() => setRoute('studentExamResult')}
       />
     );
