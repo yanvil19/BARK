@@ -10,12 +10,12 @@
 .sae-page-container {
   margin: -20px;
   min-height: 100%;
-  background:#e5e7f2;
+  background: #e5e7f2;
   overflow-x: hidden;
 }
 
 .sae-page-header {
-  padding: 18px 32px 12px;
+  padding: 18px 16px 12px;
   background: #f9faff;
   border-bottom: 1px solid rgba(53, 64, 142, 0.35);
 }
@@ -36,7 +36,7 @@
 
 .ae-grid {
   display: grid;
-  padding: 0 28px;
+  padding: 0 16px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
 }
@@ -176,7 +176,7 @@
     flex: 1 1 100%;
     max-width: 100%;
   }
-  
+
   .ae-filters.ca-filters .ca-search input {
     width: 100%;
   }
@@ -232,9 +232,11 @@
   0% {
     opacity: 0.55;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0.55;
   }

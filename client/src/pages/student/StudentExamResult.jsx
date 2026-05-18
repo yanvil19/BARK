@@ -4,7 +4,7 @@ import '../../styles/MockBoardExamPreview.css';
 export default function StudentExamResult({ onReturn }) {
   return (
     <div className="mbep-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-color)' }}>
-      <div className="mbep-card" style={{ maxWidth: '600px', width: '100%', textAlign: 'center', padding: '40px' }}>
+      <div className="mbep-card mbep-card-phone" style={{ maxWidth: '600px', width: '100%', textAlign: 'center', padding: '40px' }}>
         <h1 style={{ fontFamily: 'var(--font-title)', color: 'var(--primary-bg)', marginBottom: '15px' }}>
           Mock Exam Completed Successfully
         </h1>
