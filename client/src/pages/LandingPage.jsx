@@ -60,6 +60,7 @@ const LandingPage = ({ onNavigate }) => {
   const [programs, setPrograms] = useState([]);
   const [activeDepartmentId, setActiveDepartmentId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [exams, setExams] = useState([]);
 
   /* ── Theme ── */
@@ -72,6 +73,7 @@ const LandingPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError('');
         const [deptRes, progRes, examRes] = await Promise.all([
           // [FIX 1 - REMOVE HARDCODED URL]
           fetch(`${import.meta.env.VITE_API_URL}/api/catalog/departments`),
@@ -94,6 +96,7 @@ const LandingPage = ({ onNavigate }) => {
         setExams(examData.exams || []);
       } catch (error) {
         console.error('Error loading landing page data:', error);
+        setError(error?.message || 'Something went wrong. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -166,6 +169,11 @@ const LandingPage = ({ onNavigate }) => {
 
   return (
     <div className="landing-wrapper">
+      {error && !loading ? (
+        <div style={{ padding: '24px', textAlign: 'center' }} role="status">
+          Something went wrong. Please try again.
+        </div>
+      ) : null}
 
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <header className="hero-main" ref={heroRef} onMouseMove={handleMouseMove}>

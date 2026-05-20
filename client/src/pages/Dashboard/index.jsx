@@ -8,18 +8,22 @@ import ProfessorDashboard from '../professor/ProfessorDashboard.jsx';
 const Dashboard = ({ me, onNavigate, onRoute }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Fetch general stats needed by Super Admin and others
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        setError('');
         // [FIX 1 - REMOVE HARDCODED URL]
         const statsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/stats/summary`);
+        if (!statsRes.ok) throw new Error(`Request failed (${statsRes.status})`);
         const statsData = await statsRes.json();
         setStats(statsData);
         setLoading(false);
       } catch (error) {
         console.error('Error loading stats data:', error);
+        setError(error?.message || 'Something went wrong. Please try again.');
         setLoading(false);
       }
     };
@@ -28,6 +32,10 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
   if (loading && me?.role === 'super_admin') {
     return <div className="dashboard-loading">Loading dashboard...</div>;
+  }
+
+  if (error && me?.role === 'super_admin') {
+    return <div className="dashboard-loading">Something went wrong. Please try again.</div>;
   }
 
   // Route to appropriate dashboard based on user role
