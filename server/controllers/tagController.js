@@ -59,7 +59,8 @@ const listTags = async (req, res) => {
     const tags = await Tag.find({ program: programId }).sort({ name: 1 });
     res.json({ tags });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -80,7 +81,8 @@ const createTag = async (req, res) => {
     res.status(201).json({ tag });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Tag already exists' });
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -103,7 +105,8 @@ const updateTag = async (req, res) => {
     res.json({ tag });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'A tag with this name already exists' });
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -126,7 +129,8 @@ const deleteTag = async (req, res) => {
     await tag.deleteOne();
     res.json({ message: 'Tag deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 

@@ -66,7 +66,8 @@ const lockQuestion = async (req, res) => {
       minutesElapsed: elapsed,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -79,7 +80,8 @@ const unlockQuestion = async (req, res) => {
     );
     res.json({ message: 'Unlocked' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -96,7 +98,8 @@ const listQuestions = async (req, res) => {
 
     res.json({ questions });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -123,7 +126,8 @@ const listApprovals = async (req, res) => {
 
     res.json({ questions });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -182,7 +186,8 @@ const createQuestion = async (req, res) => {
     ]);
     res.status(201).json({ question: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -219,7 +224,8 @@ const updateQuestion = async (req, res) => {
     ]);
     res.json({ question: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -236,7 +242,8 @@ const deleteQuestion = async (req, res) => {
     await question.deleteOne();
     res.json({ message: 'Question deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -288,7 +295,8 @@ const submitQuestion = async (req, res) => {
     ]);
     res.json({ question: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -391,7 +399,8 @@ const reviewQuestion = async (req, res) => {
     ]);
     res.json({ question: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -443,7 +452,8 @@ const deanReturnApprovedQuestion = async (req, res) => {
     ]);
     res.json({ question: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 

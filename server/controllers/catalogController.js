@@ -27,7 +27,8 @@ const listDepartments = async (req, res) => {
 
     res.status(200).json({ page, limit, total, pages: Math.ceil(total / limit), departments });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -50,7 +51,8 @@ const listPrograms = async (req, res) => {
 
     res.status(200).json({ page, limit, total, pages: Math.ceil(total / limit), programs });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -69,7 +71,8 @@ const adminListDepartments = async (req, res) => {
 
     res.status(200).json({ page, limit, total, pages: Math.ceil(total / limit), departments });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -88,7 +91,8 @@ const createDepartment = async (req, res) => {
     });
     res.status(201).json({ message: 'Department created', department: dept });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to create department', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -110,7 +114,8 @@ const updateDepartment = async (req, res) => {
     });
     res.status(200).json({ message: 'Department updated', department: dept });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to update department', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -134,7 +139,8 @@ const deleteDepartment = async (req, res) => {
 
     res.status(200).json({ message: 'Department deleted successfully' });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to delete department', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -159,7 +165,8 @@ const adminListPrograms = async (req, res) => {
 
     res.status(200).json({ page, limit, total, pages: Math.ceil(total / limit), programs });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -186,7 +193,8 @@ const createProgram = async (req, res) => {
     });
     res.status(201).json({ message: 'Program created', program });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to create program', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -217,7 +225,8 @@ const updateProgram = async (req, res) => {
     });
     res.status(200).json({ message: 'Program updated', program });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to update program', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -237,7 +246,8 @@ const deleteProgram = async (req, res) => {
 
     res.status(200).json({ message: 'Program deleted successfully' });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to delete program', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 

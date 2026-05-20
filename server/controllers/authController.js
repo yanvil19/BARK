@@ -139,7 +139,8 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -164,18 +165,18 @@ const loginUser = async (req, res) => {
     // Find user by email
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
     // Check if account is active
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
+      return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
     // Generate token and respond
@@ -194,7 +195,8 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -212,7 +214,8 @@ const getMe = async (req, res) => {
     }
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -256,7 +259,8 @@ const listUsers = async (req, res) => {
       users,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -340,7 +344,8 @@ const updateUser = async (req, res) => {
 
     res.status(200).json({ message: 'User updated', user: out });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to update user', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -363,7 +368,8 @@ const deactivateUser = async (req, res) => {
 
     res.status(200).json({ message: 'User deactivated', user: { _id: user._id, isActive: user.isActive } });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to deactivate user', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -382,7 +388,8 @@ const activateUser = async (req, res) => {
 
     res.status(200).json({ message: 'User activated', user: { _id: user._id, isActive: user.isActive } });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to activate user', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -408,7 +415,8 @@ const deleteUser = async (req, res) => {
 
     res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
-    res.status(400).json({ message: 'Failed to delete user', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -509,7 +517,8 @@ const registerStudentRequest = async (req, res) => {
       token: publicToken,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -553,7 +562,8 @@ const checkRegistrationStatus = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -583,7 +593,8 @@ const listRegistrationRequests = async (req, res) => {
 
     res.status(200).json({ department: req.user.department, status, count: requests.length, requests });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -660,7 +671,8 @@ const approveRegistrationRequest = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -709,7 +721,8 @@ const rejectRegistrationRequest = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 

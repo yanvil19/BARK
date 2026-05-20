@@ -132,10 +132,8 @@ const getSummaryStats = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({
-            message: 'Error fetching statistics',
-            error: error.message
-        });
+        console.error(error);
+        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
     }
 };
 
@@ -218,10 +216,8 @@ const getProgramChairStats = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: 'Error fetching program chair stats',
-      error: error.message
-    });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -248,7 +244,8 @@ const getAuditLogs = async (req, res) => {
       logs
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching audit logs', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -462,10 +459,8 @@ const getDeanDashboardStats = async (req, res) => {
       recentActivity,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Error fetching dean dashboard stats',
-      error: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 

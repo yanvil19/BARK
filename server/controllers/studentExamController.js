@@ -117,7 +117,8 @@ async function getAvailableExams(req, res) {
 
     res.json({ exams: enriched });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -237,7 +238,8 @@ async function startExam(req, res) {
     });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -272,7 +274,8 @@ async function saveProgress(req, res) {
 
         res.json({ message: 'Progress saved' });
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        console.error(err);
+        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
     }
 }
 
@@ -314,7 +317,8 @@ async function submitExam(req, res) {
         res.json({ message: 'Exam submitted successfully' });
 
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        console.error(err);
+        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
     }
 }
 
@@ -374,7 +378,8 @@ async function getMyAttempts(req, res) {
 
     res.json({ attempts: enrichedAttempts });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

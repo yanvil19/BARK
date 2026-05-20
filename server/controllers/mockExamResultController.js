@@ -31,7 +31,8 @@ exports.listExamsWithStatus = async (req, res) => {
 
     res.json({ exams: examsWithStatus });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -53,7 +54,8 @@ exports.getResult = async (req, res) => {
 
     res.json({ result });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -194,7 +196,7 @@ exports.computeResults = async (req, res) => {
     res.json({ result: finalResult });
   } catch (err) {
     console.error('Computation Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
@@ -217,6 +219,7 @@ exports.deleteResult = async (req, res) => {
     await MockExamResult.deleteOne({ _id: result._id });
     res.json({ message: 'Result record deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };

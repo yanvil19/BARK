@@ -59,7 +59,8 @@ async function listApprovedQuestions(req, res) {
 
     res.json({ questions });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -178,7 +179,8 @@ async function createMockBoardExam(req, res) {
 
     res.status(201).json({ exam: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -229,7 +231,8 @@ async function listMockBoardExams(req, res) {
 
     res.json({ exams });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -256,7 +259,8 @@ async function getMockBoardExam(req, res) {
 
     res.json({ exam });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -330,7 +334,8 @@ async function updateMockBoardExam(req, res) {
 
     res.json({ exam: populated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -355,7 +360,8 @@ async function deleteMockBoardExam(req, res) {
     await exam.deleteOne();
     res.json({ message: 'Mock board exam deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -368,7 +374,8 @@ async function listPublishedExams(req, res) {
 
     res.json({ exams });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -401,7 +408,8 @@ async function archiveExam(req, res) {
 
     res.json({ message: 'Exam archived successfully', exam: { _id: exam._id, status: exam.status } });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -440,7 +448,8 @@ async function setResultsReleaseDate(req, res) {
 
     res.json({ message: 'Results release date scheduled successfully', resultsReleaseDate: exam.resultsReleaseDate });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
