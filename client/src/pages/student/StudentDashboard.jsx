@@ -3,7 +3,8 @@ import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
 import '../../styles/global.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 

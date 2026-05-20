@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 /**
  * Upload a file for question import

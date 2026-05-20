@@ -4,7 +4,8 @@ import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import '../../styles/MockBoardExamPreview.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 function formatDateTime(value) {
   if (!value) return '-';

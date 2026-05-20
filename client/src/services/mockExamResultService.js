@@ -1,6 +1,7 @@
 import { apiAuth } from '../lib/api';
 
-const BASE_URL = 'http://localhost:5000/api/mock-exam-results';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api/mock-exam-results`;
 
 export const listExamsWithStatus = async () => {
   return await apiAuth(`${BASE_URL}/list`);

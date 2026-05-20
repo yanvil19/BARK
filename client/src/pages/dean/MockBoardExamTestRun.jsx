@@ -3,7 +3,8 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 export default function MockBoardExamTestRun({ examId, onBack }) {
   const [exam, setExam] = useState(null);
