@@ -15,7 +15,18 @@ const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        const allowedOrigins = [process.env.CLIENT_URL, 'http://localhost:5173'].filter(Boolean);
+
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    optionsSuccessStatus: 200,
+}));
 app.use(express.json());
 
 // Serve uploaded files (question images, etc.)
