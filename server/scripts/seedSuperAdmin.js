@@ -10,9 +10,14 @@ function getArg(name) {
 }
 
 async function main() {
-  const email = getArg('email') || process.env.SUPER_ADMIN_EMAIL || 'admin@example.com';
-  const password = getArg('password') || process.env.SUPER_ADMIN_PASSWORD || 'Admin123!';
+  const email = getArg('email') || process.env.SEED_ADMIN_EMAIL;
+  const password = getArg('password') || process.env.SEED_ADMIN_PASSWORD;
   const name = getArg('name') || process.env.SUPER_ADMIN_NAME || 'Super Admin';
+
+  if (!email || !password) {
+    console.error('Missing seed credentials. Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD before running this script.');
+    process.exit(1);
+  }
 
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not set (check server/.env)');
