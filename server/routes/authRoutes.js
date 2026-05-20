@@ -8,6 +8,7 @@ const {
   updateUser,
   deactivateUser,
   activateUser,
+  deleteUser,
   registerStudentRequest,
   checkRegistrationStatus,
   listRegistrationRequests,
@@ -49,8 +50,9 @@ router.get('/me', protect, getMe);
 // @access  Public
 router.post('/register-student', rateLimit({ windowMs: 60_000, max: 10 }), registerStudentRequest);
 
+// [UX IMPROVEMENT - Check Status]
 // @route   POST /api/auth/registration-status
-// @access  Public (requires requestId + token)
+// @access  Public (studentId + email)
 router.post('/registration-status', rateLimit({ windowMs: 60_000, max: 30 }), checkRegistrationStatus);
 
 // @route   GET /api/auth/registrations
@@ -80,5 +82,9 @@ router.patch('/users/:id/deactivate', protect, authorizeRoles('super_admin'), de
 // @route   PATCH /api/auth/users/:id/activate
 // @access  Private - Super Admin only
 router.patch('/users/:id/activate', protect, authorizeRoles('super_admin'), activateUser);
+
+// @route   DELETE /api/auth/users/:id
+// @access  Private - Super Admin only
+router.delete('/users/:id', protect, authorizeRoles('super_admin'), deleteUser);
 
 module.exports = router;

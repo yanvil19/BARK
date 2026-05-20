@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 
 export default function SchoolsPrograms() {
   const [deptName, setDeptName] = useState('');
@@ -23,6 +24,11 @@ export default function SchoolsPrograms() {
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [error, setError] = useState('');
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [hoveredDeleteKey, setHoveredDeleteKey] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'department' | 'program', item }
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [toggleProgramData, setToggleProgramData] = useState(null); // { program, action: 'activate' | 'deactivate' }
   const [toggleDeptData, setToggleDeptData] = useState(null); // { dept, action: 'activate' | 'deactivate' }
 
@@ -189,18 +195,48 @@ export default function SchoolsPrograms() {
     }
   }
 
-  function deleteEditedDepartment() {
-    if (!deptEditId) return;
+  function startDelete(type, item) {
+    setDeleteError('');
+    setDeleteTarget({ type, item });
+  }
 
-    const ok = window.confirm(
-      'Are you sure you want to delete this department?'
+  function closeDeleteModal() {
+    setDeleteTarget(null);
+    setDeleteError('');
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    const { type, item } = deleteTarget;
+    const basePath = type === 'department' ? '/api/admin/catalog/departments' : '/api/admin/catalog/programs';
+
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await apiAuth(`${basePath}/${encodeURIComponent(item._id)}`, { method: 'DELETE' });
+      await loadDepartments();
+      await loadPrograms();
+      closeDeleteModal();
+      if (type === 'department' && deptEditId === item._id) cancelEditDepartment();
+      if (type === 'program' && progEditId === item._id) cancelEditProgram();
+    } catch (err) {
+      setDeleteError(err.message || `Delete ${type} failed`);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  function TrashIcon(props) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+      </svg>
     );
-
-    if (!ok) return;
-
-    console.log('Deleting department:', deptEditId);
-
-    cancelEditDepartment();
   }
 
   return (
@@ -212,7 +248,14 @@ export default function SchoolsPrograms() {
             <h1 className="um-title">Schools and Program</h1>
             <p className="um-subtitle">Manage system-wide departments and programs</p>
           </div>
-          <div className="um-actions" style={{ display: 'flex', gap: '12px' }}>
+          <div className="um-header-actions">
+            <button
+              type="button"
+              className={`um-btn-delete-mode ${deleteMode ? 'um-btn-delete-mode--active' : ''}`}
+              onClick={() => setDeleteMode((value) => !value)}
+            >
+              {deleteMode ? 'Exit Delete Mode' : 'Delete Mode'}
+            </button>
             <button className="um-btn-add" onClick={() => setShowForm(true)}>
               + Add School
             </button>
@@ -239,7 +282,7 @@ export default function SchoolsPrograms() {
                 <th style={{ width: '250px' }}>School Name</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Programs</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Status</th>
-                <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
+                <th style={{ width: '200px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +295,7 @@ export default function SchoolsPrograms() {
                   ).length;
 
                   return (
-                    <tr key={d._id}>
+                    <tr key={d._id} className={hoveredDeleteKey === `department-${d._id}` ? 'um-row-delete-hover' : ''}>
                       <td><span className="um-badge um-badge--dept">{d.code}</span></td>
                       <td style={{ fontWeight: '600', maxWidth: '220px', wordBreak: 'break-word', whiteSpace: 'normal'}}>{d.name}</td>
                       <td style={{ textAlign: 'center', color: '#666' }}>{programCount}</td>
@@ -261,14 +304,29 @@ export default function SchoolsPrograms() {
                           ● {d.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="um-actions-cell" style={{ textAlign: 'right' }}>
-                        <button className="um-btn-edit" onClick={() => startEditDepartment(d)}>Edit</button>
-                        <button 
-                          className={d.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
-                          onClick={() => handleToggleDepartment(d)}
-                        >
-                          {d.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="um-actions-cell">
+                          <button className="um-btn-edit" onClick={() => startEditDepartment(d)}>Edit</button>
+                          <button 
+                            className={d.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
+                            onClick={() => handleToggleDepartment(d)}
+                          >
+                            {d.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                          {deleteMode ? (
+                            <button
+                              type="button"
+                              className="um-btn-delete-icon"
+                              onClick={() => startDelete('department', d)}
+                              onMouseEnter={() => setHoveredDeleteKey(`department-${d._id}`)}
+                              onMouseLeave={() => setHoveredDeleteKey((current) => (current === `department-${d._id}` ? null : current))}
+                              aria-label={`Delete ${d.name}`}
+                              title="Delete school"
+                            >
+                              <TrashIcon className="um-delete-icon" />
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -305,7 +363,7 @@ export default function SchoolsPrograms() {
                 <th style={{ width: '250px' }}>Program Name</th>
                 <th style={{ width: '150px' }}>Department</th>
                 <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
-                <th style={{ width: '200px', textAlign: 'right' }}>Actions</th>
+                <th style={{ width: '200px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -313,7 +371,7 @@ export default function SchoolsPrograms() {
                 <tr><td colSpan="5" className="um-empty">No programs found.</td></tr>
               ) : (
                 programs.map((p) => (
-                  <tr key={p._id}>
+                  <tr key={p._id} className={hoveredDeleteKey === `program-${p._id}` ? 'um-row-delete-hover' : ''}>
                     <td><span className="um-badge um-badge--dept">{p.code}</span></td>
                     <td style={{ fontWeight: '600' }}>{p.name}</td>
                     <td><span className="um-badge um-badge--dept" style={{ background: '#f0f2f8', color: '#555', border: '1px solid #d0d5dd' }}>{p.department?.code || p.department}</span></td>
@@ -322,14 +380,29 @@ export default function SchoolsPrograms() {
                         ● {p.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="um-actions-cell" style={{ textAlign: 'right' }}>
-                      <button className="um-btn-edit" onClick={() => startEditProgram(p)}>Edit</button>
-                      <button 
-                        className={p.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
-                        onClick={() => handleToggleProgram(p)}
-                      >
-                        {p.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                    <td style={{ textAlign: 'center' }}>
+                      <div className="um-actions-cell">
+                        <button className="um-btn-edit" onClick={() => startEditProgram(p)}>Edit</button>
+                        <button 
+                          className={p.isActive ? "um-btn-deactivate" : "um-btn-activate"} 
+                          onClick={() => handleToggleProgram(p)}
+                        >
+                          {p.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        {deleteMode ? (
+                          <button
+                            type="button"
+                            className="um-btn-delete-icon"
+                            onClick={() => startDelete('program', p)}
+                            onMouseEnter={() => setHoveredDeleteKey(`program-${p._id}`)}
+                            onMouseLeave={() => setHoveredDeleteKey((current) => (current === `program-${p._id}` ? null : current))}
+                            aria-label={`Delete ${p.name}`}
+                            title="Delete program"
+                          >
+                            <TrashIcon className="um-delete-icon" />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -392,7 +465,6 @@ export default function SchoolsPrograms() {
             </div>
           </div>
           <div className="modal-actions">
-            <button type="button" className="modal-btn-danger" style={{ marginRight: 'auto' }} onClick={deleteEditedDepartment}>Delete</button>
             <button type="button" className="modal-btn-cancel" onClick={cancelEditDepartment}>Cancel</button>
             <button type="submit" className="modal-btn-primary" disabled={!deptEditName || !deptEditCode}>Save Changes</button>
           </div>
@@ -533,6 +605,24 @@ export default function SchoolsPrograms() {
           </button>
         </div>
       </Modal>
+
+      <ConfirmationModal
+        open={!!deleteTarget}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+        title={deleteTarget?.type === 'department' ? 'Delete School' : 'Delete Program'}
+        message={(
+          <p style={{ margin: 0 }}>
+            This will permanently delete <strong>{deleteTarget?.item?.name}</strong> from the system.
+          </p>
+        )}
+        confirmLabel={deleteTarget?.type === 'department' ? 'Delete School' : 'Delete Program'}
+        confirmVariant="danger"
+        busy={deleteBusy}
+        error={deleteError}
+      >
+        <p style={{ margin: '12px 0 0', color: '#666' }}>This action cannot be undone.</p>
+      </ConfirmationModal>
     </main>
   );
 }

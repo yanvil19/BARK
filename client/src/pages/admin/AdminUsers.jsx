@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 
 export default function AdminUsers() {
   const [busy, setBusy] = useState(false);
@@ -11,8 +12,10 @@ export default function AdminUsers() {
   const [programs, setPrograms] = useState([]);
 
   // Modal states
-  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'deactivate'
+  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'deactivate' | 'activate' | 'delete'
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [hoveredDeleteUserId, setHoveredDeleteUserId] = useState(null);
 
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState('');
@@ -28,6 +31,8 @@ export default function AdminUsers() {
 
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,6 +107,7 @@ export default function AdminUsers() {
     setSelectedUser(null);
     setCreateError('');
     setEditError('');
+    setDeleteError('');
     setCreateForm({ name: '', email: '', role: 'student', password: '', departmentId: '', programId: '', studentId: '', alumniId: '' });
     setEditForm({ name: '', email: '', role: '', password: '', departmentId: '', programId: '', studentId: '', alumniId: '' });
   }
@@ -146,6 +152,12 @@ export default function AdminUsers() {
     setModalMode('activate');
   }
 
+  function startDelete(user) {
+    setSelectedUser(user);
+    setDeleteError('');
+    setModalMode('delete');
+  }
+
   async function confirmActivate() {
     if (!selectedUser) return;
     try {
@@ -154,6 +166,21 @@ export default function AdminUsers() {
       closeModal();
     } catch (err) {
       alert(err.message || 'Activate failed');
+    }
+  }
+
+  async function confirmDelete() {
+    if (!selectedUser) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await apiAuth(`/api/auth/users/${encodeURIComponent(selectedUser._id)}`, { method: 'DELETE' });
+      await load();
+      closeModal();
+    } catch (err) {
+      setDeleteError(err.message || 'Delete failed');
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -228,6 +255,24 @@ export default function AdminUsers() {
     return labels[role] || role;
   }
 
+  function formatUserId(user) {
+    if (user.role === 'alumni') return user.alumniId || '(none)';
+    if (user.role === 'student') return user.studentId || '(none)';
+    return '(n/a)';
+  }
+
+  function TrashIcon(props) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+      </svg>
+    );
+  }
+
   return (
     <main className="um-page">
       {/* ── Page Header ── */}
@@ -237,9 +282,18 @@ export default function AdminUsers() {
             <h1 className="um-title">User Management</h1>
             <p className="um-subtitle">Create, edit, and manage all system users</p>
           </div>
-          <button className="um-btn-add" onClick={startCreate}>
-            + Add User
-          </button>
+          <div className="um-header-actions">
+            <button
+              type="button"
+              className={`um-btn-delete-mode ${deleteMode ? 'um-btn-delete-mode--active' : ''}`}
+              onClick={() => setDeleteMode((value) => !value)}
+            >
+              {deleteMode ? 'Exit Delete Mode' : 'Delete Mode'}
+            </button>
+            <button className="um-btn-add" onClick={startCreate}>
+              + Add User
+            </button>
+          </div>
         </div>
       </header>
 
@@ -286,16 +340,17 @@ export default function AdminUsers() {
             {busy ? <p className="um-loading">Loading users...</p> : (
               <table className="um-table">
                 <thead>
-                  <tr><th>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+                  <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                  {paginatedUsers.length === 0 ? <tr><td colSpan={7} className="um-empty">No users found.</td></tr> : (
                     paginatedUsers.map((u) => (
-                      <tr key={u._id}>
+                      <tr key={u._id} className={hoveredDeleteUserId === u._id ? 'um-row-delete-hover' : ''}>
                         <td>
                           <div className="um-user-name">{u.name}</div>
                           <div className="um-user-email">{u.email}</div>
                         </td>
+                        <td>{formatUserId(u)}</td>
                         <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
                         <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
                         <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
@@ -304,6 +359,19 @@ export default function AdminUsers() {
                           <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                           {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                             : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                          {deleteMode ? (
+                            <button
+                              type="button"
+                              className="um-btn-delete-icon"
+                              onClick={() => startDelete(u)}
+                              onMouseEnter={() => setHoveredDeleteUserId(u._id)}
+                              onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
+                              aria-label={`Delete ${u.name || u.email}`}
+                              title="Delete user"
+                            >
+                              <TrashIcon className="um-delete-icon" />
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                     ))
@@ -319,21 +387,22 @@ export default function AdminUsers() {
       {error ? <p className="um-error">{error}</p> : null}
 
       {/* ── User Table ── */}
-      <div className="um-table-wrap">
+      {false && (<div className="um-table-wrap">
         {busy ? <p className="um-loading">Loading users...</p> : (
           <div className="scroll-x">
             <table className="um-table">
               <thead>
-                <tr><th style={{ width: '200px' }}>User</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+                <tr><th style={{ width: '200px' }}>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {paginatedUsers.length === 0 ? <tr><td colSpan={6} className="um-empty">No users found.</td></tr> : (
+                {paginatedUsers.length === 0 ? <tr><td colSpan={7} className="um-empty">No users found.</td></tr> : (
                   paginatedUsers.map((u) => (
-                    <tr key={u._id}>
+                    <tr key={u._id} className={hoveredDeleteUserId === u._id ? 'um-row-delete-hover' : ''}>
                       <td>
                         <div className="um-user-name">{u.name}</div>
                         <div className="um-user-email">{u.email}</div>
                       </td>
+                      <td>{formatUserId(u)}</td>
                       <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
                       <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
                       <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
@@ -342,6 +411,19 @@ export default function AdminUsers() {
                         <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                         {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                                     : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                        {deleteMode ? (
+                          <button
+                            type="button"
+                            className="um-btn-delete-icon"
+                            onClick={() => startDelete(u)}
+                            onMouseEnter={() => setHoveredDeleteUserId(u._id)}
+                            onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
+                            aria-label={`Delete ${u.name || u.email}`}
+                            title="Delete user"
+                          >
+                            <TrashIcon className="um-delete-icon" />
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))
@@ -350,7 +432,7 @@ export default function AdminUsers() {
             </table>
           </div>
         )}
-      </div>
+      </div>)}
 
       {/* ── Pagination ── */}
       {!busy && users.length > 0 && (
@@ -507,25 +589,51 @@ export default function AdminUsers() {
         </form>
       </Modal>
 
-      <Modal open={modalMode === 'deactivate'} onClose={closeModal} title="Deactivate User">
-        <div style={{ marginBottom: '24px' }}>
-          Are you sure you want to deactivate the account for <strong>{selectedUser?.name || selectedUser?.email}</strong>?
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="modal-btn-cancel" onClick={closeModal}>Cancel</button>
-          <button type="button" className="modal-btn-danger" onClick={confirmDeactivate}>Deactivate User</button>
-        </div>
-      </Modal>
+      <ConfirmationModal
+        open={modalMode === 'deactivate'}
+        onClose={closeModal}
+        onConfirm={confirmDeactivate}
+        title="Deactivate User"
+        message={(
+          <p style={{ margin: 0 }}>
+            Are you sure you want to deactivate the account for <strong>{selectedUser?.name || selectedUser?.email}</strong>?
+          </p>
+        )}
+        confirmLabel="Deactivate User"
+        confirmVariant="danger"
+      />
 
-      <Modal open={modalMode === 'activate'} onClose={closeModal} title="Activate User">
-        <div style={{ marginBottom: '24px' }}>
-          Are you sure you want to reactivate the account for <strong>{selectedUser?.name || selectedUser?.email}</strong>?
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="modal-btn-cancel" onClick={closeModal}>Cancel</button>
-          <button type="button" className="modal-btn-primary" style={{ backgroundColor: '#2e7d32' }} onClick={confirmActivate}>Activate User</button>
-        </div>
-      </Modal>
+      <ConfirmationModal
+        open={modalMode === 'activate'}
+        onClose={closeModal}
+        onConfirm={confirmActivate}
+        title="Activate User"
+        message={(
+          <p style={{ margin: 0 }}>
+            Are you sure you want to reactivate the account for <strong>{selectedUser?.name || selectedUser?.email}</strong>?
+          </p>
+        )}
+        confirmLabel="Activate User"
+        confirmVariant="primary"
+      />
+
+      <ConfirmationModal
+        open={modalMode === 'delete'}
+        onClose={closeModal}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        message={(
+          <p style={{ margin: 0 }}>
+            This will permanently delete <strong>{selectedUser?.name || selectedUser?.email}</strong> from the system.
+          </p>
+        )}
+        confirmLabel="Delete User"
+        confirmVariant="danger"
+        busy={deleteBusy}
+        error={deleteError}
+      >
+        <p style={{ margin: '12px 0 0', color: '#666' }}>This action cannot be undone.</p>
+      </ConfirmationModal>
 
     </main>
   );

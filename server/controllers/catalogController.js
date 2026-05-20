@@ -115,6 +115,30 @@ const updateDepartment = async (req, res) => {
 };
 
 // Admin
+const deleteDepartment = async (req, res) => {
+  try {
+    const dept = await Department.findById(req.params.id);
+    if (!dept) return res.status(404).json({ message: 'Department not found' });
+
+    const linkedPrograms = await Program.countDocuments({ department: dept._id });
+    if (linkedPrograms > 0) {
+      return res.status(400).json({ message: 'Delete all programs under this school before deleting it' });
+    }
+
+    await Department.deleteOne({ _id: dept._id });
+
+    await logAudit(req.user._id, 'department_deleted', 'Department', dept._id, {
+      name: dept.name,
+      code: dept.code,
+    });
+
+    res.status(200).json({ message: 'Department deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to delete department', error: error.message });
+  }
+};
+
+// Admin
 const adminListPrograms = async (req, res) => {
   try {
     const { page, limit, skip } = pickPagination(req.query);
@@ -197,14 +221,35 @@ const updateProgram = async (req, res) => {
   }
 };
 
+// Admin
+const deleteProgram = async (req, res) => {
+  try {
+    const program = await Program.findById(req.params.id);
+    if (!program) return res.status(404).json({ message: 'Program not found' });
+
+    await Program.deleteOne({ _id: program._id });
+
+    await logAudit(req.user._id, 'program_deleted', 'Program', program._id, {
+      name: program.name,
+      code: program.code,
+      departmentId: program.department,
+    });
+
+    res.status(200).json({ message: 'Program deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to delete program', error: error.message });
+  }
+};
+
 module.exports = {
   listDepartments,
   listPrograms,
   adminListDepartments,
   createDepartment,
   updateDepartment,
+  deleteDepartment,
   adminListPrograms,
   createProgram,
   updateProgram,
+  deleteProgram,
 };
-

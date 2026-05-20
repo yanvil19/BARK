@@ -386,6 +386,32 @@ const activateUser = async (req, res) => {
   }
 };
 
+// @desc    Delete a user permanently
+// @route   DELETE /api/auth/users/:id
+// @access  Private (Super Admin only — enforced in route)
+const deleteUser = async (req, res) => {
+  try {
+    if (String(req.user._id) === String(req.params.id)) {
+      return res.status(400).json({ message: 'Super admin cannot delete itself' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    await User.deleteOne({ _id: user._id });
+
+    await logAudit(req.user._id, 'user_deleted', 'User', user._id, {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ message: 'Failed to delete user', error: error.message });
+  }
+};
+
 // @desc    Student self-registration (creates a pending request)
 // @route   POST /api/auth/register-student
 // @access  Public
@@ -487,40 +513,41 @@ const registerStudentRequest = async (req, res) => {
   }
 };
 
+// [UX IMPROVEMENT - Check Status]
 // @desc    Check registration status (student-facing)
 // @route   POST /api/auth/registration-status
-// @access  Public (requires requestId + token from submission)
+// @access  Public
 const checkRegistrationStatus = async (req, res) => {
   try {
-    const { requestId, token } = req.body || {};
+    // [UX IMPROVEMENT - Check Status]
+    const { studentId, email } = req.body || {};
 
-    if (!requestId || !token) {
-      return res.status(400).json({ message: 'Please provide requestId and token' });
+    // [UX IMPROVEMENT - Check Status]
+    if (!studentId || !email) {
+      return res.status(400).json({ message: 'Please provide studentId and email' });
     }
 
-    const request = await RegistrationRequest.findById(requestId)
-      .select('+publicTokenHash')
-      .populate('department', 'name code')
+    // [UX IMPROVEMENT - Check Status]
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const normalizedStudentId = String(studentId).trim();
+
+    // [UX IMPROVEMENT - Check Status]
+    const request = await RegistrationRequest.findOne({
+      studentId: normalizedStudentId,
+      email: normalizedEmail,
+    })
       .populate('program', 'name code department');
+
     if (!request) {
-      return res.status(404).json({ message: 'Registration request not found' });
+      return res.status(404).json({ message: 'No registration request found for the provided details.' });
     }
 
-    const tokenHash = hashPublicToken(token);
-    if (tokenHash !== request.publicTokenHash) {
-      return res.status(401).json({ message: 'Invalid registration token' });
-    }
-
+    // [UX IMPROVEMENT - Check Status]
     res.status(200).json({
       request: {
-        _id: request._id,
-        name: request.name,
-        email: request.email,
-        department: request.department,
-        program: request.program,
         status: request.status,
-        rejectionReason: request.rejectionReason,
-        reviewedAt: request.reviewedAt,
+        fullName: request.name,
+        program: request.program?.name || request.program?.code || '',
         createdAt: request.createdAt,
         updatedAt: request.updatedAt,
       },
@@ -694,6 +721,7 @@ module.exports = {
   updateUser,
   deactivateUser,
   activateUser,
+  deleteUser,
   registerStudentRequest,
   checkRegistrationStatus,
   listRegistrationRequests,

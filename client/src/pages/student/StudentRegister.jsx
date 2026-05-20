@@ -28,15 +28,6 @@ function clearSaved() {
   window.localStorage.removeItem(REG_KEY);
 }
 
-async function copyText(value) {
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function PasswordToggle({ shown, onToggle, label, disabled }) {
   function handleKeyDown(e) {
     if (disabled) return;
@@ -103,14 +94,15 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [statusRequestId, setStatusRequestId] = useState(saved?.requestId || '');
-  const [statusToken, setStatusToken] = useState(saved?.token || '');
+  // [UX IMPROVEMENT - Check Status]
+  const [statusStudentId, setStatusStudentId] = useState(saved?.statusStudentId || '');
+  // [UX IMPROVEMENT - Check Status]
+  const [statusEmail, setStatusEmail] = useState(saved?.statusEmail || '');
   const [approvedEmail, setApprovedEmail] = useState(saved?.approvedEmail || '');
   const [statusBusy, setStatusBusy] = useState(false);
   const [statusError, setStatusError] = useState('');
   const [statusData, setStatusData] = useState(null);
   const [status, setStatus] = useState('idle');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,10 +145,10 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
     };
   }, [departmentId]);
 
+  // [UX IMPROVEMENT - Check Status]
   useEffect(() => {
-    if (!statusRequestId || !statusToken) return;
-    setStatus('pending');
-    checkStatusInternal();
+    if (!statusStudentId || !statusEmail) return;
+    checkStatusInternal(statusStudentId, statusEmail);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -206,11 +198,12 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
         },
       });
       setSubmitted(true);
-      if (data?.request?._id && data?.token) {
-        setStatusRequestId(data.request._id);
-        setStatusToken(data.token);
+      // [UX IMPROVEMENT - Check Status]
+      if (userType === 'student' && studentId && email) {
+        setStatusStudentId(studentId);
+        setStatusEmail(email);
         setApprovedEmail('');
-        saveSaved({ requestId: data.request._id, token: data.token, email: data.request.email });
+        saveSaved({ statusStudentId: studentId, statusEmail: email });
         setStatus('pending');
 
         // Clear form fields to allow submitting multiple accounts easily
@@ -228,34 +221,37 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
     }
   }
 
-  async function checkStatusInternal() {
+  // [UX IMPROVEMENT - Check Status]
+  async function checkStatusInternal(nextStudentId = statusStudentId, nextEmail = statusEmail) {
     setStatusBusy(true);
     setStatusError('');
-    setStatusData(null);
     try {
       const data = await api('/api/auth/registration-status', {
         method: 'POST',
-        body: { requestId: statusRequestId, token: statusToken },
+        body: { studentId: nextStudentId, email: nextEmail },
       });
       setStatusData(data);
       const nextStatus = data?.request?.status || 'idle';
       if (nextStatus === 'approved') {
         setStatus('approved');
-        const emailFromRequest = data?.request?.email || '';
-        setApprovedEmail(emailFromRequest);
-        setStatusRequestId('');
-        setStatusToken('');
-        saveSaved({ approvedEmail: emailFromRequest });
+        setApprovedEmail(nextEmail);
+        saveSaved({ statusStudentId: nextStudentId, statusEmail: nextEmail, approvedEmail: nextEmail });
       } else if (nextStatus === 'rejected') {
         setStatus('rejected');
+        setApprovedEmail('');
+        saveSaved({ statusStudentId: nextStudentId, statusEmail: nextEmail });
       } else if (nextStatus === 'pending') {
         setStatus('pending');
+        setApprovedEmail('');
+        saveSaved({ statusStudentId: nextStudentId, statusEmail: nextEmail });
       } else {
         setStatus('idle');
       }
     } catch (err) {
       setStatus('idle');
-      setStatusError(err.message || 'Failed to check status');
+      setStatusData(null);
+      setApprovedEmail('');
+      setStatusError('No registration request found. Please check your Student ID and email and try again.');
     } finally {
       setStatusBusy(false);
     }
@@ -268,14 +264,15 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
 
   function resetForResubmit() {
     clearSaved();
-    setStatusRequestId('');
-    setStatusToken('');
+    // [UX IMPROVEMENT - Check Status]
+    setStatusStudentId('');
+    // [UX IMPROVEMENT - Check Status]
+    setStatusEmail('');
     setApprovedEmail('');
     setStatusData(null);
     setStatus('idle');
     setStatusError('');
     setSubmitted(false);
-    setShowAdvanced(false);
     setIdError('');
   }
 
@@ -288,11 +285,34 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
     setAlumniId(value);
   }
 
-  const hasTracking = Boolean(statusRequestId && statusToken);
+  // [UX IMPROVEMENT - Check Status]
+  const hasStatusLookup = Boolean(statusStudentId && statusEmail);
   const disableForm = false; // Changed to false to allow multiple registrations
   const idLabel = userType === 'student' ? 'Student ID' : 'Alumni ID';
   const idPlaceholder = userType === 'student' ? ID_FORMATS.STUDENT_ID.placeholder : ID_FORMATS.ALUMNI_ID.placeholder;
   const idValue = userType === 'student' ? studentId : alumniId;
+  // [UX IMPROVEMENT - Check Status]
+  const statusMessageByState = {
+    pending: 'Your registration is pending dean approval.',
+    approved: 'Your registration has been approved. You may now log in.',
+    rejected: 'Your registration has been rejected. Please contact your department.',
+  };
+  // [UX IMPROVEMENT - Check Status]
+  const statusLabelByState = {
+    pending: 'Pending',
+    approved: 'Approved',
+    rejected: 'Rejected',
+  };
+  // [UX IMPROVEMENT - Check Status]
+  const statusIconByState = {
+    pending: '🟡',
+    approved: '✅',
+    rejected: '❌',
+  };
+  // [UX IMPROVEMENT - Check Status]
+  const formattedCreatedAt = statusData?.request?.createdAt ? new Date(statusData.request.createdAt).toLocaleString() : '';
+  // [UX IMPROVEMENT - Check Status]
+  const formattedUpdatedAt = statusData?.request?.updatedAt ? new Date(statusData.request.updatedAt).toLocaleString() : '';
 
   return (
     <main className="register-page-container">
@@ -310,9 +330,9 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
           </div>
 
           <div className="register-card-body">
-            {(hasTracking && status === 'pending') || approvedEmail || status === 'approved' ? (
+            {(hasStatusLookup && status === 'pending') || approvedEmail || status === 'approved' ? (
               <div className="register-banner-list">
-                {hasTracking && status === 'pending' ? (
+                {hasStatusLookup && status === 'pending' ? (
                   <div className="register-banner register-banner--info">
                     You already have a pending request. You can track its progress in the status card below.
                   </div>
@@ -493,132 +513,91 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
           </div>
 
           <div className="register-status-card-body">
-            {hasTracking ? (
-              <>
-                <p className="register-status-copy">Use your saved request details to monitor approval progress.</p>
-                {status === 'pending' ? <div className="register-status-pill pending">Pending approval</div> : null}
-                {status === 'approved' ? <div className="register-status-pill approved">Approved</div> : null}
-                {status === 'rejected' ? <div className="register-status-pill rejected">Rejected</div> : null}
-                {statusData?.request?.rejectionReason ? (
-                  <p className="error-message">Reason: {statusData.request.rejectionReason}</p>
-                ) : null}
+            {/* [UX IMPROVEMENT - Check Status] */}
+            <p className="register-status-copy">
+              Enter your Student ID and registered email to check your registration approval status.
+            </p>
 
-                <div className="register-status-actions">
-                  <button className="register-secondary-btn" onClick={checkStatusInternal} disabled={statusBusy}>
-                    {statusBusy ? 'Checking...' : 'Check my status'}
+            {/* [UX IMPROVEMENT - Check Status] */}
+            <form className="register-manual-form" onSubmit={checkStatus}>
+              <div className="register-manual-grid">
+                <div className="form-group">
+                  <label htmlFor="student-register-status-id">Student ID</label>
+                  <input
+                    id="student-register-status-id"
+                    value={statusStudentId}
+                    onChange={(e) => setStatusStudentId(e.target.value)}
+                    placeholder="Enter your Student ID"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="student-register-status-email">Email</label>
+                  <input
+                    id="student-register-status-email"
+                    type="email"
+                    value={statusEmail}
+                    onChange={(e) => setStatusEmail(e.target.value)}
+                    placeholder="Enter your registered email"
+                  />
+                </div>
+              </div>
+
+              <div className="register-manual-actions">
+                <button className="register-secondary-btn" type="submit" disabled={statusBusy}>
+                  {statusBusy ? 'Checking...' : 'Check Status'}
+                </button>
+                {(hasStatusLookup || statusData || statusError) ? (
+                  <button className="register-ghost-btn" type="button" onClick={resetForResubmit} disabled={statusBusy}>
+                    Clear
                   </button>
+                ) : null}
+              </div>
+            </form>
 
-                  {status === 'approved' ? (
+            {/* [UX IMPROVEMENT - Check Status] */}
+            {statusError ? <p className="error-message">{statusError}</p> : null}
+
+            {/* [UX IMPROVEMENT - Check Status] */}
+            {statusData?.request ? (
+              <div className="register-status-result">
+                <div className={`register-status-pill ${statusData.request.status}`}>
+                  {statusIconByState[statusData.request.status]} {statusLabelByState[statusData.request.status]}
+                </div>
+                <p className="register-status-summary">{statusMessageByState[statusData.request.status]}</p>
+                <dl className="register-status-details">
+                  <div>
+                    <dt>Full name</dt>
+                    <dd>{statusData.request.fullName}</dd>
+                  </div>
+                  <div>
+                    <dt>Program</dt>
+                    <dd>{statusData.request.program || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt>Date registered</dt>
+                    <dd>{formattedCreatedAt}</dd>
+                  </div>
+                  <div>
+                    <dt>Last updated</dt>
+                    <dd>{formattedUpdatedAt}</dd>
+                  </div>
+                </dl>
+
+                {status === 'approved' ? (
+                  <div className="register-status-actions">
                     <button
-                      className="register-ghost-btn"
+                      className="register-secondary-btn"
+                      type="button"
                       onClick={() => {
                         if (typeof onNavigate === 'function') onNavigate('login');
                       }}
                     >
                       Go to Login
                     </button>
-                  ) : null}
-
-                  {status === 'rejected' ? (
-                    <button className="register-ghost-btn" onClick={resetForResubmit}>
-                      New Registration
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            ) : approvedEmail ? (
-              <>
-                <div className="register-status-pill approved">Approved</div>
-                <p className="register-status-copy">Please log in using this approved email: {approvedEmail}</p>
-                <div className="register-status-actions">
-                  <button
-                    className="register-secondary-btn"
-                    onClick={() => {
-                      if (typeof onNavigate === 'function') onNavigate('login');
-                    }}
-                  >
-                    Go to Login
-                  </button>
-                  <button className="register-ghost-btn" onClick={resetForResubmit}>
-                    Clear
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="register-status-copy">
-                After you submit a request, your tracking details will be saved here so you can check status anytime.
-              </p>
-            )}
-
-            <div className="register-checkbox-row">
-              <label className="register-checkbox">
-                <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
-                Advanced tracking tools
-              </label>
-            </div>
-
-            {showAdvanced ? (
-              <form className="register-manual-form" onSubmit={checkStatus}>
-                <div className="register-manual-grid">
-                  <div className="form-group">
-                    <label htmlFor="student-register-request-id">Request ID</label>
-                    <input
-                      id="student-register-request-id"
-                      value={statusRequestId}
-                      onChange={(e) => setStatusRequestId(e.target.value)}
-                      placeholder="Paste request ID"
-                    />
-                    {statusRequestId ? (
-                      <button
-                        className="register-ghost-btn register-copy-btn"
-                        type="button"
-                        onClick={async () => {
-                          const ok = await copyText(statusRequestId);
-                          if (!ok) alert('Copy failed');
-                        }}
-                      >
-                        Copy Request ID
-                      </button>
-                    ) : null}
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="student-register-token">Token</label>
-                    <input
-                      id="student-register-token"
-                      value={statusToken}
-                      onChange={(e) => setStatusToken(e.target.value)}
-                      placeholder="Paste tracking token"
-                    />
-                    {statusToken ? (
-                      <button
-                        className="register-ghost-btn register-copy-btn"
-                        type="button"
-                        onClick={async () => {
-                          const ok = await copyText(statusToken);
-                          if (!ok) alert('Copy failed');
-                        }}
-                      >
-                        Copy Token
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="register-manual-actions">
-                  <button className="register-secondary-btn" type="submit" disabled={statusBusy}>
-                    {statusBusy ? 'Checking...' : 'Check manually'}
-                  </button>
-                  {hasTracking ? (
-                    <button className="register-ghost-btn" type="button" onClick={resetForResubmit} disabled={statusBusy}>
-                      Clear saved
-                    </button>
-                  ) : null}
-                </div>
-              </form>
+                ) : null}
+              </div>
             ) : null}
-
-            {statusError ? <p className="error-message">{statusError}</p> : null}
-            {showAdvanced && statusData ? <pre className="register-debug-output">{JSON.stringify(statusData, null, 2)}</pre> : null}
           </div>
         </section>
       </div>

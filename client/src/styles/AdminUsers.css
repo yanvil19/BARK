@@ -17,6 +17,12 @@
   align-items: flex-start;
 }
 
+.um-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .um-title {
   margin: 0 0 4px;
   font-family: var(--font-title);
@@ -48,6 +54,37 @@
 
 .um-btn-add:hover {
   opacity: 0.85;
+}
+
+.um-btn-delete-mode {
+  background-color: #fff;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.um-btn-delete-mode:hover {
+  background: #fff5f5;
+  border-color: #e57373;
+}
+
+.um-btn-delete-mode--active {
+  background: #c62828;
+  color: #fff;
+  border-color: #c62828;
+}
+
+.um-btn-delete-mode--active:hover {
+  color: #c62828;
+  background: #fff5f5;
+  border-color: #c62828;
 }
 
 /* Filter Bar */
@@ -133,6 +170,11 @@
 
 .um-table tbody tr:hover {
   background-color: #f9fafb;
+}
+
+.um-table tbody tr.um-row-delete-hover,
+.um-table tbody tr.um-row-delete-hover:hover {
+  background-color: #fff1f1;
 }
 
 .um-empty {
@@ -231,6 +273,9 @@
 
 /* Action Buttons */
 .um-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
 }
 
@@ -238,7 +283,34 @@
   margin-right: 6px;
 }
 
+.um-btn-delete-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f3b3b3;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #c62828;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s, border-color 0.15s;
+  margin-left: 4px;
+}
+
+.um-btn-delete-icon:hover {
+  background: #ffe3e3;
+  border-color: #e57373;
+  transform: translateY(-1px);
+}
+
+.um-delete-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .um-btn-edit {
+  min-height: 32px;
   padding: 4px 12px;
   border: 1px solid #aaa;
   border-radius: 4px;
@@ -255,6 +327,7 @@
 }
 
 .um-btn-deactivate {
+  min-height: 32px;
   padding: 4px 12px;
   border: 1px solid #e03a3a;
   border-radius: 4px;
@@ -271,6 +344,7 @@
 }
 
 .um-btn-activate {
+  min-height: 32px;
   padding: 4px 12px;
   border: 1px solid #22a06b;
   border-radius: 4px;
@@ -472,6 +546,11 @@
   .um-header {
     flex-direction: column;
     gap: 14px;
+  }
+
+  .um-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .um-pagination {
