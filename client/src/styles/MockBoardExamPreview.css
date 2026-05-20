@@ -1,7 +1,8 @@
 /* MockBoardExamPreview.css */
 
 .mbep-page {
-  margin: -20px; /* Offset the parent padding like other pages */
+  margin: -20px;
+  /* Offset the parent padding like other pages */
   min-height: 100vh;
   background-color: var(--content-bg);
   font-family: var(--font-body);
@@ -296,4 +297,24 @@
 .mbep-btn-nav:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+
+  .mbep-content,
+  .mbep-stats {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .mbep-card {
+    margin: 16px;
+    max-width: calc(100% - 32px);
+  }
+
 }

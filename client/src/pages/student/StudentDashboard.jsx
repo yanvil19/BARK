@@ -134,15 +134,27 @@ function AttemptRow({ attempt, isSelected, onClick }) {
         <div className="sd-attempt-date">
           {formatDate(attempt.date)}
         </div>
+
         <div className="sd-attempt-name">
           {attempt.examName}
-          {!released && <span className="sd-pending-badge">Pending release</span>}
         </div>
+
+
         <div className="sd-attempt-meta">
           {attempt.totalItems} items
           {duration && ` · ${duration}`}
         </div>
+
+        {!released && (
+          <div className="sd-attempt-status">
+            <span className="sd-pending-badge">
+              Pending release
+            </span>
+          </div>
+        )}
+
       </div>
+
 
       {/* Right: score or countdown */}
       <div className="sd-attempt-right">
@@ -169,13 +181,27 @@ function AttemptRow({ attempt, isSelected, onClick }) {
             )}
           </>
         ) : (
+
           <div className="sd-release-teaser">
-            <div className="sd-release-label">Results release in</div>
-            <div className="sd-release-countdown">{countdown || '—'}</div>
-            <div className="sd-release-on">
-              {formatReleaseDate(attempt.resultReleasedAt)}
-            </div>
+            <div className="sd-release-label">Results release in:</div>
+
+            {attempt.resultReleasedAt ? (
+              <>
+                <div className="sd-release-countdown">
+                  {countdown || '—'}
+                </div>
+                <div className="sd-release-on">
+                  {formatReleaseDate(attempt.resultReleasedAt)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sd-release-countdown">Countdown: TBA</div>
+                <div className="sd-release-on">Date and Time: TBA</div>
+              </>
+            )}
           </div>
+
         )}
       </div>
     </div>
@@ -406,7 +432,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
           {/* 5 — Chronological Log */}
           <div className="sd-grid-item sd-grid-item-5">
-            <div className="sd-card">
+            <div className="sd-card sd-card-chrono">
               <div className="sd-card-header chrono-header">
                 <span className="sd-card-title chrono-title">
                   Chronological log of all attempts

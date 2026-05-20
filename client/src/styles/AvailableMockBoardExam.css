@@ -7,25 +7,25 @@
 
 /* Global Standard Header */
 .bark-page-header {
-  padding: 32px 40px;
-  background: white !important;
-  border-bottom: 1px solid #eef0f7 !important;
-  margin-bottom: 24px;
-  display: block !important;
+    padding: 32px 40px;
+    background: white !important;
+    border-bottom: 1px solid #eef0f7 !important;
+    margin-bottom: 24px;
+    display: block !important;
 }
 
 .bark-page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1e2d6b !important;
-  margin: 0 !important;
-  line-height: 1.2;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e2d6b !important;
+    margin: 0 !important;
+    line-height: 1.2;
 }
 
 .bark-page-subtitle {
-  font-size: 13px;
-  color: #8c96ae !important;
-  margin: 6px 0 0 0 !important;
+    font-size: 13px;
+    color: #8c96ae !important;
+    margin: 6px 0 0 0 !important;
 }
 
 /* ───────── STATES ───────── */
@@ -389,4 +389,53 @@
 
 .ambe-actions .dtp-val {
     font-size: 11px;
+}
+
+@media (max-width: 768px) {
+    .ambe-page {
+        margin: 0 !important;
+        padding: 0 16px;
+        overflow-x: hidden;
+    }
+
+    .bark-page-header {
+        padding: 20px 16px !important;
+    }
+
+    .ambe-table-card,
+    .ambe-details {
+        margin: 16px 0 !important;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .ambe-questions-container {
+        width: 100% !important;
+        margin: 16px 0 !important;
+        border-radius: 10px;
+    }
+
+    .ambe-subtable {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .ambe-subtable th,
+    .ambe-subtable td {
+        white-space: normal;
+        word-break: break-word;
+        font-size: 11px;
+    }
+
+    .ambe-details-header-new {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .header-right {
+        justify-content: flex-start;
+    }
+
 }
