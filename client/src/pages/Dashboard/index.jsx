@@ -13,7 +13,8 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const statsRes = await fetch('http://localhost:5000/api/stats/summary');
+        // [FIX 1 - REMOVE HARDCODED URL]
+        const statsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/stats/summary`);
         const statsData = await statsRes.json();
         setStats(statsData);
         setLoading(false);

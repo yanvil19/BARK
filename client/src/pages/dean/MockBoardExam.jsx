@@ -5,7 +5,8 @@ import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/MockBoardExam.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 function toLocalDateTimeInput(value) {
   if (!value) return '';

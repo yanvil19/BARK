@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import '../styles/QuestionForm.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);

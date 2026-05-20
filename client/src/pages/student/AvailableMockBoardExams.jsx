@@ -4,7 +4,8 @@ import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 function formatDateTime(value) {
   if (!value) return '-';

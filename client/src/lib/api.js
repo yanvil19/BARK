@@ -1,3 +1,6 @@
+// [FIX 2 - VITE_API_URL WIRING]
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 const TOKEN_KEY = 'nu_board_token';
 
 export function getToken() {
@@ -22,7 +25,10 @@ async function parseJsonResponse(res) {
 }
 
 export async function api(path, { method = 'GET', body, headers } = {}) {
-  const res = await fetch(path, {
+  // [FIX 2 - VITE_API_URL WIRING]
+  const url = typeof path === 'string' && /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  // [FIX 2 - VITE_API_URL WIRING]
+  const res = await fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -49,7 +55,10 @@ export async function apiAuth(path, options = {}) {
 // For FormData uploads — browser sets Content-Type (multipart boundary) automatically
 export async function apiAuthUpload(path, formData) {
   const token = getToken();
-  const res = await fetch(path, {
+  // [FIX 2 - VITE_API_URL WIRING]
+  const url = typeof path === 'string' && /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  // [FIX 2 - VITE_API_URL WIRING]
+  const res = await fetch(url, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

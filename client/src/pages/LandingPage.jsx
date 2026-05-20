@@ -73,9 +73,12 @@ const LandingPage = ({ onNavigate }) => {
     const fetchData = async () => {
       try {
         const [deptRes, progRes, examRes] = await Promise.all([
-          fetch('http://localhost:5000/api/catalog/departments'),
-          fetch('http://localhost:5000/api/catalog/programs'),
-          fetch('http://localhost:5000/api/mock-board-exams/public'),
+          // [FIX 1 - REMOVE HARDCODED URL]
+          fetch(`${import.meta.env.VITE_API_URL}/api/catalog/departments`),
+          // [FIX 1 - REMOVE HARDCODED URL]
+          fetch(`${import.meta.env.VITE_API_URL}/api/catalog/programs`),
+          // [FIX 1 - REMOVE HARDCODED URL]
+          fetch(`${import.meta.env.VITE_API_URL}/api/mock-board-exams/public`),
         ]);
         
         if (!deptRes.ok) throw new Error(`Dept fetch failed: ${deptRes.status}`);

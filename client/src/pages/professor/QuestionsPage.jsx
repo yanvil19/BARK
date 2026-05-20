@@ -5,7 +5,8 @@ import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import '../../styles/QuestionsPage.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 

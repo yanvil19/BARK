@@ -4,7 +4,8 @@ import { Modal } from '../../components/Modal.jsx';
 import '../../styles/SubjectTags.css';
 import '../../styles/global.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 export default function ChairTags({ me }) {
   const isDean = me?.role === 'dean';

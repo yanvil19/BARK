@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 

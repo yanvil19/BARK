@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import QuestionsPage from '../professor/QuestionsPage.jsx';
 
-const BASE = 'http://localhost:5000';
+// [FIX 1 - REMOVE HARDCODED URL]
+const BASE = import.meta.env.VITE_API_URL;
 
 export default function DeanQuestions({ me }) {
   const [programs, setPrograms] = useState([]);
