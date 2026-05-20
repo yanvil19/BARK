@@ -34,3 +34,15 @@ start().catch((err) => {
     console.error('Failed to start server:', err);
     process.exit(1);
 });
+
+process.on('uncaughtException', (reason, origin) => {
+    console.error('uncaughtException:', reason);
+    console.error('Origin:', origin);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('unhandledRejection:', reason);
+    console.error('Promise:', promise);
+    process.exit(1);
+});
