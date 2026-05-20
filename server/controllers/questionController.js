@@ -90,13 +90,25 @@ const listQuestions = async (req, res) => {
   try {
     const filter = { createdBy: req.user._id };
     if (req.query.state) filter.state = req.query.state;
+    if (req.query.programId) filter.program = req.query.programId;
 
-    const questions = await Question.find(filter)
-      .populate('tag', 'name')
-      .populate('program', 'name code')
-      .sort({ updatedAt: -1 });
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+    const skip = (page - 1) * limit;
 
-    res.json({ questions });
+    const [totalItems, questions] = await Promise.all([
+      Question.countDocuments(filter),
+      Question.find(filter)
+        .populate('tag', 'name')
+        .populate('program', 'name code')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+    res.json({ questions, totalPages, currentPage: page, totalItems });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

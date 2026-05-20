@@ -48,19 +48,22 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiAuth(`${BASE}/api/questions`);
+      const programParam = programId ? `&programId=${encodeURIComponent(programId)}` : '';
+      const data = await apiAuth(`${BASE}/api/questions?page=${encodeURIComponent(currentPage)}&limit=${encodeURIComponent(itemsPerPage)}${programParam}`);
       setQuestions(data.questions || []);
+      setTotalPages(typeof data.totalPages === 'number' ? Math.max(1, data.totalPages) : 1);
     } catch (err) {
       console.error('Failed to load questions:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, programId]);
 
   const fetchTags = useCallback(async () => {
     if (!programId && role === 'dean') {
@@ -173,14 +176,11 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     return next;
   }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
 
-  const { paginatedQuestions, totalPages } = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
+  const { paginatedQuestions } = useMemo(() => {
     return {
-      paginatedQuestions: filteredQuestions.slice(startIndex, endIndex),
-      totalPages: Math.ceil(filteredQuestions.length / itemsPerPage),
+      paginatedQuestions: filteredQuestions,
     };
-  }, [filteredQuestions, currentPage]);
+  }, [filteredQuestions]);
 
   function closeFormModal() {
     setShowForm(false);
