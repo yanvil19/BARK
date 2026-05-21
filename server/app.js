@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
@@ -28,9 +27,6 @@ app.use(cors({
     optionsSuccessStatus: 200,
 }));
 app.use(express.json());
-
-// Serve uploaded files (question images, etc.)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/catalog', catalogRoutes);

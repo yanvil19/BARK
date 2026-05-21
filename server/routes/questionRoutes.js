@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const {
   listQuestions,
   listApprovals,
@@ -19,20 +19,17 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 const FACULTY = ['professor', 'program_chair', 'dean'];
 
-// Multer setup for question images
-const uploadDir = path.join(__dirname, '..', 'uploads', 'question-images');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
+const r2 = new S3Client({
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: 'auto',
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   },
 });
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -58,9 +55,44 @@ router.post(
   protect,
   authorizeRoles(...FACULTY),
   upload.array('images', 5),
-  (req, res) => {
-    const urls = req.files.map((f) => `/uploads/question-images/${f.filename}`);
-    res.json({ urls });
+  async (req, res) => {
+    try {
+      const bucket = process.env.R2_BUCKET_NAME;
+      const publicBaseUrl = process.env.R2_PUBLIC_URL;
+
+      if (!bucket || !publicBaseUrl) {
+        return res.status(500).json({ message: 'R2 is not configured (missing R2_BUCKET_NAME or R2_PUBLIC_URL)' });
+      }
+
+      if (!Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ message: 'No images uploaded' });
+      }
+
+      const base = publicBaseUrl.replace(/\/$/, '');
+      const urls = await Promise.all(
+        req.files.map(async (file) => {
+          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          const ext = path.extname(file.originalname);
+          const filename = `${unique}${ext}`;
+          const key = `question-images/${filename}`;
+
+          await r2.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              Body: file.buffer,
+              ContentType: file.mimetype,
+            })
+          );
+
+          return `${base}/${key}`;
+        })
+      );
+
+      return res.json({ urls });
+    } catch (err) {
+      return res.status(500).json({ message: err?.message || 'Failed to upload images' });
+    }
   }
 );
 
