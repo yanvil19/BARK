@@ -30,6 +30,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   useEffect(() => {
     async function fetchExam() {
@@ -44,12 +45,12 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
         const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
         const nextExam = data.exam
           ? {
-              ...data.exam,
-              questions:
-                mode === 'details'
-                  ? organizeExamQuestionsAndAnswers(data.exam.questions || [])
-                  : organizeExamQuestionsAndAnswers(data.exam.questions || [], { randomize: true }),
-            }
+            ...data.exam,
+            questions:
+              mode === 'details'
+                ? organizeExamQuestionsAndAnswers(data.exam.questions || [])
+                : organizeExamQuestionsAndAnswers(data.exam.questions || [], { randomize: true }),
+          }
           : null;
         setExam(nextExam);
         setAnswers({});
@@ -93,9 +94,9 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
     setExam((prev) => (
       prev
         ? {
-            ...prev,
-            questions: organizeExamQuestionsAndAnswers(prev.questions || [], { randomize: true }),
-          }
+          ...prev,
+          questions: organizeExamQuestionsAndAnswers(prev.questions || [], { randomize: true }),
+        }
         : prev
     ));
     setAnswers({});
@@ -225,9 +226,21 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                       <ul>
                         {question.images.map((image, imageIndex) => (
                           <li key={`${question._id}-image-${imageIndex}`}>
-                            <a href={image.startsWith('/') ? `${BASE}${image}` : image} target="_blank" rel="noreferrer">
-                              Image {imageIndex + 1}
-                            </a>
+                            <img
+                              src={image.startsWith('/') ? `${BASE}${image}` : image}
+                              alt={`Question Image ${imageIndex + 1}`}
+                              style={{
+                                maxWidth: '200px',
+                                cursor: 'zoom-in',
+                                borderRadius: '8px'
+                              }}
+                              onClick={() => {
+                                console.log("ZOOM IMAGE:", image);
+                                const finalImage = image.startsWith('/') ? `${BASE}${image}` : image;
+                                setZoomedImage(finalImage);
+                              }}
+
+                            />
                           </li>
                         ))}
                       </ul>
@@ -280,9 +293,20 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                           <ul>
                             {currentQuestion.images.map((image, imageIndex) => (
                               <li key={`${currentQuestion._id}-image-${imageIndex}`}>
-                                <a href={image.startsWith('/') ? `${BASE}${image}` : image} target="_blank" rel="noreferrer">
-                                  Image {imageIndex + 1}
-                                </a>
+                                <img
+                                  src={image.startsWith('/') ? `${BASE}${image}` : image}
+                                  alt={`Question Image ${imageIndex + 1}`}
+                                  style={{
+                                    maxWidth: '200px',
+                                    cursor: 'zoom-in',
+                                    borderRadius: '8px'
+                                  }}
+                                  onClick={() => {
+                                    console.log("ZOOM IMAGE:", image);
+                                    const finalImage = image.startsWith('/') ? `${BASE}${image}` : image;
+                                    setZoomedImage(finalImage);
+                                  }}
+                                />
                               </li>
                             ))}
                           </ul>
@@ -318,6 +342,40 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
           )}
         </>
       ) : null}
+
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            style={{
+              width: 'auto',
+              height: 'auto',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: '10px',
+              boxShadow: '0 0 20px #fff',
+              cursor: 'zoom-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </main>
   );
 }

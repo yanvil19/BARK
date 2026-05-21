@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/MockBoardExamPreview.css'; 
+import '../../styles/MockBoardExamPreview.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -11,29 +11,43 @@ export default function StudentExamRunner({ examId, onFinish }) {
   const [examInfo, setExamInfo] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [attemptId, setAttemptId] = useState(null);
-  
+
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); 
-  
+  const [answers, setAnswers] = useState({});
+
   const [examEndDateTime, setExamEndDateTime] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
 
   const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setZoomedImage(null);
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   useEffect(() => {
     async function startOrResumeExam() {
       try {
         const data = await apiAuth(`${BASE}/api/student-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
-        
+
         setExamInfo(data.exam);
         setQuestions(data.questions);
         setAttemptId(data.attemptId);
         setAnswers(data.answers || {});
-        
+
         setExamEndDateTime(new Date(data.endDateTime));
         setTimeRemaining(data.remainingTimeSeconds);
-        
+
       } catch (err) {
         setError(err.message || 'Failed to start exam. The window may be closed.');
       } finally {
@@ -173,7 +187,26 @@ export default function StudentExamRunner({ examId, onFinish }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                    <img
+                      key={i}
+                      src={img.startsWith('/') ? `${BASE}${img}` : img}
+                      alt="Ref"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '300px',
+                        borderRadius: '8px',
+                        cursor: 'zoom-in'
+                      }}
+
+                      onClick={() => {
+                        const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
+
+                        setZoomedImage(finalImage);
+                        setZoomLevel(1);
+                        setPosition({ x: 0, y: 0 });
+                      }}
+
+                    />
                   ))}
                 </div>
               )}
@@ -182,11 +215,11 @@ export default function StudentExamRunner({ examId, onFinish }) {
                 {(currentQuestion.answers || []).map((answer, i) => {
                   const isSelected = String(answers[currentQuestion._id]) === String(answer._id);
                   let optionClass = "mbep-option";
-                  if (isSelected) optionClass += " is-selected-preview"; 
+                  if (isSelected) optionClass += " is-selected-preview";
 
                   return (
-                    <div 
-                      key={answer._id} 
+                    <div
+                      key={answer._id}
                       className={optionClass}
                       onClick={() => handleSelect(currentQuestion._id, answer._id)}
                     >
@@ -203,16 +236,16 @@ export default function StudentExamRunner({ examId, onFinish }) {
         <div className="mbep-navigator-wrap">
           <div className="mbep-nav-bar">
             {questions.map((q, i) => {
-               const isAnswered = !!answers[q._id];
-               let dotClass = "mbep-nav-circle";
-               if (currentIdx === i) dotClass += " active";
-               else if (isAnswered) dotClass += " is-answered-preview";
+              const isAnswered = !!answers[q._id];
+              let dotClass = "mbep-nav-circle";
+              if (currentIdx === i) dotClass += " active";
+              else if (isAnswered) dotClass += " is-answered-preview";
 
-               return (
+              return (
                 <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
                   {i + 1}
                 </button>
-               );
+              );
             })}
           </div>
 
@@ -226,6 +259,105 @@ export default function StudentExamRunner({ examId, onFinish }) {
           </div>
         </div>
       </main>
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          onWheel={(e) => {
+            e.preventDefault();
+
+            setZoomLevel(prev => {
+              const next = e.deltaY < 0 ? prev + 0.2 : prev - 0.2;
+              return Math.min(Math.max(next, 1), 4);
+            });
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+        >
+          <button
+
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomedImage(null);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--primary-bg)';
+            }}
+
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              zIndex: 4000,
+              background: 'var(--primary-bg)',
+              color: 'var(--accent-yellow)',
+              border: 'none',
+              fontSize: '28px',
+              fontWeight: 'bold',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              transition: '0.2s',
+            }}
+          >
+            ×
+          </button>
+          
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            draggable={false}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
+              transition: dragging ? 'none' : 'transform 0.2s ease',
+              borderRadius: '10px',
+              boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+              cursor: zoomLevel > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
+            }}
+
+            onMouseDown={(e) => {
+              if (zoomLevel > 1) {
+                setDragging(true);
+                setStartPos({
+                  x: e.clientX - position.x,
+                  y: e.clientY - position.y,
+                });
+              }
+            }}
+
+            onMouseMove={(e) => {
+              if (!dragging) return;
+
+              setPosition({
+                x: e.clientX - startPos.x,
+                y: e.clientY - startPos.y,
+              });
+            }}
+
+            onMouseUp={() => setDragging(false)}
+            onMouseLeave={() => setDragging(false)}
+
+            onClick={(e) => e.stopPropagation()}
+          />
+
+        </div>
+      )}
     </div>
   );
 }
