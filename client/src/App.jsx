@@ -111,7 +111,7 @@ export default function App() {
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'examResults') page = <ExamResults />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
-  if (route === 'adminUsers') page = <AdminUsers />;
+  if (route === 'adminUsers') page = <AdminUsers me={me} />;
   if (route === 'chairTags') page = <ChairTags me={me} />;
   if (route === 'chairQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'deanQuestionApprovals') page = <QuestionApprovals me={me} />;

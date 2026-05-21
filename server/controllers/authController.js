@@ -272,15 +272,32 @@ const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Strip email and password from update payload before saving
-    if (req.body) {
+    const isSelf = String(req.user._id) === String(req.params.id);
+
+    // Strip email and password from update payload before saving if not self
+    if (!isSelf && req.body) {
       delete req.body.email;
       delete req.body.password;
     }
 
-    const { name, role, studentId, alumniId } = req.body || {};
+    const { name, email, password, role, studentId, alumniId } = req.body || {};
+
+    if (email !== undefined) {
+      if (!isValidEmail(email)) return res.status(400).json({ message: 'Please provide a valid email' });
+      const normalizedEmail = String(email).toLowerCase().trim();
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
+      if (existing) return res.status(400).json({ message: 'A user with this email already exists' });
+      user.email = normalizedEmail;
+    }
 
     if (typeof name === 'string' && name.trim()) user.name = name.trim();
+
+    if (password !== undefined) {
+      if (String(password).length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
+      user.password = String(password);
+    }
 
     if (role !== undefined) user.role = role;
     if (studentId !== undefined) user.studentId = studentId;

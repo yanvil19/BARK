@@ -4,7 +4,7 @@ import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 
-export default function AdminUsers() {
+export default function AdminUsers({ me }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -190,6 +190,7 @@ export default function AdminUsers() {
     setEditBusy(true);
     setEditError('');
     try {
+      const isSelf = selectedUser._id === me?._id;
       const body = {
         name: editForm.name,
         role: editForm.role,
@@ -198,6 +199,10 @@ export default function AdminUsers() {
       };
       if (editForm.role === 'student' && editForm.studentId) body.studentId = editForm.studentId;
       if (editForm.role === 'alumni' && editForm.alumniId) body.alumniId = editForm.alumniId;
+      if (isSelf) {
+        body.email = editForm.email;
+        if (editForm.password) body.password = editForm.password;
+      }
 
       await apiAuth(`/api/auth/users/${encodeURIComponent(selectedUser._id)}`, { method: 'PATCH', body });
       await load();
@@ -546,6 +551,22 @@ export default function AdminUsers() {
                 <option value="professor">Professor</option>
               </select>
             </div>
+
+            {selectedUser?._id === me?._id && (
+              <>
+                <div className="modal-form-group">
+                  <label>Email Address</label>
+                  <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
+                </div>
+                <div className="modal-form-group">
+                  <label>New Password (optional)</label>
+                  <div className="modal-password-wrapper">
+                    <input type={showEditPassword ? 'text' : 'password'} value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="Leave blank to keep current" />
+                    <button type="button" onClick={() => setShowEditPassword(!showEditPassword)} className="modal-password-toggle">{showEditPassword ? '👁️' : '👁️‍🗨️'}</button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="modal-form-group">
               <label>{editForm.role === 'alumni' ? 'Alumni ID' : 'Student ID'} {(editForm.role !== 'student' && editForm.role !== 'alumni') ? '(N/A)' : ''}</label>
