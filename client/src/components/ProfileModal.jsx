@@ -1,6 +1,8 @@
 import '../styles/ProfileModal.css';
 
-export default function ProfileModal({ me, onLogout }) {
+export default function ProfileModal({ me, onLogout, onOpenChangeCredentials }) {
+  const isSuperAdmin = me?.role === 'super_admin';
+
   return (
     <div className="profile-modal">
       <div className="profile-modal-header">
@@ -72,6 +74,12 @@ export default function ProfileModal({ me, onLogout }) {
       <button className="logout-btn" onClick={onLogout}>
         Logout
       </button>
+
+      {!isSuperAdmin && (
+        <button className="change-credentials-btn" type="button" onClick={onOpenChangeCredentials}>
+          Change Email &amp; Password
+        </button>
+      )}
     </div>
   );
 }

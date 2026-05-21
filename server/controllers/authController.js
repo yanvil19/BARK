@@ -219,6 +219,107 @@ const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update current user's email and/or password (no OTP in this scaffold)
+// @route   PATCH /api/auth/update-credentials
+// @access  Private
+const updateCredentials = async (req, res) => {
+  try {
+    const { newEmail, newPassword, currentPassword } = req.body || {};
+
+    if (!newEmail && !newPassword) {
+      return res.status(400).json({ message: 'Please provide a new email and/or new password' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role === 'super_admin') {
+      return res.status(403).json({ message: 'Super Admin is not allowed to update credentials using this endpoint' });
+    }
+
+    const now = new Date();
+
+    if (newEmail) {
+      const normalizedEmail = String(newEmail).toLowerCase().trim();
+
+      if (!isValidEmail(normalizedEmail)) {
+        return res.status(400).json({ message: 'Please provide a valid email' });
+      }
+
+      if (normalizedEmail === user.email) {
+        return res.status(400).json({ message: 'New email must be different from your current email' });
+      }
+
+      if (user.lastEmailChange) {
+        const nextAllowed = new Date(new Date(user.lastEmailChange).getTime() + 30 * 24 * 60 * 60 * 1000);
+        if (now.getTime() < nextAllowed.getTime()) {
+          return res.status(400).json({
+            message: `Email can only be changed once every 30 days. Try again on ${nextAllowed.toISOString()}.`,
+            nextEmailChangeAt: nextAllowed.toISOString(),
+          });
+        }
+      }
+
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
+      if (existing) {
+        return res.status(400).json({ message: 'A user with this email already exists' });
+      }
+
+      user.email = normalizedEmail;
+      user.lastEmailChange = now;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Current password is required to change your password' });
+      }
+
+      if (String(newPassword).length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
+
+      if (user.lastPasswordChange) {
+        const nextAllowed = new Date(new Date(user.lastPasswordChange).getTime() + 7 * 24 * 60 * 60 * 1000);
+        if (now.getTime() < nextAllowed.getTime()) {
+          return res.status(400).json({
+            message: `Password can only be changed once every 7 days. Try again on ${nextAllowed.toISOString()}.`,
+            nextPasswordChangeAt: nextAllowed.toISOString(),
+          });
+        }
+      }
+
+      const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+
+      user.password = String(newPassword);
+      user.lastPasswordChange = now;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: 'Credentials updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        program: user.program,
+        lastEmailChange: user.lastEmailChange,
+        lastPasswordChange: user.lastPasswordChange,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 // @desc    List users (admin view)
 // @route   GET /api/auth/users
 // @access  Private (Super Admin only — enforced in route)
@@ -738,6 +839,7 @@ module.exports = {
   registerUser,
   loginUser,
   getMe,
+  updateCredentials,
   listUsers,
   updateUser,
   deactivateUser,

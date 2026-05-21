@@ -140,3 +140,22 @@
   background-color: var(--primary-bg) !important;
   color: var(--accent-yellow) !important;
 }
+
+.profile-modal .change-credentials-btn {
+  background-color: var(--primary-bg) !important;
+  color: var(--accent-yellow) !important;
+  border: 2px solid var(--primary-bg) !important;
+  width: 15em;
+  align-self: center;
+  margin: 0 0 1.5em 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 10px;
+}
+
+.profile-modal .change-credentials-btn:hover {
+  filter: brightness(1.05);
+}

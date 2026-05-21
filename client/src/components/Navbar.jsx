@@ -2,9 +2,11 @@ import '../styles/Navbar.css';
 import '../styles/ProfileModal.css';
 import { useEffect, useRef, useState } from 'react';
 import ProfileModal from './ProfileModal.jsx';
+import ChangeCredentialsModal from './ChangeCredentialsModal.jsx';
 
-export default function Navbar({ me, route, onRoute, onLogout }) {
+export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
   const [open, setOpen] = useState(false);
+  const [changeCredsOpen, setChangeCredsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -201,7 +203,17 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             <div className="profile-icon avatar-initials" onClick={() => setOpen(!open)}>
               {getInitials(me.name)}
             </div>
-            {open && <ProfileModal me={me} onLogout={onLogout} />}
+            {open && (
+              <ProfileModal
+                me={me}
+                onLogout={onLogout}
+                onOpenChangeCredentials={() => {
+                  if (me?.role === 'super_admin') return;
+                  setOpen(false);
+                  setChangeCredsOpen(true);
+                }}
+              />
+            )}
           </div>
         ) : (
           <button className={route === 'login' ? 'active' : ''} onClick={() => onRoute('login')}>
@@ -229,6 +241,15 @@ export default function Navbar({ me, route, onRoute, onLogout }) {
             {renderNavLinks(true)}
           </nav>
         </div>
+      )}
+
+      {me?.role !== 'super_admin' && (
+        <ChangeCredentialsModal
+          open={changeCredsOpen}
+          onClose={() => setChangeCredsOpen(false)}
+          me={me}
+          onUpdated={onMeRefresh}
+        />
       )}
     </header>
   );

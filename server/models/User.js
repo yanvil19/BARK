@@ -59,6 +59,14 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    lastEmailChange: {
+      type: Date,
+      default: null,
+    },
+    lastPasswordChange: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

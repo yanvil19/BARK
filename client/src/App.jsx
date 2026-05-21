@@ -205,7 +205,7 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <Navbar me={me} route={route} onRoute={setRoute} onLogout={handleLogout} />
+      <Navbar me={me} route={route} onRoute={setRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
 
       <main className="page-content">
         {meError ? <p>{meError}</p> : null}

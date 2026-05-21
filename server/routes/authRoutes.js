@@ -4,6 +4,7 @@ const {
   registerUser,
   loginUser,
   getMe,
+  updateCredentials,
   listUsers,
   updateUser,
   deactivateUser,
@@ -45,6 +46,10 @@ router.post('/register', protect, authorizeRoles('super_admin'), registerUser);
 // @route   GET /api/auth/me
 // @access  Private
 router.get('/me', protect, getMe);
+
+// @route   PATCH /api/auth/update-credentials
+// @access  Private
+router.patch('/update-credentials', protect, updateCredentials);
 
 // @route   POST /api/auth/register-student
 // @access  Public
