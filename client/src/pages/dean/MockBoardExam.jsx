@@ -12,9 +12,24 @@ function toLocalDateTimeInput(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+  const pad = (n) => String(n).padStart(2, '0');
+  return (
+    date.getFullYear() + '-' +
+    pad(date.getMonth() + 1) + '-' +
+    pad(date.getDate()) + 'T' +
+    pad(date.getHours()) + ':' +
+    pad(date.getMinutes())
+  );
+}
+
+function ensureISOString(value) {
+  if (!value) return '';
+  // If already in ISO format with Z, return as-is
+  if (value.endsWith('Z')) return value;
+  // If it's a local string, convert via Date object to ISO+Z
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
 }
 
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
@@ -275,8 +290,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         programId,
         subjectTagIds: selectedTagIds,
         questionIds: selectedQuestions.map((question) => question._id),
-        startDateTime: form.startDateTime,
-        endDateTime: form.endDateTime,
+        startDateTime: ensureISOString(form.startDateTime),
+        endDateTime: ensureISOString(form.endDateTime),
         description: form.description,
         instructions: form.instructions,
         status: form.status,

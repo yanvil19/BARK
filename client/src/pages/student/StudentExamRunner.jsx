@@ -161,7 +161,14 @@ export default function StudentExamRunner({ examId, onFinish }) {
               <h4>Question {currentIdx + 1}</h4>
             </div>
             <div className="mbep-card-body">
-              <div className="mbep-question-title">{currentQuestion.title}</div>
+              <div className="mbep-question-title">
+                {currentQuestion.title}
+                {currentQuestion.description && (
+                  <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
+                    {currentQuestion.description}
+                  </p>
+                )}
+              </div>
 
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
