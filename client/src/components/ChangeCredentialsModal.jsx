@@ -16,13 +16,6 @@ function formatDateTime(value) {
   });
 }
 
-function computeNextAt(lastChange, days) {
-  if (!lastChange) return null;
-  const t = new Date(lastChange).getTime();
-  if (Number.isNaN(t)) return null;
-  return new Date(t + days * 24 * 60 * 60 * 1000);
-}
-
 export default function ChangeCredentialsModal({ open, onClose, me, onUpdated }) {
   const [newEmail, setNewEmail] = useState('');
   const [confirmNewEmail, setConfirmNewEmail] = useState('');
@@ -43,14 +36,18 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
   }, [open]);
 
   const emailNextAt = useMemo(() => {
-    if (serverEmailNextAt) return new Date(serverEmailNextAt);
-    return computeNextAt(me?.lastEmailChange, 30);
-  }, [me?.lastEmailChange, serverEmailNextAt]);
+    const raw = serverEmailNextAt || me?.nextEmailChangeAllowedAt;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [me?.nextEmailChangeAllowedAt, serverEmailNextAt]);
 
   const passwordNextAt = useMemo(() => {
-    if (serverPasswordNextAt) return new Date(serverPasswordNextAt);
-    return computeNextAt(me?.lastPasswordChange, 7);
-  }, [me?.lastPasswordChange, serverPasswordNextAt]);
+    const raw = serverPasswordNextAt || me?.nextPasswordChangeAllowedAt;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [me?.nextPasswordChangeAllowedAt, serverPasswordNextAt]);
 
   const now = Date.now();
   const emailCooldownActive = !!(emailNextAt && now < emailNextAt.getTime());

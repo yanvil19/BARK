@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RegistrationRequest = require('../models/RegistrationRequest');
+const AppSettings = require('../models/AppSettings');
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
 const mongoose = require('mongoose');
@@ -230,6 +231,10 @@ const updateCredentials = async (req, res) => {
       return res.status(400).json({ message: 'Please provide a new email and/or new password' });
     }
 
+    const settings = await AppSettings.getSingleton();
+    const emailCooldownDays = Math.max(Number(settings.emailCooldownDays) || 0, 0);
+    const passwordCooldownDays = Math.max(Number(settings.passwordCooldownDays) || 0, 0);
+
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -240,6 +245,7 @@ const updateCredentials = async (req, res) => {
     }
 
     const now = new Date();
+    const nowMs = now.getTime();
 
     if (newEmail) {
       const normalizedEmail = String(newEmail).toLowerCase().trim();
@@ -252,14 +258,19 @@ const updateCredentials = async (req, res) => {
         return res.status(400).json({ message: 'New email must be different from your current email' });
       }
 
-      if (user.lastEmailChange) {
-        const nextAllowed = new Date(new Date(user.lastEmailChange).getTime() + 30 * 24 * 60 * 60 * 1000);
-        if (now.getTime() < nextAllowed.getTime()) {
-          return res.status(400).json({
-            message: `Email can only be changed once every 30 days. Try again on ${nextAllowed.toISOString()}.`,
-            nextEmailChangeAt: nextAllowed.toISOString(),
-          });
-        }
+      const emailCooldownMs = emailCooldownDays * 24 * 60 * 60 * 1000;
+      const effectiveNextEmailAllowedAt =
+        user.nextEmailChangeAllowedAt ||
+        (user.lastEmailChange && emailCooldownMs
+          ? new Date(new Date(user.lastEmailChange).getTime() + emailCooldownMs)
+          : null);
+
+      if (effectiveNextEmailAllowedAt && nowMs < new Date(effectiveNextEmailAllowedAt).getTime()) {
+        const nextAt = new Date(effectiveNextEmailAllowedAt);
+        return res.status(400).json({
+          message: `Email can only be changed once every ${emailCooldownDays} days. Try again on ${nextAt.toISOString()}.`,
+          nextEmailChangeAt: nextAt.toISOString(),
+        });
       }
 
       const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
@@ -269,6 +280,7 @@ const updateCredentials = async (req, res) => {
 
       user.email = normalizedEmail;
       user.lastEmailChange = now;
+      user.nextEmailChangeAllowedAt = emailCooldownMs ? new Date(nowMs + emailCooldownMs) : null;
     }
 
     if (newPassword) {
@@ -280,14 +292,19 @@ const updateCredentials = async (req, res) => {
         return res.status(400).json({ message: 'Password must be at least 8 characters' });
       }
 
-      if (user.lastPasswordChange) {
-        const nextAllowed = new Date(new Date(user.lastPasswordChange).getTime() + 7 * 24 * 60 * 60 * 1000);
-        if (now.getTime() < nextAllowed.getTime()) {
-          return res.status(400).json({
-            message: `Password can only be changed once every 7 days. Try again on ${nextAllowed.toISOString()}.`,
-            nextPasswordChangeAt: nextAllowed.toISOString(),
-          });
-        }
+      const passwordCooldownMs = passwordCooldownDays * 24 * 60 * 60 * 1000;
+      const effectiveNextPasswordAllowedAt =
+        user.nextPasswordChangeAllowedAt ||
+        (user.lastPasswordChange && passwordCooldownMs
+          ? new Date(new Date(user.lastPasswordChange).getTime() + passwordCooldownMs)
+          : null);
+
+      if (effectiveNextPasswordAllowedAt && nowMs < new Date(effectiveNextPasswordAllowedAt).getTime()) {
+        const nextAt = new Date(effectiveNextPasswordAllowedAt);
+        return res.status(400).json({
+          message: `Password can only be changed once every ${passwordCooldownDays} days. Try again on ${nextAt.toISOString()}.`,
+          nextPasswordChangeAt: nextAt.toISOString(),
+        });
       }
 
       const isMatch = await bcrypt.compare(String(currentPassword), user.password);
@@ -297,6 +314,7 @@ const updateCredentials = async (req, res) => {
 
       user.password = String(newPassword);
       user.lastPasswordChange = now;
+      user.nextPasswordChangeAllowedAt = passwordCooldownMs ? new Date(nowMs + passwordCooldownMs) : null;
     }
 
     await user.save();
@@ -312,6 +330,8 @@ const updateCredentials = async (req, res) => {
         program: user.program,
         lastEmailChange: user.lastEmailChange,
         lastPasswordChange: user.lastPasswordChange,
+        nextEmailChangeAllowedAt: user.nextEmailChangeAllowedAt,
+        nextPasswordChangeAllowedAt: user.nextPasswordChangeAllowedAt,
       },
     });
   } catch (error) {
