@@ -192,14 +192,12 @@ export default function AdminUsers() {
     try {
       const body = {
         name: editForm.name,
-        email: editForm.email,
         role: editForm.role,
         departmentId: editForm.departmentId || null,
         programId: editForm.programId || null,
       };
       if (editForm.role === 'student' && editForm.studentId) body.studentId = editForm.studentId;
       if (editForm.role === 'alumni' && editForm.alumniId) body.alumniId = editForm.alumniId;
-      if (editForm.password) body.password = editForm.password;
 
       await apiAuth(`/api/auth/users/${encodeURIComponent(selectedUser._id)}`, { method: 'PATCH', body });
       await load();
@@ -548,17 +546,7 @@ export default function AdminUsers() {
                 <option value="professor">Professor</option>
               </select>
             </div>
-            <div className="modal-form-group">
-              <label>Email Address</label>
-              <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
-            </div>
-            <div className="modal-form-group">
-              <label>New Password (optional)</label>
-              <div className="modal-password-wrapper">
-                <input type={showEditPassword ? 'text' : 'password'} value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="Leave blank to keep current" />
-                <button type="button" onClick={() => setShowEditPassword(!showEditPassword)} className="modal-password-toggle">{showEditPassword ? '👁️' : '👁️‍🗨️'}</button>
-              </div>
-            </div>
+
             <div className="modal-form-group">
               <label>{editForm.role === 'alumni' ? 'Alumni ID' : 'Student ID'} {(editForm.role !== 'student' && editForm.role !== 'alumni') ? '(N/A)' : ''}</label>
               <input value={editForm.role === 'alumni' ? editForm.alumniId : editForm.studentId} onChange={(e) => {
