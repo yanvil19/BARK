@@ -2,6 +2,7 @@ const MockBoardExam = require('../models/MockBoardExam');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
+const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
 
 async function getDeanPrograms(user) {
   if (user.role !== 'dean' || !user.department) return [];
@@ -177,6 +178,12 @@ async function createMockBoardExam(req, res) {
       .populate('questions', 'title tag')
       .populate('createdBy', 'name');
 
+    if (payload.status === 'published') {
+      sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
+        console.error('Exam announcement email error:', err);
+      });
+    }
+
     res.status(201).json({ exam: populated });
   } catch (err) {
     console.error(err);
@@ -331,6 +338,12 @@ async function updateMockBoardExam(req, res) {
       .populate('subjectTags', 'name')
       .populate('questions', 'title tag')
       .populate('createdBy', 'name');
+
+    if (oldStatus !== 'published' && payload.status === 'published') {
+      sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
+        console.error('Exam announcement email error:', err);
+      });
+    }
 
     res.json({ exam: populated });
   } catch (err) {
