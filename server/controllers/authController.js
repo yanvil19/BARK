@@ -206,14 +206,22 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password')
-      .populate('department', 'name code')
-      .populate('program', 'name code department');
+    const [user, settings] = await Promise.all([
+      User.findById(req.user.id)
+        .select('-password')
+        .populate('department', 'name code')
+        .populate('program', 'name code department'),
+      AppSettings.getSingleton(),
+    ]);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user);
+
+    const userObj = user.toObject({ virtuals: true });
+    userObj.emailCooldownDays = Math.max(Number(settings?.emailCooldownDays) || 0, 0);
+    userObj.passwordCooldownDays = Math.max(Number(settings?.passwordCooldownDays) || 0, 0);
+
+    res.status(200).json(userObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

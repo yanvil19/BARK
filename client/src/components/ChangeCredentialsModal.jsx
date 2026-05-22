@@ -27,13 +27,60 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
 
   const [serverEmailNextAt, setServerEmailNextAt] = useState(null);
   const [serverPasswordNextAt, setServerPasswordNextAt] = useState(null);
+  const [serverEmailCooldownDays, setServerEmailCooldownDays] = useState(null);
+  const [serverPasswordCooldownDays, setServerPasswordCooldownDays] = useState(null);
 
   useEffect(() => {
     if (!open) return;
     setStatus({ kind: '', message: '' });
     setServerEmailNextAt(null);
     setServerPasswordNextAt(null);
+    setServerEmailCooldownDays(null);
+    setServerPasswordCooldownDays(null);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const meRes = await apiAuth('/api/auth/me');
+        if (cancelled) return;
+        const emailDays = meRes?.emailCooldownDays;
+        const passDays = meRes?.passwordCooldownDays;
+        if (emailDays !== undefined && emailDays !== null && emailDays !== '') {
+          setServerEmailCooldownDays(Number(emailDays));
+        }
+        if (passDays !== undefined && passDays !== null && passDays !== '') {
+          setServerPasswordCooldownDays(Number(passDays));
+        }
+      } catch {
+        // Ignore - modal can still operate without displaying cooldown days.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const emailCooldownDays = useMemo(() => {
+    const raw = serverEmailCooldownDays ?? me?.emailCooldownDays;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }, [me?.emailCooldownDays, serverEmailCooldownDays]);
+
+  const passwordCooldownDays = useMemo(() => {
+    const raw = serverPasswordCooldownDays ?? me?.passwordCooldownDays;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }, [me?.passwordCooldownDays, serverPasswordCooldownDays]);
+
+  function formatDays(value) {
+    if (value === null || value === undefined) return '';
+    const n = Math.max(Math.trunc(Number(value) || 0), 0);
+    const label = n === 1 ? 'day' : 'days';
+    return `${n} ${label}`;
+  }
 
   const emailNextAt = useMemo(() => {
     const raw = serverEmailNextAt || me?.nextEmailChangeAllowedAt;
@@ -131,6 +178,9 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
         <section className="change-credentials-section">
           <div className="change-credentials-section-header">
             <h3>Change Email</h3>
+            {emailCooldownDays !== null && (
+              <p className="cooldown-note">Cooldown: {formatDays(emailCooldownDays)}</p>
+            )}
             {emailCooldownActive && (
               <p className="cooldown-note">
                 Email changes are on cooldown until {formatDateTime(emailNextAt)}.
@@ -169,6 +219,9 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
         <section className="change-credentials-section">
           <div className="change-credentials-section-header">
             <h3>Change Password</h3>
+            {passwordCooldownDays !== null && (
+              <p className="cooldown-note">Cooldown: {formatDays(passwordCooldownDays)}</p>
+            )}
             {passwordCooldownActive && (
               <p className="cooldown-note">
                 Password changes are on cooldown until {formatDateTime(passwordNextAt)}.
