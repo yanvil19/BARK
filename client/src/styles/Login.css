@@ -106,6 +106,16 @@
   border: 1px solid #eab6bb;
 }
 
+.login-success-message {
+  margin: -2px 0 10px;
+  padding: 9px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #1e873a;
+  background: #e6f7eb;
+  border: 1px solid #b7e3c3;
+}
+
 .login-register-inline {
   display: flex;
   justify-content: center;
@@ -114,6 +124,29 @@
   padding: 2px 0 12px;
   color: #7a80a7;
   font-size: 13px;
+}
+
+.login-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 12px;
+}
+
+.login-resend-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 12px;
+  color: #7a80a7;
+  font-size: 13px;
+}
+
+.login-helper-text {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #7a80a7;
 }
 
 .login-inline-link {
@@ -125,6 +158,34 @@
   cursor: pointer;
   padding: 0;
   font-family: var(--font-title);
+}
+
+.login-footer-split {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.login-cancel-btn {
+  min-width: 92px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 5px;
+  border: 1px solid #b5b9d1;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-cancel-btn:hover {
+  background: #f9fafb;
+}
+
+.login-cancel-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 .login-footer {

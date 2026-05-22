@@ -63,6 +63,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    passwordResetOTP: {
+      type: String,
+      default: null,
+    },
+    passwordResetOTPExpiry: {
+      type: Date,
+      default: null,
+    },
+    passwordResetOTPAttempts: {
+      type: Number,
+      default: 0,
+    },
     lastEmailChange: {
       type: Date,
       default: null,

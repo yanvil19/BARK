@@ -1,5 +1,6 @@
 const express = require('express');
 const { rateLimit: expressRateLimit } = require('express-rate-limit');
+const crypto = require('node:crypto');
 const {
   registerUser,
   loginUser,
@@ -17,6 +18,8 @@ const {
   rejectRegistrationRequest,
 } = require('../controllers/authController');
 const User = require('../models/User');
+const { sendEmail } = require('../utils/emailService');
+const { passwordResetTemplate } = require('../emails/templates/passwordResetTemplate');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const rateLimit = require('../middleware/rateLimit');
 
@@ -31,6 +34,22 @@ const loginRateLimiter = expressRateLimit({
   legacyHeaders: false,
 });
 
+const forgotPasswordRateLimiter = expressRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { message: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function normalizeEmail(email) {
+  return String(email || '').toLowerCase().trim();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
 // @route   POST /api/auth/login
 // @access  Public
 router.post(
@@ -39,6 +58,90 @@ router.post(
   loginRateLimiter,
   loginUser
 );
+
+// @route   POST /api/auth/forgot-password
+// @access  Public
+router.post('/forgot-password', forgotPasswordRateLimiter, async (req, res) => {
+  const genericMessage = { message: 'If this email is registered, you will receive a reset code shortly.' };
+
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !isValidEmail(email)) {
+      return res.status(200).json(genericMessage);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || user.receiveEmails === false) {
+      return res.status(200).json(genericMessage);
+    }
+
+    const otp = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+    user.passwordResetOTP = otp;
+    user.passwordResetOTPExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    user.passwordResetOTPAttempts = 0;
+    await user.save();
+
+    const { subject, html } = passwordResetTemplate(otp);
+    await sendEmail({ to: user.email, subject, html, user });
+
+    return res.status(200).json(genericMessage);
+  } catch (error) {
+    console.error('forgot-password error:', error);
+    return res.status(200).json(genericMessage);
+  }
+});
+
+// @route   POST /api/auth/reset-password
+// @access  Public
+router.post('/reset-password', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const otp = String(req.body?.otp || '').trim();
+    const newPassword = String(req.body?.newPassword || '');
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
+    if (!otp) {
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
+    if ((user.passwordResetOTPAttempts || 0) >= 3) {
+      return res.status(400).json({ message: 'Too many attempts. Please request a new code.' });
+    }
+
+    if (!user.passwordResetOTP || user.passwordResetOTP !== otp) {
+      user.passwordResetOTPAttempts = (user.passwordResetOTPAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
+    if (!user.passwordResetOTPExpiry || Date.now() > new Date(user.passwordResetOTPExpiry).getTime()) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new code.' });
+    }
+
+    user.password = newPassword;
+    user.passwordResetOTP = null;
+    user.passwordResetOTPExpiry = null;
+    user.passwordResetOTPAttempts = 0;
+    await user.save();
+
+    return res.status(200).json({ message: 'Password reset successful.' });
+  } catch (error) {
+    console.error('reset-password error:', error);
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+});
 
 // @route   POST /api/auth/register
 // @access  Private - Super Admin only

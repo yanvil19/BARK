@@ -9,7 +9,12 @@ const getResendClient = () => {
   return resendClient;
 };
 
-const sendEmail = async ({ to, subject, html }, user = null) => {
+const sendEmail = async (args, userArg = null) => {
+  const to = args?.to;
+  const subject = args?.subject;
+  const html = args?.html;
+  const user = args?.user ?? userArg ?? null;
+
   if (user && user.receiveEmails === false) {
     return { success: false, reason: 'Email notifications disabled for this user' };
   }
