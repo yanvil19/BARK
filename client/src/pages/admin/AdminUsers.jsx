@@ -10,6 +10,10 @@ export default function AdminUsers({ me }) {
   const [data, setData] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
+  const [emailToggleBusyById, setEmailToggleBusyById] = useState({});
+  const [emailToggleMsgById, setEmailToggleMsgById] = useState({});
+  const [bulkEmailBusy, setBulkEmailBusy] = useState(false);
+  const [bulkEmailMsg, setBulkEmailMsg] = useState(null);
 
   // Modal states
   const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'deactivate' | 'activate' | 'delete'
@@ -54,6 +58,22 @@ export default function AdminUsers({ me }) {
     };
   }, [users, currentPage]);
 
+  const allEmailTargets = useMemo(
+    () => (users || []).filter((u) => u?._id && u._id !== me?._id),
+    [users, me?._id]
+  );
+
+  const emailsTotalCount = allEmailTargets.length;
+  const emailsEnabledCount = useMemo(
+    () => allEmailTargets.filter((u) => u.receiveEmails !== false).length,
+    [allEmailTargets]
+  );
+
+  const allEmailsEnabled = useMemo(() => {
+    if (!allEmailTargets.length) return false;
+    return allEmailTargets.every((u) => u.receiveEmails !== false);
+  }, [allEmailTargets]);
+
   async function fetchUsersList(search, role, dept) {
     setBusy(true);
     setError('');
@@ -74,6 +94,99 @@ export default function AdminUsers({ me }) {
 
   async function load() {
     await fetchUsersList(searchQuery, filterRole, filterDepartment);
+  }
+
+  async function toggleReceiveEmails(user, nextValue) {
+    if (!user?._id) return;
+    if (user._id === me?._id) return;
+
+    setEmailToggleBusyById((m) => ({ ...m, [user._id]: true }));
+    setEmailToggleMsgById((m) => ({ ...m, [user._id]: null }));
+
+    try {
+      await apiAuth(`/api/auth/users/${encodeURIComponent(user._id)}/email-toggle`, {
+        method: 'PATCH',
+        body: { receiveEmails: Boolean(nextValue) },
+      });
+
+      setData((prev) => {
+        if (!prev?.users) return prev;
+        return {
+          ...prev,
+          users: prev.users.map((u) => (u._id === user._id ? { ...u, receiveEmails: Boolean(nextValue) } : u)),
+        };
+      });
+
+      setEmailToggleMsgById((m) => ({ ...m, [user._id]: { type: 'success', text: 'Saved' } }));
+      setTimeout(() => {
+        setEmailToggleMsgById((m) => (m[user._id] ? { ...m, [user._id]: null } : m));
+      }, 1500);
+    } catch (err) {
+      setEmailToggleMsgById((m) => ({ ...m, [user._id]: { type: 'error', text: err.message || 'Failed' } }));
+      setTimeout(() => {
+        setEmailToggleMsgById((m) => (m[user._id] ? { ...m, [user._id]: null } : m));
+      }, 2500);
+    } finally {
+      setEmailToggleBusyById((m) => ({ ...m, [user._id]: false }));
+    }
+  }
+
+  async function bulkSetReceiveEmails(nextValue) {
+    if (bulkEmailBusy) return;
+
+    const targets = allEmailTargets;
+    if (targets.length === 0) {
+      setBulkEmailMsg({ type: 'error', text: 'No users to update' });
+      setTimeout(() => setBulkEmailMsg(null), 2000);
+      return;
+    }
+
+    setBulkEmailBusy(true);
+    setBulkEmailMsg(null);
+    setEmailToggleMsgById((m) => {
+      const next = { ...m };
+      for (const u of targets) next[u._id] = null;
+      return next;
+    });
+    setEmailToggleBusyById((m) => {
+      const next = { ...m };
+      for (const u of targets) next[u._id] = true;
+      return next;
+    });
+
+    try {
+      const results = await Promise.allSettled(
+        targets.map((u) => apiAuth(`/api/auth/users/${encodeURIComponent(u._id)}/email-toggle`, {
+          method: 'PATCH',
+          body: { receiveEmails: Boolean(nextValue) },
+        }))
+      );
+
+      const failed = results.filter((r) => r.status === 'rejected');
+
+      setData((prev) => {
+        if (!prev?.users) return prev;
+        const targetIds = new Set(targets.map((u) => u._id));
+        return {
+          ...prev,
+          users: prev.users.map((u) => (targetIds.has(u._id) ? { ...u, receiveEmails: Boolean(nextValue) } : u)),
+        };
+      });
+
+      setBulkEmailMsg(
+        failed.length
+          ? { type: 'error', text: `Updated with ${failed.length} error(s)` }
+          : { type: 'success', text: 'Updated' }
+      );
+      setTimeout(() => setBulkEmailMsg(null), failed.length ? 2500 : 1500);
+    } finally {
+      setEmailToggleBusyById((m) => {
+        const next = { ...m };
+        for (const u of targets) next[u._id] = false;
+        return next;
+      });
+      setBulkEmailBusy(false);
+    }
   }
 
   async function loadCatalog() {
@@ -333,7 +446,28 @@ export default function AdminUsers({ me }) {
               <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
             ))}
           </select>
+
+          <button
+            type="button"
+            className={`um-email-switch ${allEmailsEnabled ? 'um-email-switch--on' : 'um-email-switch--off'}`}
+            disabled={bulkEmailBusy || busy || allEmailTargets.length === 0}
+            onClick={() => bulkSetReceiveEmails(!allEmailsEnabled)}
+            title={allEmailsEnabled ? 'Disable email receiving for all users' : 'Enable email receiving for all users'}
+            aria-pressed={allEmailsEnabled}
+          >
+            <span className="um-email-switch-label">Receive Emails</span>
+            <span className="um-email-switch-track" aria-hidden="true">
+              <span className="um-email-switch-text">{allEmailsEnabled ? 'ON' : 'OFF'}</span>
+              <span className="um-email-switch-knob" />
+            </span>
+          </button>
         </div>
+
+        {bulkEmailMsg ? (
+          <p className="um-error" style={{ margin: '0 0 16px', color: bulkEmailMsg.type === 'success' ? '#2e7d32' : undefined }}>
+            {bulkEmailMsg.text}
+          </p>
+        ) : null}
 
         {error ? <p className="um-error">{error}</p> : null}
 
@@ -343,10 +477,10 @@ export default function AdminUsers({ me }) {
             {busy ? <p className="um-loading">Loading users...</p> : (
               <table className="um-table">
                 <thead>
-                  <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+                  <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Receive Emails ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {paginatedUsers.length === 0 ? <tr><td colSpan={7} className="um-empty">No users found.</td></tr> : (
+                  {paginatedUsers.length === 0 ? <tr><td colSpan={8} className="um-empty">No users found.</td></tr> : (
                     paginatedUsers.map((u) => (
                       <tr key={u._id} className={hoveredDeleteUserId === u._id ? 'um-row-delete-hover' : ''}>
                         <td>
@@ -358,6 +492,26 @@ export default function AdminUsers({ me }) {
                         <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
                         <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
                         <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td>
+                          {u._id === me?._id ? <span className="um-none">(you)</span> : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: emailToggleBusyById[u._id] ? 'not-allowed' : 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={u.receiveEmails !== false}
+                                  disabled={Boolean(emailToggleBusyById[u._id])}
+                                  onChange={(e) => toggleReceiveEmails(u, e.target.checked)}
+                                />
+                                <span style={{ fontSize: 12, color: '#555' }}>{u.receiveEmails === false ? 'Disabled' : 'Enabled'}</span>
+                              </label>
+                              {emailToggleMsgById[u._id] ? (
+                                <span style={{ fontSize: 12, color: emailToggleMsgById[u._id].type === 'success' ? '#2e7d32' : '#b00020' }}>
+                                  {emailToggleMsgById[u._id].text}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+                        </td>
                         <td className="um-actions-cell">
                           <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                           {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
@@ -395,10 +549,10 @@ export default function AdminUsers({ me }) {
           <div className="scroll-x">
             <table className="um-table">
               <thead>
-                <tr><th style={{ width: '200px' }}>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Actions</th></tr>
+                <tr><th style={{ width: '200px' }}>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Receive Emails ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {paginatedUsers.length === 0 ? <tr><td colSpan={7} className="um-empty">No users found.</td></tr> : (
+                {paginatedUsers.length === 0 ? <tr><td colSpan={8} className="um-empty">No users found.</td></tr> : (
                   paginatedUsers.map((u) => (
                     <tr key={u._id} className={hoveredDeleteUserId === u._id ? 'um-row-delete-hover' : ''}>
                       <td>
@@ -410,6 +564,26 @@ export default function AdminUsers({ me }) {
                       <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
                       <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
                       <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td>
+                        {u._id === me?._id ? <span className="um-none">(you)</span> : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: emailToggleBusyById[u._id] ? 'not-allowed' : 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={u.receiveEmails !== false}
+                                disabled={Boolean(emailToggleBusyById[u._id])}
+                                onChange={(e) => toggleReceiveEmails(u, e.target.checked)}
+                              />
+                              <span style={{ fontSize: 12, color: '#555' }}>{u.receiveEmails === false ? 'Disabled' : 'Enabled'}</span>
+                            </label>
+                            {emailToggleMsgById[u._id] ? (
+                              <span style={{ fontSize: 12, color: emailToggleMsgById[u._id].type === 'success' ? '#2e7d32' : '#b00020' }}>
+                                {emailToggleMsgById[u._id].text}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
                       <td className="um-actions-cell">
                         <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                         {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
