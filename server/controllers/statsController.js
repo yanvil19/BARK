@@ -221,6 +221,88 @@ const getProgramChairStats = async (req, res) => {
   }
 };
 
+// @desc    Get dashboard stats for professor (own stats only)
+// @route   GET /api/stats/professor/dashboard
+// @access  Private (Professor only)
+const getProfessorDashboardStats = async (req, res) => {
+  try {
+    if (!req.user.program) {
+      return res.status(400).json({ message: 'Professor has no assigned program' });
+    }
+
+    const program = await Program.findById(req.user.program).select('name code');
+    if (!program) {
+      return res.status(404).json({ message: 'Assigned program not found' });
+    }
+
+    const [
+      programStudentCount,
+      myQuestionsByStateRaw,
+      myTotalQuestions,
+      myRecentQuestions,
+      myTagCounts,
+    ] = await Promise.all([
+      User.countDocuments({
+        role: 'student',
+        program: req.user.program,
+        isActive: true,
+      }),
+      Question.aggregate([
+        { $match: { createdBy: req.user._id } },
+        { $group: { _id: '$state', count: { $sum: 1 } } },
+      ]),
+      Question.countDocuments({ createdBy: req.user._id }),
+      Question.find({ createdBy: req.user._id })
+        .select('title state submittedAt updatedAt tag program')
+        .populate('tag', 'name')
+        .populate('program', 'name code')
+        .sort({ updatedAt: -1 })
+        .limit(8),
+      Question.aggregate([
+        { $match: { createdBy: req.user._id, tag: { $ne: null } } },
+        { $group: { _id: '$tag', count: { $sum: 1 } } },
+        {
+          $lookup: {
+            from: 'tags',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'tag',
+          },
+        },
+        { $unwind: { path: '$tag', preserveNullAndEmptyArrays: true } },
+        { $project: { _id: 0, tagId: '$_id', name: '$tag.name', count: 1 } },
+        { $sort: { count: -1 } },
+        { $limit: 6 },
+      ]),
+    ]);
+
+    const myQuestionStateMap = Object.fromEntries(myQuestionsByStateRaw.map((item) => [item._id, item.count]));
+
+    res.status(200).json({
+      program: {
+        programId: program._id,
+        programName: program.name,
+        programCode: program.code,
+      },
+      programStudentCount,
+      summary: {
+        totalQuestions: myTotalQuestions,
+        draft: myQuestionStateMap.draft || 0,
+        pending: myQuestionStateMap.pending_chair || 0,
+        returned: myQuestionStateMap.returned || 0,
+        approved: myQuestionStateMap.approved || 0,
+        rejected: myQuestionStateMap.rejected || 0,
+      },
+      myQuestionsByState: myQuestionStateMap,
+      recentQuestions: myRecentQuestions,
+      tagSummary: myTagCounts,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 const getAuditLogs = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -464,4 +546,4 @@ const getDeanDashboardStats = async (req, res) => {
   }
 };
 
-module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs, getDeanDashboardStats };
+module.exports = { getSummaryStats, getProgramChairStats, getProfessorDashboardStats, getAuditLogs, getDeanDashboardStats };
