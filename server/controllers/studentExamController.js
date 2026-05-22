@@ -13,32 +13,32 @@ function shuffleArray(array) {
 }
 
 async function calculateScore(attempt, exam) {
-    const populatedExam = await MockBoardExam.findById(exam._id).populate({
-        path: 'questions',
-        populate: { path: 'tag' }
-    });
+  const populatedExam = await MockBoardExam.findById(exam._id).populate({
+    path: 'questions',
+    populate: { path: 'tag' }
+  });
 
-    let totalScore = 0;
-    const subjectStats = {};
+  let totalScore = 0;
+  const subjectStats = {};
 
-    populatedExam.questions.forEach(q => {
-        const tagId = q.tag._id.toString();
-        if (!subjectStats[tagId]) {
-            subjectStats[tagId] = { tag: q.tag._id, correct: 0, total: 0 };
-        }
-        subjectStats[tagId].total += 1;
+  populatedExam.questions.forEach(q => {
+    const tagId = q.tag._id.toString();
+    if (!subjectStats[tagId]) {
+      subjectStats[tagId] = { tag: q.tag._id, correct: 0, total: 0 };
+    }
+    subjectStats[tagId].total += 1;
 
-        const correctAns = q.answers.find(a => a.isCorrect);
-        const studentAnsId = attempt.answers.get(q._id.toString());
+    const correctAns = q.answers.find(a => a.isCorrect);
+    const studentAnsId = attempt.answers.get(q._id.toString());
 
-        if (correctAns && studentAnsId && String(studentAnsId) === String(correctAns._id)) {
-            totalScore += 1;
-            subjectStats[tagId].correct += 1;
-        }
-    });
+    if (correctAns && studentAnsId && String(studentAnsId) === String(correctAns._id)) {
+      totalScore += 1;
+      subjectStats[tagId].correct += 1;
+    }
+  });
 
-    attempt.score = totalScore;
-    attempt.subjectScores = Object.values(subjectStats);
+  attempt.score = totalScore;
+  attempt.subjectScores = Object.values(subjectStats);
 }
 
 async function autoSubmitIfExpired(attempt) {
@@ -59,9 +59,9 @@ async function autoSubmitIfExpired(attempt) {
 async function getAvailableExams(req, res) {
   try {
     const now = new Date();
-    const examsToArchive = await MockBoardExam.find({ 
-      status: 'published', 
-      endDateTime: { $lt: now } 
+    const examsToArchive = await MockBoardExam.find({
+      status: 'published',
+      endDateTime: { $lt: now }
     }).select('_id questions');
 
     if (examsToArchive.length > 0) {
@@ -159,11 +159,11 @@ async function startExam(req, res) {
     if (!attempt) {
       const shuffledQuestions = shuffleArray([...exam.questions]);
       const randomizedStructure = shuffledQuestions.map(q => {
-          const shuffledAnswers = shuffleArray([...q.answers]);
-          return {
-              question: q._id,
-              answers: shuffledAnswers.map(a => a._id)
-          };
+        const shuffledAnswers = shuffleArray([...q.answers]);
+        return {
+          question: q._id,
+          answers: shuffledAnswers.map(a => a._id)
+        };
       });
 
       attempt = new StudentExamAttempt({
@@ -172,7 +172,7 @@ async function startExam(req, res) {
         startTime: now,
         randomizedQuestions: randomizedStructure,
       });
-      
+
       try {
         await attempt.save();
       } catch (saveErr) {
@@ -193,7 +193,7 @@ async function startExam(req, res) {
     }
 
     if (await autoSubmitIfExpired(attempt)) {
-        return res.status(403).json({ message: 'Your exam time has expired and it was automatically submitted.' });
+      return res.status(403).json({ message: 'Your exam time has expired and it was automatically submitted.' });
     }
 
     const remainingTimeSeconds = Math.floor((exam.endDateTime - now) / 1000);
@@ -203,33 +203,33 @@ async function startExam(req, res) {
     exam.questions.forEach(q => qMap.set(String(q._id), q));
 
     attempt.randomizedQuestions.forEach(rq => {
-        const fullQ = qMap.get(String(rq.question));
-        if (fullQ) {
-            const mappedAnswers = rq.answers.map(ansId => {
-                const fullAns = fullQ.answers.find(a => String(a._id) === String(ansId));
-                if (fullAns) {
-                    return { _id: fullAns._id, text: fullAns.text }; // Exclude isCorrect
-                }
-                return null;
-            }).filter(Boolean);
+      const fullQ = qMap.get(String(rq.question));
+      if (fullQ) {
+        const mappedAnswers = rq.answers.map(ansId => {
+          const fullAns = fullQ.answers.find(a => String(a._id) === String(ansId));
+          if (fullAns) {
+            return { _id: fullAns._id, text: fullAns.text }; // Exclude isCorrect
+          }
+          return null;
+        }).filter(Boolean);
 
-            responseQuestions.push({
-                _id: fullQ._id,
-                title: fullQ.title,
-                description: fullQ.description,
-                images: fullQ.images,
-                answers: mappedAnswers
-            });
-        }
+        responseQuestions.push({
+          _id: fullQ._id,
+          title: fullQ.title,
+          description: fullQ.description,
+          images: fullQ.images,
+          answers: mappedAnswers
+        });
+      }
     });
 
     return res.json({
       attemptId: attempt._id,
       exam: {
-          _id: exam._id,
-          name: exam.name,
-          description: exam.description,
-          instructions: exam.instructions
+        _id: exam._id,
+        name: exam.name,
+        description: exam.description,
+        instructions: exam.instructions
       },
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
@@ -244,82 +244,82 @@ async function startExam(req, res) {
 }
 
 async function saveProgress(req, res) {
-    try {
-        const attemptId = req.params.attemptId;
-        const { answers } = req.body;
+  try {
+    const attemptId = req.params.attemptId;
+    const { answers } = req.body;
 
-        const attempt = await StudentExamAttempt.findById(attemptId);
-        if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
-        
-        if (attempt.student.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Unauthorized' });
-        }
+    const attempt = await StudentExamAttempt.findById(attemptId);
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
 
-        const exam = await MockBoardExam.findById(attempt.exam);
-        const now = new Date();
-
-        if (now >= exam.endDateTime) {
-            await autoSubmitIfExpired(attempt);
-            return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
-        }
-
-        if (attempt.status !== 'in_progress') {
-            return res.status(400).json({ message: 'Exam is no longer in progress' });
-        }
-
-        for (const [qId, ansId] of Object.entries(answers)) {
-            attempt.answers.set(qId, ansId);
-        }
-        await attempt.save();
-
-        res.json({ message: 'Progress saved' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    if (attempt.student.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
     }
+
+    const exam = await MockBoardExam.findById(attempt.exam);
+    const now = new Date();
+
+    if (now >= exam.endDateTime) {
+      await autoSubmitIfExpired(attempt);
+      return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
+    }
+
+    if (attempt.status !== 'in_progress') {
+      return res.status(400).json({ message: 'Exam is no longer in progress' });
+    }
+
+    for (const [qId, ansId] of Object.entries(answers)) {
+      attempt.answers.set(qId, ansId);
+    }
+    await attempt.save();
+
+    res.json({ message: 'Progress saved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
 }
 
 async function submitExam(req, res) {
-    try {
-        const attemptId = req.params.attemptId;
-        
-        const attempt = await StudentExamAttempt.findById(attemptId);
-        if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+  try {
+    const attemptId = req.params.attemptId;
 
-        if (attempt.student.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Unauthorized' });
-        }
+    const attempt = await StudentExamAttempt.findById(attemptId);
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
 
-        if (attempt.status !== 'in_progress') {
-            return res.status(400).json({ message: 'Exam already submitted' });
-        }
-
-        const exam = await MockBoardExam.findById(attempt.exam);
-        const now = new Date();
-        const GRACE_PERIOD_MS = 30000;
-
-        if (now > new Date(exam.endDateTime.getTime() + GRACE_PERIOD_MS)) {
-            attempt.lateSubmission = true;
-        }
-
-        attempt.status = 'submitted';
-        attempt.endTime = now;
-
-        if (req.body.answers) {
-            for (const [qId, ansId] of Object.entries(req.body.answers)) {
-                attempt.answers.set(qId, ansId);
-            }
-        }
-
-        await calculateScore(attempt, exam);
-        await attempt.save();
-
-        res.json({ message: 'Exam submitted successfully' });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    if (attempt.student.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
     }
+
+    if (attempt.status !== 'in_progress') {
+      return res.status(400).json({ message: 'Exam already submitted' });
+    }
+
+    const exam = await MockBoardExam.findById(attempt.exam);
+    const now = new Date();
+    const GRACE_PERIOD_MS = 30000;
+
+    if (now > new Date(exam.endDateTime.getTime() + GRACE_PERIOD_MS)) {
+      attempt.lateSubmission = true;
+    }
+
+    attempt.status = 'submitted';
+    attempt.endTime = now;
+
+    if (req.body.answers) {
+      for (const [qId, ansId] of Object.entries(req.body.answers)) {
+        attempt.answers.set(qId, ansId);
+      }
+    }
+
+    await calculateScore(attempt, exam);
+    await attempt.save();
+
+    res.json({ message: 'Exam submitted successfully' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
 }
 
 async function getMyAttempts(req, res) {
@@ -343,10 +343,10 @@ async function getMyAttempts(req, res) {
       const exam = attempt.exam;
       const totalItems = exam?.questions?.length || 0;
       const resultsReleaseDate = exam?.resultsReleaseDate || null;
-      const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null) 
-        ? exam.passingThreshold 
+      const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null)
+        ? exam.passingThreshold
         : 70;
-      
+
       const durationMinutes = attempt.endTime && attempt.startTime
         ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
         : null;
@@ -383,10 +383,35 @@ async function getMyAttempts(req, res) {
   }
 }
 
+async function logViolation(req, res) {
+  try {
+    const attemptId = req.params.attemptId;
+    const attempt = await StudentExamAttempt.findById(attemptId);
+
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+    if (attempt.student.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    attempt.violations.push({
+      type: req.body.type || 'suspicious_activity',
+      reason: req.body.reason || 'Unknown',
+      timestamp: new Date()
+    });
+
+    await attempt.save();
+    res.json({ message: 'Violation logged' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error logging violation' });
+  }
+}
+
 module.exports = {
-    getAvailableExams,
-    startExam,
-    saveProgress,
-    submitExam,
-    getMyAttempts,
+  getAvailableExams,
+  startExam,
+  saveProgress,
+  submitExam,
+  getMyAttempts,
+  logViolation,
 };

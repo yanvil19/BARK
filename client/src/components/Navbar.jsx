@@ -132,6 +132,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
             <button className={cls('chairTags')} onClick={handle('chairTags')}>Manage Subjects</button>
             <button className={cls('chairQuestions')} onClick={handle('chairQuestions')}>My Questions</button>
             <button className={cls('chairQuestionApprovals')} onClick={handle('chairQuestionApprovals')}>Approve Questions</button>
+            <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Cheating Logs</button>
           </>
         )}
 

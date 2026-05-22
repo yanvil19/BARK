@@ -25,9 +25,27 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
   const saveTimeoutRef = useRef(null);
 
+  const lastViolationTimeRef = useRef(0);
+  const violationCountRef = useRef(0);
+
   useEffect(() => {
-    const triggerBlur = () => {
-      setViolationCount(prev => prev + 1);
+    const triggerBlur = (reason = 'Unknown') => {
+      const now = Date.now();
+      if (now - lastViolationTimeRef.current < 500) return;
+      lastViolationTimeRef.current = now;
+
+      violationCountRef.current += 1;
+      const newCount = violationCountRef.current;
+
+      setViolationCount(newCount);
+
+      if (newCount > 2 && attemptId) {
+        apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/violation`, {
+          method: 'POST',
+          body: { type: 'window_blur_or_shortcut', reason }
+        }).catch(err => console.error('Failed to log violation:', err));
+      }
+
       setIsBlurred(true);
       setShowWarningModal(true);
     };
@@ -37,28 +55,24 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
     const handleKeyDown = (e) => {
       if (e.key === 'F12') {
         e.preventDefault();
-        triggerBlur();
+        triggerBlur('F12 (Developer Tools)');
       }
       if ((e.ctrlKey || e.metaKey) && ['c', 'v', 's'].includes(e.key.toLowerCase())) {
         e.preventDefault();
       }
       if (e.key === 'PrintScreen') {
-        triggerBlur();
+        triggerBlur('PrintScreen (Screenshot)');
       }
       if ((e.metaKey || e.key === 'Meta') && e.shiftKey) {
-        triggerBlur();
+        triggerBlur('Meta+Shift (Shortcut)');
       }
     };
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        triggerBlur();
-      }
+      if (document.hidden) triggerBlur('Switched Tabs / Hidden Window');
     };
 
-    const handleBlur = () => {
-      triggerBlur();
-    };
+    const handleBlur = () => triggerBlur('Lost Window Focus');
 
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
@@ -71,7 +85,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
     };
-  }, []);
+  }, [attemptId]);
 
   useEffect(() => {
     async function startOrResumeExam() {

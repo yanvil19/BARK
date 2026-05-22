@@ -7,134 +7,135 @@ const Question = require('../models/Question');
 const AuditLog = require('../models/AuditLog');
 const MockBoardExam = require('../models/MockBoardExam');
 const Tag = require('../models/Tag');
+const StudentExamAttempt = require('../models/StudentExamAttempt');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
 // @access  Public
 const getSummaryStats = async (req, res) => {
-    try {
-        const roles = [
-            'student',
-            'alumni',
-            'professor',
-            'program_chair',
-            'dean',
-            'super_admin'
-        ];
+  try {
+    const roles = [
+      'student',
+      'alumni',
+      'professor',
+      'program_chair',
+      'dean',
+      'super_admin'
+    ];
 
-        // ACTIVE counts per role
-        const activeCounts = await Promise.all(
-            roles.map(role =>
-                User.countDocuments({ role, isActive: true })
-            )
-        );
+    // ACTIVE counts per role
+    const activeCounts = await Promise.all(
+      roles.map(role =>
+        User.countDocuments({ role, isActive: true })
+      )
+    );
 
-        // TOTAL counts per role
-        const totalCounts = await Promise.all(
-            roles.map(role =>
-                User.countDocuments({ role })
-            )
-        );
+    // TOTAL counts per role
+    const totalCounts = await Promise.all(
+      roles.map(role =>
+        User.countDocuments({ role })
+      )
+    );
 
-        // Build structured user stats
-        const usersByRole = Object.fromEntries(
-            roles.map((role, i) => ({
-                role,
-                active: activeCounts[i],
-                total: totalCounts[i]
-            })).map(item => [
-                item.role,
-                {
-                    active: item.active,
-                    total: item.total
-                }
-            ])
-        );
-
-        // Academic counts
-        const [departmentCount, programCount] = await Promise.all([
-            Department.countDocuments({ isActive: true }),
-            Program.countDocuments({ isActive: true })
-        ]);
-
-        // Totals
-        const totalActiveUsers = activeCounts.reduce((a, b) => a + b, 0);
-        const totalUsers = totalCounts.reduce((a, b) => a + b, 0);
-
-        // Database storage stats
-        let databaseStorage = null;
-        try {
-            if (mongoose.connection && mongoose.connection.db) {
-                const stats = await mongoose.connection.db.stats();
-                const indexSize = stats.indexSize || stats.totalIndexSize || 0;
-                const storageSize = stats.storageSize || 0;
-                const totalStorageBytes = storageSize + indexSize;
-                const limitBytes = 512 * 1024 * 1024; // 512 MB
-                databaseStorage = {
-                    totalSizeMB: (totalStorageBytes / (1024 * 1024)).toFixed(2),
-                    limitMB: 512,
-                    percentUsed: ((totalStorageBytes / limitBytes) * 100).toFixed(2),
-                    storageSizeMB: (storageSize / (1024 * 1024)).toFixed(2),
-                    indexSizeMB: (indexSize / (1024 * 1024)).toFixed(2)
-                };
-            }
-        } catch (dbErr) {
-            console.error("Error fetching db stats:", dbErr);
+    // Build structured user stats
+    const usersByRole = Object.fromEntries(
+      roles.map((role, i) => ({
+        role,
+        active: activeCounts[i],
+        total: totalCounts[i]
+      })).map(item => [
+        item.role,
+        {
+          active: item.active,
+          total: item.total
         }
+      ])
+    );
 
-        // Pending Accounts counts
-        const [pendingStudents, pendingAlumni] = await Promise.all([
-            RegistrationRequest.countDocuments({ status: 'pending', userType: 'student' }),
-            RegistrationRequest.countDocuments({ status: 'pending', userType: 'alumni' })
-        ]);
+    // Academic counts
+    const [departmentCount, programCount] = await Promise.all([
+      Department.countDocuments({ isActive: true }),
+      Program.countDocuments({ isActive: true })
+    ]);
 
-        // Question Stats (GLOBAL)
-        const [totalQuestions, totalApproved, totalPending] = await Promise.all([
-            Question.countDocuments(),
-            Question.countDocuments({ state: 'approved' }),
-            Question.countDocuments({ state: { $in: ['pending_chair', 'pending_dean'] } })
-        ]);
+    // Totals
+    const totalActiveUsers = activeCounts.reduce((a, b) => a + b, 0);
+    const totalUsers = totalCounts.reduce((a, b) => a + b, 0);
 
-        // User counts by department
-        const userCountByDept = await User.aggregate([
-            { $group: { _id: '$department', count: { $sum: 1 } } }
-        ]);
-        const deptUserMap = Object.fromEntries(userCountByDept.map(item => [item._id || 'none', item.count]));
-
-        // User counts by program
-        const userCountByProg = await User.aggregate([
-            { $group: { _id: '$program', count: { $sum: 1 } } }
-        ]);
-        const progUserMap = Object.fromEntries(userCountByProg.map(item => [item._id || 'none', item.count]));
-
-        res.status(200).json({
-            pendingAccounts: {
-                students: pendingStudents,
-                alumni: pendingAlumni
-            },
-            users: usersByRole,
-            academic: {
-                departments: departmentCount,
-                programs: programCount,
-                deptUserCounts: deptUserMap,
-                progUserCounts: progUserMap
-            },
-            questions: {
-                total: totalQuestions,
-                approved: totalApproved,
-                pending: totalPending
-            },
-            total: {
-                activeUsers: totalActiveUsers,
-                users: totalUsers
-            },
-            database: databaseStorage
-        });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    // Database storage stats
+    let databaseStorage = null;
+    try {
+      if (mongoose.connection && mongoose.connection.db) {
+        const stats = await mongoose.connection.db.stats();
+        const indexSize = stats.indexSize || stats.totalIndexSize || 0;
+        const storageSize = stats.storageSize || 0;
+        const totalStorageBytes = storageSize + indexSize;
+        const limitBytes = 512 * 1024 * 1024; // 512 MB
+        databaseStorage = {
+          totalSizeMB: (totalStorageBytes / (1024 * 1024)).toFixed(2),
+          limitMB: 512,
+          percentUsed: ((totalStorageBytes / limitBytes) * 100).toFixed(2),
+          storageSizeMB: (storageSize / (1024 * 1024)).toFixed(2),
+          indexSizeMB: (indexSize / (1024 * 1024)).toFixed(2)
+        };
+      }
+    } catch (dbErr) {
+      console.error("Error fetching db stats:", dbErr);
     }
+
+    // Pending Accounts counts
+    const [pendingStudents, pendingAlumni] = await Promise.all([
+      RegistrationRequest.countDocuments({ status: 'pending', userType: 'student' }),
+      RegistrationRequest.countDocuments({ status: 'pending', userType: 'alumni' })
+    ]);
+
+    // Question Stats (GLOBAL)
+    const [totalQuestions, totalApproved, totalPending] = await Promise.all([
+      Question.countDocuments(),
+      Question.countDocuments({ state: 'approved' }),
+      Question.countDocuments({ state: { $in: ['pending_chair', 'pending_dean'] } })
+    ]);
+
+    // User counts by department
+    const userCountByDept = await User.aggregate([
+      { $group: { _id: '$department', count: { $sum: 1 } } }
+    ]);
+    const deptUserMap = Object.fromEntries(userCountByDept.map(item => [item._id || 'none', item.count]));
+
+    // User counts by program
+    const userCountByProg = await User.aggregate([
+      { $group: { _id: '$program', count: { $sum: 1 } } }
+    ]);
+    const progUserMap = Object.fromEntries(userCountByProg.map(item => [item._id || 'none', item.count]));
+
+    res.status(200).json({
+      pendingAccounts: {
+        students: pendingStudents,
+        alumni: pendingAlumni
+      },
+      users: usersByRole,
+      academic: {
+        departments: departmentCount,
+        programs: programCount,
+        deptUserCounts: deptUserMap,
+        progUserCounts: progUserMap
+      },
+      questions: {
+        total: totalQuestions,
+        approved: totalApproved,
+        pending: totalPending
+      },
+      total: {
+        activeUsers: totalActiveUsers,
+        users: totalUsers
+      },
+      database: databaseStorage
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
 };
 
 const getProgramChairStats = async (req, res) => {
@@ -464,4 +465,53 @@ const getDeanDashboardStats = async (req, res) => {
   }
 };
 
-module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs, getDeanDashboardStats };
+const getCheatingLogs = async (req, res) => {
+  try {
+    if (!req.user.program) {
+      return res.status(400).json({ message: 'Program Chair has no assigned program' });
+    }
+
+    const attemptsWithViolations = await StudentExamAttempt.find({
+      'violations.0': { $exists: true }
+    })
+      .populate({
+        path: 'student',
+        select: 'name firstName lastName email program',
+        match: { program: req.user.program }
+      })
+      .populate({
+        path: 'exam',
+        select: 'name'
+      })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const filtered = attemptsWithViolations.filter(a => a.student != null);
+
+    // Flatten: one row per violation instead of one row per attempt
+    const logs = filtered.flatMap(attempt => {
+      const studentName = attempt.student.name ||
+        `${attempt.student.firstName || ''} ${attempt.student.lastName || ''}`.trim() || 'Student';
+
+      return attempt.violations.map(v => ({
+        id: `${attempt._id}_${v._id || v.timestamp}`,
+        attemptId: attempt._id,
+        studentName,
+        studentEmail: attempt.student.email,
+        examName: attempt.exam?.name || 'Unknown Exam',
+        reason: v.reason || 'Unknown',
+        timestamp: v.timestamp,
+      }));
+    });
+
+    // Sort all rows newest first
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.status(200).json({ logs });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+module.exports = { getSummaryStats, getProgramChairStats, getAuditLogs, getDeanDashboardStats, getCheatingLogs };

@@ -12,6 +12,7 @@ import AdminSettings from './pages/admin/AdminSettings.jsx';
 import UserAccount from './pages/auth/UserAccount.jsx';
 import ChairTags from './pages/chair/ChairTags.jsx';
 import QuestionApprovals from './pages/chair/QuestionApprovals.jsx';
+import ChairCheatingLogs from './pages/chair/ChairCheatingLogs.jsx';
 import ProfessorQuestions from './pages/professor/ProfessorQuestions.jsx';
 import ChairQuestions from './pages/chair/ChairQuestions.jsx';
 import DeanQuestions from './pages/dean/DeanQuestions.jsx';
@@ -116,6 +117,7 @@ export default function App() {
   if (route === 'adminSettings') page = me?.role === 'super_admin' ? <AdminSettings /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
   if (route === 'chairTags') page = <ChairTags me={me} />;
   if (route === 'chairQuestionApprovals') page = <QuestionApprovals me={me} />;
+  if (route === 'chairCheatingLogs') page = <ChairCheatingLogs />;
   if (route === 'deanQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'profQuestions') page = <ProfessorQuestions me={me} />;
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
