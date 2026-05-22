@@ -198,6 +198,7 @@ export default function App() {
       <StudentExamRunner
         examId={studentExamId}
         onFinish={() => setRoute('studentExamResult')}
+        me={me}
       />
     );
   if (route === 'studentExamResult')
