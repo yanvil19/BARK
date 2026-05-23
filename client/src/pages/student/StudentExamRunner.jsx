@@ -27,6 +27,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
   const lastViolationTimeRef = useRef(0);
   const violationCountRef = useRef(0);
+  const cleanupSecurityRef = useRef(null);
 
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
@@ -79,12 +80,14 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
 
-    return () => {
+    cleanupSecurityRef.current = () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
     };
+
+    return () => cleanupSecurityRef.current?.();
   }, [attemptId]);
 
   useEffect(() => {
@@ -178,6 +181,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   };
 
   const handleAutoSubmit = () => {
+    cleanupSecurityRef.current?.();
     alert('Time is up! Your exam will now be automatically submitted.');
     submitFinal(answers);
   };
