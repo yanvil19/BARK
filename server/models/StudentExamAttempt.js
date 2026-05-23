@@ -74,6 +74,13 @@ const studentExamAttemptSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    violations: [
+      {
+        type: { type: String, default: 'suspicious_activity' },
+        reason: { type: String, default: 'Unknown' },   // ← ADD THIS
+        timestamp: { type: Date, default: Date.now }
+      }
+    ]
   },
   { timestamps: true }
 );

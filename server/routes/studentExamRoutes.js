@@ -18,5 +18,6 @@ router.get('/my-attempts', getMyAttempts);
 router.post('/:id/start', startExam);
 router.patch('/attempt/:attemptId/progress', saveProgress);
 router.post('/attempt/:attemptId/submit', submitExam);
+router.post('/attempt/:attemptId/violation', require('../controllers/studentExamController').logViolation);
 
 module.exports = router;

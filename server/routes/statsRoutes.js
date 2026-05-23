@@ -21,6 +21,13 @@ router.get(
 );
 
 router.get(
+  '/program-chair/cheating-logs',
+  protect,
+  authorizeRoles('program_chair'),
+  require('../controllers/statsController').getCheatingLogs
+);
+
+router.get(
   '/dean/dashboard',
   protect,
   authorizeRoles('dean'),
