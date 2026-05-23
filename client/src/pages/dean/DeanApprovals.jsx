@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import { Modal } from '../../components/Modal.jsx';
 import '../../styles/StudentManager.css';
 
 export default function DeanApprovals({ embedded = false }) {
@@ -7,6 +10,12 @@ export default function DeanApprovals({ embedded = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  const [approveModal, setApproveModal] = useState(null);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState(null);
 
   async function load() {
     setBusy(true);
@@ -26,26 +35,55 @@ export default function DeanApprovals({ embedded = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  async function approve(id) {
-    if (!confirm('Approve this request?')) return;
+  function openApproveModal(request) {
+    setApproveModal(request);
+  }
+
+  async function approve() {
+    if (!approveModal?._id) return;
+    setActionBusy(true);
     try {
-      await apiAuth(`/api/auth/registrations/${encodeURIComponent(id)}/approve`, { method: 'PATCH', body: {} });
+      await apiAuth(`/api/auth/registrations/${encodeURIComponent(approveModal._id)}/approve`, { method: 'PATCH', body: {} });
       await load();
+      setApproveModal(null);
     } catch (err) {
-      alert(err.message || 'Approve failed');
+      setFeedbackModal({
+        title: 'Approve Failed',
+        tone: 'danger',
+        message: err.message || 'Approve failed',
+      });
+    } finally {
+      setActionBusy(false);
     }
   }
 
-  async function reject(id) {
-    const reason = prompt('Rejection reason (optional):') || '';
+  function openRejectModal(request) {
+    setRejectModal(request);
+    setRejectReason('');
+    setRejectError('');
+  }
+
+  async function reject() {
+    if (!rejectModal?._id) return;
+    setActionBusy(true);
+    setRejectError('');
     try {
-      await apiAuth(`/api/auth/registrations/${encodeURIComponent(id)}/reject`, {
+      await apiAuth(`/api/auth/registrations/${encodeURIComponent(rejectModal._id)}/reject`, {
         method: 'PATCH',
-        body: { reason },
+        body: { reason: rejectReason.trim() },
       });
       await load();
+      setRejectModal(null);
+      setRejectReason('');
     } catch (err) {
-      alert(err.message || 'Reject failed');
+      setRejectError(err.message || 'Reject failed');
+      setFeedbackModal({
+        title: 'Reject Failed',
+        tone: 'danger',
+        message: err.message || 'Reject failed',
+      });
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -94,8 +132,8 @@ export default function DeanApprovals({ embedded = false }) {
                       <div>
                         {status === 'pending' ? (
                           <>
-                            <button onClick={() => approve(r._id)}>Approve</button>{' '}
-                            <button onClick={() => reject(r._id)}>Reject</button>
+                            <button onClick={() => openApproveModal(r)}>Approve</button>{' '}
+                            <button onClick={() => openRejectModal(r)}>Reject</button>
                           </>
                         ) : null}
                       </div>
@@ -160,10 +198,10 @@ export default function DeanApprovals({ embedded = false }) {
                         <td>{request.program?.code || request.program?.name || '-'}</td>
                         <td>
                           <div className="sm-action-row">
-                            <button type="button" className="sm-btn sm-btn--approve" onClick={() => approve(request._id)}>
+                            <button type="button" className="sm-btn sm-btn--approve" onClick={() => openApproveModal(request)}>
                               Approve
                             </button>
-                            <button type="button" className="sm-btn sm-btn--reject" onClick={() => reject(request._id)}>
+                            <button type="button" className="sm-btn sm-btn--reject" onClick={() => openRejectModal(request)}>
                               Reject with Feedback
                             </button>
                           </div>
@@ -177,6 +215,91 @@ export default function DeanApprovals({ embedded = false }) {
           ) : null}
         </section>
       )}
+
+      <ConfirmationModal
+        open={!!approveModal}
+        onClose={() => {
+          if (actionBusy) return;
+          setApproveModal(null);
+        }}
+        onConfirm={approve}
+        title="Approve Registration"
+        message={(
+          <p style={{ margin: 0 }}>
+            Approve the registration request for <strong>{approveModal?.name}</strong>?
+          </p>
+        )}
+        confirmLabel="Approve Request"
+        cancelLabel="Cancel"
+        confirmVariant="primary"
+        busy={actionBusy}
+      />
+
+      <Modal
+        open={!!rejectModal}
+        onClose={() => {
+          if (actionBusy) return;
+          setRejectModal(null);
+          setRejectReason('');
+          setRejectError('');
+        }}
+        title="Reject Registration"
+        size="compact"
+        bodyClassName="custom-modal-body--compact"
+      >
+        <div className="modal-confirmation">
+          <div className="modal-confirmation-message">
+            <p><strong>Request:</strong> {rejectModal?.name}</p>
+          </div>
+          <div className="modal-form-group">
+            <label>Rejection Reason (optional)</label>
+            <textarea
+              className="modal-textarea"
+              rows="5"
+              value={rejectReason}
+              onChange={(e) => {
+                setRejectReason(e.target.value);
+                if (rejectError) setRejectError('');
+              }}
+              placeholder="Add feedback the student can use when reapplying..."
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {rejectError ? <p className="modal-error">{rejectError}</p> : null}
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onClick={() => {
+              setRejectModal(null);
+              setRejectReason('');
+              setRejectError('');
+            }}
+            disabled={actionBusy}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="modal-btn-danger"
+            onClick={reject}
+            disabled={actionBusy}
+          >
+            {actionBusy ? 'Submitting...' : 'Reject Request'}
+          </button>
+        </div>
+      </Modal>
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
     </main>
   );
 }

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -23,6 +25,9 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
   const [schedulingExamId, setSchedulingExamId] = useState(null);
+  const [confirmationModal, setConfirmationModal] = useState(null);
+  const [feedbackModal, setFeedbackModal] = useState(null);
+  const [modalBusy, setModalBusy] = useState(false);
 
   useEffect(() => {
     async function fetchExams() {
@@ -39,55 +44,240 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
     fetchExams();
   }, [refreshKey]);
 
-  async function handleDelete(exam) {
-    if (!window.confirm(`Delete mock board exam "${exam.name}"?`)) return;
+  function closeConfirmationModal() {
+    if (modalBusy) return;
+    setConfirmationModal(null);
+  }
+
+  function closeFeedbackModal() {
+    const nextAction = feedbackModal?.onClose;
+    setFeedbackModal(null);
+    nextAction?.();
+  }
+
+  function updateExamStatus(examId, status) {
+    setExams((prev) => prev.map((exam) => (
+      exam._id === examId ? { ...exam, status } : exam
+    )));
+    if (selectedExam?._id === examId) {
+      setSelectedExam((prev) => (prev ? { ...prev, status } : prev));
+    }
+  }
+
+  function handleDelete(exam) {
+    setConfirmationModal({
+      type: 'delete',
+      exam,
+      title: 'Delete Archived Exam',
+      message: (
+        <p style={{ margin: 0 }}>
+          Permanently delete <strong>{exam.name}</strong>?
+        </p>
+      ),
+      confirmLabel: 'Delete Exam',
+      confirmVariant: 'danger',
+    });
+  }
+
+  async function confirmDelete(exam) {
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
         method: 'DELETE',
       });
       setExams((prev) => prev.filter((e) => e._id !== exam._id));
       if (selectedExam?._id === exam._id) setSelectedExam(null);
+      setFeedbackModal({
+        title: 'Exam Deleted',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{exam.name}</strong> was removed permanently.
+          </p>
+        ),
+      });
     } catch (err) {
-      alert(err.message || 'Failed to delete mock board exam.');
+      setFeedbackModal({
+        title: 'Delete Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to delete mock board exam.',
+      });
     }
   }
 
-  async function handleArchive(exam) {
-    if (!window.confirm(`Archive "${exam.name}"? This will move it out of the active list.`)) return;
+  function handleArchive(exam) {
+    setConfirmationModal({
+      type: 'archive',
+      exam,
+      title: 'Archive Exam',
+      message: (
+        <p style={{ margin: 0 }}>
+          Archive <strong>{exam.name}</strong>? This will move it out of the active list.
+        </p>
+      ),
+      confirmLabel: 'Archive Exam',
+      confirmVariant: 'danger',
+    });
+  }
+
+  async function confirmArchive(exam) {
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/archive`, { method: 'PATCH' });
-      setExams((prev) => prev.map((e) => e._id === exam._id ? { ...e, status: 'archived' } : e));
-      if (selectedExam?._id === exam._id) setSelectedExam((prev) => ({ ...prev, status: 'archived' }));
+      updateExamStatus(exam._id, 'archived');
+      setFeedbackModal({
+        title: 'Exam Archived',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{exam.name}</strong> is now archived.
+          </p>
+        ),
+      });
     } catch (err) {
-      alert(err.message || 'Failed to archive exam.');
+      setFeedbackModal({
+        title: 'Archive Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to archive exam.',
+      });
     }
   }
 
-  async function handlePublish(exam) {
-    if (!window.confirm(`Publish "${exam.name}"? This will make it available to students.`)) return;
+  function handlePublish(exam) {
+    setConfirmationModal({
+      type: 'publish',
+      exam,
+      title: 'Publish Draft Exam',
+      message: (
+        <p style={{ margin: 0 }}>
+          Publish <strong>{exam.name}</strong>? This will make it available to students.
+        </p>
+      ),
+      confirmLabel: 'Publish Exam',
+      confirmVariant: 'primary',
+    });
+  }
+
+  async function confirmPublish(exam) {
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
         method: 'PATCH',
         body: { status: 'published' }
       });
-      setExams((prev) => prev.map((e) => e._id === exam._id ? { ...e, status: 'published' } : e));
-      if (selectedExam?._id === exam._id) setSelectedExam(prev => ({ ...prev, status: 'published' }));
+      updateExamStatus(exam._id, 'published');
+      setFeedbackModal({
+        title: 'Exam Published',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{exam.name}</strong> is now live for students.
+          </p>
+        ),
+      });
     } catch (err) {
-      alert(err.message || 'Failed to publish exam.');
+      setFeedbackModal({
+        title: 'Publish Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to publish exam.',
+      });
     }
   }
 
   async function handleScheduleResults(examId, date) {
+    const exam = exams.find((item) => item._id === examId);
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
         method: 'PATCH',
         body: { resultsReleaseDate: date },
       });
       setExams((prev) => prev.map((e) => e._id === examId ? { ...e, resultsReleaseDate: date } : e));
+      if (selectedExam?._id === examId) {
+        setSelectedExam((prev) => (prev ? { ...prev, resultsReleaseDate: date } : prev));
+      }
       setSchedulingExamId(null);
-      alert('Results release scheduled successfully.');
+      setFeedbackModal({
+        title: 'Results Release Scheduled',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            {exam?.name ? <><strong>{exam.name}</strong> will release results on </> : 'Results will be released on '}
+            <strong>{formatDateTime(date)}</strong>.
+          </p>
+        ),
+      });
     } catch (err) {
-      alert(err.message || 'Failed to schedule results release.');
+      setFeedbackModal({
+        title: 'Scheduling Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to schedule results release.',
+      });
+    }
+  }
+
+  function handleEdit(exam) {
+    if (exam.status === 'published') {
+      setConfirmationModal({
+        type: 'editPublished',
+        exam,
+        title: 'Edit Published Exam',
+        message: (
+          <p style={{ margin: 0 }}>
+            Editing <strong>{exam.name}</strong> will turn it back into a draft and take it offline first.
+          </p>
+        ),
+        confirmLabel: 'Turn to Draft',
+        confirmVariant: 'primary',
+      });
+      return;
+    }
+
+    onEditExam(exam._id);
+  }
+
+  async function confirmEditPublished(exam) {
+    try {
+      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
+        method: 'PATCH',
+        body: { status: 'draft' }
+      });
+      updateExamStatus(exam._id, 'draft');
+      setFeedbackModal({
+        title: 'Published Exam Reverted to Draft',
+        tone: 'warning',
+        dismissLabel: 'Continue to Edit',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{exam.name}</strong> was taken offline and moved back to draft so it can be edited safely.
+          </p>
+        ),
+        onClose: () => onEditExam(exam._id),
+      });
+    } catch (err) {
+      setFeedbackModal({
+        title: 'Unable to Edit Published Exam',
+        tone: 'danger',
+        message: err.message || 'Failed to revert the exam to draft.',
+      });
+    }
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmationModal?.exam) return;
+
+    const { type, exam } = confirmationModal;
+    setModalBusy(true);
+    setConfirmationModal(null);
+
+    try {
+      if (type === 'delete') {
+        await confirmDelete(exam);
+      } else if (type === 'archive') {
+        await confirmArchive(exam);
+      } else if (type === 'publish') {
+        await confirmPublish(exam);
+      } else if (type === 'editPublished') {
+        await confirmEditPublished(exam);
+      }
+    } finally {
+      setModalBusy(false);
     }
   }
 
@@ -105,7 +295,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
       );
       setSelectedExam(data.exam || null);
     } catch (err) {
-      alert(err.message || 'Failed to load exam details.');
+      setFeedbackModal({
+        title: 'Unable to Load Exam Details',
+        tone: 'danger',
+        message: err.message || 'Failed to load exam details.',
+      });
     }
   }
 
@@ -205,7 +399,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                           className="ambe-btn publish"
                           onClick={() => handlePublish(exam)}
                         >
-                          Published
+                          Publish
                         </button>
                       )}
 
@@ -223,25 +417,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         <button
                           type="button"
                           className="ambe-btn primary"
-                          onClick={async () => {
-                            if (exam.status === 'published') {
-                              if (!window.confirm(`Editing "${exam.name}" will immediately revert it to Draft and take it offline. Continue?`)) return;
-                              
-                              try {
-                                // Perform immediate revert to draft
-                                await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
-                                  method: 'PATCH',
-                                  body: { status: 'draft' }
-                                });
-                                // Update local state so UI reflects it immediately
-                                setExams(prev => prev.map(e => e._id === exam._id ? { ...e, status: 'draft' } : e));
-                              } catch (err) {
-                                alert('Failed to revert exam to draft: ' + err.message);
-                                return;
-                              }
-                            }
-                            onEditExam(exam._id);
-                          }}
+                          onClick={() => handleEdit(exam)}
                         >
                           Edit
                         </button>
@@ -418,6 +594,26 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
         </section>
       )}
+
+      <ConfirmationModal
+        open={!!confirmationModal}
+        onClose={closeConfirmationModal}
+        onConfirm={handleConfirmAction}
+        title={confirmationModal?.title || 'Confirm Action'}
+        message={confirmationModal?.message}
+        confirmLabel={confirmationModal?.confirmLabel || 'Confirm'}
+        confirmVariant={confirmationModal?.confirmVariant || 'primary'}
+        busy={modalBusy}
+      />
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={closeFeedbackModal}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+        dismissLabel={feedbackModal?.dismissLabel || 'Okay'}
+      />
     </main>
   );
 }

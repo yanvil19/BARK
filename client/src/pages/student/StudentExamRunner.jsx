@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/MockBoardExamPreview.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -22,12 +24,17 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   const [isBlurred, setIsBlurred] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [violationCount, setViolationCount] = useState(0);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [autoSubmitModal, setAutoSubmitModal] = useState(null);
+  const [feedbackModal, setFeedbackModal] = useState(null);
 
   const saveTimeoutRef = useRef(null);
+  const finishTimeoutRef = useRef(null);
 
   const lastViolationTimeRef = useRef(0);
   const violationCountRef = useRef(0);
   const cleanupSecurityRef = useRef(null);
+  const autoSubmitTriggeredRef = useRef(false);
 
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
@@ -112,6 +119,13 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
     startOrResumeExam();
   }, [examId]);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (finishTimeoutRef.current) clearTimeout(finishTimeoutRef.current);
+    };
+  }, []);
+
   // Timer logic strictly based on endDateTime - now()
   useEffect(() => {
     if (!examEndDateTime || loading || submitting || error) return;
@@ -160,30 +174,60 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
     }, 2000);
   };
 
-  const submitFinal = async (finalAnswers) => {
+  const submitFinal = async (finalAnswers, { autoSubmitted = false } = {}) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
     setSubmitting(true);
     try {
       await apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/submit`, {
         method: 'POST',
         body: { answers: finalAnswers }
       });
+
+      if (autoSubmitted) {
+        setAutoSubmitModal({
+          title: 'Time Is Up',
+          tone: 'warning',
+          message: 'Your exam time has ended. Your answers have been submitted automatically.',
+        });
+
+        finishTimeoutRef.current = setTimeout(() => {
+          onFinish();
+        }, 1200);
+        return;
+      }
+
       onFinish();
     } catch (err) {
-      alert(err.message || 'Failed to submit exam.');
+      setFeedbackModal({
+        title: 'Submission Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to submit exam.',
+      });
+      setAutoSubmitModal(null);
       setSubmitting(false);
+      autoSubmitTriggeredRef.current = false;
     }
   };
 
   const handleManualSubmit = () => {
-    if (window.confirm('Are you sure you want to submit your exam? You cannot change your answers after this.')) {
-      submitFinal(answers);
-    }
+    setShowSubmitConfirm(true);
   };
 
   const handleAutoSubmit = () => {
+    if (submitting || autoSubmitTriggeredRef.current) return;
+
+    autoSubmitTriggeredRef.current = true;
     cleanupSecurityRef.current?.();
-    alert('Time is up! Your exam will now be automatically submitted.');
-    submitFinal(answers);
+    setAutoSubmitModal({
+      title: 'Time Is Up',
+      tone: 'warning',
+      message: 'Your exam time has ended. Your answers are being submitted automatically.',
+    });
+    submitFinal(answers, { autoSubmitted: true });
   };
 
   if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
@@ -222,6 +266,40 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        open={showSubmitConfirm}
+        onClose={() => setShowSubmitConfirm(false)}
+        onConfirm={() => {
+          setShowSubmitConfirm(false);
+          submitFinal(answers);
+        }}
+        title="Submit Exam"
+        message="Are you sure you want to submit your exam? You cannot change your answers after this."
+        confirmLabel="Submit Exam"
+        confirmVariant="primary"
+        busy={submitting}
+      />
+
+      <FeedbackModal
+        open={!!autoSubmitModal}
+        onClose={() => {
+          if (submitting) return;
+          setAutoSubmitModal(null);
+        }}
+        title={autoSubmitModal?.title || 'Time Is Up'}
+        tone={autoSubmitModal?.tone || 'warning'}
+        message={autoSubmitModal?.message}
+        showDismissButton={false}
+      />
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
 
       <div className={`mbep-page ${isBlurred ? 'mbep-page-blurred' : 'mbep-page-secure'}`}>
         <header className="mbep-header">

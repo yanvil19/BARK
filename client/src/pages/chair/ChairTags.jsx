@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { Modal } from '../../components/Modal.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/SubjectTags.css';
 import '../../styles/global.css';
 
@@ -20,8 +22,8 @@ export default function ChairTags({ me }) {
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
+  const [feedbackModal, setFeedbackModal] = useState(null);
 
   async function fetchPrograms() {
     if (!isDean) return;
@@ -99,6 +101,10 @@ export default function ChairTags({ me }) {
     setEditValues((prev) => { const n = { ...prev }; delete n[id]; return n; });
   }
 
+  function closeDeleteModal() {
+    setTagToDelete(null);
+  }
+
   async function saveEdit(tag) {
     const name = editValues[tag._id];
     if (!name?.trim()) return;
@@ -107,13 +113,16 @@ export default function ChairTags({ me }) {
       setTags((prev) => prev.map((t) => (t._id === tag._id ? data.tag : t)).sort((a, b) => a.name.localeCompare(b.name)));
       cancelEdit(tag._id);
     } catch (err) {
-      alert(err.message || 'Failed to update tag.');
+      setFeedbackModal({
+        title: 'Update Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to update tag.',
+      });
     }
   }
 
   function handleDelete(tag) {
     setTagToDelete(tag);
-    setShowDeleteModal(true);
   }
 
   async function confirmDelete() {
@@ -122,10 +131,13 @@ export default function ChairTags({ me }) {
     try {
       await apiAuth(`${BASE}/api/tags/${tagToDelete._id}`, { method: 'DELETE' });
       setTags((prev) => prev.filter((t) => t._id !== tagToDelete._id));
-      setShowDeleteModal(false);
-      setTagToDelete(null);
+      closeDeleteModal();
     } catch (err) {
-      alert(err.message || 'Failed to delete tag.');
+      setFeedbackModal({
+        title: 'Delete Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to delete tag.',
+      });
     } finally {
       setSaving(false);
     }
@@ -342,38 +354,32 @@ export default function ChairTags({ me }) {
         </form>
       </Modal>
 
-      <Modal
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+      <ConfirmationModal
+        open={!!tagToDelete}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
         title="Delete Subject"
-      >
-        <div className="qp-modal-copy">
-          <p className="qp-modal-subtitle">
+        message={(
+          <p style={{ margin: 0 }}>
             Are you sure you want to delete the subject <strong>"{tagToDelete?.name}"</strong>?
           </p>
-          <p className="qp-modal-subtitle qp-warning-text">
-            This action cannot be undone and may affect questions categorized under this subject.
-          </p>
-        </div>
+        )}
+        confirmLabel="Delete Subject"
+        confirmVariant="danger"
+        busy={saving}
+      >
+        <p className="qp-warning-text" style={{ margin: 0 }}>
+          This action cannot be undone and may affect questions categorized under this subject.
+        </p>
+      </ConfirmationModal>
 
-        <div className="modal-actions ct-modal-actions">
-          <button
-            type="button"
-            className="modal-btn-cancel"
-            onClick={() => setShowDeleteModal(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="modal-btn-danger"
-            onClick={confirmDelete}
-            disabled={saving}
-          >
-            {saving ? 'Deleting...' : 'Delete Subject'}
-          </button>
-        </div>
-      </Modal>
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
     </main>
   );
 }

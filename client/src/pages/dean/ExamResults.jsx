@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/ExamResults.css';
 
 // --- SHARED UI HELPERS ---
@@ -26,6 +27,14 @@ const formatDateTime = (dateStr) => {
     minute: '2-digit',
     hour12: true
   });
+};
+
+const formatStatusLabel = (status) => {
+  if (!status) return 'Unknown';
+  return status
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 };
 
 // --- MEMOIZED COMPONENTS ---
@@ -116,9 +125,27 @@ const ExamResults = () => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
+  const [feedbackModal, setFeedbackModal] = useState(null);
 
   // Threshold state is strictly managed via handleViewReport (from MockBoardExam metadata).
   // This ensures the current exam setting always wins over legacy computed reports.
+
+  const selectedExam = useMemo(
+    () => exams.find((exam) => exam._id === selectedExamId) || null,
+    [exams, selectedExamId]
+  );
+
+  const showAnalysisBlockedModal = useCallback((exam) => {
+    setFeedbackModal({
+      title: 'Analysis Not Available Yet',
+      tone: 'warning',
+      message: (
+        <p style={{ margin: 0 }}>
+          <strong>{exam?.name || 'This exam'}</strong> is currently <strong>{formatStatusLabel(exam?.status)}</strong>. Analysis can be generated once the exam is finished.
+        </p>
+      ),
+    });
+  }, []);
 
   const fetchExams = useCallback(async () => {
     try {
@@ -132,13 +159,21 @@ const ExamResults = () => {
   }, []);
 
   const handleViewReport = useCallback(async (examId) => {
+    const exam = exams.find((item) => item._id === examId);
     setSelectedExamId(examId);
     setLoading(true);
     
     // Auto-sync threshold from exam list
-    const exam = exams.find(e => e._id === examId);
     if (exam && (exam.passingThreshold !== undefined && exam.passingThreshold !== null)) {
       setThreshold(exam.passingThreshold);
+    }
+
+    if (exam && exam.computationStatus !== 'computed' && exam.status !== 'finished') {
+      setActiveReport(null);
+      setExpandedSubjectName(null);
+      setLoading(false);
+      showAnalysisBlockedModal(exam);
+      return;
     }
 
     try {
@@ -152,7 +187,7 @@ const ExamResults = () => {
     } finally {
       setLoading(false);
     }
-  }, [exams]);
+  }, [exams, showAnalysisBlockedModal]);
 
   useEffect(() => {
     fetchExams();
@@ -174,13 +209,23 @@ const ExamResults = () => {
   }, [selectedExamId, activeReport?.status, fetchExams]);
 
   const handleCompute = async (examId) => {
+    const exam = exams.find((item) => item._id === examId);
+    if (exam && exam.status !== 'finished') {
+      showAnalysisBlockedModal(exam);
+      return;
+    }
+
     setComputingId(examId);
     try {
       const data = await computeExamResult(examId, threshold);
       fetchExams();
       if (selectedExamId === examId) setActiveReport(data.result);
     } catch (err) {
-      alert('Computation failed: ' + err.message);
+      setFeedbackModal({
+        title: 'Computation Failed',
+        tone: 'danger',
+        message: err.message || 'Unable to generate analysis right now.',
+      });
     } finally {
       setComputingId(null);
     }
@@ -271,7 +316,20 @@ const ExamResults = () => {
             </div>
           )}
 
-          {selectedExamId && !loading && !activeReport && (
+          {selectedExamId && !loading && !activeReport && selectedExam?.status !== 'finished' && selectedExam?.computationStatus !== 'computed' && (
+            <div className="er-empty-report" style={{ textAlign: 'center', padding: '60px 100px', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px' }}>📋</div>
+              <h2 style={{ color: '#1e2d6b', marginBottom: '12px', fontWeight: '800' }}>Analysis Not Ready Yet</h2>
+              <p style={{ color: '#6b7280', marginBottom: '12px' }}>
+                This exam is still marked as <strong>{formatStatusLabel(selectedExam?.status)}</strong>.
+              </p>
+              <p style={{ color: '#6b7280', margin: 0 }}>
+                Finish the exam first before generating the analytical breakdown.
+              </p>
+            </div>
+          )}
+
+          {selectedExamId && !loading && !activeReport && (selectedExam?.status === 'finished' || selectedExam?.computationStatus === 'computed') && (
             <div className="er-empty-report" style={{ textAlign: 'center', padding: '60px 100px', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
               <div style={{ fontSize: '48px', marginBottom: '20px' }}>📊</div>
               <h2 style={{ color: '#1e2d6b', marginBottom: '12px', fontWeight: '800' }}>Results Ready to Compute</h2>
@@ -349,6 +407,14 @@ const ExamResults = () => {
           )}
         </main>
       </div>
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
     </div>
   );
 };

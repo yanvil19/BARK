@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -14,6 +15,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   const [answers, setAnswers] = useState({}); // { questionId: answerId }
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Fetch and randomize questions for Test Run
   useEffect(() => {
@@ -82,10 +84,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   };
 
   const handleSubmit = () => {
-    if (window.confirm('Are you sure you want to submit your exam?')) {
-      setSubmitted(true);
-      setCurrentIdx(0); // Go back to start to review results
-    }
+    setShowSubmitConfirm(true);
   };
 
   if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Test Run...</h3></div></div>;
@@ -99,6 +98,20 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
 
   return (
     <div className="mbep-page">
+      <ConfirmationModal
+        open={showSubmitConfirm}
+        onClose={() => setShowSubmitConfirm(false)}
+        onConfirm={() => {
+          setShowSubmitConfirm(false);
+          setSubmitted(true);
+          setCurrentIdx(0);
+        }}
+        title="Submit Test Run"
+        message="Are you sure you want to submit your exam?"
+        confirmLabel="Submit Exam"
+        cancelLabel="Cancel"
+        confirmVariant="primary"
+      />
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="mbep-header">
         <div className="mbep-header-info">

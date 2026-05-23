@@ -3,6 +3,8 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
+import { Modal } from '../../components/Modal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/MockBoardExam.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -50,6 +52,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [approvedSelectionFilter, setApprovedSelectionFilter] = useState('all');
   const [questionStateFilter, setQuestionStateFilter] = useState('all');
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
+  const [returnModal, setReturnModal] = useState(null);
+  const [returnNote, setReturnNote] = useState('');
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnError, setReturnError] = useState('');
+  const [feedbackModal, setFeedbackModal] = useState(null);
   const [form, setForm] = useState({
     name: '',
     startDateTime: '',
@@ -109,7 +116,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         setProgramId(exam.program?._id || exam.program || '');
         setSelectedTagIds(nextTagIds);
         setSelectedQuestions(nextQuestions);
-        setForm({
+      setForm({
           name: exam.name || '',
           startDateTime: toLocalDateTimeInput(exam.startDateTime),
           endDateTime: toLocalDateTimeInput(exam.endDateTime),
@@ -119,7 +126,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           passingThreshold: exam.passingThreshold || 70,
         });
       } catch (err) {
-        alert(err.message || 'Failed to load mock board exam.');
+        setFeedbackModal({
+          title: 'Unable to Load Exam',
+          tone: 'danger',
+          message: err.message || 'Failed to load mock board exam.',
+        });
       }
     }
 
@@ -259,25 +270,40 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     });
   }
 
-  async function handleReturnQuestion(question) {
-    const existing = feedbackByQuestionId[question._id] || '';
-    const note = window.prompt('Return this approved question with feedback', existing);
-    if (note === null) return;
-    if (!note.trim()) {
-      alert('Feedback is required.');
+  function handleReturnQuestion(question) {
+    setReturnModal(question);
+    setReturnNote(feedbackByQuestionId[question._id] || '');
+    setReturnError('');
+  }
+
+  async function submitReturnQuestion() {
+    if (!returnModal) return;
+    if (!returnNote.trim()) {
+      setReturnError('Please enter feedback before returning this question.');
       return;
     }
 
+    setReturnSubmitting(true);
+    setReturnError('');
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/dean-return`, {
+      await apiAuth(`${BASE}/api/questions/${returnModal._id}/dean-return`, {
         method: 'POST',
-        body: { note: note.trim() },
+        body: { note: returnNote.trim() },
       });
-      setFeedbackByQuestionId((prev) => ({ ...prev, [question._id]: note.trim() }));
-      setApprovedQuestions((prev) => prev.filter((item) => item._id !== question._id));
-      setSelectedQuestions((prev) => prev.filter((item) => item._id !== question._id));
+      setFeedbackByQuestionId((prev) => ({ ...prev, [returnModal._id]: returnNote.trim() }));
+      setApprovedQuestions((prev) => prev.filter((item) => item._id !== returnModal._id));
+      setSelectedQuestions((prev) => prev.filter((item) => item._id !== returnModal._id));
+      setReturnModal(null);
+      setReturnNote('');
     } catch (err) {
-      alert(err.message || 'Failed to return question.');
+      setReturnError(err.message || 'Failed to return question.');
+      setFeedbackModal({
+        title: 'Return Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to return question.',
+      });
+    } finally {
+      setReturnSubmitting(false);
     }
   }
 
@@ -326,9 +352,19 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       else setProgramId('');
       if (onClearEditing) onClearEditing();
       if (onExamSaved) onExamSaved();
-      alert(editingExamId ? 'Mock board exam updated.' : 'Mock board exam created.');
+      setFeedbackModal({
+        title: editingExamId ? 'Mock Board Exam Updated' : 'Mock Board Exam Created',
+        tone: 'success',
+        message: editingExamId
+          ? 'Your changes were saved successfully.'
+          : 'The mock board exam was created successfully.',
+      });
     } catch (err) {
-      alert(err.message || 'Failed to save mock board exam.');
+      setFeedbackModal({
+        title: 'Save Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to save mock board exam.',
+      });
     } finally {
       setSaving(false);
     }
@@ -760,6 +796,73 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           ) : null}
         </section>
       </form>
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
+
+      <Modal
+        open={!!returnModal}
+        onClose={() => {
+          if (returnSubmitting) return;
+          setReturnModal(null);
+          setReturnNote('');
+          setReturnError('');
+        }}
+        title="Return Question with Feedback"
+        size="compact"
+        bodyClassName="custom-modal-body--compact"
+      >
+        <div className="modal-confirmation">
+          <div className="modal-confirmation-message">
+            <p><strong>Question:</strong> {returnModal?.title}</p>
+          </div>
+
+          <div className="modal-form-group">
+            <label>Feedback (required)</label>
+            <textarea
+              className="modal-textarea"
+              rows="5"
+              value={returnNote}
+              onChange={(e) => {
+                setReturnNote(e.target.value);
+                if (returnError) setReturnError('');
+              }}
+              placeholder="Explain why this question is being returned..."
+              autoFocus
+            />
+          </div>
+        </div>
+
+        {returnError ? <p className="modal-error">{returnError}</p> : null}
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onClick={() => {
+              setReturnModal(null);
+              setReturnNote('');
+              setReturnError('');
+            }}
+            disabled={returnSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="modal-btn-primary"
+            onClick={submitReturnQuestion}
+            disabled={returnSubmitting || !returnNote.trim()}
+          >
+            {returnSubmitting ? 'Submitting...' : 'Return Question'}
+          </button>
+        </div>
+      </Modal>
     </main>
   );
 }

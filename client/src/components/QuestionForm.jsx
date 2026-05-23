@@ -9,8 +9,17 @@ function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
 }
 
-export default function QuestionForm({ tags, programId, initialData, onSaved, onClose, readOnly = false, importedQuestions = [] }) {
-    const [questionsData, setQuestionsData] = useState(() => {
+export default function QuestionForm({
+  tags,
+  programId,
+  initialData,
+  onSaved,
+  onClose,
+  readOnly = false,
+  importedQuestions = [],
+  onFeedback,
+}) {
+  const [questionsData, setQuestionsData] = useState(() => {
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
@@ -51,6 +60,17 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
   });
   const [saving, setSaving] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
+
+  function showFeedback({ title = 'Notification', message, tone = 'info' }) {
+    if (!message) return;
+
+    if (typeof onFeedback === 'function') {
+      onFeedback({ title, message, tone });
+      return;
+    }
+
+    alert(message);
+  }
 
   function updateQuestion(qId, updater) {
     setQuestionsData(prev => prev.map(q => q.id === qId ? updater(q) : q));
@@ -210,7 +230,11 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     if (readOnly) return;
     const err = validate(submit);
     if (err) {
-      alert(err);
+      showFeedback({
+        title: submit ? 'Cannot Submit Question' : 'Cannot Save Draft',
+        message: err,
+        tone: 'danger',
+      });
       return;
     }
 
@@ -247,7 +271,11 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
-      alert(err.message || 'Failed to save question(s).');
+      showFeedback({
+        title: 'Save Failed',
+        message: err.message || 'Failed to save question(s).',
+        tone: 'danger',
+      });
     } finally {
       setSaving(false);
     }

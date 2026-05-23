@@ -3,6 +3,8 @@ import { apiAuth } from '../../lib/api.js';
 import { uploadDocumentForImport, submitImportedQuestions } from '../../lib/importApi.js';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/QuestionsPage.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -46,7 +48,9 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [questionToSubmit, setQuestionToSubmit] = useState(null);
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
@@ -193,6 +197,10 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setViewQuestion(null);
   }
 
+  function closeDeleteModal() {
+    setQuestionToDelete(null);
+  }
+
   function openCreateModal() {
     setEditQuestion(null);
     setShowForm(true);
@@ -227,7 +235,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
   function handleDelete(question) {
     setQuestionToDelete(question);
-    setShowDeleteModal(true);
   }
 
   async function confirmDelete() {
@@ -235,21 +242,36 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     try {
       await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
       setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
-      setShowDeleteModal(false);
-      setQuestionToDelete(null);
+      closeDeleteModal();
     } catch (err) {
-      alert(err.message || 'Failed to delete question.');
+      setFeedbackModal({
+        title: 'Delete Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to delete question.',
+      });
     }
   }
 
-  async function handleSubmit(question) {
-    if (!window.confirm(`Submit "${question.title}" for Chair review? You won't be able to edit it after this.`)) return;
+  function handleSubmit(question) {
+    setQuestionToSubmit(question);
+  }
 
+  async function confirmSubmit() {
+    if (!questionToSubmit) return;
+
+    setSubmitBusy(true);
     try {
-      const data = await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
-      setQuestions((prev) => prev.map((item) => (item._id === question._id ? data.question : item)));
+      const data = await apiAuth(`${BASE}/api/questions/${questionToSubmit._id}/submit`, { method: 'POST' });
+      setQuestions((prev) => prev.map((item) => (item._id === questionToSubmit._id ? data.question : item)));
+      setQuestionToSubmit(null);
     } catch (err) {
-      alert(err.message || 'Failed to submit question.');
+      setFeedbackModal({
+        title: 'Submission Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to submit question.',
+      });
+    } finally {
+      setSubmitBusy(false);
     }
   }
 
@@ -583,6 +605,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           programId={programId}
           initialData={editQuestion}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
+          onFeedback={setFeedbackModal}
           onSaved={(savedData, isEdit) => {
             handleSaved(savedData, isEdit);
             setImportedQuestions([]); // Clear after save
@@ -609,42 +632,55 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         <QuestionForm
           tags={tags}
           initialData={viewQuestion}
+          onFeedback={setFeedbackModal}
           onClose={closeViewModal}
           readOnly={true}
         />
       </Modal>
 
-      <Modal
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+      <ConfirmationModal
+        open={!!questionToDelete}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
         title="Delete Question"
-      >
-        <div className="qp-modal-copy">
-          <p className="qp-modal-subtitle">
+        message={(
+          <p style={{ margin: 0 }}>
             Are you sure you want to delete <strong>"{questionToDelete?.title}"</strong>?
           </p>
-          <p className="qp-modal-subtitle qp-warning-text">
-            This action cannot be undone. Drafts will be permanently removed.
-          </p>
-        </div>
+        )}
+        confirmLabel="Delete Question"
+        confirmVariant="danger"
+      >
+        <p className="qp-warning-text" style={{ margin: 0 }}>
+          This action cannot be undone. Drafts will be permanently removed.
+        </p>
+      </ConfirmationModal>
 
-        <div className="modal-actions qp-modal-actions">
-          <button
-            type="button"
-            className="modal-btn-cancel"
-            onClick={() => setShowDeleteModal(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="modal-btn-danger"
-            onClick={confirmDelete}
-          >
-            Delete Question
-          </button>
-        </div>
-      </Modal>
+      <ConfirmationModal
+        open={!!questionToSubmit}
+        onClose={() => {
+          if (submitBusy) return;
+          setQuestionToSubmit(null);
+        }}
+        onConfirm={confirmSubmit}
+        title={questionToSubmit?.state === 'returned' ? 'Re-submit Question' : 'Submit Question'}
+        message={(
+          <p style={{ margin: 0 }}>
+            Submit <strong>"{questionToSubmit?.title}"</strong> for Chair review? You won't be able to edit it after this.
+          </p>
+        )}
+        confirmLabel={questionToSubmit?.state === 'returned' ? 'Re-submit' : 'Submit'}
+        confirmVariant="primary"
+        busy={submitBusy}
+      />
+
+      <FeedbackModal
+        open={!!feedbackModal}
+        onClose={() => setFeedbackModal(null)}
+        title={feedbackModal?.title || 'Notification'}
+        tone={feedbackModal?.tone || 'info'}
+        message={feedbackModal?.message}
+      />
 
       {/* Import Modal */}
       <Modal

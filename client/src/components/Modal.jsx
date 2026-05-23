@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/Modal.css';
 
-export function Modal({ open, onClose, title, children }) {
+export function Modal({ open, onClose, title, children, size = 'default', bodyClassName = '' }) {
   const dialogRef = useRef(null);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function Modal({ open, onClose, title, children }) {
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="custom-modal"
+      className={`custom-modal custom-modal--${size}`}
       onClick={handleBackdropClick}
       onClose={onClose}
     >
@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, children }) {
             &times;
           </button>
         </div>
-        <div className="custom-modal-body">
+        <div className={`custom-modal-body ${bodyClassName}`.trim()}>
           {children}
         </div>
       </div>

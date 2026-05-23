@@ -15,75 +15,78 @@
 /* MODAL BOX */
 .profile-modal {
   position: absolute;
-  border-radius: 10px;
+  border-radius: 18px;
   top: 48px;
   right: 0;
-  min-width: 300px;
+  min-width: 320px;
   max-width: 90vw;
   background: #ffffff;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.22);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   z-index: 2000;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  overflow: hidden;
 }
 
 /* TITLE */
+.profile-modal-header {
+  background: linear-gradient(135deg, var(--primary-bg, #35408e) 0%, #4653a7 100%);
+  padding: 18px 20px 16px;
+}
+
 .profile-modal-header h3 {
-  margin: 0 0 12px;
-  font-size: 20px;
-  font-weight: 700;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
   font-family: var(--font-title);
-  color: #35408e;
-  border-radius: 10px 10px 0 0;
-
-  padding: 0.3em 1em;
-
-  border-bottom: 1px solid #35408e;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
 .profile-modal-identifiers {
   display: flex;
   flex-direction: column;
-  margin-bottom: 2em;
+  gap: 8px;
+  padding: 20px 20px 12px;
 }
 
 .profile-modal-identifiers .userName {
   margin: 0;
-  font-size: 30px;
+  font-size: 28px;
   font-family: var(--font-title);
   font-weight: bolder;
   color: #35408e;
-  justify-content: center;
+  line-height: 1.1;
 }
 
 .profile-modal-identifiers .role {
-  background-color: transparent;
+  background-color: #eef2ff;
   color: var(--primary-bg);
-  border: 1px solid var(--primary-bg);
-  border-radius: 10px;
-  align-self: center;
-  justify-content: center;
-
-  width: 50%;
+  border: 1px solid rgba(53, 64, 142, 0.12);
+  border-radius: 999px;
+  align-self: flex-start;
   margin: 0;
-  padding: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
 }
 
 .email, .studentID, .department, .program {
-  margin: 0 0 0.5em 0;
-  font-size: 13px;
+  margin: 0 0 0.75em 0;
+  font-size: 14px;
   font-family: var(--font-body);
   color: rgba(53, 64, 142, 1);
 }
 
 .email-icon {
-  padding-left: 1em;
-  width: 20px;
-  height: 20px;
-  color: #fad227;
+  width: 18px;
+  height: 18px;
+  color: #7c88c9;
   flex-shrink: 0;
 }
 
@@ -95,10 +98,20 @@
 .profile-modal p {
   display: flex;
   flex-wrap: wrap;
-  gap: 1em;
+  gap: 0.75em;
 
   align-items: center;
   justify-content: flex-start;
+}
+
+.profile-modal > .email {
+  padding: 0 20px 18px;
+  margin: 0;
+  border-bottom: 1px solid #e8edf5;
+}
+
+.profile-modal-additional-info {
+  padding: 18px 20px 6px;
 }
 
 .profile-modal-additional-info p {
@@ -109,10 +122,9 @@
 }
 
 .profile-modal-additional-info .studentID-icon, .profile-modal-additional-info .department-icon, .profile-modal-additional-info .program-icon {
-  padding-left: 1em;
-  width: 20px;
-  height: 20px;
-  color: #fad227;
+  width: 18px;
+  height: 18px;
+  color: #7c88c9;
   flex-shrink: 0;
 }
 
@@ -122,40 +134,40 @@
 
 /* LOGOUT BUTTON INSIDE MODAL */
 .profile-modal .logout-btn {
-  background-color: transparent !important;
-  color: var(--primary-bg) !important;
-  border: 2px solid var(--primary-bg) !important;
-  width: 15em;
+  background-color: #ffffff !important;
+  color: #475467 !important;
+  border: 1px solid #d0d5dd !important;
+  width: calc(100% - 40px);
   align-self: center;
-  margin: 2em 0 1em 0;
-  font-family: var(--font-title);
+  margin: 12px 20px 10px;
+  font-family: var(--font-body);
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 10px;
+  padding: 11px 14px;
 }
 
 .profile-modal .logout-btn:hover {
-  background-color: var(--primary-bg) !important;
-  color: var(--accent-yellow) !important;
+  background-color: #f8fafc !important;
+  border-color: #b8c4d5 !important;
 }
 
 .profile-modal .change-credentials-btn {
   background-color: var(--primary-bg) !important;
-  color: var(--accent-yellow) !important;
-  border: 2px solid var(--primary-bg) !important;
-  width: 15em;
+  color: #ffffff !important;
+  border: 1px solid var(--primary-bg) !important;
+  width: calc(100% - 40px);
   align-self: center;
-  margin: 0 0 1.5em 0;
-  font-family: var(--font-title);
+  margin: 0 20px 20px;
+  font-family: var(--font-body);
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 10px;
+  padding: 11px 14px;
 }
 
 .profile-modal .change-credentials-btn:hover {
-  filter: brightness(1.05);
+  filter: brightness(0.98);
 }

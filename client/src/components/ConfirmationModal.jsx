@@ -16,12 +16,12 @@ export function ConfirmationModal({
   const confirmClassName = confirmVariant === 'danger' ? 'modal-btn-danger' : 'modal-btn-primary';
 
   return (
-    <Modal open={open} onClose={onClose} title={title}>
-      <div style={{ marginBottom: '24px' }}>
-        {message ? <div>{message}</div> : null}
-        {children}
+    <Modal open={open} onClose={onClose} title={title} size="compact" bodyClassName="custom-modal-body--compact">
+      <div className="modal-confirmation">
+        {message ? <div className="modal-confirmation-message">{message}</div> : null}
+        {children ? <div className="modal-confirmation-extra">{children}</div> : null}
       </div>
-      {error ? <p className="um-error">{error}</p> : null}
+      {error ? <p className="modal-error">{error}</p> : null}
       <div className="modal-actions">
         <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={busy}>
           {cancelLabel}
