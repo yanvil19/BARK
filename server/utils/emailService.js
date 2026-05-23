@@ -1,14 +1,3 @@
-const { Resend } = require('resend');
-
-let resendClient;
-
-const getResendClient = () => {
-  if (!resendClient) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resendClient;
-};
-
 const sendEmail = async (args, userArg = null) => {
   const to = args?.to;
   const subject = args?.subject;
@@ -20,18 +9,52 @@ const sendEmail = async (args, userArg = null) => {
   }
 
   try {
-    const resend = getResendClient();
+    const apiKey = process.env.BREVO_API_KEY;
+    const emailFrom = process.env.EMAIL_FROM;
 
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
-      to,
+    if (!apiKey) {
+      throw new Error('BREVO_API_KEY is not set in environment variables');
+    }
+
+    if (!emailFrom) {
+      throw new Error('EMAIL_FROM is not set in environment variables');
+    }
+
+    const payload = {
+      sender: {
+        name: 'BARK',
+        email: emailFrom
+      },
+      to: [
+        {
+          email: to
+        }
+      ],
       subject,
-      html
+      htmlContent: html
+    };
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey
+      },
+      body: JSON.stringify(payload)
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Brevo API error: ${response.status} - ${
+          errorData.message || JSON.stringify(errorData)
+        }`
+      );
+    }
 
     return { success: true };
   } catch (error) {
-    console.error('Resend sendEmail error:', error);
+    console.error('Brevo sendEmail error:', error);
     return { success: false, error };
   }
 };

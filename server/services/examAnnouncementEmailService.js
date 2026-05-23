@@ -1,43 +1,40 @@
 const User = require('../models/User');
-const Department = require('../models/Department');
 const Program = require('../models/Program');
 const { sendEmail } = require('../utils/emailService');
-const { examPublishedTemplate } = require('../emails/templates/examPublishedTemplate');
+const { examAnnouncementTemplate } = require('../emails/templates/examAnnouncementTemplate');
 
 async function sendExamPublishedAnnouncement({ exam }) {
   if (!exam) return { success: false, reason: 'Missing exam' };
 
   const programId = exam.program?._id || exam.program;
-  const departmentId = exam.department?._id || exam.department;
-  if (!programId && !departmentId) return { success: false, reason: 'Missing program/department' };
+  if (!programId) return { success: false, reason: 'Missing program' };
 
-  const [department, program] = await Promise.all([
-    departmentId ? Department.findById(departmentId).select('code name') : null,
-    programId ? Program.findById(programId).select('code name') : null,
-  ]);
+  const program = await Program.findById(programId).select('name code');
+  if (!program) return { success: false, reason: 'Program not found' };
 
-  const baseFilter = {
-    role: { $in: ['student', 'alumni'] },
+  // Query for all users in the program with eligible roles who have email notifications enabled
+  const recipients = await User.find({
+    program: programId,
+    role: { $in: ['student', 'alumni', 'professor', 'program_chair', 'dean'] },
     isActive: true,
     receiveEmails: true,
-  };
-
-  // Prefer program-targeted announcements so only the intended students/alumni get notified.
-  // Fallback to department-based if program is missing.
-  const recipients = await User.find(
-    programId
-      ? { ...baseFilter, program: programId }
-      : { ...baseFilter, department: departmentId }
-  ).select('email name receiveEmails program department');
+  }).select('email name');
 
   if (recipients.length === 0) return { success: true, sent: 0, failed: 0 };
 
-  const { subject, html } = examPublishedTemplate({
-    examName: exam.name,
-    departmentCode: department?.code || '',
-    programCode: program?.code || '',
+  const durationMinutes = exam.startDateTime && exam.endDateTime
+    ? Math.round((exam.endDateTime.getTime() - exam.startDateTime.getTime()) / 60000)
+    : 0;
+
+  const totalQuestions = exam.questions ? exam.questions.length : 0;
+
+  const { subject, html } = examAnnouncementTemplate({
+    examTitle: exam.name,
+    programName: program.name,
     startDateTime: exam.startDateTime,
     endDateTime: exam.endDateTime,
+    durationMinutes,
+    totalQuestions,
   });
 
   let sent = 0;
