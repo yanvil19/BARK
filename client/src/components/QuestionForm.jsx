@@ -14,6 +14,7 @@ function generateId() {
 
 export default function QuestionForm({ tags, programId, initialData, onSaved, onClose, readOnly = false, importedQuestions = [] }) {
     const isImportMode = importedQuestions && importedQuestions.length > 0;
+    const useBubbleNav = !readOnly && (isImportMode || !initialData);
 
     const { notify } = useToast();
 
@@ -131,6 +132,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     // Blocker-style flags: subject/tag + answer correctness/completeness
     if (field === 'tag' || field === 'subject') return true;
     if (field === 'correct' || field === 'answers') return true;
+    if (field === 'title' || field === 'description') return true;
     if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers') return true;
 
     return msg === 'No subject assigned.' || msg === 'No correct answer selected' || msg === 'Question must have at least 4 answer choices';
@@ -276,7 +278,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
 
     // 1. Content Flags
     if (!q.title.trim()) {
-      flags.push({ severity: 'ERROR', message: 'Question text cannot be empty', field: 'title' });
+      flags.push({ severity: 'ERROR', message: 'Question Title cannot be empty', field: 'title' });
     }
     if (!q.description.trim()) {
       flags.push({ severity: 'ERROR', message: 'Question text cannot be empty', field: 'description' });
@@ -309,7 +311,7 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
     const texts = q.answers.map(a => a.text.trim().toLowerCase()).filter(t => t !== '');
     const uniqueTexts = new Set(texts);
     if (uniqueTexts.size < texts.length) {
-      flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected' });
+      flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected', field: 'answers', type: 'duplicate_answers' });
     }
 
     return flags;
@@ -471,9 +473,10 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
   }
 
   function addQuestionBlock() {
-    setQuestionsData(prev => [
-      ...prev,
-      {
+    setQuestionsData(prev => {
+      const next = [
+        ...prev,
+        {
         id: generateId(),
         title: '',
         description: '',
@@ -486,38 +489,52 @@ export default function QuestionForm({ tags, programId, initialData, onSaved, on
         uploadedUrls: [],
         uploading: false,
         error: '',
-      }
-    ]);
+        }
+      ];
+      setCurrentQuestionIdx(next.length - 1);
+      return next;
+    });
   }
 
   function removeQuestionBlock(qId) {
     if (questionsData.length > 1) {
-      setQuestionsData(prev => prev.filter(q => q.id !== qId));
+      setQuestionsData(prev => {
+        const removeIndex = prev.findIndex(q => q.id === qId);
+        const next = prev.filter(q => q.id !== qId);
+        setCurrentQuestionIdx((curr) => {
+          if (next.length === 0) return 0;
+          if (removeIndex < 0) return Math.min(curr, next.length - 1);
+          if (curr > removeIndex) return curr - 1;
+          if (curr === removeIndex) return Math.max(0, Math.min(curr, next.length - 1));
+          return Math.min(curr, next.length - 1);
+        });
+        return next;
+      });
     }
   }
 
   const anyUploading = questionsData.some(q => q.uploading);
 
   return (
-    <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
-      {/* [IMPORT REVIEW - BUBBLE NAVIGATION] */}
-      {isImportMode && (
-        <ImportReviewBubbles
-          questions={questionsData}
-          currentIdx={currentQuestionIdx}
-          onSelectQuestion={setCurrentQuestionIdx}
-          getQuestionFlags={getVisibleQuestionFlags}
-        />
-      )}
+      <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
+       {/* [IMPORT REVIEW - BUBBLE NAVIGATION] */}
+       {useBubbleNav && (
+         <ImportReviewBubbles
+           questions={questionsData}
+           currentIdx={currentQuestionIdx}
+           onSelectQuestion={setCurrentQuestionIdx}
+           getQuestionFlags={getVisibleQuestionFlags}
+         />
+       )}
 
       <div className="qf-questions-list">
         {questionsData.map((q, index) => {
-          // Only show current question in import mode
-          if (isImportMode && index !== currentQuestionIdx) return null;
+          // Only show current question when using bubble navigation
+          if (useBubbleNav && index !== currentQuestionIdx) return null;
 
           return (
             <div key={q.id} className="qf-question-block">
-              {questionsData.length > 1 && !readOnly && !isImportMode && (
+              {questionsData.length > 1 && !readOnly && !initialData && (
                 <div className="qf-question-header">
                   <h4>Question {index + 1}</h4>
                   <button type="button" className="qf-remove-question-btn" onClick={() => removeQuestionBlock(q.id)}>Remove Question</button>
