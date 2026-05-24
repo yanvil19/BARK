@@ -1,0 +1,133 @@
+/* ImportReviewBubbles.css */
+
+.import-review-bubble-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #f9faff;
+  border-radius: 12px;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+}
+
+.import-review-progress {
+  text-align: center;
+}
+
+.import-review-progress-text {
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  color: #5a63a8;
+}
+
+/* Bubble Navigation Bar */
+.import-review-nav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* Bubble Styling - Matches StudentExamRunner .mbep-nav-circle */
+.import-review-nav-bubble {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  background: #fff;
+  color: #8b92bc;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.18s ease;
+  padding: 0;
+}
+
+.import-review-nav-bubble:hover {
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+/* Blue - Question Ready (no flags) */
+.import-review-nav-bubble.ready {
+  background: #f0f1f8;
+  border-color: #5a63a8;
+  color: #5a63a8;
+}
+
+/* Red - Question has flags */
+.import-review-nav-bubble.flagged {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+/* Active - Current question */
+.import-review-nav-bubble.active {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--accent-yellow);
+  box-shadow: 0 4px 10px rgba(53, 64, 142, 0.3);
+}
+
+.import-review-nav-bubble.active.flagged {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+}
+
+.bubble-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;;
+}
+
+/* Flag count badge on bubble */
+.bubble-flag-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  border: 2px solid #fff;
+}
+
+@media (max-width: 768px) {
+  .import-review-bubble-wrapper {
+    padding: 14px;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .import-review-nav-bar {
+    gap: 6px;
+  }
+
+  .import-review-nav-bubble {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .bubble-flag-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+}

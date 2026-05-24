@@ -536,7 +536,14 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                         </>
                       ) : null}
 
-                      {question.state !== 'draft' && question.state !== 'returned' ? (
+                      {question.state === 'pending_chair' ? (
+                        <>
+                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
+                          <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
+                        </>
+                      ) : null}
+
+                      {question.state !== 'draft' && question.state !== 'returned' && question.state !== 'pending_chair' ? (
                         <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
                       ) : null}
                     </td>

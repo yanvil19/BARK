@@ -62,6 +62,12 @@ const questionSchema = new mongoose.Schema(
     // Concurrency: track who is currently reviewing this question
     currentReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     reviewStartedAt: { type: Date, default: null },
+    // [IMPORT REVIEW - BUBBLE NAVIGATION]
+    // Image requirement tracking for imported questions
+    image_required: { type: Boolean, default: false },
+    image_note: { type: String, default: null, trim: true },
+    image_url: { type: String, default: null },
+    image_flag_removed_by_user: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
