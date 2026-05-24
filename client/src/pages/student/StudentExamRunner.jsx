@@ -28,9 +28,11 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   const lastViolationTimeRef = useRef(0);
   const violationCountRef = useRef(0);
   const cleanupSecurityRef = useRef(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
+      if (isSubmittingRef.current) return;
       const now = Date.now();
       if (now - lastViolationTimeRef.current < 500) return;
       lastViolationTimeRef.current = now;
@@ -161,24 +163,29 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   };
 
   const submitFinal = async (finalAnswers) => {
-    setSubmitting(true);
-    try {
-      await apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/submit`, {
-        method: 'POST',
-        body: { answers: finalAnswers }
-      });
-      onFinish();
-    } catch (err) {
-      alert(err.message || 'Failed to submit exam.');
-      setSubmitting(false);
-    }
-  };
+  isSubmittingRef.current = true;
+  setSubmitting(true);
+  try {
+    await apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/submit`, {
+      method: 'POST',
+      body: { answers: finalAnswers }
+    });
+    onFinish();
+  } catch (err) {
+    alert(err.message || 'Failed to submit exam.');
+    isSubmittingRef.current = false;
+    setSubmitting(false);
+  }
+};
 
   const handleManualSubmit = () => {
-    if (window.confirm('Are you sure you want to submit your exam? You cannot change your answers after this.')) {
-      submitFinal(answers);
-    }
-  };
+  isSubmittingRef.current = true;
+  if (window.confirm('Are you sure you want to submit your exam? You cannot change your answers after this.')) {
+    submitFinal(answers);
+  } else {
+    isSubmittingRef.current = false;
+  }
+};
 
   const handleAutoSubmit = () => {
     cleanupSecurityRef.current?.();

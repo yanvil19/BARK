@@ -1209,3 +1209,149 @@
   }
 
 }
+
+/* ── Bulk Select ─────────────────────────────────────────── */
+
+/* Checkbox wrapper on each pending_chair card */
+.ca-card-checkbox-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  margin-right: 6px;
+}
+
+/* Show checkbox on card hover or when checked */
+.ca-question-card:hover .ca-card-checkbox-wrap,
+.ca-card-checkbox-wrap.is-checked {
+  opacity: 1;
+}
+
+.ca-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-bg);
+  flex-shrink: 0;
+}
+
+/* Checked card gets a subtle highlight */
+.ca-question-card.is-checked {
+  background: #f0f3ff;
+  border-color: var(--primary-bg);
+}
+
+/* Select All Row */
+.ca-select-all-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: #f9faff;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 8px;
+}
+
+.ca-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a63a8;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Bulk Toolbar */
+.ca-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  background: var(--primary-bg);
+  border-radius: 10px;
+  flex-wrap: wrap;
+  animation: slideDown 0.18s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ca-bulk-count {
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  white-space: nowrap;
+}
+
+.ca-bulk-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ca-bulk-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.ca-bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ca-bulk-btn--approve {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.ca-bulk-btn--approve:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.ca-bulk-btn--return {
+  background: #fed7aa;
+  color: #92400e;
+  border: 1px solid #fdba74;
+}
+
+.ca-bulk-btn--return:hover:not(:disabled) {
+  background: #fcd34d;
+}
+
+.ca-bulk-btn--reject {
+  background: #fecaca;
+  color: #7f1d1d;
+  border: 1px solid #fca5a5;
+}
+
+.ca-bulk-btn--reject:hover:not(:disabled) {
+  background: #fca5a5;
+}
+
+.ca-bulk-btn--clear {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ca-bulk-btn--clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
