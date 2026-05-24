@@ -13,6 +13,12 @@ export default function ChairCheatingLogs() {
   const [violationFilter, setViolationFilter] = useState('');
   const [examFilter, setExamFilter] = useState('');
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [search, violationFilter, examFilter]);
+
   useEffect(() => {
     async function fetchLogs() {
       try {
@@ -43,6 +49,9 @@ export default function ChairCheatingLogs() {
       return matchesSearch && matchesViolation && matchesExam;
     });
   }, [logs, search, violationFilter, examFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const hasFilters = search || violationFilter || examFilter;
 
@@ -126,7 +135,7 @@ export default function ChairCheatingLogs() {
                 </td>
               </tr>
             ) : (
-              filtered.map(log => (
+              paginated.map(log => (
                 <tr key={log.id}>
                   <td>
                     <div className="cl-student-name">{log.studentName}</div>
@@ -148,6 +157,28 @@ export default function ChairCheatingLogs() {
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="cl-pagination">
+          <div className="cl-pagination-info">
+            Showing {filtered.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} violation{filtered.length !== 1 ? 's' : ''}
+          </div>
+          <div className="cl-pagination-controls">
+            <button className="cl-pagination-btn" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>← Previous</button>
+            <div className="cl-pagination-pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  className={`cl-pagination-page ${currentPage === page ? 'cl-pagination-page--active' : ''}`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button className="cl-pagination-btn" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next →</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

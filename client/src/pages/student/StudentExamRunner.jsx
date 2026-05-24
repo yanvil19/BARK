@@ -38,6 +38,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
+      if (isSubmittingRef.current) return;
       const now = Date.now();
       if (now - lastViolationTimeRef.current < 500) return;
       lastViolationTimeRef.current = now;
