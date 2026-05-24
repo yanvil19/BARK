@@ -64,8 +64,11 @@ export default function QuestionApprovals({ me }) {
 
   const itemsPerPage = 10;
   const lockedIdRef = useRef(null);
+  const actionTakenRef = useRef(false);
+  const selectSeqRef = useRef(0);
 
   useEffect(() => { lockedIdRef.current = lockedQuestionId; }, [lockedQuestionId]);
+  useEffect(() => { actionTakenRef.current = actionTaken; }, [actionTaken]);
 
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
@@ -118,34 +121,69 @@ export default function QuestionApprovals({ me }) {
     setLockedQuestionId(null);
   }
 
+  async function unlockById(id) {
+    if (!id) return;
+    try {
+      await apiAuth(`${BASE}/api/questions/${id}/unlock`, { method: 'PATCH' });
+    } catch { }
+  }
+
   async function handleSelectQuestion(question) {
     if (selectedQuestion?._id === question._id) return;
 
-    if (lockedQuestionId && !actionTaken) {
-      await unlockCurrent();
-    }
+    const seq = ++selectSeqRef.current;
+    const prevSelected = selectedQuestion;
+    const prevLockedId = lockedQuestionId;
 
     setActionTaken(false);
+    actionTakenRef.current = false;
 
-    if (question.state === 'pending_chair') {
+    // Optimistic UI: switch immediately, do network lock/unlock in background
+    setSelectedQuestion(question);
+
+    if (question.state !== 'pending_chair') {
+      if (prevLockedId && !actionTakenRef.current) {
+        unlockById(prevLockedId).finally(() => {
+          if (selectSeqRef.current === seq) setLockedQuestionId(null);
+        });
+      }
+      return;
+    }
+
+    (async () => {
+      if (prevLockedId && prevLockedId !== question._id && !actionTakenRef.current) {
+        await unlockById(prevLockedId);
+      }
+
+      if (selectSeqRef.current !== seq) return;
+
       try {
         await apiAuth(`${BASE}/api/questions/${question._id}/lock`, { method: 'PATCH' });
+
+        // If user already selected another question, release the lock we just took.
+        if (selectSeqRef.current !== seq) {
+          await unlockById(question._id);
+          return;
+        }
+
         setLockedQuestionId(question._id);
-        setSelectedQuestion(question);
       } catch (err) {
+        if (selectSeqRef.current !== seq) return;
+
         if (err.status === 423) {
           setWarningModal({
             question,
             reviewer: err.data?.reviewer || { name: 'Unknown', role: 'unknown' },
             minutesElapsed: err.data?.minutesElapsed || 0,
           });
-        } else {
-          setSelectedQuestion(question);
+          // Revert selection so we don't show an unlocked question as selected.
+          setSelectedQuestion(prevSelected);
+          return;
         }
+
+        setLockedQuestionId(null);
       }
-    } else {
-      setSelectedQuestion(question);
-    }
+    })();
   }
 
   function handleWarningProceed() {
