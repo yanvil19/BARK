@@ -210,8 +210,9 @@ const updateQuestion = async (req, res) => {
     if (!question) return res.status(404).json({ message: 'Question not found' });
     if (question.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ message: 'Not your question' });
-    if (question.state !== 'draft' && question.state !== 'returned')
-      return res.status(400).json({ message: 'Only draft or returned questions can be edited' });
+    const editableStates = ['draft', 'returned', 'pending_chair'];
+    if (!editableStates.includes(question.state))
+      return res.status(400).json({ message: 'Only draft, returned, or pending questions can be edited' });
 
     const { title, description, answers, tagId, images } = req.body;
     if (title) question.title = title.trim();
@@ -228,6 +229,13 @@ const updateQuestion = async (req, res) => {
       question.answers = answers;
     }
     if (tagId !== undefined) question.tag = tagId || null;
+
+    // If a submitted question is edited, pull it back to draft so it can be re-submitted.
+    if (question.state === 'pending_chair') {
+      question.state = 'draft';
+      question.currentReviewer = null;
+      question.reviewStartedAt = null;
+    }
 
     await question.save();
     const populated = await question.populate([

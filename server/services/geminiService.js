@@ -29,6 +29,8 @@ Each question in the array must follow this exact structure:
                diagram, or image. false if not>,
   "image_reference": <string — the figure label referenced
                      e.g. "Figure 1", "Fig. 2". null if has_image is false>,
+  "image_required": <boolean — true if the question references an image, diagram, figure, chart, or any visual element that cannot be extracted as text and MUST be uploaded by the professor. false if not>,
+  "image_note": <string — brief description of what the image appears to be (e.g. "Question references a diagram showing a cardiac cycle"). null if image_required is false>,
   "suggested_tag": <string — your best guess at the subject or topic
                    of this question based on its content.
                    Return null if you cannot determine it>,
@@ -57,7 +59,12 @@ Rules you must strictly follow:
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
     If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".
-11. EXCLUSION RULE: The "question_text" field must only contain the question itself. Do NOT include the options (A, B, C, D) or any text indicating the correct answer (e.g., "Answer: A") in this field. Those belong in the "options" and "correct_answer" fields respectively.`;
+11. EXCLUSION RULE: The "question_text" field must only contain the question itself. Do NOT include the options (A, B, C, D) or any text indicating the correct answer (e.g., "Answer: A") in this field. Those belong in the "options" and "correct_answer" fields respectively.
+12. IMAGE DETECTION: For "image_required" and "image_note":
+    - Set image_required to true if the question explicitly references: "Figure [X]", "Diagram", "Chart", "Graph", "Image", "Picture", "Illustration", "See above/below", "See attached", or similar visual references that cannot be extracted as text.
+    - Set image_required to false if the question does not reference any visual elements.
+    - If image_required is true, provide a brief description in image_note of what the image should contain (e.g., "Figure 1: Cardiac cycle diagram", "ECG waveform showing P-QRS-T waves").
+    - If image_required is false, set image_note to null.`;
 
 class GeminiService {
     constructor() {

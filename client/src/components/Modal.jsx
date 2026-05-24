@@ -3,21 +3,20 @@ import { createPortal } from 'react-dom';
 import '../styles/Modal.css';
 
 export function Modal({ open, onClose, title, children }) {
-  const dialogRef = useRef(null);
+  const modalRef = useRef(null);
 
+  // Close on Escape key while open
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (open) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [open]);
+    if (!open) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, open]);
 
   const handleBackdropClick = (e) => {
-    if (e.target === dialogRef.current) {
+    if (e.target === modalRef.current) {
       onClose();
     }
   };
@@ -25,24 +24,24 @@ export function Modal({ open, onClose, title, children }) {
   if (!open) return null;
 
   return createPortal(
-    <dialog
-      ref={dialogRef}
+    <div
+      ref={modalRef}
       className="custom-modal"
-      onClick={handleBackdropClick}
-      onClose={onClose}
+      onMouseDown={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
     >
-      <div className="custom-modal-dialog">
+      <div className="custom-modal-dialog" role="document">
         <div className="custom-modal-header">
           <h2>{title}</h2>
-          <button type="button" className="custom-modal-close" onClick={onClose}>
+          <button type="button" className="custom-modal-close" onClick={onClose} aria-label="Close">
             &times;
           </button>
         </div>
-        <div className="custom-modal-body">
-          {children}
-        </div>
+        <div className="custom-modal-body">{children}</div>
       </div>
-    </dialog>,
+    </div>,
     document.body
   );
 }
