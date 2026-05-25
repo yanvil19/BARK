@@ -31,8 +31,13 @@ function formatCount(value, singular, plural = `${singular}s`) {
 
 function canScheduleResultsRelease(exam) {
   if (exam.status !== 'finished') return false;
-  if (exam.resultsUploaded === true || exam.computationStatus === 'computed') return false;
+  // Release time passed — students can see results; no more changes
   if (exam.resultsReleased === true) return false;
+  // Dean must be able to set a release date first (even if analytics were computed early)
+  if (!exam.resultsReleaseDate) return true;
+  // After upload, lock the release schedule
+  if (exam.resultsUploaded === true || exam.computationStatus === 'computed') return false;
+  // Scheduled but not uploaded yet — allow reschedule
   return true;
 }
 
@@ -413,7 +418,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                       <span className={`ambe-status ${exam.status}`}>
                         {exam.status}
                       </span>
-                      {exam.resultsReleaseDate && (
+                      {exam.resultsReleaseDate && exam.status !== 'archived' && (
                         <div className="ambe-release-date">
                           Release: {formatDateTime(exam.resultsReleaseDate)}
                         </div>

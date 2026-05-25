@@ -12,6 +12,42 @@ function shuffleArray(array) {
   return array;
 }
 
+const PROGRESS_LOG_THRESHOLDS = [25, 50, 75];
+
+function countAnsweredQuestions(attempt) {
+  if (!attempt.answers) return 0;
+  if (attempt.answers instanceof Map) {
+    return [...attempt.answers.values()].filter(Boolean).length;
+  }
+  return Object.values(attempt.answers).filter(Boolean).length;
+}
+
+function recordProgressMilestones(attempt) {
+  const totalQuestions = attempt.randomizedQuestions?.length || 0;
+  if (totalQuestions <= 0) return;
+
+  const percent = Math.min(
+    100,
+    Math.floor((countAnsweredQuestions(attempt) / totalQuestions) * 100),
+  );
+
+  if (!attempt.progressMilestones) {
+    attempt.progressMilestones = [];
+  }
+
+  const loggedPercents = new Set(attempt.progressMilestones.map((m) => m.percent));
+
+  for (const threshold of PROGRESS_LOG_THRESHOLDS) {
+    if (percent >= threshold && !loggedPercents.has(threshold)) {
+      attempt.progressMilestones.push({
+        percent: threshold,
+        loggedAt: new Date(),
+      });
+      loggedPercents.add(threshold);
+    }
+  }
+}
+
 async function calculateScore(attempt, exam) {
   const populatedExam = await MockBoardExam.findById(exam._id).populate({
     path: 'questions',
@@ -49,6 +85,7 @@ async function autoSubmitIfExpired(attempt) {
     attempt.status = 'submitted';
     attempt.endTime = exam.endDateTime;
     attempt.autoSubmitted = true;
+    recordProgressMilestones(attempt);
     await calculateScore(attempt, exam);
     await attempt.save();
     return true;
@@ -270,6 +307,8 @@ async function saveProgress(req, res) {
     for (const [qId, ansId] of Object.entries(answers)) {
       attempt.answers.set(qId, ansId);
     }
+
+    recordProgressMilestones(attempt);
     await attempt.save();
 
     res.json({ message: 'Progress saved' });
@@ -311,6 +350,7 @@ async function submitExam(req, res) {
       }
     }
 
+    recordProgressMilestones(attempt);
     await calculateScore(attempt, exam);
     await attempt.save();
 

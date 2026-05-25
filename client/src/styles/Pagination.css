@@ -1,0 +1,73 @@
+/* Reusable pagination — use classPrefix prop (default: pg) */
+
+.pg-pagination,
+.el-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pg-pagination-info,
+.el-pagination-info {
+  font-size: 12px;
+  color: #8b92bc;
+}
+
+.pg-pagination-controls,
+.el-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-pagination-pages,
+.el-pagination-pages {
+  display: flex;
+  gap: 4px;
+}
+
+.pg-pagination-btn,
+.pg-pagination-page,
+.el-pagination-btn,
+.el-pagination-page {
+  padding: 6px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: #4a57a2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pg-pagination-page,
+.el-pagination-page {
+  min-width: 32px;
+  text-align: center;
+}
+
+.pg-pagination-btn:hover:not(:disabled),
+.pg-pagination-page:hover,
+.el-pagination-btn:hover:not(:disabled),
+.el-pagination-page:hover {
+  background: #eef0fb;
+  border-color: #9ba3cb;
+}
+
+.pg-pagination-page--active,
+.el-pagination-page--active {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  border-color: var(--primary-bg);
+  font-weight: 700;
+}
+
+.pg-pagination-btn:disabled,
+.el-pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

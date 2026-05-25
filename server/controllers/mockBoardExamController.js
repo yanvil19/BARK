@@ -489,7 +489,8 @@ async function setResultsReleaseDate(req, res) {
     }
 
     const uploadedResult = await MockExamResult.findOne({ examId: exam._id, status: 'computed' });
-    if (uploadedResult) {
+    // Allow the first release schedule even if analytics were computed early on Exam Results
+    if (uploadedResult && exam.resultsReleaseDate) {
       return res.status(400).json({ message: 'Results have already been uploaded. Release date can no longer be changed.' });
     }
 
