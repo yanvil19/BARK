@@ -339,10 +339,21 @@ async function getMyAttempts(req, res) {
       .sort({ startTime: -1 })
       .lean();
 
-    const enrichedAttempts = attempts.map((attempt) => {
+    const now = new Date();
+
+    const enrichedAttempts = attempts
+      .filter((attempt) => attempt.exam)
+      .map((attempt) => {
       const exam = attempt.exam;
-      const totalItems = exam?.questions?.length || 0;
+      const totalFromSubjects = (attempt.subjectScores || []).reduce(
+        (sum, ss) => sum + (ss.total || 0),
+        0
+      );
+      const totalItems = exam?.questions?.length || totalFromSubjects || 0;
       const resultsReleaseDate = exam?.resultsReleaseDate || null;
+      const resultsReleased = Boolean(
+        resultsReleaseDate && new Date(resultsReleaseDate) <= now
+      );
       const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null)
         ? exam.passingThreshold
         : 70;
@@ -351,28 +362,44 @@ async function getMyAttempts(req, res) {
         ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
         : null;
 
-      // Determine status based on the exam's specific threshold
+      const base = {
+        id: attempt._id,
+        examName: exam.name,
+        date: attempt.startTime,
+        durationMinutes,
+        resultReleasedAt: resultsReleaseDate,
+        resultsReleased,
+      };
+
+      if (!resultsReleased) {
+        return {
+          ...base,
+          totalItems: null,
+          rawScore: null,
+          totalScore: null,
+          status: null,
+          passingThreshold: threshold,
+          subjectScores: [],
+        };
+      }
+
       const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
       let status = 'failed';
       if (pct >= threshold) status = 'passed';
       else if (pct >= threshold - 10) status = 'near_pass';
 
       return {
-        id: attempt._id,
-        examName: exam?.name || 'Unknown Exam',
-        date: attempt.startTime,
+        ...base,
         totalItems,
-        durationMinutes,
         rawScore: attempt.score,
         totalScore: totalItems,
         status,
         passingThreshold: threshold,
-        subjectScores: (attempt.subjectScores || []).map(ss => ({
+        subjectScores: (attempt.subjectScores || []).map((ss) => ({
           name: ss.tag?.name || 'Unknown Subject',
           correct: ss.correct,
           total: ss.total,
         })),
-        resultReleasedAt: resultsReleaseDate,
       };
     });
 

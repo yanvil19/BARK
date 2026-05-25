@@ -5,6 +5,13 @@ import '../../styles/StudentExamResults.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 
+function isResultReleased(attempt) {
+  if (attempt?.resultsReleased === true) return true;
+  if (attempt?.resultsReleased === false) return false;
+  if (!attempt?.resultReleasedAt) return false;
+  return new Date() >= new Date(attempt.resultReleasedAt);
+}
+
 function formatDate(date) {
   return new Date(date).toLocaleString('en-PH', {
     month: 'short',
@@ -92,6 +99,7 @@ function CircularProgress({ percentage, threshold }) {
 
 const StudentExamResults = () => {
   const [attempts, setAttempts] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState(null);
@@ -101,10 +109,12 @@ const StudentExamResults = () => {
       setLoading(true);
       try {
         const data = await apiAuth(`${BASE}/api/student-exams/my-attempts`);
-        const sorted = (data.attempts || [])
-          .filter((attempt) => attempt.status !== 'pending')
+        const allAttempts = data.attempts || [];
+        const sorted = allAttempts
+          .filter(isResultReleased)
           .sort((a, b) => new Date(b.date) - new Date(a.date));
         setAttempts(sorted);
+        setPendingCount(allAttempts.filter((attempt) => !isResultReleased(attempt)).length);
       } catch (err) {
         console.error('Failed to load attempts:', err);
         setAttempts([]);
@@ -243,7 +253,9 @@ const StudentExamResults = () => {
 
             {!loading && attempts.length === 0 && (
               <div className="ae-empty" role="status">
-                No exam results available yet.
+                {pendingCount > 0
+                  ? 'Your completed exams are waiting for the dean to schedule a results release date. Check back later.'
+                  : 'No exam results available yet.'}
               </div>
             )}
 

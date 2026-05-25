@@ -9,7 +9,9 @@ const BASE = import.meta.env.VITE_API_URL;
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function isReleased(attempt) {
-  if (!attempt.resultReleasedAt) return false;
+  if (attempt?.resultsReleased === true) return true;
+  if (attempt?.resultsReleased === false) return false;
+  if (!attempt?.resultReleasedAt) return false;
   return new Date() >= new Date(attempt.resultReleasedAt);
 }
 
@@ -243,7 +245,9 @@ const StudentDashboard = ({ me, onNavigate }) => {
       setLoading(true);
       try {
         const data = await apiAuth(`${BASE}/api/student-exams/my-attempts`);
-        const sorted = (data.attempts || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const sorted = (data.attempts || [])
+          .filter((attempt) => attempt.examName && attempt.examName !== 'Unknown Exam')
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
         setAttempts(sorted);
 
         // Default selection: latest with subject scores
