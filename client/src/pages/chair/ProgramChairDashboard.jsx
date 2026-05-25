@@ -210,7 +210,8 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
               </div>
             </div>
 
-            <table className="modern-table">
+            <div className="scroll-x">
+              <table className="modern-table">
               <colgroup>
                 <col style={{ width: '25%' }} />
                 <col style={{ width: '15%' }} />
@@ -269,7 +270,8 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
                 )}
               </tbody>
             </table>
-
+            </div>
+            
             <div className="pc-table-notice">
               Overview of faculty activity in {me?.program?.name || 'your program'}.{' '}
               <button className="pc-notice-link" onClick={() => onRoute('chairQuestionApprovals')}>

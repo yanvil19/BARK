@@ -412,7 +412,10 @@ const ExamResults = () => {
                 </div>
                 <div className="er-report-meta">
                   <span className="er-report-ts">Last computed: {summary.computedAt}</span>
-                  <span className="er-report-badge">Threshold: {threshold}%</span>
+                  <span className="er-divider">|</span>
+                  <div style={{ fontWeight: '600', color: '#35408e', background: '#f0f4ff', padding: '4px 12px', borderRadius: '6px' }}>
+                    Threshold: {threshold}%
+                  </div>
                 </div>
               </div>
 

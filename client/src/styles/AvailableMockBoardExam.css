@@ -50,6 +50,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    min-width: 900px;
 }
 
 .ambe-table th {
@@ -60,22 +61,32 @@
     text-transform: uppercase;
     color: #5a63a8;
     border-bottom: 1px solid rgba(53, 64, 142, 0.25);
+    width: auto;
 }
 
 .ambe-table td {
     padding: 14px;
     border-top: 1px solid rgba(53, 64, 142, .12);
     text-align: center;
+    width: auto;
+}
+
+.ambe-table tbody tr {
+    transition: all 0.18s ease;
 }
 
 .ambe-table tbody tr:hover {
-    background: #f4f6fc;
+    background-color: #d4d8f8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
+
 
 .ambe-muted {
     font-size: 12px;
     color: #9ba3cb;
 }
+
 
 /* ───────── PILLS ───────── */
 .ambe-pill {
@@ -391,22 +402,42 @@
     font-size: 11px;
 }
 
+.ambe-scroll-x {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+
 @media (max-width: 768px) {
     .ambe-page {
-        margin: 0 !important;
-        padding: 0 16px;
-        overflow-x: hidden;
+        margin: -20px !important;
     }
 
     .bark-page-header {
         padding: 20px 16px !important;
     }
 
+    .ambe-table-card {
+        justify-self: center;
+    }
+
+    .ambe-table {
+        width: max-content;
+    }
+
+    .ambe-table th:nth-child(1),
+    .ambe-table td:nth-child(1),
+    .ambe-table th:nth-child(3),
+    .ambe-table td:nth-child(3) {
+        width: 200px;
+    }
+
     .ambe-table-card,
     .ambe-details {
         margin: 16px 0 !important;
-        width: 100%;
-        max-width: 100%;
+        width: auto;
+        max-width: 90%;
         box-sizing: border-box;
     }
 

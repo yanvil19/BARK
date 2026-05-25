@@ -295,14 +295,13 @@
   padding: 12px 20px;
   border-bottom: 1px solid #f0f2f9;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-
+  cursor: pointer;
 }
 
 .sd-attempt-row:hover {
-  background: #eef1ff;
+  background: var(--accent-yellow) !important;
   transform: scale(1.02);
   z-index: 2;
-
 }
 
 .sd-attempt-row--pending:hover {
