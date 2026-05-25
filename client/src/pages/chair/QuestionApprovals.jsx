@@ -77,7 +77,8 @@ export default function QuestionApprovals({ me }) {
 
   // Bulk select state
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [bulkActionModal, setBulkActionModal] = useState(null); // 'return' | 'reject'
+  const [selectedState, setSelectedState] = useState(null); // Tracks state of first checked item
+  const [bulkActionModal, setBulkActionModal] = useState(null); // 'return' | 'reject' | 'restore'
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
   const itemsPerPage = 10;
@@ -178,7 +179,6 @@ export default function QuestionApprovals({ me }) {
       try {
         await apiAuth(`${BASE}/api/questions/${question._id}/lock`, { method: 'PATCH' });
 
-        // If user already selected another question, release the lock we just took.
         if (selectSeqRef.current !== seq) {
           await unlockById(question._id);
           return;
@@ -194,7 +194,6 @@ export default function QuestionApprovals({ me }) {
             reviewer: err.data?.reviewer || { name: 'Unknown', role: 'unknown' },
             minutesElapsed: err.data?.minutesElapsed || 0,
           });
-          // Revert selection so we don't show an unlocked question as selected.
           setSelectedQuestion(prevSelected);
           return;
         }
@@ -250,8 +249,8 @@ export default function QuestionApprovals({ me }) {
   async function submitAction() {
     const noteLabel =
       actionModal.action === 'return' ? 'revision note' :
-      actionModal.action === 'restore' ? 'restore feedback' :
-      'rejection reason';
+        actionModal.action === 'restore' ? 'restore feedback' :
+          'rejection reason';
     if (!note.trim()) {
       alert(`A ${noteLabel} is required.`);
       return;
@@ -268,8 +267,8 @@ export default function QuestionApprovals({ me }) {
       setLockedQuestionId(null);
       const newState =
         actionModal.action === 'return' ? 'returned' :
-        actionModal.action === 'restore' ? 'returned' :
-        'rejected';
+          actionModal.action === 'restore' ? 'returned' :
+            'rejected';
       const updatedQuestion = {
         ...actionModal.question,
         state: newState,
@@ -343,30 +342,49 @@ export default function QuestionApprovals({ me }) {
   }
 
   // ── Bulk Actions ──────────────────────────────────────────
-  function handleCheckbox(e, questionId) {
+  function handleClearSelections() {
+    setSelectedIds(new Set());
+    setSelectedState(null);
+  }
+
+  function handleCheckbox(e, question) {
     e.stopPropagation(); // don't open sidebar
+
+    // If a different state is already locked, block selection
+    if (selectedState && question.state !== selectedState) return;
+
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(questionId)) next.delete(questionId);
-      else next.add(questionId);
+      if (next.has(question._id)) {
+        next.delete(question._id);
+        // If that was the last item, unlock the state tracking
+        if (next.size === 0) setSelectedState(null);
+      } else {
+        next.add(question._id);
+        if (!selectedState) setSelectedState(question.state);
+      }
       return next;
     });
   }
 
   function handleSelectAll(e) {
     e.stopPropagation();
-    const pendingOnPage = paginatedQuestions.filter(q => q.state === 'pending_chair').map(q => q._id);
-    const allSelected = pendingOnPage.every(id => selectedIds.has(id));
+    if (!selectedState) return;
+
+    const matchStateOnPage = paginatedQuestions.filter(q => q.state === selectedState).map(q => q._id);
+    const allSelected = matchStateOnPage.every(id => selectedIds.has(id));
+
     if (allSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        pendingOnPage.forEach(id => next.delete(id));
+        matchStateOnPage.forEach(id => next.delete(id));
+        if (next.size === 0) setSelectedState(null);
         return next;
       });
     } else {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        pendingOnPage.forEach(id => next.add(id));
+        matchStateOnPage.forEach(id => next.add(id));
         return next;
       });
     }
@@ -391,16 +409,64 @@ export default function QuestionApprovals({ me }) {
         ? { ...q, state: 'approved', currentReviewer: null, reviewStartedAt: null }
         : q
     ));
-    setSelectedIds(new Set());
+    handleClearSelections();
     setBulkSubmitting(false);
 
     const failed = ids.length - succeeded.length;
     if (failed > 0) alert(`${succeeded.length} approved. ${failed} failed (may have already been reviewed).`);
   }
 
+  async function handleBulkReuse() {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Mark ${selectedIds.size} question${selectedIds.size > 1 ? 's' : ''} for reuse?`)) return;
+
+    setBulkSubmitting(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => apiAuth(`${BASE}/api/questions/${id}/review`, {
+        method: 'POST',
+        body: { action: 'reuse' },
+      }))
+    );
+
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setQuestions(prev => prev.map(q =>
+      succeeded.includes(q._id)
+        ? { ...q, state: 'pending_chair', currentReviewer: null, reviewStartedAt: null }
+        : q
+    ));
+    handleClearSelections();
+    setBulkSubmitting(false);
+
+    const failed = ids.length - succeeded.length;
+    if (failed > 0) alert(`${succeeded.length} marked for reuse. ${failed} failed.`);
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Permanently delete ${selectedIds.size} question${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    setBulkSubmitting(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => apiAuth(`${BASE}/api/questions/${id}/review`, {
+        method: 'POST',
+        body: { action: 'delete' },
+      }))
+    );
+
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setQuestions(prev => prev.filter(q => !succeeded.includes(q._id)));
+    handleClearSelections();
+    setBulkSubmitting(false);
+
+    const failed = ids.length - succeeded.length;
+    if (failed > 0) alert(`${succeeded.length} deleted. ${failed} failed.`);
+  }
+
   async function handleBulkSubmitAction() {
     if (!note.trim()) {
-      alert(`A ${bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} is required.`);
+      alert(`A ${bulkActionModal === 'return' ? 'revision note' : bulkActionModal === 'restore' ? 'restore feedback' : 'rejection reason'} is required.`);
       return;
     }
 
@@ -415,23 +481,23 @@ export default function QuestionApprovals({ me }) {
     );
 
     const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
-    const newState = action === 'return' ? 'returned' : 'rejected';
+    const newState = (action === 'return' || action === 'restore') ? 'returned' : 'rejected';
 
     setQuestions(prev => prev.map(q =>
       succeeded.includes(q._id)
         ? {
-            ...q,
-            state: newState,
-            currentReviewer: null,
-            reviewStartedAt: null,
-            ...(newState === 'returned'
-              ? { revisionNote: note.trim(), rejectionReason: null }
-              : { rejectionReason: note.trim() }),
-          }
+          ...q,
+          state: newState,
+          currentReviewer: null,
+          reviewStartedAt: null,
+          ...(newState === 'returned'
+            ? { revisionNote: note.trim(), rejectionReason: null }
+            : { rejectionReason: note.trim() }),
+        }
         : q
     ));
 
-    setSelectedIds(new Set());
+    handleClearSelections();
     setBulkActionModal(null);
     setNote('');
     setBulkSubmitting(false);
@@ -439,7 +505,6 @@ export default function QuestionApprovals({ me }) {
     const failed = ids.length - succeeded.length;
     if (failed > 0) alert(`${succeeded.length} updated. ${failed} failed (may have already been reviewed).`);
   }
-
   // ─────────────────────────────────────────────────────────
 
   const subjectOptions = useMemo(() => {
@@ -507,11 +572,12 @@ export default function QuestionApprovals({ me }) {
     };
   }, [filteredQuestions, currentPage]);
 
-  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery, subjectFilter, programFilter, sortBy]);
+  useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
-  const pendingOnPage = paginatedQuestions.filter(q => q.state === 'pending_chair');
-  const allPendingSelected = pendingOnPage.length > 0 && pendingOnPage.every(q => selectedIds.has(q._id));
-  const somePendingSelected = pendingOnPage.some(q => selectedIds.has(q._id));
+  // Match checks for Select All UI element
+  const matchStateOnPage = paginatedQuestions.filter(q => q.state === selectedState);
+  const allPendingSelected = matchStateOnPage.length > 0 && matchStateOnPage.every(q => selectedIds.has(q._id));
+  const somePendingSelected = matchStateOnPage.some(q => selectedIds.has(q._id));
 
   return (
     <main className="ca-page">
@@ -569,33 +635,32 @@ export default function QuestionApprovals({ me }) {
           {selectedIds.size > 0 && (
             <div className="ca-bulk-toolbar">
               <span className="ca-bulk-count">
-                {selectedIds.size} question{selectedIds.size > 1 ? 's' : ''} selected
+                {selectedIds.size} {selectedState ? getStatusLabel(selectedState) : ''} question{selectedIds.size > 1 ? 's' : ''} selected
               </span>
               <div className="ca-bulk-actions">
-                <button
-                  className="ca-bulk-btn ca-bulk-btn--approve"
-                  onClick={handleBulkApprove}
-                  disabled={bulkSubmitting}
-                >
-                  Approve All
-                </button>
-                <button
-                  className="ca-bulk-btn ca-bulk-btn--return"
-                  onClick={() => { setBulkActionModal('return'); setNote(''); }}
-                  disabled={bulkSubmitting}
-                >
-                  Return All
-                </button>
-                <button
-                  className="ca-bulk-btn ca-bulk-btn--reject"
-                  onClick={() => { setBulkActionModal('reject'); setNote(''); }}
-                  disabled={bulkSubmitting}
-                >
-                  Reject All
-                </button>
+                {selectedState === 'pending_chair' && (
+                  <>
+                    <button className="ca-bulk-btn ca-bulk-btn--approve" onClick={handleBulkApprove} disabled={bulkSubmitting}>Approve All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('return'); setNote(''); }} disabled={bulkSubmitting}>Return All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={() => { setBulkActionModal('reject'); setNote(''); }} disabled={bulkSubmitting}>Reject All</button>
+                  </>
+                )}
+                {selectedState === 'rejected' && (
+                  <>
+                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('restore'); setNote(''); }} disabled={bulkSubmitting}>Restore All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
+                  </>
+                )}
+                {selectedState === 'retired' && (
+                  <>
+                    <button className="ca-bulk-btn ca-bulk-btn--approve" onClick={handleBulkReuse} disabled={bulkSubmitting}>Use Again All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('restore'); setNote(''); }} disabled={bulkSubmitting}>Restore All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
+                  </>
+                )}
                 <button
                   className="ca-bulk-btn ca-bulk-btn--clear"
-                  onClick={() => setSelectedIds(new Set())}
+                  onClick={handleClearSelections}
                   disabled={bulkSubmitting}
                 >
                   ✕ Clear
@@ -610,8 +675,8 @@ export default function QuestionApprovals({ me }) {
             <div className="ca-empty">No questions found.</div>
           ) : (
             <>
-              {/* Select All row — only shown if there are pending_chair cards on this page */}
-              {pendingOnPage.length > 0 && (
+              {/* Select All row — only shows when at least one selection is made and matching states are on this page */}
+              {selectedIds.size > 0 && matchStateOnPage.length > 0 && (
                 <div className="ca-select-all-row">
                   <label className="ca-select-all-label" onClick={e => e.stopPropagation()}>
                     <input
@@ -621,34 +686,35 @@ export default function QuestionApprovals({ me }) {
                       ref={el => { if (el) el.indeterminate = somePendingSelected && !allPendingSelected; }}
                       onChange={handleSelectAll}
                     />
-                    <span>Select all pending on this page ({pendingOnPage.length})</span>
+                    <span>Select all {getStatusLabel(selectedState)} on this page ({matchStateOnPage.length})</span>
                   </label>
                 </div>
               )}
 
               <div className="ca-questions-list">
                 {paginatedQuestions.map((question) => {
-                  const isPending = question.state === 'pending_chair';
                   const isChecked = selectedIds.has(question._id);
+                  // Checkbox is available if nothing is selected yet, or if it matches the current selection lock
+                  const isCheckable = !selectedState || selectedState === question.state;
 
                   return (
                     <div
                       key={question._id}
-                      className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''}`}
+                      className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''}`}
                       onClick={() => handleSelectQuestion(question)}
                     >
                       <div className="ca-card-top">
-                        {/* Checkbox — only for pending_chair, shown on hover or when checked */}
-                        {isPending && (
+                        {/* Checkbox wrapper handles hover logic cleanly */}
+                        {isCheckable && (
                           <div
                             className={`ca-card-checkbox-wrap ${isChecked ? 'is-checked' : ''}`}
-                            onClick={e => handleCheckbox(e, question._id)}
+                            onClick={e => handleCheckbox(e, question)}
                           >
                             <input
                               type="checkbox"
                               className="ca-checkbox"
                               checked={isChecked}
-                              onChange={() => {}} // controlled via onClick above
+                              onChange={() => { }}
                             />
                           </div>
                         )}
@@ -853,8 +919,8 @@ export default function QuestionApprovals({ me }) {
             <div className="ca-modal-header">
               <h3>
                 {actionModal.action === 'return' ? 'Return for Revision' :
-                 actionModal.action === 'restore' ? 'Restore for Review' :
-                 'Reject Question'}
+                  actionModal.action === 'restore' ? 'Restore for Review' :
+                    'Reject Question'}
               </h3>
               <button className="ca-modal-close" onClick={() => setActionModal(null)} type="button">x</button>
             </div>
@@ -864,8 +930,8 @@ export default function QuestionApprovals({ me }) {
                 <label className="ca-label">
                   <strong>
                     {actionModal.action === 'return' ? 'Revision Note (required)' :
-                     actionModal.action === 'restore' ? 'Restore Feedback (required)' :
-                     'Rejection Reason (required)'}
+                      actionModal.action === 'restore' ? 'Restore Feedback (required)' :
+                        'Rejection Reason (required)'}
                   </strong>
                 </label>
                 <textarea
@@ -875,8 +941,8 @@ export default function QuestionApprovals({ me }) {
                   onChange={(e) => setNote(e.target.value)}
                   placeholder={
                     actionModal.action === 'return' ? 'Explain what needs to be fixed...' :
-                    actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
-                    'Explain why this question is being rejected...'
+                      actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
+                        'Explain why this question is being rejected...'
                   }
                   autoFocus
                 />
@@ -892,24 +958,28 @@ export default function QuestionApprovals({ me }) {
         </div>
       )}
 
-      {/* Bulk Return / Reject Modal */}
+      {/* Bulk Return / Reject / Restore Modal */}
       {bulkActionModal && (
         <div className="ca-modal-overlay">
           <div className="ca-modal">
             <div className="ca-modal-header">
               <h3>
-                {bulkActionModal === 'return' ? `Return ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` : `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`}
+                {bulkActionModal === 'return' ? `Return ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` :
+                  bulkActionModal === 'restore' ? `Restore ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` :
+                    `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`}
               </h3>
               <button className="ca-modal-close" onClick={() => { setBulkActionModal(null); setNote(''); }} type="button">x</button>
             </div>
             <div className="ca-modal-body">
               <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
-                This {bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} will be applied to all {selectedIds.size} selected question{selectedIds.size > 1 ? 's' : ''}.
+                This {bulkActionModal === 'return' ? 'revision note' : bulkActionModal === 'restore' ? 'restore feedback' : 'rejection reason'} will be applied to all {selectedIds.size} selected question{selectedIds.size > 1 ? 's' : ''}.
               </p>
               <div className="ca-form-group">
                 <label className="ca-label">
                   <strong>
-                    {bulkActionModal === 'return' ? 'Revision Note (required)' : 'Rejection Reason (required)'}
+                    {bulkActionModal === 'return' ? 'Revision Note (required)' :
+                      bulkActionModal === 'restore' ? 'Restore Feedback (required)' :
+                        'Rejection Reason (required)'}
                   </strong>
                 </label>
                 <textarea
@@ -918,9 +988,9 @@ export default function QuestionApprovals({ me }) {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder={
-                    bulkActionModal === 'return'
-                      ? 'Explain what needs to be fixed...'
-                      : 'Explain why these questions are being rejected...'
+                    bulkActionModal === 'return' ? 'Explain what needs to be fixed...' :
+                      bulkActionModal === 'restore' ? 'Explain why you are sending these back for review...' :
+                        'Explain why these questions are being rejected...'
                   }
                   autoFocus
                 />
