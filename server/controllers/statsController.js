@@ -573,6 +573,14 @@ function buildAttemptEvents(attempt) {
     });
   }
 
+  (attempt.progressMilestones || []).forEach((milestone) => {
+    events.push({
+      type: 'progress',
+      label: `Reached ${milestone.percent}% progress`,
+      timestamp: milestone.loggedAt,
+    });
+  });
+
   (attempt.violations || []).forEach((v) => {
     events.push({
       type: 'focus_lost',
@@ -632,7 +640,7 @@ const getExamActivityLogs = async (req, res) => {
         select: 'name firstName lastName email program',
         match: { program: programId },
       })
-      .select('student startTime endTime status answers randomizedQuestions violations autoSubmitted')
+      .select('student startTime endTime status answers randomizedQuestions violations progressMilestones autoSubmitted')
       .sort({ startTime: -1 })
       .lean();
 

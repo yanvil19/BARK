@@ -270,6 +270,10 @@
   color: #0369a1;
 }
 
+.el-event--progress .el-event-label {
+  color: #5b21b6;
+}
+
 .el-event--focus_lost .el-event-label {
   color: #b45309;
 }

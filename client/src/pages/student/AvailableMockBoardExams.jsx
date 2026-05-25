@@ -402,7 +402,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                       <span className={`ambe-status ${exam.status}`}>
                         {exam.status}
                       </span>
-                      {exam.resultsReleaseDate && (
+                      {exam.resultsReleaseDate && exam.status !== 'archived' && (
                         <div className="ambe-release-date">
                           Release: {formatDateTime(exam.resultsReleaseDate)}
                         </div>
