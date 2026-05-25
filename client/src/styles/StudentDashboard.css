@@ -50,7 +50,7 @@
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sd-grid-item-0 {
@@ -120,6 +120,7 @@
   padding: 0 20px 16px;
   flex: 1;
   overflow-y: auto;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -167,7 +168,6 @@
   border-radius: 8px;
   border-top-width: 5px;
   border-top-color: var(--primary-bg);
-
 }
 
 .sd-grid-item-2 .sd-stat-card {
@@ -195,7 +195,7 @@
   text-transform: uppercase;
   color: #8b96c8;
   margin-top: 6px;
-  width: 110%;
+  width: 106%;
   padding: 10px;
   margin-left: -20px;
   border-top: 1px solid #8c96ae;
@@ -300,7 +300,7 @@
 
 .sd-attempt-row:hover {
   background: var(--accent-yellow) !important;
-  transform: scale(1.02);
+  transform: scale(1.01);
   z-index: 2;
 }
 
@@ -473,7 +473,32 @@
 
 @media (max-width: 768px) {
   .sd-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sd-grid-item-0 {
+    order: 5;
+  }
+
+  .sd-grid-item-1 {
+    order: 1;
+  }
+
+  .sd-grid-item-2 {
+    order: 2;
+  }
+
+  .sd-grid-item-3 {
+    order: 3;
+  }
+
+  .sd-grid-item-4 {
+    order: 4;
+  }
+
+  .sd-grid-item-5 {
+    order: 6;
   }
 
   .sd-grid-item-0,
@@ -486,16 +511,49 @@
     grid-row: auto;
   }
 
+  .sd-grid-item {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
   .sd-timeline-wrapper {
-    overflow-x: auto;
+    overflow-x: visible !important;
   }
 
   .sd-timeline {
-    min-width: 650px;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .sd-card-body {
+    overflow-x: hidden !important;
   }
 
   .sd-attempt-row {
-  grid-template-columns: 0.2fr 3fr 2fr;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
+
+  .sd-attempt-left,
+  .sd-attempt-right {
+    width: 100%;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .sd-attempt-right {
+    align-items: flex-start;
+  }
+
+  .sd-release-teaser {
+    margin-top: 1.5em;
+  }
+
+  /* 
+.sd-attempt-status {
+  justify-self: center;
+} */
 
 }

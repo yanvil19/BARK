@@ -400,7 +400,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
               bigLabel={overallScore}
 
-              subLabel="Average score"
+              subLabel="Correct/Total Score"
             />
           </div>
 
@@ -427,6 +427,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
                   ? `${lowestAttempt.rawScore}/${lowestAttempt.totalScore}`
                   : '—'
               }
+              subLabel="Lowest score"
               subtitle={lowestAttempt?.examName ?? '—'}
             />
           </div>
