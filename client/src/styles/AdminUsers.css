@@ -264,6 +264,28 @@
   border-color: var(--primary-bg);
 }
 
+/* Page-specific tweaks for Schools & Programs tables */
+.um-table-depts th:first-child,
+.um-table-programs th:first-child,
+.um-table-depts td:first-child,
+.um-table-programs td:first-child {
+  text-align: center;
+}
+
+.um-table-depts .um-actions-cell,
+.um-table-programs .um-actions-cell {
+  justify-content: center;
+}
+
+.um-table-depts .um-badge--dept,
+.um-table-programs .um-badge--dept {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 6px 14px;
+}
+
 .um-none {
   color: #bbb;
   font-size: 13px;
@@ -852,4 +874,173 @@
     margin-top: 2px;
   }
 
+}
+
+/* ──────────────────────────────────────────────────────────
+   REPLICATED REGISTRATION FORM DESIGN (FROM STUDENT REGISTER)
+   ────────────────────────────────────────────────────────── */
+.um-register-form {
+  padding: 10px 6px;
+}
+
+.um-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 28px;
+  margin-bottom: 20px;
+}
+
+.um-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.um-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.um-form-group label,
+.um-segment-label {
+  font-family: var(--font-title, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: #4a57a2;
+}
+
+.um-form-group input,
+.um-form-group select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  background: #f3f5fc;
+  color: #5261ab;
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.um-form-group input::placeholder {
+  color: #a4abcf;
+}
+
+.um-form-group input:focus,
+.um-form-group select:focus {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
+  background: #fff;
+}
+
+.um-form-group input:disabled,
+.um-form-group select:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Segmented selector styling */
+.um-segmented-wrapper {
+  margin-bottom: 20px;
+}
+
+.um-segmented {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #eef1fb;
+  border: 1px solid #d5daf0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.um-segmented button {
+  border: none;
+  background: transparent;
+  color: #5b68ab;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  flex: 1 1 auto;
+  min-width: 100px;
+  text-align: center;
+}
+
+.um-segmented button:hover {
+  background: rgba(83, 98, 187, 0.08);
+}
+
+.um-segmented button.is-active {
+  background: var(--primary-bg, #35408e);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(53, 64, 142, 0.18);
+}
+
+/* Password wrapper */
+.um-password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.um-password-input-wrapper input {
+  padding-right: 44px;
+}
+
+.um-password-toggle {
+  position: absolute;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: #4f5fae;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.um-password-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.um-password-toggle:hover {
+  color: #334693;
+}
+
+.um-password-toggle.is-disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Modal actions styling match */
+.um-register-form .modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #ccd3ee;
+}
+
+@media (max-width: 640px) {
+  .um-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
