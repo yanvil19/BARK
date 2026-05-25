@@ -1,4 +1,5 @@
 const MockBoardExam = require('../models/MockBoardExam');
+const MockExamResult = require('../models/MockExamResult');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
@@ -233,10 +234,36 @@ async function listMockBoardExams(req, res) {
     const exams = await MockBoardExam.find(query)
       .populate('program', 'name code department')
       .populate('subjectTags', 'name')
-      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status passingThreshold createdAt updatedAt')
+      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status passingThreshold resultsReleaseDate createdAt updatedAt')
       .sort({ updatedAt: -1 });
 
-    res.json({ exams });
+    const now = new Date();
+    const examIds = exams.map((exam) => exam._id);
+    const resultRecords = examIds.length > 0
+      ? await MockExamResult.find({ examId: { $in: examIds } }).select('examId status')
+      : [];
+    const uploadedExamIds = new Set(
+      resultRecords
+        .filter((record) => record.status === 'computed')
+        .map((record) => String(record.examId))
+    );
+
+    const enrichedExams = exams.map((exam) => {
+      const examObj = exam.toObject();
+      const resultsUploaded = uploadedExamIds.has(String(exam._id));
+      const resultsReleased = Boolean(
+        examObj.resultsReleaseDate && new Date(examObj.resultsReleaseDate) <= now
+      );
+
+      return {
+        ...examObj,
+        computationStatus: resultsUploaded ? 'computed' : 'none',
+        resultsUploaded,
+        resultsReleased,
+      };
+    });
+
+    res.json({ exams: enrichedExams });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -454,6 +481,15 @@ async function setResultsReleaseDate(req, res) {
 
     if (exam.status !== 'finished' && exam.status !== 'archived') {
       return res.status(400).json({ message: 'Can only schedule results release for finished or archived exams' });
+    }
+
+    const uploadedResult = await MockExamResult.findOne({ examId: exam._id, status: 'computed' });
+    if (uploadedResult) {
+      return res.status(400).json({ message: 'Results have already been uploaded. Release date can no longer be changed.' });
+    }
+
+    if (exam.resultsReleaseDate && new Date(exam.resultsReleaseDate) <= new Date()) {
+      return res.status(400).json({ message: 'Results have already been released to students. Release date can no longer be changed.' });
     }
 
     exam.resultsReleaseDate = releaseDate;

@@ -20,6 +20,16 @@ function formatDateTime(value) {
   });
 }
 
+function canScheduleResultsRelease(exam) {
+  if (exam.status !== 'finished') return false;
+
+  const resultsUploaded = exam.resultsUploaded === true || exam.computationStatus === 'computed';
+  const resultsReleased = exam.resultsReleased === true
+    || (exam.resultsReleaseDate && new Date(exam.resultsReleaseDate) <= new Date());
+
+  return !resultsUploaded && !resultsReleased;
+}
+
 export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -424,7 +434,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                           </button>
                         )}
 
-                        {exam.status === 'finished' && (
+                        {canScheduleResultsRelease(exam) && (
                           <button
                             type="button"
                             className="ambe-btn primary"
