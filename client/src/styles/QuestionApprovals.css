@@ -280,6 +280,20 @@
   margin-top: 4px;
 }
 
+.ca-program-pill {
+  padding: 3px 10px;
+  background: #f0f9ff;
+  border: 1px solid rgba(3, 105, 161, 0.22);
+  border-radius: 999px;
+  font-size: 11px;
+  color: #0369a1;
+  font-weight: 600;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
 .ca-tag-pill {
   padding: 3px 10px;
   background: #eef0fb;
@@ -299,10 +313,23 @@
   font-weight: 500;
 }
 
+.ca-card-meta-datetime {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .ca-date {
   font-size: 11px;
   color: #b0b7d4;
-  margin-left: auto;
+}
+
+.ca-time {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 /* ── State Badges ────────────────────────────────────────– */

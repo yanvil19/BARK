@@ -10,6 +10,10 @@ const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected
 
 const LOCK_STALE_MS = 10 * 60 * 1000;
 
+function getSubmittedAt(question) {
+  return question?.submittedAt || question?.createdAt || null;
+}
+
 function formatDate(iso) {
   if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-PH', {
@@ -17,6 +21,19 @@ function formatDate(iso) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-PH', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function formatProgramLabel(program) {
+  if (!program) return 'N/A';
+  return program.name || program.code || 'N/A';
 }
 
 function truncateText(text, max = 100) {
@@ -650,9 +667,13 @@ export default function QuestionApprovals({ me }) {
                         </div>
                       </div>
                       <div className="ca-card-meta">
+                        <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
                         <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
                         <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
-                        <span className="ca-date">{formatDate(question.submittedAt)}</span>
+                        <span className="ca-card-meta-datetime">
+                          <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
+                          <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
+                        </span>
                       </div>
                     </div>
                   );
@@ -741,17 +762,16 @@ export default function QuestionApprovals({ me }) {
                     <div className="ca-meta-value">{selectedQuestion.createdBy?.name || 'Unknown'}</div>
                   </div>
                   <div>
-                    <span className="ca-meta-label">Date</span>
-                    <div className="ca-meta-value">{formatDate(selectedQuestion.submittedAt)}</div>
+                    <span className="ca-meta-label">Program</span>
+                    <div className="ca-meta-value">{formatProgramLabel(selectedQuestion.program)}</div>
                   </div>
-                  {me?.role === 'dean' && (
-                    <div>
-                      <span className="ca-meta-label">Program</span>
-                      <div className="ca-meta-value">
-                        {selectedQuestion.program?.name || selectedQuestion.program?.code || 'N/A'}
-                      </div>
+                  <div>
+                    <span className="ca-meta-label">Submitted</span>
+                    <div className="ca-meta-value">
+                      {formatDate(getSubmittedAt(selectedQuestion))}
+                      {getSubmittedAt(selectedQuestion) ? ` · ${formatTime(getSubmittedAt(selectedQuestion))}` : ''}
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
 
