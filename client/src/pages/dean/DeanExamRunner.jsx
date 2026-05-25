@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import '../../styles/MockBoardExamPreview.css';
+import { useToast } from '../../components/Toast.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -30,6 +31,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const { notify } = useToast();
 
   useEffect(() => {
     async function fetchExam() {
@@ -56,7 +58,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
         setSubmitted(false);
         setCurrentQuestionIndex(0);
       } catch (err) {
-        alert(err.message || 'Failed to load exam.');
+        notify(err.message || 'Failed to load exam.', { variant: 'error' });
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
 import '../../styles/ExamResults.css';
+import { useToast } from '../../components/Toast.jsx';
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -178,6 +179,7 @@ const CircularProgress = ({ percentage, threshold }) => {
 };
 
 const ExamResults = () => {
+  const { notify } = useToast();
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(null);
   const [activeReport, setActiveReport] = useState(null);
@@ -247,7 +249,7 @@ const ExamResults = () => {
       fetchExams();
       if (selectedExamId === examId) setActiveReport(data.result);
     } catch (err) {
-      alert('Computation failed: ' + err.message);
+      notify('Computation failed: ' + (err.message || 'Unknown error'), { variant: 'error' });
     } finally {
       setComputingId(null);
     }

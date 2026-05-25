@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
+import { useToast } from '../../components/Toast.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -56,6 +58,7 @@ function formatRoleLabel(role) {
 }
 
 export default function QuestionApprovals({ me }) {
+  const { notify } = useToast();
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +75,7 @@ export default function QuestionApprovals({ me }) {
   const [sortBy, setSortBy] = useState('newest');
   const [lockedQuestionId, setLockedQuestionId] = useState(null);
   const [warningModal, setWarningModal] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
   const [actionTaken, setActionTaken] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
@@ -222,28 +226,83 @@ export default function QuestionApprovals({ me }) {
   }
 
   async function handleApprove(question) {
-    if (!window.confirm(`Approve "${question.title}"? It will be marked as approved and ready to use.`)) return;
-    try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
-        method: 'POST',
-        body: { action: 'approve' },
-      });
-      setActionTaken(true);
-      setLockedQuestionId(null);
-      setQuestions((prev) => prev.map((item) => (
-        item._id === question._id ? { ...item, state: 'approved', currentReviewer: null, reviewStartedAt: null } : item
-      )));
-      setSelectedQuestion((prev) => (
-        prev && prev._id === question._id ? { ...prev, state: 'approved', currentReviewer: null, reviewStartedAt: null } : prev
-      ));
-    } catch (err) {
-      if (err.status === 409) {
-        alert('This question has already been reviewed by someone else.');
-        fetchApprovals();
-        setSelectedQuestion(null);
-      } else {
-        alert(err.message || 'Failed to approve question.');
+    setConfirmModal({ action: 'approve', question });
+  }
+
+  async function performConfirm() {
+    if (!confirmModal) return;
+    const { action, question } = confirmModal;
+    setConfirmModal(null);
+
+    if (action === 'approve') {
+      try {
+        await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'approve' } });
+        setActionTaken(true);
+        setLockedQuestionId(null);
+        setQuestions((prev) => prev.map((item) => (
+          item._id === question._id ? { ...item, state: 'approved', currentReviewer: null, reviewStartedAt: null } : item
+        )));
+        setSelectedQuestion((prev) => (
+          prev && prev._id === question._id ? { ...prev, state: 'approved', currentReviewer: null, reviewStartedAt: null } : prev
+        ));
+      } catch (err) {
+        if (err.status === 409) {
+          notify('This question has already been reviewed by someone else.', { variant: 'error' });
+          fetchApprovals();
+          setSelectedQuestion(null);
+        } else {
+          notify(err.message || 'Failed to approve question.', { variant: 'error' });
+        }
       }
+    }
+
+    if (action === 'reuse') {
+      try {
+        await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'reuse' } });
+        const updated = { ...question, state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
+        setQuestions((prev) => prev.map((item) => (item._id === question._id ? updated : item)));
+        setSelectedQuestion(updated);
+      } catch (err) {
+        if (err.status === 409) {
+          notify('This question has already been modified by someone else.', { variant: 'error' });
+          fetchApprovals();
+          setSelectedQuestion(null);
+        } else {
+          notify(err.message || 'Failed to mark question for reuse.', { variant: 'error' });
+        }
+      }
+    }
+
+    if (action === 'delete') {
+      try {
+        await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'delete' } });
+        setQuestions((prev) => prev.filter((item) => item._id !== question._id));
+        setSelectedQuestion(null);
+      } catch (err) {
+        if (err.status === 409) {
+          notify('This question has already been modified by someone else.', { variant: 'error' });
+          fetchApprovals();
+          setSelectedQuestion(null);
+        } else {
+          notify(err.message || 'Failed to delete question.', { variant: 'error' });
+        }
+      }
+    }
+
+    if (action === 'bulkApprove') {
+      const ids = Array.from(selectedIds);
+      setBulkSubmitting(true);
+      const results = await Promise.allSettled(
+        ids.map((id) => apiAuth(`${BASE}/api/questions/${id}/review`, { method: 'POST', body: { action: 'approve' } }))
+      );
+      const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+      setQuestions((prev) => prev.map((q) => (
+        succeeded.includes(q._id) ? { ...q, state: 'approved', currentReviewer: null, reviewStartedAt: null } : q
+      )));
+      setSelectedIds(new Set());
+      setBulkSubmitting(false);
+      const failed = ids.length - succeeded.length;
+      if (failed > 0) notify(`${succeeded.length} approved. ${failed} failed (may have already been reviewed).`, { variant: 'warning' });
     }
   }
 
@@ -253,7 +312,7 @@ export default function QuestionApprovals({ me }) {
       actionModal.action === 'restore' ? 'restore feedback' :
       'rejection reason';
     if (!note.trim()) {
-      alert(`A ${noteLabel} is required.`);
+      notify(`A ${noteLabel} is required.`, { variant: 'error' });
       return;
     }
 
@@ -288,13 +347,13 @@ export default function QuestionApprovals({ me }) {
       setNote('');
     } catch (err) {
       if (err.status === 409) {
-        alert('This question has already been reviewed by someone else.');
+        notify('This question has already been reviewed by someone else.', { variant: 'error' });
         fetchApprovals();
         setSelectedQuestion(null);
         setActionModal(null);
         setNote('');
       } else {
-        alert(err.message || 'Failed to submit review.');
+        notify(err.message || 'Failed to submit review.', { variant: 'error' });
       }
     } finally {
       setSubmitting(false);
@@ -302,44 +361,11 @@ export default function QuestionApprovals({ me }) {
   }
 
   async function handleReuse(question) {
-    if (!window.confirm(`Mark "${question.title}" as approved for reuse?\n\nThis makes it selectable for new exams without sending it back to the creator.`)) return;
-    try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
-        method: 'POST',
-        body: { action: 'reuse' },
-      });
-      const updated = { ...question, state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
-      setQuestions((prev) => prev.map((item) => (item._id === question._id ? updated : item)));
-      setSelectedQuestion(updated);
-    } catch (err) {
-      if (err.status === 409) {
-        alert('This question has already been modified by someone else.');
-        fetchApprovals();
-        setSelectedQuestion(null);
-      } else {
-        alert(err.message || 'Failed to mark question for reuse.');
-      }
-    }
+    setConfirmModal({ action: 'reuse', question });
   }
 
   async function handleDelete(question) {
-    if (!window.confirm(`Permanently delete "${question.title}"? This cannot be undone.`)) return;
-    try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, {
-        method: 'POST',
-        body: { action: 'delete' },
-      });
-      setQuestions((prev) => prev.filter((item) => item._id !== question._id));
-      setSelectedQuestion(null);
-    } catch (err) {
-      if (err.status === 409) {
-        alert('This question has already been modified by someone else.');
-        fetchApprovals();
-        setSelectedQuestion(null);
-      } else {
-        alert(err.message || 'Failed to delete question.');
-      }
-    }
+    setConfirmModal({ action: 'delete', question });
   }
 
   // ── Bulk Actions ──────────────────────────────────────────
@@ -374,33 +400,12 @@ export default function QuestionApprovals({ me }) {
 
   async function handleBulkApprove() {
     if (!selectedIds.size) return;
-    if (!window.confirm(`Approve ${selectedIds.size} question${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
-
-    setBulkSubmitting(true);
-    const ids = Array.from(selectedIds);
-    const results = await Promise.allSettled(
-      ids.map(id => apiAuth(`${BASE}/api/questions/${id}/review`, {
-        method: 'POST',
-        body: { action: 'approve' },
-      }))
-    );
-
-    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
-    setQuestions(prev => prev.map(q =>
-      succeeded.includes(q._id)
-        ? { ...q, state: 'approved', currentReviewer: null, reviewStartedAt: null }
-        : q
-    ));
-    setSelectedIds(new Set());
-    setBulkSubmitting(false);
-
-    const failed = ids.length - succeeded.length;
-    if (failed > 0) alert(`${succeeded.length} approved. ${failed} failed (may have already been reviewed).`);
+    setConfirmModal({ action: 'bulkApprove' });
   }
 
   async function handleBulkSubmitAction() {
     if (!note.trim()) {
-      alert(`A ${bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} is required.`);
+      notify(`A ${bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} is required.`, { variant: 'error' });
       return;
     }
 
@@ -437,7 +442,7 @@ export default function QuestionApprovals({ me }) {
     setBulkSubmitting(false);
 
     const failed = ids.length - succeeded.length;
-    if (failed > 0) alert(`${succeeded.length} updated. ${failed} failed (may have already been reviewed).`);
+    if (failed > 0) notify(`${succeeded.length} updated. ${failed} failed (may have already been reviewed).`, { variant: 'warning' });
   }
 
   // ─────────────────────────────────────────────────────────
@@ -847,93 +852,112 @@ export default function QuestionApprovals({ me }) {
       </div>
 
       {/* Single Question Action Modal */}
-      {actionModal && (
-        <div className="ca-modal-overlay">
-          <div className="ca-modal">
-            <div className="ca-modal-header">
-              <h3>
-                {actionModal.action === 'return' ? 'Return for Revision' :
-                 actionModal.action === 'restore' ? 'Restore for Review' :
-                 'Reject Question'}
-              </h3>
-              <button className="ca-modal-close" onClick={() => setActionModal(null)} type="button">x</button>
-            </div>
-            <div className="ca-modal-body">
-              <div><strong>Question:</strong> {actionModal.question.title}</div>
-              <div className="ca-form-group">
-                <label className="ca-label">
-                  <strong>
-                    {actionModal.action === 'return' ? 'Revision Note (required)' :
-                     actionModal.action === 'restore' ? 'Restore Feedback (required)' :
-                     'Rejection Reason (required)'}
-                  </strong>
-                </label>
-                <textarea
-                  className="ca-textarea"
-                  rows="5"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={
-                    actionModal.action === 'return' ? 'Explain what needs to be fixed...' :
-                    actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
-                    'Explain why this question is being rejected...'
-                  }
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="ca-modal-footer">
-              <button className="ca-btn-cancel" onClick={() => setActionModal(null)} disabled={submitting}>Cancel</button>
-              <button className="ca-btn-submit" onClick={submitAction} disabled={submitting || !note.trim()}>
-                {submitting ? 'Submitting...' : 'Submit'}
-              </button>
+      <ConfirmationModal
+        open={!!actionModal}
+        onClose={() => setActionModal(null)}
+        onConfirm={submitAction}
+        title={actionModal ? (
+          actionModal.action === 'return' ? 'Return for Revision' :
+          actionModal.action === 'restore' ? 'Restore for Review' :
+          'Reject Question'
+        ) : ''}
+        confirmLabel="Submit"
+        confirmVariant={actionModal && actionModal.action === 'reject' ? 'danger' : 'primary'}
+        busy={submitting}
+      >
+        {actionModal && (
+          <div>
+            <div style={{ marginBottom: 8 }}><strong>Question:</strong> {actionModal.question.title}</div>
+            <div className="ca-form-group">
+              <label className="ca-label">
+                <strong>
+                  {actionModal.action === 'return' ? 'Revision Note (required)' :
+                   actionModal.action === 'restore' ? 'Restore Feedback (required)' :
+                   'Rejection Reason (required)'}
+                </strong>
+              </label>
+              <textarea
+                className="ca-textarea"
+                rows="5"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={
+                  actionModal.action === 'return' ? 'Explain what needs to be fixed...' :
+                  actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
+                  'Explain why this question is being rejected...'
+                }
+                autoFocus
+              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ConfirmationModal>
 
       {/* Bulk Return / Reject Modal */}
-      {bulkActionModal && (
-        <div className="ca-modal-overlay">
-          <div className="ca-modal">
-            <div className="ca-modal-header">
-              <h3>
-                {bulkActionModal === 'return' ? `Return ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` : `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`}
-              </h3>
-              <button className="ca-modal-close" onClick={() => { setBulkActionModal(null); setNote(''); }} type="button">x</button>
-            </div>
-            <div className="ca-modal-body">
-              <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
-                This {bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} will be applied to all {selectedIds.size} selected question{selectedIds.size > 1 ? 's' : ''}.
-              </p>
-              <div className="ca-form-group">
-                <label className="ca-label">
-                  <strong>
-                    {bulkActionModal === 'return' ? 'Revision Note (required)' : 'Rejection Reason (required)'}
-                  </strong>
-                </label>
-                <textarea
-                  className="ca-textarea"
-                  rows="5"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={
-                    bulkActionModal === 'return'
-                      ? 'Explain what needs to be fixed...'
-                      : 'Explain why these questions are being rejected...'
-                  }
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="ca-modal-footer">
-              <button className="ca-btn-cancel" onClick={() => { setBulkActionModal(null); setNote(''); }} disabled={bulkSubmitting}>Cancel</button>
-              <button className="ca-btn-submit" onClick={handleBulkSubmitAction} disabled={bulkSubmitting || !note.trim()}>
-                {bulkSubmitting ? 'Submitting...' : 'Submit'}
-              </button>
+      <ConfirmationModal
+        open={!!bulkActionModal}
+        onClose={() => { setBulkActionModal(null); setNote(''); }}
+        onConfirm={handleBulkSubmitAction}
+        title={bulkActionModal ? (
+          bulkActionModal === 'return' ? `Return ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` : `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`
+        ) : ''}
+        confirmLabel="Submit"
+        confirmVariant={bulkActionModal === 'reject' ? 'danger' : 'primary'}
+        busy={bulkSubmitting}
+      >
+        {bulkActionModal && (
+          <div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+              This {bulkActionModal === 'return' ? 'revision note' : 'rejection reason'} will be applied to all {selectedIds.size} selected question{selectedIds.size > 1 ? 's' : ''}.
+            </p>
+            <div className="ca-form-group">
+              <label className="ca-label">
+                <strong>
+                  {bulkActionModal === 'return' ? 'Revision Note (required)' : 'Rejection Reason (required)'}
+                </strong>
+              </label>
+              <textarea
+                className="ca-textarea"
+                rows="5"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={
+                  bulkActionModal === 'return'
+                    ? 'Explain what needs to be fixed...'
+                    : 'Explain why these questions are being rejected...'
+                }
+                autoFocus
+              />
             </div>
           </div>
-        </div>
+        )}
+      </ConfirmationModal>
+
+      {/* Simple Confirm Modal (approve / reuse / delete / bulk approve) */}
+      {confirmModal && (
+        <ConfirmationModal
+          open={!!confirmModal}
+          onClose={() => setConfirmModal(null)}
+          onConfirm={performConfirm}
+          title={(() => {
+            if (!confirmModal) return '';
+            if (confirmModal.action === 'approve') return `Approve "${confirmModal.question?.title || ''}"?`;
+            if (confirmModal.action === 'reuse') return `Mark "${confirmModal.question?.title || ''}" for reuse?`;
+            if (confirmModal.action === 'delete') return `Delete "${confirmModal.question?.title || ''}"?`;
+            if (confirmModal.action === 'bulkApprove') return `Approve ${selectedIds.size} question${selectedIds.size > 1 ? 's' : ''}?`;
+            return '';
+          })()}
+          message={(() => {
+            if (!confirmModal) return null;
+            if (confirmModal.action === 'reuse') return 'This makes it selectable for new exams without sending it back to the creator.';
+            if (confirmModal.action === 'approve' || confirmModal.action === 'bulkApprove') return 'This cannot be undone.';
+            if (confirmModal.action === 'delete') return 'This action is permanent and cannot be undone.';
+            return null;
+          })()}
+          confirmLabel={confirmModal.action === 'delete' ? 'Delete' : 'Confirm'}
+          confirmVariant={confirmModal.action === 'delete' || confirmModal.action === 'bulkApprove' ? 'danger' : 'primary'}
+          busy={confirmModal.action === 'bulkApprove' ? bulkSubmitting : submitting}
+        />
       )}
 
       {/* Concurrency Warning Modal */}
