@@ -439,6 +439,11 @@ const updateUser = async (req, res) => {
         if (existingStudentId) {
           return res.status(400).json({ message: 'A student with this Student ID already exists' });
         }
+        // Cross-check alumni
+        const existingAsAlumni = await User.findOne({ alumniId: studentId, _id: { $ne: user._id } });
+        if (existingAsAlumni) {
+          return res.status(400).json({ message: 'This ID is already in use by an alumni' });
+        }
       }
       user.studentId = studentId || null;
     }
@@ -452,6 +457,11 @@ const updateUser = async (req, res) => {
         const existingAlumniId = await User.findOne({ alumniId, _id: { $ne: user._id } });
         if (existingAlumniId) {
           return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
+        }
+        // Cross-check students
+        const existingAsStudent = await User.findOne({ studentId: alumniId, _id: { $ne: user._id } });
+        if (existingAsStudent) {
+          return res.status(400).json({ message: 'This ID is already in use by a student' });
         }
       }
       user.alumniId = alumniId || null;
@@ -652,10 +662,18 @@ const registerStudentRequest = async (req, res) => {
       if (existingStudentId) {
         return res.status(400).json({ message: 'A student with this Student ID already exists' });
       }
-      // Also check pending requests
+      // Cross-check against alumni IDs
+      const existingAsAlumni = await User.findOne({ alumniId: studentId });
+      if (existingAsAlumni) {
+        return res.status(400).json({ message: 'This ID is already in use by an alumni' });
+      }
       const pendingStudentId = await RegistrationRequest.findOne({ studentId, status: 'pending' });
       if (pendingStudentId) {
         return res.status(400).json({ message: 'A registration request with this Student ID is already pending' });
+      }
+      const pendingAsAlumni = await RegistrationRequest.findOne({ alumniId: studentId, status: 'pending' });
+      if (pendingAsAlumni) {
+        return res.status(400).json({ message: 'This ID is already pending as an alumni registration' });
       }
     }
 
@@ -664,9 +682,18 @@ const registerStudentRequest = async (req, res) => {
       if (existingAlumniId) {
         return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
       }
+      // Cross-check against student IDs
+      const existingAsStudent = await User.findOne({ studentId: alumniId });
+      if (existingAsStudent) {
+        return res.status(400).json({ message: 'This ID is already in use by a student' });
+      }
       const pendingAlumniId = await RegistrationRequest.findOne({ alumniId, status: 'pending' });
       if (pendingAlumniId) {
         return res.status(400).json({ message: 'A registration request with this Alumni ID is already pending' });
+      }
+      const pendingAsStudent = await RegistrationRequest.findOne({ studentId: alumniId, status: 'pending' });
+      if (pendingAsStudent) {
+        return res.status(400).json({ message: 'This ID is already pending as a student registration' });
       }
     }
 
@@ -815,11 +842,19 @@ const approveRegistrationRequest = async (req, res) => {
       if (existingStudentId) {
         return res.status(400).json({ message: 'A student with this Student ID already exists' });
       }
+      const existingAsAlumni = await User.findOne({ alumniId: request.studentId });
+      if (existingAsAlumni) {
+        return res.status(400).json({ message: 'This ID is already in use by an alumni' });
+      }
     }
     if (request.alumniId) {
       const existingAlumniId = await User.findOne({ alumniId: request.alumniId });
       if (existingAlumniId) {
         return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
+      }
+      const existingAsStudent = await User.findOne({ studentId: request.alumniId });
+      if (existingAsStudent) {
+        return res.status(400).json({ message: 'This ID is already in use by a student' });
       }
     }
 
