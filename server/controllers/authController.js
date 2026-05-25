@@ -429,8 +429,33 @@ const updateUser = async (req, res) => {
     }
 
     if (role !== undefined) user.role = role;
-    if (studentId !== undefined) user.studentId = studentId;
-    if (alumniId !== undefined) user.alumniId = alumniId;
+    if (studentId !== undefined) {
+      if (studentId !== null && studentId !== '' && !validateStudentId(studentId)) {
+        return res.status(400).json({ message: 'Student ID must be in format YYYY-XXXXXX (e.g., 2026-123456)' });
+      }
+      // Check for duplicates
+      if (studentId) {
+        const existingStudentId = await User.findOne({ studentId, _id: { $ne: user._id } });
+        if (existingStudentId) {
+          return res.status(400).json({ message: 'A student with this Student ID already exists' });
+        }
+      }
+      user.studentId = studentId || null;
+    }
+
+    if (alumniId !== undefined) {
+      if (alumniId !== null && alumniId !== '' && !validateAlumniId(alumniId)) {
+        return res.status(400).json({ message: 'Alumni ID must be in format YYYY-XXXXXX (e.g., 2026-123456)' });
+      }
+      // Check for duplicates
+      if (alumniId) {
+        const existingAlumniId = await User.findOne({ alumniId, _id: { $ne: user._id } });
+        if (existingAlumniId) {
+          return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
+        }
+      }
+      user.alumniId = alumniId || null;
+    }
 
     // Department / Program updates (IDs)
     let departmentId =
@@ -465,7 +490,7 @@ const updateUser = async (req, res) => {
       if (!validation.ok) return res.status(400).json({ message: validation.message });
 
       user.department = nextDepartmentId || null;
-    user.program = nextProgramId || null;
+      user.program = nextProgramId || null;
     }
 
     await user.save();
@@ -622,6 +647,29 @@ const registerStudentRequest = async (req, res) => {
       return res.status(400).json({ message: 'A registration request for this email is already pending' });
     }
 
+    if (userType === 'student' && studentId) {
+      const existingStudentId = await User.findOne({ studentId });
+      if (existingStudentId) {
+        return res.status(400).json({ message: 'A student with this Student ID already exists' });
+      }
+      // Also check pending requests
+      const pendingStudentId = await RegistrationRequest.findOne({ studentId, status: 'pending' });
+      if (pendingStudentId) {
+        return res.status(400).json({ message: 'A registration request with this Student ID is already pending' });
+      }
+    }
+
+    if (userType === 'alumni' && alumniId) {
+      const existingAlumniId = await User.findOne({ alumniId });
+      if (existingAlumniId) {
+        return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
+      }
+      const pendingAlumniId = await RegistrationRequest.findOne({ alumniId, status: 'pending' });
+      if (pendingAlumniId) {
+        return res.status(400).json({ message: 'A registration request with this Alumni ID is already pending' });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const publicToken = crypto.randomBytes(32).toString('base64url');
     const publicTokenHash = hashPublicToken(publicToken);
@@ -760,6 +808,19 @@ const approveRegistrationRequest = async (req, res) => {
     const existingUser = await User.findOne({ email: request.email });
     if (existingUser) {
       return res.status(400).json({ message: 'A user with this email already exists' });
+    }
+
+    if (request.studentId) {
+      const existingStudentId = await User.findOne({ studentId: request.studentId });
+      if (existingStudentId) {
+        return res.status(400).json({ message: 'A student with this Student ID already exists' });
+      }
+    }
+    if (request.alumniId) {
+      const existingAlumniId = await User.findOne({ alumniId: request.alumniId });
+      if (existingAlumniId) {
+        return res.status(400).json({ message: 'An alumni with this Alumni ID already exists' });
+      }
     }
 
     const user = new User({
