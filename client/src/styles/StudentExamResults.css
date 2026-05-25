@@ -222,3 +222,275 @@
 .ser-btn-close:hover {
   background: #d1d5db;
 }
+
+/* Premium Inline Report UI Styles (adapted from Dean's UI) */
+
+.ser-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: #1e2d6b;
+  border: 1px solid #e1e3ed;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.ser-back-btn:hover {
+  background: #f4f6fb;
+  border-color: #cbd5e1;
+  transform: translateX(-2px);
+}
+
+.ser-back-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.ser-back-btn:hover svg {
+  transform: translateX(-2px);
+}
+
+.ser-report-header {
+  margin-bottom: 24px;
+}
+
+/* Hero Section Card */
+.ser-hero-card {
+  background: #1e2d6b !important;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px) !important;
+  background-size: 24px 24px !important;
+  border-radius: 12px !important;
+  padding: 48px 40px 40px !important;
+  color: white !important;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(30, 45, 107, 0.2) !important;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ser-circular-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 32px;
+}
+
+.ser-circular-svg {
+  width: 180px;
+  height: 180px;
+  transform: rotate(-90deg);
+}
+
+.ser-circular-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 10;
+}
+
+.ser-circular-fill {
+  fill: none;
+  stroke: #f5c518 !important;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray 1s ease-out;
+}
+
+.ser-circular-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ser-circular-text .big-pct {
+  font-size: 32px;
+  font-weight: 800;
+  color: #f5c518;
+  line-height: 1;
+}
+
+.ser-circular-text .small-total {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.ser-threshold-label {
+  font-size: 12px;
+  opacity: 0.6;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.ser-hero-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding-top: 32px;
+  margin-top: 24px;
+}
+
+.ser-metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.ser-metric-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 10%;
+  height: 80%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ser-metric-item .m-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ser-metric-item .m-label {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+/* Breakdown Section */
+.ser-breakdown-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e1e3ed;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.ser-breakdown-header {
+  padding: 32px 32px 24px;
+  border-bottom: 1px solid #f0f2f8;
+}
+
+.ser-breakdown-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e2d6b;
+  margin: 0;
+}
+
+.ser-breakdown-header p {
+  font-size: 12px;
+  color: #8c96ae;
+  margin: 6px 0 0 0;
+}
+
+.ser-topic-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ser-topic-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 60px 60px;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 32px;
+  border-bottom: 1px solid #f8f9fc;
+  transition: background 0.2s;
+}
+
+.ser-topic-row:last-child {
+  border-bottom: none;
+}
+
+.ser-topic-row:hover {
+  background: #f9faff;
+}
+
+.ser-topic-name {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ser-topic-bar-bg {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ser-topic-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ser-topic-pct {
+  font-size: 15px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.ser-topic-fraction {
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* Dynamic Colors based on threshold */
+.status-green {
+  color: #22c55e !important;
+}
+
+.status-orange {
+  color: #f5c518 !important;
+}
+
+.status-red {
+  color: #ef4444 !important;
+}
+
+.bg-green {
+  background-color: #22c55e !important;
+}
+
+.bg-orange {
+  background-color: #f5c518 !important;
+}
+
+.bg-red {
+  background-color: #ef4444 !important;
+}
+
+/* Persistent Content Wrapper for elegant padding and spacing */
+.ser-page-content-wrapper {
+  padding: 0 28px 40px;
+}
+
+@media (max-width: 768px) {
+  .ser-page-content-wrapper {
+    padding: 0 16px 24px;
+  }
+}
+
+
