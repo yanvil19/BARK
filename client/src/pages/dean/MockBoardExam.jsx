@@ -428,7 +428,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             </div>
 
             <div className="mbe-field">
-              <label>Exam Start</label>
+              <div className="mbe-field-heading">
+                <label>Exam Start</label>
+              </div>
               <DateTimePicker
                 value={form.startDateTime}
                 onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
@@ -436,14 +438,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             </div>
 
             <div className="mbe-field">
-              <label>
-                Exam End
-                {computedDuration && (
-                  <span style={{ marginLeft: '10px', fontSize: '0.85em', color: computedDuration.includes('Invalid') ? 'red' : 'gray' }}>
-                    (Duration: {computedDuration})
-                  </span>
-                )}
-              </label>
+              <div className="mbe-field-heading">
+                <label>Exam End</label>
+                <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
+                  {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
+                </span>
+              </div>
               <DateTimePicker
                 value={form.endDateTime}
                 onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}

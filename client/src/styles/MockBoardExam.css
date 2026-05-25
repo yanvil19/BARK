@@ -125,6 +125,47 @@
   color: #4a57a2;
 }
 
+.mbe-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.mbe-field-heading label {
+  gap: 0;
+  flex: 0 1 auto;
+}
+
+.mbe-field-meta {
+  flex: 0 1 auto;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #7f88a8;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mbe-field-meta.is-error {
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .mbe-field-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .mbe-field-meta {
+    text-align: left;
+    white-space: normal;
+  }
+}
+
 .mbe-field--full {
   grid-column: 1 / -1;
 }
