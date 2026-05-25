@@ -30,6 +30,11 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   overflow: hidden;
+  overflow-x: hidden;
+}
+
+.profile-modal * {
+  min-width: 0;
 }
 
 /* TITLE */
@@ -61,6 +66,11 @@
   font-weight: bolder;
   color: #35408e;
   line-height: 1.1;
+word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0; 
+  white-space: normal;
+
 }
 
 .profile-modal-identifiers .role {
@@ -102,6 +112,7 @@
 
   align-items: center;
   justify-content: flex-start;
+  min-width: 0;
 }
 
 .profile-modal > .email {

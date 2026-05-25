@@ -322,153 +322,156 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
       {!loading && exams.length > 0 && (
         <div className="ambe-table-card">
-          <table className="ambe-table">
-            <thead>
-              <tr>
-                <th>Exam Name</th>
-                <th>Program</th>
-                <th>Subjects</th>
-                <th>Exam Start</th>
-                <th>Duration</th>
-                <th>Questions</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exams.map((exam) => (
-                <tr key={exam._id}>
-                  <td>{exam.name}</td>
+          <div className="ambe-scroll-x">
+            <table className="ambe-table">
+              <thead>
+                <tr>
+                  <th>Exam Name</th>
+                  <th>Program</th>
+                  <th>Subjects</th>
+                  <th>Exam Start</th>
+                  <th>Duration</th>
+                  <th>Questions</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exams.map((exam) => (
+                  <tr key={exam._id}>
+                    <td>{exam.name}</td>
 
-                  <td>
-                    <span className="ambe-pill program">
-                      {exam.program?.name ||
-                        exam.program?.code ||
-                        '-'}
-                    </span>
-                  </td>
+                    <td>
+                      <span className="ambe-pill program">
+                        {exam.program?.name ||
+                          exam.program?.code ||
+                          '-'}
+                      </span>
+                    </td>
 
-                  <td>
-                    {(exam.subjectTags || []).length > 0 ? (
-                      exam.subjectTags.map((tag) => (
-                        <span
-                          key={tag._id || tag.name}
-                          className="ambe-pill subject"
-                        >
-                          {tag.name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="ambe-muted">–</span>
-                    )}
-                  </td>
-
-                  <td className="ambe-muted">
-                    {formatDateTime(exam.startDateTime)}
-                  </td>
-                  <td className="ambe-muted">
-                    {exam.durationMinutes || 0} mins
-                  </td>
-
-                  <td>{exam.questions?.length || 0}</td>
-
-                  <td>
-                    <span className={`ambe-status ${exam.status}`}>
-                      {exam.status}
-                    </span>
-                    {exam.resultsReleaseDate && (
-                      <div className="ambe-release-date">
-                        Release: {formatDateTime(exam.resultsReleaseDate)}
-                      </div>
-                    )}
-                  </td>
-
-                  <td>
-                    <div className="ambe-actions">
-                      <button
-                        type="button"
-                        className="ambe-btn view"
-                        onClick={() => handleView(exam._id)}
-                      >
-                        Details
-                      </button>
-
-                      {exam.status === 'draft' && (
-                        <button
-                          type="button"
-                          className="ambe-btn publish"
-                          onClick={() => handlePublish(exam)}
-                        >
-                          Publish
-                        </button>
+                    <td>
+                      {(exam.subjectTags || []).length > 0 ? (
+                        exam.subjectTags.map((tag) => (
+                          <span
+                            key={tag._id || tag.name}
+                            className="ambe-pill subject"
+                          >
+                            {tag.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="ambe-muted">–</span>
                       )}
+                    </td>
 
-                      {exam.status !== 'finished' && exam.status !== 'archived' && (
-                        <button
-                          type="button"
-                          className="ambe-btn primary"
-                          onClick={() => onEditExam(exam._id, 'testRun')}
-                        >
-                          Test Run
-                        </button>
-                      )}
+                    <td className="ambe-muted">
+                      {formatDateTime(exam.startDateTime)}
+                    </td>
+                    <td className="ambe-muted">
+                      {exam.durationMinutes || 0} mins
+                    </td>
 
-                      {exam.status !== 'finished' && exam.status !== 'archived' && (
-                        <button
-                          type="button"
-                          className="ambe-btn primary"
-                          onClick={() => handleEdit(exam)}
-                        >
-                          Edit
-                        </button>
-                      )}
+                    <td>{exam.questions?.length || 0}</td>
 
-                      {exam.status === 'finished' && (
-                        <div className="ambe-schedule-container">
-                          {schedulingExamId === exam._id ? (
-                            <DateTimePicker
-                              value={exam.resultsReleaseDate}
-                              autoOpen={true}
-                              onCancel={() => setSchedulingExamId(null)}
-                              onChange={(date) => handleScheduleResults(exam._id, date)}
-                            />
-                          ) : (
-                            <button
-                              type="button"
-                              className="ambe-btn primary"
-                              onClick={() => setSchedulingExamId(exam._id)}
-                            >
-                              {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
-                            </button>
-                          )}
+                    <td>
+                      <span className={`ambe-status ${exam.status}`}>
+                        {exam.status}
+                      </span>
+                      {exam.resultsReleaseDate && (
+                        <div className="ambe-release-date">
+                          Release: {formatDateTime(exam.resultsReleaseDate)}
                         </div>
                       )}
+                    </td>
 
-                      {exam.status === 'finished' && (
+                    <td>
+                      <div className="ambe-actions">
                         <button
                           type="button"
-                          className="ambe-btn archive"
-                          onClick={() => handleArchive(exam)}
+                          className="ambe-btn view"
+                          onClick={() => handleView(exam._id)}
                         >
-                          Archive
+                          Details
                         </button>
-                      )}
 
-                      {exam.status === 'archived' && (
-                        <button
-                          type="button"
-                          className="ambe-btn delete"
-                          onClick={() => handleDelete(exam)}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        {exam.status === 'draft' && (
+                          <button
+                            type="button"
+                            className="ambe-btn publish"
+                            onClick={() => handlePublish(exam)}
+                          >
+                            Publish
+                          </button>
+                        )}
+
+                        {exam.status !== 'finished' && exam.status !== 'archived' && (
+                          <button
+                            type="button"
+                            className="ambe-btn primary"
+                            onClick={() => onEditExam(exam._id, 'testRun')}
+                          >
+                            Test Run
+                          </button>
+                        )}
+
+                        {exam.status !== 'finished' && exam.status !== 'archived' && (
+                          <button
+                            type="button"
+                            className="ambe-btn primary"
+                            onClick={() => handleEdit(exam)}
+                          >
+                            Edit
+                          </button>
+                        )}
+
+                        {exam.status === 'finished' && (
+                          <div className="ambe-schedule-container">
+                            {schedulingExamId === exam._id ? (
+                              <DateTimePicker
+                                value={exam.resultsReleaseDate}
+                                autoOpen={true}
+                                onCancel={() => setSchedulingExamId(null)}
+                                onChange={(date) => handleScheduleResults(exam._id, date)}
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                className="ambe-btn primary"
+                                onClick={() => setSchedulingExamId(exam._id)}
+                              >
+                                {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {exam.status === 'finished' && (
+                          <button
+                            type="button"
+                            className="ambe-btn archive"
+                            onClick={() => handleArchive(exam)}
+                          >
+                            Archive
+                          </button>
+                        )}
+
+                        {exam.status === 'archived' && (
+                          <button
+                            type="button"
+                            className="ambe-btn delete"
+                            onClick={() => handleDelete(exam)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </div>
       )}
 

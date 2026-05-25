@@ -473,9 +473,19 @@ export default function AdminUsers({ me }) {
 
         {/* ── User Table ── */}
         <div className="um-table-wrap">
-          <div className="um-table-scroll">
+          <div className="scroll-x">
             {busy ? <p className="um-loading">Loading users...</p> : (
-              <table className="um-table">
+              <table className="um-table um-table-userman">
+                <colgroup>
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '11%' }} />
+                </colgroup>
                 <thead>
                   <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Receive Emails ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
                 </thead>
@@ -494,7 +504,7 @@ export default function AdminUsers({ me }) {
                         <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
                         <td>
                           {u._id === me?._id ? <span className="um-none">(you)</span> : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div className="um-email-cell">
                               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: emailToggleBusyById[u._id] ? 'not-allowed' : 'pointer' }}>
                                 <input
                                   type="checkbox"
@@ -587,7 +597,7 @@ export default function AdminUsers({ me }) {
                       <td className="um-actions-cell">
                         <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                         {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
-                                    : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
+                          : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
                         {deleteMode ? (
                           <button
                             type="button"
