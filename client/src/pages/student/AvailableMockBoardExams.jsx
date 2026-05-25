@@ -425,24 +425,14 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                         )}
 
                         {exam.status === 'finished' && (
-                          <div className="ambe-schedule-container">
-                            {schedulingExamId === exam._id ? (
-                              <DateTimePicker
-                                value={exam.resultsReleaseDate}
-                                autoOpen={true}
-                                onCancel={() => setSchedulingExamId(null)}
-                                onChange={(date) => handleScheduleResults(exam._id, date)}
-                              />
-                            ) : (
-                              <button
-                                type="button"
-                                className="ambe-btn primary"
-                                onClick={() => setSchedulingExamId(exam._id)}
-                              >
-                                {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
-                              </button>
-                            )}
-                          </div>
+                          <button
+                            type="button"
+                            className="ambe-btn primary"
+                            onClick={() => setSchedulingExamId(exam._id)}
+                            disabled={schedulingExamId === exam._id}
+                          >
+                            {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
+                          </button>
                         )}
 
                         {exam.status === 'finished' && (
@@ -597,6 +587,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
         </section>
       )}
+
+      {schedulingExamId && (() => {
+        const schedulingExam = exams.find((e) => e._id === schedulingExamId);
+        if (!schedulingExam) return null;
+        return (
+          <DateTimePicker
+            key={schedulingExamId}
+            value={schedulingExam.resultsReleaseDate}
+            autoOpen
+            onCancel={() => setSchedulingExamId(null)}
+            onChange={(date) => handleScheduleResults(schedulingExamId, date)}
+          />
+        );
+      })()}
 
       <ConfirmationModal
         open={!!confirmationModal}
