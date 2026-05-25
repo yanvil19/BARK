@@ -17,6 +17,20 @@ export function authHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// [FIX - SESSION EXPIRY 401 HANDLER]
+function handleSessionExpired() {
+  setToken('');
+  localStorage.removeItem('token');
+
+  const onLoginPage = window.location.pathname.endsWith('/login');
+  const hasExpiredParam = window.location.search.includes('session=expired');
+  if (!onLoginPage || !hasExpiredParam) {
+    window.location.href = '/login?session=expired';
+  }
+
+  return new Promise(() => {});
+}
+
 async function parseJsonResponse(res) {
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('application/json')) return await res.json();
@@ -38,6 +52,12 @@ export async function api(path, { method = 'GET', body, headers } = {}) {
   });
 
   const data = await parseJsonResponse(res);
+
+  // [FIX - SESSION EXPIRY 401 HANDLER]
+  if (res.status === 401) {
+    return handleSessionExpired();
+  }
+
   if (!res.ok) {
     const message = data && data.message ? data.message : `Request failed (${res.status})`;
     const err = new Error(message);
@@ -64,6 +84,12 @@ export async function apiAuthUpload(path, formData) {
     body: formData,
   });
   const data = await parseJsonResponse(res);
+
+  // [FIX - SESSION EXPIRY 401 HANDLER]
+  if (res.status === 401) {
+    return handleSessionExpired();
+  }
+
   if (!res.ok) {
     const message = data?.message || `Request failed (${res.status})`;
     const err = new Error(message);

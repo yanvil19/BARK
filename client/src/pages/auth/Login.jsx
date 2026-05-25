@@ -1,6 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import '../../styles/Login.css';
+
+// [FIX - SESSION EXPIRED MESSAGE]
+function clearSessionExpiredFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('session')) return;
+  url.searchParams.delete('session');
+  const nextPath = url.pathname.endsWith('/login') ? '/' : url.pathname;
+  window.history.replaceState({}, '', `${nextPath}${url.search}${url.hash}`);
+}
 
 export default function Login({ onLogin, onNavigate }) {
   const [mode, setMode] = useState('login'); // 'login' | 'forgot_email' | 'forgot_otp' | 'forgot_new'
@@ -10,6 +19,15 @@ export default function Login({ onLogin, onNavigate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
+
+  // [FIX - SESSION EXPIRED MESSAGE]
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session') === 'expired') {
+      setShowSessionExpired(true);
+    }
+  }, []);
 
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
@@ -26,6 +44,9 @@ export default function Login({ onLogin, onNavigate }) {
         method: 'POST',
         body: { email, password },
       });
+      // [FIX - SESSION EXPIRED MESSAGE]
+      clearSessionExpiredFromUrl();
+      setShowSessionExpired(false);
       onLogin(data.token);
     } catch (err) {
       setError(err.message || 'Login failed');
@@ -142,13 +163,35 @@ export default function Login({ onLogin, onNavigate }) {
           <div className="login-card-body">
             {mode === 'login' ? (
               <form className="login-form" onSubmit={handleSubmit}>
+                {/* [FIX - SESSION EXPIRED MESSAGE] */}
+                {showSessionExpired ? (
+                  <p
+                    className="login-session-expired-banner"
+                    role="status"
+                    style={{
+                      background: '#fffbeb',
+                      border: '1px solid #fde68a',
+                      color: '#92400e',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      margin: '0 0 12px',
+                    }}
+                  >
+                    Your session has expired. Please log in again.
+                  </p>
+                ) : null}
+
                 <div className="login-form-group">
                   <label htmlFor="login-email">Email Address</label>
                   <input
                     id="login-email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (showSessionExpired) setShowSessionExpired(false);
+                    }}
                     placeholder="ex. juandelacruz@gmail.com"
                   />
                 </div>
@@ -158,7 +201,10 @@ export default function Login({ onLogin, onNavigate }) {
                     id="login-password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (showSessionExpired) setShowSessionExpired(false);
+                    }}
                     placeholder="Enter password"
                   />
                 </div>
