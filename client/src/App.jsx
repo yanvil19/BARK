@@ -34,7 +34,6 @@ import "react-datepicker/dist/react-datepicker.css";
 export default function App() {
   const [route, setRoute] = useState('Dashboard');
   const [me, setMe] = useState(null);
-  const [meError, setMeError] = useState('');
   const [editingMockBoardExamId, setEditingMockBoardExamId] = useState('');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
   const [examRunnerId, setExamRunnerId] = useState('');
@@ -47,18 +46,24 @@ export default function App() {
       setMe(null);
       return;
     }
-    setMeError('');
     try {
       const data = await apiAuth('/api/auth/me');
       setMe(data);
     } catch (err) {
       setMe(null);
-      setMeError(err.message || 'Failed to load profile');
     }
   }
 
   useEffect(() => {
     refreshMe();
+  }, []);
+
+  // [FIX - SESSION EXPIRED MESSAGE]
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session') === 'expired' || window.location.pathname.endsWith('/login')) {
+      setRoute('login');
+    }
   }, []);
 
   function handleLogin(token) {
@@ -216,7 +221,7 @@ export default function App() {
       <Navbar me={me} route={route} onRoute={setRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
 
       <main className="page-content">
-        {meError ? <p>{meError}</p> : null}
+        {/* [FIX - REMOVE INVALID TOKEN TEXT] */}
         {page}
       </main>
 
