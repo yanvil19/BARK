@@ -48,11 +48,11 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
       setViolationCount(newCount);
 
-      if (newCount > 2 && attemptId) {
+      if (attemptId) {
         apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/violation`, {
           method: 'POST',
-          body: { type: 'window_blur_or_shortcut', reason }
-        }).catch(err => console.error('Failed to log violation:', err));
+          body: { type: 'focus_lost', reason },
+        }).catch((err) => console.error('Failed to log activity:', err));
       }
 
       setIsBlurred(true);
@@ -256,9 +256,9 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
             <h2 className="exam-security-modal-title">Security Warning</h2>
             <p className="exam-security-modal-text">
               {violationCount === 1
-                ? "First Warning: You have navigated away from the exam window, switched tabs, or used a restricted shortcut. Please remain focused on the exam. Future violations will be recorded."
+                ? "First Warning: You have navigated away from the exam window, switched tabs, or used a restricted shortcut. Please remain focused on the exam. Each focus change is recorded."
                 : violationCount === 2
-                  ? "Final Warning: You have navigated away from the exam window or used a restricted shortcut again. One more violation will be recorded."
+                  ? "Final Warning: You have navigated away from the exam window or used a restricted shortcut again. Please return to the exam."
                   : "You have navigated away from the exam window or used a restricted shortcut again. This action has been recorded."}
             </p>
             <button className="exam-security-modal-btn" onClick={() => { setIsBlurred(false); setShowWarningModal(false); }}>

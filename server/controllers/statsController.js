@@ -547,53 +547,152 @@ const getDeanDashboardStats = async (req, res) => {
   }
 };
 
-const getCheatingLogs = async (req, res) => {
+function countAnswered(answers) {
+  if (!answers) return 0;
+  if (answers instanceof Map) {
+    return [...answers.values()].filter(Boolean).length;
+  }
+  return Object.values(answers).filter(Boolean).length;
+}
+
+function buildStudentDisplayName(student) {
+  if (!student) return 'Student';
+  return student.name
+    || `${student.firstName || ''} ${student.lastName || ''}`.trim()
+    || 'Student';
+}
+
+function buildAttemptEvents(attempt) {
+  const events = [];
+
+  if (attempt.startTime) {
+    events.push({
+      type: 'started',
+      label: 'Started answering',
+      timestamp: attempt.startTime,
+    });
+  }
+
+  (attempt.violations || []).forEach((v) => {
+    events.push({
+      type: 'focus_lost',
+      label: 'Lost window focus',
+      detail: v.reason || 'Unknown',
+      timestamp: v.timestamp,
+    });
+  });
+
+  if (attempt.status === 'submitted' && attempt.endTime) {
+    events.push({
+      type: 'submitted',
+      label: attempt.autoSubmitted ? 'Submitted exam (auto)' : 'Submitted exam',
+      timestamp: attempt.endTime,
+    });
+  }
+
+  events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  return events;
+}
+
+const getExamActivityLogs = async (req, res) => {
   try {
     if (!req.user.program) {
       return res.status(400).json({ message: 'Program Chair has no assigned program' });
     }
 
-    const attemptsWithViolations = await StudentExamAttempt.find({
-      'violations.0': { $exists: true }
+    const programId = req.user.program;
+    const { examId } = req.query;
+    const now = new Date();
+
+    const exams = await MockBoardExam.find({
+      program: programId,
+      status: { $in: ['published', 'finished'] },
     })
+      .select('name startDateTime endDateTime status')
+      .sort({ startDateTime: -1 })
+      .lean();
+
+    if (!examId) {
+      return res.status(200).json({
+        exams,
+        attempts: [],
+        examLive: false,
+        serverTime: now,
+      });
+    }
+
+    const exam = exams.find((item) => String(item._id) === String(examId));
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found for your program' });
+    }
+
+    const rawAttempts = await StudentExamAttempt.find({ exam: examId })
       .populate({
         path: 'student',
         select: 'name firstName lastName email program',
-        match: { program: req.user.program }
+        match: { program: programId },
       })
-      .populate({
-        path: 'exam',
-        select: 'name'
-      })
-      .sort({ updatedAt: -1 })
+      .select('student startTime endTime status answers randomizedQuestions violations autoSubmitted')
+      .sort({ startTime: -1 })
       .lean();
 
-    const filtered = attemptsWithViolations.filter(a => a.student != null);
+    const attempts = rawAttempts
+      .filter((attempt) => attempt.student != null)
+      .map((attempt) => {
+        const totalQuestions = attempt.randomizedQuestions?.length || 0;
+        const answeredCount = countAnswered(attempt.answers);
+        const progressPercent = totalQuestions > 0
+          ? Math.round((answeredCount / totalQuestions) * 100)
+          : 0;
 
-    // Flatten: one row per violation instead of one row per attempt
-    const logs = filtered.flatMap(attempt => {
-      const studentName = attempt.student.name ||
-        `${attempt.student.firstName || ''} ${attempt.student.lastName || ''}`.trim() || 'Student';
+        let durationMs = null;
+        if (attempt.endTime && attempt.startTime) {
+          durationMs = new Date(attempt.endTime) - new Date(attempt.startTime);
+        } else if (attempt.startTime) {
+          durationMs = now - new Date(attempt.startTime);
+        }
 
-      return attempt.violations.map(v => ({
-        id: `${attempt._id}_${v._id || v.timestamp}`,
-        attemptId: attempt._id,
-        studentName,
-        studentEmail: attempt.student.email,
-        examName: attempt.exam?.name || 'Unknown Exam',
-        reason: v.reason || 'Unknown',
-        timestamp: v.timestamp,
-      }));
+        return {
+          attemptId: attempt._id,
+          studentId: attempt.student._id,
+          studentName: buildStudentDisplayName(attempt.student),
+          studentEmail: attempt.student.email || '',
+          status: attempt.status,
+          startTime: attempt.startTime,
+          endTime: attempt.endTime,
+          durationMs,
+          answeredCount,
+          totalQuestions,
+          progressPercent,
+          events: buildAttemptEvents(attempt),
+        };
+      });
+
+    const examLive = Boolean(
+      exam.startDateTime
+      && exam.endDateTime
+      && now >= new Date(exam.startDateTime)
+      && now <= new Date(exam.endDateTime)
+    );
+
+    res.status(200).json({
+      exams,
+      attempts,
+      examLive,
+      serverTime: now,
     });
-
-    // Sort all rows newest first
-    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    res.status(200).json({ logs });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
 
-module.exports = { getSummaryStats, getProgramChairStats, getProfessorDashboardStats, getAuditLogs, getDeanDashboardStats, getCheatingLogs };
+module.exports = {
+  getSummaryStats,
+  getProgramChairStats,
+  getProfessorDashboardStats,
+  getAuditLogs,
+  getDeanDashboardStats,
+  getExamActivityLogs,
+  getCheatingLogs: getExamActivityLogs,
+};

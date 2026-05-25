@@ -1,183 +1,276 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
+import Pagination from '../../components/Pagination.jsx';
 import '../../styles/ChairCheatingLogs.css';
 
 const BASE = import.meta.env.VITE_API_URL;
+const POLL_MS = 25000;
+const STUDENTS_PER_PAGE = 10;
+const EVENTS_PER_PAGE = 8;
+
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function formatDuration(ms) {
+  if (ms == null || ms < 0) return '—';
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function statusLabel(status) {
+  if (status === 'in_progress') return 'In progress';
+  if (status === 'submitted') return 'Submitted';
+  return status || '—';
+}
 
 export default function ChairCheatingLogs() {
-  const [logs, setLogs] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [attempts, setAttempts] = useState([]);
+  const [examLive, setExamLive] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [selectedExamId, setSelectedExamId] = useState('');
   const [search, setSearch] = useState('');
-  const [violationFilter, setViolationFilter] = useState('');
-  const [examFilter, setExamFilter] = useState('');
+  const [expandedAttemptId, setExpandedAttemptId] = useState(null);
+  const [studentPage, setStudentPage] = useState(1);
+  const [eventPages, setEventPages] = useState({});
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
-
-  // Reset to page 1 when filters change
-  useEffect(() => { setCurrentPage(1); }, [search, violationFilter, examFilter]);
+  const fetchLogs = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+    try {
+      const params = selectedExamId ? `?examId=${encodeURIComponent(selectedExamId)}` : '';
+      const data = await apiAuth(`${BASE}/api/stats/program-chair/exam-logs${params}`);
+      setExams(data.exams || []);
+      setAttempts(data.attempts || []);
+      setExamLive(Boolean(data.examLive));
+      setLastUpdated(data.serverTime ? new Date(data.serverTime) : new Date());
+    } catch (err) {
+      setError(err.message || 'Failed to load logs.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [selectedExamId]);
 
   useEffect(() => {
-    async function fetchLogs() {
-      try {
-        const data = await apiAuth(`${BASE}/api/stats/program-chair/cheating-logs`);
-        setLogs(data.logs || []);
-      } catch (err) {
-        setError(err.message || 'Failed to load cheating logs.');
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
 
-  const violationTypes = useMemo(() => [...new Set(logs.map(l => l.reason))].sort(), [logs]);
-  const examNames = useMemo(() => [...new Set(logs.map(l => l.examName))].sort(), [logs]);
+  useEffect(() => {
+    if (!selectedExamId || !examLive) return undefined;
+    const interval = setInterval(() => fetchLogs(true), POLL_MS);
+    return () => clearInterval(interval);
+  }, [selectedExamId, examLive, fetchLogs]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return logs.filter(log => {
-      const matchesSearch =
-        !q ||
-        log.studentName?.toLowerCase().includes(q) ||
-        log.studentEmail?.toLowerCase().includes(q) ||
-        log.examName?.toLowerCase().includes(q);
-      const matchesViolation = !violationFilter || log.reason === violationFilter;
-      const matchesExam = !examFilter || log.examName === examFilter;
-      return matchesSearch && matchesViolation && matchesExam;
-    });
-  }, [logs, search, violationFilter, examFilter]);
+  useEffect(() => {
+    setStudentPage(1);
+    setExpandedAttemptId(null);
+    setEventPages({});
+  }, [selectedExamId, search]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const filteredAttempts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return attempts;
+    return attempts.filter((row) =>
+      row.studentName?.toLowerCase().includes(q)
+      || row.studentEmail?.toLowerCase().includes(q));
+  }, [attempts, search]);
 
-  const hasFilters = search || violationFilter || examFilter;
+  const studentTotalPages = Math.ceil(filteredAttempts.length / STUDENTS_PER_PAGE) || 1;
+  const paginatedStudents = filteredAttempts.slice(
+    (studentPage - 1) * STUDENTS_PER_PAGE,
+    studentPage * STUDENTS_PER_PAGE,
+  );
 
-  if (loading) return <div className="cl-loading">Loading cheating logs...</div>;
-  if (error) return <div className="cl-loading" style={{ color: 'red' }}>{error}</div>;
+  function toggleAttempt(attemptId) {
+    setExpandedAttemptId((prev) => (prev === attemptId ? null : attemptId));
+  }
+
+  function getEventPage(attemptId) {
+    return eventPages[attemptId] || 1;
+  }
+
+  function setEventPage(attemptId, page) {
+    setEventPages((prev) => ({ ...prev, [attemptId]: page }));
+  }
+
+  if (loading && !selectedExamId && exams.length === 0) {
+    return <div className="el-loading">Loading logs...</div>;
+  }
+
+  if (error && !attempts.length && !exams.length) {
+    return <div className="el-loading" style={{ color: '#dc2626' }}>{error}</div>;
+  }
 
   return (
-    <div className="cl-page">
-      {/* Header */}
-      <div className="cl-page-header">
-        <div className="cl-header">
-          <div>
-            <h1 className="cl-title">Cheating Logs</h1>
-            <p className="cl-subtitle">
-              Each row is one recorded violation. The first two per session are warnings only and are not logged here.
-            </p>
-          </div>
+    <div className="el-page">
+      <div className="el-page-header">
+        <div>
+          <h1 className="el-title">Logs</h1>
+          <p className="el-subtitle">
+            Monitor exam activity for your program — start, window focus, submission, and progress.
+          </p>
         </div>
+        {lastUpdated && selectedExamId && (
+          <p className="el-last-updated">
+            Last updated {formatDateTime(lastUpdated)}
+            {examLive ? ` · refreshes every ${POLL_MS / 1000}s while exam is live` : ''}
+          </p>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="cl-filters">
+      <div className="el-filters">
+        <select
+          className="el-filter-select"
+          value={selectedExamId}
+          onChange={(e) => setSelectedExamId(e.target.value)}
+        >
+          <option value="">Select an exam</option>
+          {exams.map((exam) => (
+            <option key={exam._id} value={exam._id}>
+              {exam.name}
+            </option>
+          ))}
+        </select>
         <input
-          className="cl-search"
-          placeholder="Search by name, email, or exam..."
+          className="el-search"
+          placeholder="Search students..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
+          disabled={!selectedExamId}
         />
-        <select
-          className="cl-filter-select"
-          value={violationFilter}
-          onChange={e => setViolationFilter(e.target.value)}
-        >
-          <option value="">All Violation Types</option>
-          {violationTypes.map(t => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <select
-          className="cl-filter-select"
-          value={examFilter}
-          onChange={e => setExamFilter(e.target.value)}
-        >
-          <option value="">All Exams</option>
-          {examNames.map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        {hasFilters && (
-          <button
-            className="cl-btn-clear"
-            onClick={() => { setSearch(''); setViolationFilter(''); setExamFilter(''); }}
-          >
-            Clear filters
+        {selectedExamId && (
+          <button type="button" className="el-btn-refresh" onClick={() => fetchLogs()}>
+            Refresh
           </button>
         )}
       </div>
 
-      <p className="cl-helper-note">
-        Showing {filtered.length} of {logs.length} violation{logs.length !== 1 ? 's' : ''}
-      </p>
+      {!selectedExamId && (
+        <p className="el-helper-note">Choose an exam to view student activity logs.</p>
+      )}
 
-      {/* Table */}
-      <div className="cl-table-wrap">
-        <table className="cl-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Exam</th>
-              <th>Violation</th>
-              <th>Date / Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="cl-empty">
-                  {logs.length === 0
-                    ? 'No cheating instances recorded for your program.'
-                    : 'No results match your filters.'}
-                </td>
-              </tr>
-            ) : (
-              paginated.map(log => (
-                <tr key={log.id}>
-                  <td>
-                    <div className="cl-student-name">{log.studentName}</div>
-                    <div className="cl-student-email">{log.studentEmail}</div>
-                  </td>
-                  <td className="cl-exam-name">{log.examName}</td>
-                  <td>
-                    <span className="cl-badge-violation">{log.reason}</span>
-                  </td>
-                  <td className="cl-timestamp">
-                    {new Date(log.timestamp).toLocaleString('en-PH', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      {totalPages > 1 && (
-        <div className="cl-pagination">
-          <div className="cl-pagination-info">
-            Showing {filtered.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} violation{filtered.length !== 1 ? 's' : ''}
-          </div>
-          <div className="cl-pagination-controls">
-            <button className="cl-pagination-btn" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>← Previous</button>
-            <div className="cl-pagination-pages">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  className={`cl-pagination-page ${currentPage === page ? 'cl-pagination-page--active' : ''}`}
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </button>
-              ))}
+      {selectedExamId && loading && (
+        <p className="el-helper-note">Loading student activity...</p>
+      )}
+
+      {selectedExamId && !loading && (
+        <>
+          <p className="el-helper-note">
+            {filteredAttempts.length} student{filteredAttempts.length !== 1 ? 's' : ''} for this exam
+          </p>
+
+          {filteredAttempts.length === 0 ? (
+            <div className="el-empty-card">No student activity recorded for this exam yet.</div>
+          ) : (
+            <div className="el-student-list">
+              {paginatedStudents.map((row) => {
+                const isOpen = expandedAttemptId === row.attemptId;
+                const eventPage = getEventPage(row.attemptId);
+                const eventTotalPages = Math.ceil(row.events.length / EVENTS_PER_PAGE) || 1;
+                const paginatedEvents = row.events.slice(
+                  (eventPage - 1) * EVENTS_PER_PAGE,
+                  eventPage * EVENTS_PER_PAGE,
+                );
+
+                return (
+                  <div key={row.attemptId} className={`el-student-row ${isOpen ? 'is-open' : ''}`}>
+                    <button
+                      type="button"
+                      className="el-student-row-header"
+                      onClick={() => toggleAttempt(row.attemptId)}
+                      aria-expanded={isOpen}
+                    >
+                      <span className={`el-chevron ${isOpen ? 'is-open' : ''}`} aria-hidden>
+                        ▶
+                      </span>
+                      <div className="el-student-main">
+                        <div className="el-student-name">{row.studentName}</div>
+                        <div className="el-student-email">{row.studentEmail}</div>
+                      </div>
+                      <div className="el-student-stats">
+                        <div className="el-progress-wrap">
+                          <div className="el-progress-label">
+                            {row.answeredCount}/{row.totalQuestions} answered ({row.progressPercent}%)
+                          </div>
+                          <div className="el-progress-track">
+                            <div
+                              className="el-progress-fill"
+                              style={{ width: `${row.progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="el-student-meta">
+                          <span className={`el-status-pill el-status-pill--${row.status}`}>
+                            {statusLabel(row.status)}
+                          </span>
+                          <span className="el-duration">
+                            {row.status === 'submitted' ? 'Completed in ' : 'Elapsed '}
+                            {formatDuration(row.durationMs)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="el-student-row-body">
+                        {row.events.length === 0 ? (
+                          <p className="el-log-empty">No events recorded yet.</p>
+                        ) : (
+                          <>
+                            <ul className="el-event-list">
+                              {paginatedEvents.map((event, idx) => (
+                                <li key={`${event.type}-${event.timestamp}-${idx}`} className={`el-event el-event--${event.type}`}>
+                                  <div className="el-event-label">{event.label}</div>
+                                  {event.detail && (
+                                    <div className="el-event-detail">{event.detail}</div>
+                                  )}
+                                  <div className="el-event-time">{formatDateTime(event.timestamp)}</div>
+                                </li>
+                              ))}
+                            </ul>
+                            <Pagination
+                              currentPage={eventPage}
+                              totalItems={row.events.length}
+                              pageSize={EVENTS_PER_PAGE}
+                              onPageChange={(page) => setEventPage(row.attemptId, page)}
+                              itemLabel="events"
+                              classPrefix="el"
+                            />
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <button className="cl-pagination-btn" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next →</button>
-          </div>
-        </div>
+          )}
+
+          <Pagination
+            currentPage={studentPage}
+            totalItems={filteredAttempts.length}
+            pageSize={STUDENTS_PER_PAGE}
+            onPageChange={setStudentPage}
+            itemLabel="students"
+            classPrefix="el"
+          />
+        </>
       )}
     </div>
   );

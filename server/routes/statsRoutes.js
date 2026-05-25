@@ -21,10 +21,17 @@ router.get(
 );
 
 router.get(
+  '/program-chair/exam-logs',
+  protect,
+  authorizeRoles('program_chair'),
+  require('../controllers/statsController').getExamActivityLogs
+);
+
+router.get(
   '/program-chair/cheating-logs',
   protect,
   authorizeRoles('program_chair'),
-  require('../controllers/statsController').getCheatingLogs
+  require('../controllers/statsController').getExamActivityLogs
 );
 
 router.get(
