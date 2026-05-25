@@ -26,6 +26,7 @@ import ExamResults from './pages/dean/ExamResults.jsx';
 import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
+import StudentExamResults from './pages/student/StudentExamResults.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import "react-datepicker/dist/react-datepicker.css";
@@ -207,6 +208,8 @@ export default function App() {
     page = (
       <StudentExamResult onReturn={() => setRoute('Dashboard')} />
     );
+  if (route === 'studentExamResults')
+    page = <StudentExamResults />;
 
   return (
     <div className="app-container">
