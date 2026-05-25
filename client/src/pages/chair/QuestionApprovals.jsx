@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
 
@@ -56,6 +56,7 @@ export default function QuestionApprovals({ me }) {
   const [lockedQuestionId, setLockedQuestionId] = useState(null);
   const [warningModal, setWarningModal] = useState(null);
   const [actionTaken, setActionTaken] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   // Bulk select state
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -200,6 +201,7 @@ export default function QuestionApprovals({ me }) {
     setSelectedQuestion(null);
     setActionTaken(false);
     setLockedQuestionId(null);
+    setIsSidebarExpanded(false);
   }
 
   async function handleApprove(question) {
@@ -543,7 +545,7 @@ export default function QuestionApprovals({ me }) {
         </select>
       </div>
 
-      <div className="ca-layout">
+      <div className={`ca-layout ${isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
         <div className="ca-list-panel">
 
           {/* Bulk Toolbar */}
@@ -689,7 +691,31 @@ export default function QuestionApprovals({ me }) {
           <div className="ca-sidebar">
             <div className="ca-sidebar-header">
               <h2 className="ca-sidebar-title">Review Question</h2>
-              <button className="ca-sidebar-close" onClick={handleCloseSidebar}>x</button>
+              <div className="ca-sidebar-header-actions">
+                <button
+                  type="button"
+                  className="ca-sidebar-expand-btn"
+                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                  title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                >
+                  {isSidebarExpanded ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 14h6v6" />
+                      <path d="M20 10h-6V4" />
+                      <path d="M14 10l7-7" />
+                      <path d="M10 14l-7 7" />
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 3h6v6" />
+                      <path d="M9 21H3v-6" />
+                      <path d="M21 3l-7 7" />
+                      <path d="M3 21l7-7" />
+                    </svg>
+                  )}
+                </button>
+                <button className="ca-sidebar-close" onClick={handleCloseSidebar}>x</button>
+              </div>
             </div>
 
             <div className="ca-sidebar-content">

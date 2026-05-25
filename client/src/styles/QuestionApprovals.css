@@ -181,6 +181,11 @@
   padding: 16px 32px 32px;
   flex: 1;
   align-items: start;
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ca-layout.is-sidebar-expanded {
+  grid-template-columns: 420px minmax(0, 1fr);
 }
 
 /* ── Questions List Panel ────────────────────────────────– */
@@ -604,6 +609,30 @@
 }
 
 .ca-sidebar-close:hover {
+  color: #3f4ab8;
+  background: rgba(53, 64, 142, 0.08);
+}
+
+.ca-sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ca-sidebar-expand-btn {
+  background: transparent;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  color: #8b92bc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ca-sidebar-expand-btn:hover {
   color: #3f4ab8;
   background: rgba(53, 64, 142, 0.08);
 }
