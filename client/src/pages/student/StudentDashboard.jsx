@@ -110,7 +110,6 @@ function AttemptRow({ attempt, isSelected, onClick }) {
   const statusMeta = released ? getStatusMeta(attempt.status) : null;
   const countdown = useCountdown(attempt.resultReleasedAt);
   const duration = formatDuration(attempt.durationMinutes);
-  const isClickable = released;
 
   return (
     <div
@@ -118,12 +117,11 @@ function AttemptRow({ attempt, isSelected, onClick }) {
         'sd-attempt-row',
         !released ? 'sd-attempt-row--pending' : '',
         isSelected ? 'sd-attempt-row--selected' : '',
-        isClickable ? 'sd-attempt-row--clickable' : '',
       ].filter(Boolean).join(' ')}
-      onClick={isClickable ? onClick : undefined}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={isClickable ? (e => e.key === 'Enter' && onClick?.()) : undefined}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
     >
       {/* Timeline dot */}
       <div className="sd-attempt-dot-col">
@@ -379,16 +377,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
               accentColor="#35408E"
               bigLabel={totalTaken}
               subLabel="Exams taken"
-              subtitle={
-                <div className="sd-pill-group">
-                  <span className="sd-pill sd-pill-pass">
-                    {passed} passed
-                  </span>
-                  <span className="sd-pill sd-pill-improve">
-                    {toImprove} to improve
-                  </span>
-                </div>
-              }
+              subtitle="Total count of all exams you have attempted."
 
             />
           </div>
@@ -397,10 +386,9 @@ const StudentDashboard = ({ me, onNavigate }) => {
           <div className="sd-grid-item sd-grid-item-2">
             <StatCard
               accentColor="#16a34a"
-
               bigLabel={overallScore}
-
-              subLabel="Average score"
+              subLabel="Total Correct / Total Items"
+              subtitle="Total correct answers across all taken exams."
             />
           </div>
 
@@ -427,6 +415,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
                   ? `${lowestAttempt.rawScore}/${lowestAttempt.totalScore}`
                   : '—'
               }
+              subLabel="Lowest score"
               subtitle={lowestAttempt?.examName ?? '—'}
             />
           </div>
