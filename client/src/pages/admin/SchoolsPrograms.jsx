@@ -275,7 +275,7 @@ export default function SchoolsPrograms() {
             <h3 className="um-user-name" style={{ fontSize: '16px' }}>Schools of NU Laguna</h3>
           </div>
           <div className="scroll-x">
-            <table className="um-table">
+            <table className="um-table um-table-depts">
             <thead>
               <tr>
                 <th style={{ width: '100px' }}>Acronym</th>
@@ -356,7 +356,7 @@ export default function SchoolsPrograms() {
             </div>
           </div>
           <div className="scroll-x">
-            <table className="um-table">
+            <table className="um-table um-table-programs">
             <thead>
               <tr>
                 <th style={{ width: '120px' }}>Code</th>
@@ -552,59 +552,47 @@ export default function SchoolsPrograms() {
           </div>
         </form>
       </Modal>
-      <Modal
+      <ConfirmationModal
         open={!!toggleDeptData}
         onClose={() => setToggleDeptData(null)}
+        onConfirm={confirmToggleDepartment}
         title={toggleDeptData?.action === 'activate' ? 'Activate School' : 'Deactivate School'}
-      >
-        <div style={{ padding: '20px' }}>
-          <p style={{ margin: '0 0 16px', color: '#444', lineHeight: '1.5' }}>
+        message={(
+          <p style={{ margin: 0 }}>
             Are you sure you want to <strong>{toggleDeptData?.action}</strong> the school
             <span style={{ color: 'var(--primary-bg)', fontWeight: '600' }}> {toggleDeptData?.dept?.name}</span>?
           </p>
-          {toggleDeptData?.action === 'deactivate' && (
-            <p style={{ fontSize: '13px', color: '#888', background: '#fcf8f8', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #dc2626' }}>
-              <strong style={{ color: '#dc2626' }}>Warning:</strong> Deactivating a school will hide all its associated programs and prevent its faculty/students from accessing program-specific features.
-            </p>
-          )}
-        </div>
-        <div className="modal-actions">
-          <button className="modal-btn-cancel" onClick={() => setToggleDeptData(null)}>Cancel</button>
-          <button
-            className={toggleDeptData?.action === 'activate' ? "modal-btn-primary" : "modal-btn-danger"}
-            onClick={confirmToggleDepartment}
-          >
-            Confirm {toggleDeptData?.action === 'activate' ? 'Activation' : 'Deactivation'}
-          </button>
-        </div>
-      </Modal>
+        )}
+        confirmLabel={toggleDeptData?.action === 'activate' ? 'Activate School' : 'Deactivate School'}
+        confirmVariant={toggleDeptData?.action === 'activate' ? 'primary' : 'danger'}
+      >
+        {toggleDeptData?.action === 'deactivate' && (
+          <p style={{ margin: '12px 0 0', fontSize: '13px', color: '#888' }}>
+            <strong style={{ color: '#dc2626' }}>Warning:</strong> Deactivating a school will hide all its associated programs and prevent its faculty/students from accessing program-specific features.
+          </p>
+        )}
+      </ConfirmationModal>
 
-      <Modal
+      <ConfirmationModal
         open={!!toggleProgramData}
         onClose={() => setToggleProgramData(null)}
+        onConfirm={confirmToggleProgram}
         title={toggleProgramData?.action === 'activate' ? 'Activate Program' : 'Deactivate Program'}
-      >
-        <div style={{ padding: '20px' }}>
-          <p style={{ margin: '0 0 16px', color: '#444', lineHeight: '1.5' }}>
+        message={(
+          <p style={{ margin: 0 }}>
             Are you sure you want to <strong>{toggleProgramData?.action}</strong> the program
             <span style={{ color: 'var(--primary-bg)', fontWeight: '600' }}> {toggleProgramData?.program?.name}</span>?
           </p>
-          {toggleProgramData?.action === 'deactivate' && (
-            <p style={{ fontSize: '13px', color: '#888', background: '#f8f9fc', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #f5a623' }}>
-              <strong>Note:</strong> Deactivating a program will hide it from students and professors during registration and question submission.
-            </p>
-          )}
-        </div>
-        <div className="modal-actions">
-          <button className="modal-btn-cancel" onClick={() => setToggleProgramData(null)}>Cancel</button>
-          <button
-            className={toggleProgramData?.action === 'activate' ? "modal-btn-primary" : "modal-btn-danger"}
-            onClick={confirmToggleProgram}
-          >
-            Confirm {toggleProgramData?.action === 'activate' ? 'Activation' : 'Deactivation'}
-          </button>
-        </div>
-      </Modal>
+        )}
+        confirmLabel={toggleProgramData?.action === 'activate' ? 'Activate Program' : 'Deactivate Program'}
+        confirmVariant={toggleProgramData?.action === 'activate' ? 'primary' : 'danger'}
+      >
+        {toggleProgramData?.action === 'deactivate' && (
+          <p style={{ margin: '12px 0 0', fontSize: '13px', color: '#666' }}>
+            <strong>Note:</strong> Deactivating a program will hide it from students and professors during registration and question submission.
+          </p>
+        )}
+      </ConfirmationModal>
 
       <ConfirmationModal
         open={!!deleteTarget}

@@ -3,8 +3,54 @@ import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { useToast } from '../../components/Toast.jsx';
+
+function PasswordToggle({ shown, onToggle, label, disabled }) {
+  function handleKeyDown(e) {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggle();
+    }
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      className={`um-password-toggle${disabled ? ' is-disabled' : ''}`}
+      aria-label={label}
+      title={label}
+      onClick={disabled ? undefined : onToggle}
+      onKeyDown={handleKeyDown}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="um-password-toggle-icon">
+        <path
+          d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        {!shown ? (
+          <path
+            d="M4 4 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        ) : null}
+      </svg>
+    </span>
+  );
+}
+
 
 export default function AdminUsers({ me }) {
+  const { notify } = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -30,7 +76,7 @@ export default function AdminUsers({ me }) {
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createForm, setCreateForm] = useState({
-    name: '', email: '', role: 'student', password: '', departmentId: '', programId: '', studentId: '', alumniId: '',
+    name: '', email: '', role: 'professor', password: '', departmentId: '', programId: '', studentId: '', alumniId: '',
   });
 
   const [showCreatePassword, setShowCreatePassword] = useState(false);
@@ -221,7 +267,7 @@ export default function AdminUsers({ me }) {
     setCreateError('');
     setEditError('');
     setDeleteError('');
-    setCreateForm({ name: '', email: '', role: 'student', password: '', departmentId: '', programId: '', studentId: '', alumniId: '' });
+    setCreateForm({ name: '', email: '', role: 'professor', password: '', departmentId: '', programId: '', studentId: '', alumniId: '' });
     setEditForm({ name: '', email: '', role: '', password: '', departmentId: '', programId: '', studentId: '', alumniId: '' });
   }
 
@@ -256,7 +302,7 @@ export default function AdminUsers({ me }) {
       await load();
       closeModal();
     } catch (err) {
-      alert(err.message || 'Deactivate failed');
+      notify(err.message || 'Deactivate failed', { variant: 'error', title: 'Deactivate' });
     }
   }
 
@@ -278,7 +324,7 @@ export default function AdminUsers({ me }) {
       await load();
       closeModal();
     } catch (err) {
-      alert(err.message || 'Activate failed');
+      notify(err.message || 'Activate failed', { variant: 'error', title: 'Activate' });
     }
   }
 
@@ -659,119 +705,133 @@ export default function AdminUsers({ me }) {
 
       {/* Modals */}
       <Modal open={modalMode === 'create'} onClose={closeModal} title="Creating User">
-        <form onSubmit={submitCreate}>
-          <div className="modal-form-grid">
-            <div className="modal-form-group">
+        <form onSubmit={submitCreate} className="um-register-form">
+          <div className="um-form-grid">
+            <div className="um-form-group">
               <label>Full Name</label>
               <input value={createForm.name} onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))} placeholder="ex. Juan Dela Cruz" required />
             </div>
-            <div className="modal-form-group">
-              <label>Role</label>
-              <select value={createForm.role} onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}>
-                <option value="student">Student</option>
-                <option value="alumni">Alumni</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="dean">Dean</option>
-                <option value="program_chair">Program Chair</option>
-                <option value="professor">Professor</option>
-              </select>
-            </div>
-            <div className="modal-form-group">
+            <div className="um-form-group">
               <label>Email Address</label>
               <input type="email" value={createForm.email} onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} placeholder="ex. juandelacruz@gmail.com" required />
             </div>
-            <div className="modal-form-group">
+            <div className="um-form-group">
               <label>Password</label>
-              <div className="modal-password-wrapper">
-                <input type={showCreatePassword ? 'text' : 'password'} value={createForm.password} onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))} required />
-                <button type="button" onClick={() => setShowCreatePassword(!showCreatePassword)} className="modal-password-toggle">{showCreatePassword ? '👁️' : '👁️‍🗨️'}</button>
+              <div className="um-password-input-wrapper">
+                <input type={showCreatePassword ? 'text' : 'password'} value={createForm.password} onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))} placeholder="Enter password" required />
+                <PasswordToggle shown={showCreatePassword} onToggle={() => setShowCreatePassword(!showCreatePassword)} label={showCreatePassword ? 'Hide password' : 'Show password'} />
               </div>
             </div>
-            <div className="modal-form-group">
-              <label>{createForm.role === 'alumni' ? 'Alumni ID' : 'Student ID'} {(createForm.role !== 'student' && createForm.role !== 'alumni') ? '(N/A)' : ''}</label>
-              <input value={createForm.role === 'alumni' ? createForm.alumniId : createForm.studentId} onChange={(e) => {
-                if (createForm.role === 'alumni') setCreateForm(f => ({ ...f, alumniId: e.target.value }));
-                else setCreateForm(f => ({ ...f, studentId: e.target.value }));
-              }} disabled={createForm.role !== 'student' && createForm.role !== 'alumni'} />
-            </div>
-            <div className="modal-form-group">
-              <label>Program</label>
-              <select value={createForm.programId} onChange={(e) => setCreateForm((f) => ({ ...f, programId: e.target.value }))}>
-                <option value="">(none)</option>
-                {createDepartmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="modal-form-group full-width">
+            <div className="um-form-group">
               <label>Department</label>
               <select value={createForm.departmentId} onChange={(e) => setCreateForm((f) => ({ ...f, departmentId: e.target.value, programId: '' }))}>
                 <option value="">(none)</option>
                 {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
               </select>
             </div>
+            <div className="um-form-group">
+              <label>Program</label>
+              <select 
+                value={createForm.programId} 
+                onChange={(e) => setCreateForm((f) => ({ ...f, programId: e.target.value }))}
+                disabled={!createForm.departmentId}
+              >
+                <option value="">{createForm.departmentId ? '(none)' : 'Select Department first'}</option>
+                {createDepartmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            <div className="um-form-group full-width">
+              <span className="um-segment-label">User Role</span>
+              <div className="um-segmented">
+                {[
+                  { value: 'professor', label: 'Professor' },
+                  { value: 'program_chair', label: 'Program Chair' },
+                  { value: 'dean', label: 'Dean' },
+                  { value: 'super_admin', label: 'Super Admin' },
+                ].map((roleObj) => (
+                  <button
+                    key={roleObj.value}
+                    type="button"
+                    className={createForm.role === roleObj.value ? 'is-active' : ''}
+                    onClick={() => setCreateForm((f) => ({ ...f, role: roleObj.value }))}
+                  >
+                    {roleObj.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           {createError ? <p className="um-error">{createError}</p> : null}
           <div className="modal-actions">
             <button type="button" className="modal-btn-cancel" onClick={closeModal}>Cancel</button>
-            <button type="submit" className="modal-btn-primary" disabled={createBusy}>{createBusy ? 'Creating...' : 'Save Changes'}</button>
+            <button type="submit" className="modal-btn-primary" disabled={createBusy}>{createBusy ? 'Creating...' : 'Create User'}</button>
           </div>
         </form>
       </Modal>
 
       <Modal open={modalMode === 'edit'} onClose={closeModal} title={`Editing User   ${selectedUser?.email ? `(${selectedUser.email})` : ''}`}>
-        <form onSubmit={submitEdit}>
-          <div className="modal-form-grid">
-            <div className="modal-form-group">
+        <form onSubmit={submitEdit} className="um-register-form">
+          <div className="um-form-grid">
+            <div className="um-form-group">
               <label>Full Name</label>
               <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
-            </div>
-            <div className="modal-form-group">
-              <label>Role</label>
-              <select value={editForm.role} onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}>
-                <option value="student">Student</option>
-                <option value="alumni">Alumni</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="dean">Dean</option>
-                <option value="program_chair">Program Chair</option>
-                <option value="professor">Professor</option>
-              </select>
             </div>
 
             {selectedUser?._id === me?._id && (
               <>
-                <div className="modal-form-group">
+                <div className="um-form-group">
                   <label>Email Address</label>
                   <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
                 </div>
-                <div className="modal-form-group">
+                <div className="um-form-group">
                   <label>New Password (optional)</label>
-                  <div className="modal-password-wrapper">
+                  <div className="um-password-input-wrapper">
                     <input type={showEditPassword ? 'text' : 'password'} value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="Leave blank to keep current" />
-                    <button type="button" onClick={() => setShowEditPassword(!showEditPassword)} className="modal-password-toggle">{showEditPassword ? '👁️' : '👁️‍🗨️'}</button>
+                    <PasswordToggle shown={showEditPassword} onToggle={() => setShowEditPassword(!showEditPassword)} label={showEditPassword ? 'Hide password' : 'Show password'} />
                   </div>
                 </div>
               </>
             )}
 
-            <div className="modal-form-group">
-              <label>{editForm.role === 'alumni' ? 'Alumni ID' : 'Student ID'} {(editForm.role !== 'student' && editForm.role !== 'alumni') ? '(N/A)' : ''}</label>
-              <input value={editForm.role === 'alumni' ? editForm.alumniId : editForm.studentId} onChange={(e) => {
-                if (editForm.role === 'alumni') setEditForm(f => ({ ...f, alumniId: e.target.value }));
-                else setEditForm(f => ({ ...f, studentId: e.target.value }));
-              }} disabled={editForm.role !== 'student' && editForm.role !== 'alumni'} />
-            </div>
-            <div className="modal-form-group">
-              <label>Program</label>
-              <select value={editForm.programId} onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}>
-                <option value="">(none)</option>
-                {departmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="modal-form-group full-width">
+            <div className="um-form-group">
               <label>Department</label>
               <select value={editForm.departmentId} onChange={(e) => setEditForm((f) => ({ ...f, departmentId: e.target.value, programId: '' }))}>
                 <option value="">(none)</option>
                 {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
               </select>
+            </div>
+            <div className="um-form-group">
+              <label>Program</label>
+              <select 
+                value={editForm.programId} 
+                onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
+                disabled={!editForm.departmentId}
+              >
+                <option value="">{editForm.departmentId ? '(none)' : 'Select Department first'}</option>
+                {departmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            <div className="um-form-group full-width">
+              <span className="um-segment-label">User Role</span>
+              <div className="um-segmented">
+                {[
+                  { value: 'professor', label: 'Professor' },
+                  { value: 'program_chair', label: 'Program Chair' },
+                  { value: 'dean', label: 'Dean' },
+                  { value: 'super_admin', label: 'Super Admin' },
+                ].map((roleObj) => (
+                  <button
+                    key={roleObj.value}
+                    type="button"
+                    className={editForm.role === roleObj.value ? 'is-active' : ''}
+                    onClick={() => setEditForm((f) => ({ ...f, role: roleObj.value }))}
+                  >
+                    {roleObj.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           {editError ? <p className="um-error">{editError}</p> : null}
