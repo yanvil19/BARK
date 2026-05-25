@@ -82,12 +82,6 @@ export default function App() {
   }, [editingMockBoardExamId, route]);
 
   useEffect(() => {
-    if (route === 'availableMockBoardExams') {
-      setMockBoardExamRefreshKey((prev) => prev + 1);
-    }
-  }, [route]);
-
-  useEffect(() => {
     if (route !== 'deanExamRunner' && examRunnerId) {
       setExamRunnerId('');
       setExamRunnerMode('details');

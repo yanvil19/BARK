@@ -234,13 +234,13 @@ async function listMockBoardExams(req, res) {
     const exams = await MockBoardExam.find(query)
       .populate('program', 'name code department')
       .populate('subjectTags', 'name')
-      .select('name program startDateTime endDateTime durationMinutes subjectTags questions status passingThreshold resultsReleaseDate createdAt updatedAt')
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const now = new Date();
     const examIds = exams.map((exam) => exam._id);
     const resultRecords = examIds.length > 0
-      ? await MockExamResult.find({ examId: { $in: examIds } }).select('examId status')
+      ? await MockExamResult.find({ examId: { $in: examIds } }).select('examId status').lean()
       : [];
     const uploadedExamIds = new Set(
       resultRecords
@@ -249,14 +249,19 @@ async function listMockBoardExams(req, res) {
     );
 
     const enrichedExams = exams.map((exam) => {
-      const examObj = exam.toObject();
+      const resultsReleaseDate = exam.resultsReleaseDate || null;
       const resultsUploaded = uploadedExamIds.has(String(exam._id));
       const resultsReleased = Boolean(
-        examObj.resultsReleaseDate && new Date(examObj.resultsReleaseDate) <= now
+        resultsReleaseDate && new Date(resultsReleaseDate) <= now
       );
+      const durationMinutes = exam.startDateTime && exam.endDateTime
+        ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
+        : null;
 
       return {
-        ...examObj,
+        ...exam,
+        durationMinutes,
+        resultsReleaseDate,
         computationStatus: resultsUploaded ? 'computed' : 'none',
         resultsUploaded,
         resultsReleased,
@@ -492,10 +497,16 @@ async function setResultsReleaseDate(req, res) {
       return res.status(400).json({ message: 'Results have already been released to students. Release date can no longer be changed.' });
     }
 
-    exam.resultsReleaseDate = releaseDate;
-    await exam.save();
+    const updated = await MockBoardExam.findByIdAndUpdate(
+      exam._id,
+      { $set: { resultsReleaseDate: releaseDate } },
+      { new: true, runValidators: false }
+    ).select('resultsReleaseDate status').lean();
 
-    res.json({ message: 'Results release date scheduled successfully', resultsReleaseDate: exam.resultsReleaseDate });
+    res.json({
+      message: 'Results release date scheduled successfully',
+      resultsReleaseDate: updated?.resultsReleaseDate || releaseDate,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

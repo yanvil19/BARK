@@ -22,12 +22,13 @@ function formatDateTime(value) {
 
 function canScheduleResultsRelease(exam) {
   if (exam.status !== 'finished') return false;
+  if (exam.resultsUploaded === true || exam.computationStatus === 'computed') return false;
+  if (exam.resultsReleased === true) return false;
+  return true;
+}
 
-  const resultsUploaded = exam.resultsUploaded === true || exam.computationStatus === 'computed';
-  const resultsReleased = exam.resultsReleased === true
-    || (exam.resultsReleaseDate && new Date(exam.resultsReleaseDate) <= new Date());
-
-  return !resultsUploaded && !resultsReleased;
+function sameExamId(a, b) {
+  return String(a) === String(b);
 }
 
 export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
@@ -192,15 +193,25 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   }
 
   async function handleScheduleResults(examId, date) {
-    const exam = exams.find((item) => item._id === examId);
+    const exam = exams.find((item) => sameExamId(item._id, examId));
     try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
+      const data = await apiAuth(`${BASE}/api/mock-board-exams/${examId}/release-results`, {
         method: 'PATCH',
         body: { resultsReleaseDate: date },
       });
-      setExams((prev) => prev.map((e) => e._id === examId ? { ...e, resultsReleaseDate: date } : e));
-      if (selectedExam?._id === examId) {
-        setSelectedExam((prev) => (prev ? { ...prev, resultsReleaseDate: date } : prev));
+      const savedReleaseDate = data.resultsReleaseDate || date;
+      setExams((prev) => prev.map((e) => (
+        sameExamId(e._id, examId)
+          ? {
+            ...e,
+            resultsReleaseDate: savedReleaseDate,
+            resultsReleased: false,
+            resultsUploaded: e.resultsUploaded,
+          }
+          : e
+      )));
+      if (selectedExam && sameExamId(selectedExam._id, examId)) {
+        setSelectedExam((prev) => (prev ? { ...prev, resultsReleaseDate: savedReleaseDate } : prev));
       }
       setSchedulingExamId(null);
       setFeedbackModal({
