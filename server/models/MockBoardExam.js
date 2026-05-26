@@ -77,6 +77,11 @@ const mockBoardExamSchema = new mongoose.Schema(
       type: Number,
       default: 70,
     },
+    missedAttemptsProcessedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
