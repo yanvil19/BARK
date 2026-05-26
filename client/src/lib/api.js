@@ -54,7 +54,11 @@ export async function api(path, { method = 'GET', body, headers } = {}) {
   const data = await parseJsonResponse(res);
 
   // [FIX - SESSION EXPIRY 401 HANDLER]
-  if (res.status === 401) {
+  const sentAuthHeader = Boolean(
+    headers && (headers.Authorization || headers.authorization)
+  );
+
+  if (res.status === 401 && sentAuthHeader) {
     return handleSessionExpired();
   }
 
@@ -86,7 +90,7 @@ export async function apiAuthUpload(path, formData) {
   const data = await parseJsonResponse(res);
 
   // [FIX - SESSION EXPIRY 401 HANDLER]
-  if (res.status === 401) {
+  if (res.status === 401 && token) {
     return handleSessionExpired();
   }
 

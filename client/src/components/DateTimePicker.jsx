@@ -12,6 +12,7 @@ export default function DateTimePicker({ value, onChange, onCancel, autoOpen = f
   const [isOpen, setIsOpen] = useState(autoOpen);
   // Hold a draft date inside the modal — only commit on Apply
   const [draft, setDraft] = useState(value ? new Date(value) : new Date());
+  const [timeIntervals, setTimeIntervals] = useState(1);
 
   useEffect(() => {
     if (!autoOpen) return;
@@ -38,6 +39,7 @@ export default function DateTimePicker({ value, onChange, onCancel, autoOpen = f
 
   const handleOpen = () => {
     setDraft(value ? new Date(value) : new Date());
+    setTimeIntervals(1);
     setIsOpen(true);
   };
 
@@ -73,16 +75,40 @@ export default function DateTimePicker({ value, onChange, onCancel, autoOpen = f
 
         <div className="dtp-modal-body">
           <DatePicker
+            key={`${timeIntervals}`}
             selected={draft}
             onChange={(date) => date && setDraft(date)}
             showTimeSelect
             timeFormat="hh:mm aa"
-            timeIntervals={1}
+            timeIntervals={timeIntervals}
             dateFormat="MMM d, yyyy h:mm aa"
             timeCaption="Time"
             minDate={new Date()}
             inline
           />
+        </div>
+
+        <div className="dtp-intervals" aria-label="Time interval presets">
+          <div className="dtp-interval-row" aria-label="Interval options">
+            <span className="dtp-intervals-label">Interval</span>
+            {[
+              { minutes: 1, label: '1 min' },
+              { minutes: 10, label: '10 min' },
+              { minutes: 20, label: '20 min' },
+              { minutes: 30, label: '30 min' },
+              { minutes: 60, label: '60 min' },
+            ].map((opt) => (
+              <button
+                key={opt.minutes}
+                type="button"
+                className={`dtp-interval-btn${timeIntervals === opt.minutes ? ' is-active' : ''}`}
+                onClick={() => setTimeIntervals(opt.minutes)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
         </div>
 
         <div className="dtp-modal-preview">

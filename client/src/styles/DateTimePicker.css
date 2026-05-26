@@ -92,6 +92,58 @@
   justify-content: center;
 }
 
+/* —— Interval presets —— */
+.dtp-intervals {
+  padding: 10px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dtp-interval-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dtp-intervals-label {
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-right: 2px;
+}
+
+.dtp-interval-btn {
+  border: 1px solid #d5daf0;
+  background: #f3f5fc;
+  color: var(--primary-bg);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+
+.dtp-interval-btn:hover {
+  background: #fff;
+  border-color: var(--primary-bg);
+}
+
+.dtp-interval-btn:active {
+  transform: translateY(1px);
+}
+
+.dtp-interval-btn.is-active {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
 /* react-datepicker inline overrides */
 .dtp-modal-body .react-datepicker {
   font-family: 'Poppins', sans-serif !important;

@@ -9,7 +9,7 @@ export default function StudentManager({ onNavigate }) {
   return (
     <main className="sm-page">
       <header className="sm-page-header">
-        <h1>Student Manager</h1>
+        <h1>Student Register</h1>
         <p>Register students and approve registration requests from one dean-only page.</p>
       </header>
 
