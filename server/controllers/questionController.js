@@ -2,6 +2,7 @@ const Question = require('../models/Question');
 const Tag = require('../models/Tag');
 const User = require('../models/User');
 const Program = require('../models/Program');
+const { logAudit } = require('../utils/auditLogger');
 
 // Helper: resolve program IDs accessible to the requesting user
 async function getAccessibleProgramIds(user) {
@@ -196,6 +197,12 @@ const createQuestion = async (req, res) => {
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
     ]);
+    await logAudit(req.user._id, 'question_created', 'Question', question._id, {
+      title: question.title,
+      programId: question.program,
+      tagId: question.tag || null,
+      state: question.state,
+    });
     res.status(201).json({ question: populated });
   } catch (err) {
     console.error(err);
@@ -242,6 +249,12 @@ const updateQuestion = async (req, res) => {
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
     ]);
+    await logAudit(req.user._id, 'question_updated', 'Question', question._id, {
+      title: question.title,
+      programId: question.program,
+      tagId: question.tag || null,
+      state: question.state,
+    });
     res.json({ question: populated });
   } catch (err) {
     console.error(err);
@@ -260,6 +273,11 @@ const deleteQuestion = async (req, res) => {
       return res.status(400).json({ message: 'Only draft questions can be deleted' });
 
     await question.deleteOne();
+    await logAudit(req.user._id, 'question_deleted', 'Question', question._id, {
+      title: question.title,
+      programId: question.program,
+      tagId: question.tag || null,
+    });
     res.json({ message: 'Question deleted' });
   } catch (err) {
     console.error(err);
@@ -313,6 +331,12 @@ const submitQuestion = async (req, res) => {
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
     ]);
+    await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
+      title: question.title,
+      programId: question.program,
+      tagId: question.tag || null,
+      state: question.state,
+    });
     res.json({ question: populated });
   } catch (err) {
     console.error(err);
@@ -389,6 +413,12 @@ const reviewQuestion = async (req, res) => {
         return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
       }
       await question.deleteOne();
+      await logAudit(req.user._id, 'question_reviewed', 'Question', question._id, {
+        reviewAction: action,
+        role: req.user.role,
+        title: question.title,
+        programId: question.program,
+      });
       return res.json({ message: 'Question deleted' });
     }
 
@@ -417,6 +447,14 @@ const reviewQuestion = async (req, res) => {
       { path: 'program', select: 'name code' },
       { path: 'createdBy', select: 'name' },
     ]);
+    await logAudit(req.user._id, 'question_reviewed', 'Question', updated._id, {
+      reviewAction: action,
+      role: req.user.role,
+      title: updated.title,
+      programId: updated.program,
+      note: note?.trim() || null,
+      newState: updated.state,
+    });
     res.json({ question: populated });
   } catch (err) {
     console.error(err);
@@ -470,6 +508,12 @@ const deanReturnApprovedQuestion = async (req, res) => {
       { path: 'program', select: 'name code' },
       { path: 'createdBy', select: 'name' },
     ]);
+    await logAudit(req.user._id, 'question_dean_returned', 'Question', updated._id, {
+      title: updated.title,
+      programId: updated.program,
+      note: note.trim(),
+      newState: updated.state,
+    });
     res.json({ question: populated });
   } catch (err) {
     console.error(err);

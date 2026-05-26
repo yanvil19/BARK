@@ -1,6 +1,7 @@
 const Tag = require('../models/Tag');
 const Program = require('../models/Program');
 const Question = require('../models/Question');
+const { logAudit } = require('../utils/auditLogger');
 
 // Helper: resolve program IDs accessible to the requesting user
 async function getAccessibleProgramIds(user) {
@@ -78,6 +79,10 @@ const createTag = async (req, res) => {
     if (existing) return res.status(409).json({ message: 'A tag with this name already exists' });
 
     const tag = await Tag.create({ name: name.trim(), program: programId, createdBy: req.user._id });
+    await logAudit(req.user._id, 'tag_created', 'Tag', tag._id, {
+      name: tag.name,
+      programId: tag.program,
+    });
     res.status(201).json({ tag });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Tag already exists' });
@@ -102,6 +107,10 @@ const updateTag = async (req, res) => {
 
     tag.name = name.trim();
     await tag.save();
+    await logAudit(req.user._id, 'tag_updated', 'Tag', tag._id, {
+      name: tag.name,
+      programId: tag.program,
+    });
     res.json({ tag });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'A tag with this name already exists' });
@@ -127,6 +136,10 @@ const deleteTag = async (req, res) => {
     }
 
     await tag.deleteOne();
+    await logAudit(req.user._id, 'tag_deleted', 'Tag', tag._id, {
+      name: tag.name,
+      programId: tag.program,
+    });
     res.json({ message: 'Tag deleted' });
   } catch (err) {
     console.error(err);

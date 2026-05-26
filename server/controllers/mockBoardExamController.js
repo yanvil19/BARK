@@ -4,6 +4,7 @@ const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
 const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
+const { logAudit } = require('../utils/auditLogger');
 
 async function getDeanPrograms(user) {
   if (user.role !== 'dean' || !user.department) return [];
@@ -178,6 +179,12 @@ async function createMockBoardExam(req, res) {
       .populate('subjectTags', 'name')
       .populate('questions', 'title tag')
       .populate('createdBy', 'name');
+    await logAudit(req.user._id, 'mock_exam_created', 'MockBoardExam', exam._id, {
+      name: exam.name,
+      programId: exam.program,
+      status: exam.status,
+      questionCount: exam.questions?.length || 0,
+    });
 
     if (payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
@@ -370,6 +377,13 @@ async function updateMockBoardExam(req, res) {
       .populate('subjectTags', 'name')
       .populate('questions', 'title tag')
       .populate('createdBy', 'name');
+    await logAudit(req.user._id, 'mock_exam_updated', 'MockBoardExam', existing._id, {
+      name: existing.name,
+      programId: existing.program,
+      oldStatus,
+      newStatus: existing.status,
+      questionCount: existing.questions?.length || 0,
+    });
 
     if (oldStatus !== 'published' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
@@ -403,6 +417,11 @@ async function deleteMockBoardExam(req, res) {
     // draft / archived: no question state changes needed
 
     await exam.deleteOne();
+    await logAudit(req.user._id, 'mock_exam_deleted', 'MockBoardExam', exam._id, {
+      name: exam.name,
+      programId: exam.program,
+      status: exam.status,
+    });
     res.json({ message: 'Mock board exam deleted' });
   } catch (err) {
     console.error(err);
@@ -450,6 +469,12 @@ async function archiveExam(req, res) {
         { $set: { state: 'retired' } }
       );
     }
+    await logAudit(req.user._id, 'mock_exam_archived', 'MockBoardExam', exam._id, {
+      name: exam.name,
+      programId: exam.program,
+      status: exam.status,
+      questionCount: exam.questions?.length || 0,
+    });
 
     res.json({ message: 'Exam archived successfully', exam: { _id: exam._id, status: exam.status } });
   } catch (err) {
@@ -503,6 +528,12 @@ async function setResultsReleaseDate(req, res) {
       { $set: { resultsReleaseDate: releaseDate } },
       { new: true, runValidators: false }
     ).select('resultsReleaseDate status').lean();
+    await logAudit(req.user._id, 'mock_exam_results_release_scheduled', 'MockBoardExam', exam._id, {
+      name: exam.name,
+      programId: exam.program,
+      resultsReleaseDate: updated?.resultsReleaseDate || releaseDate,
+      status: exam.status,
+    });
 
     res.json({
       message: 'Results release date scheduled successfully',

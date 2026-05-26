@@ -21,13 +21,27 @@ const auditLogSchema = new mongoose.Schema({
       'department_toggled',
       'program_created',
       'program_updated',
-      'program_toggled'
+      'program_toggled',
+      'question_created',
+      'question_updated',
+      'question_deleted',
+      'question_submitted',
+      'question_reviewed',
+      'question_dean_returned',
+      'tag_created',
+      'tag_updated',
+      'tag_deleted',
+      'mock_exam_created',
+      'mock_exam_updated',
+      'mock_exam_deleted',
+      'mock_exam_archived',
+      'mock_exam_results_release_scheduled'
     ]
   },
   targetType: {
     type: String,
     required: true,
-    enum: ['User', 'Department', 'Program', 'RegistrationRequest']
+    enum: ['User', 'Department', 'Program', 'RegistrationRequest', 'Question', 'Tag', 'MockBoardExam']
   },
   targetId: {
     type: mongoose.Schema.Types.ObjectId,
