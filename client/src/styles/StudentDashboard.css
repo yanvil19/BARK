@@ -37,51 +37,78 @@
 .sd-grid {
   padding: 30px;
   display: grid;
-  grid-template-columns: 1.3fr 0.5fr 0.5fr;
-  grid-template-rows: auto auto auto;
+  grid-template-columns: 1.3fr 1fr;
+  grid-template-rows: auto auto;
   gap: 14px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .sd-grid-item {
   display: flex;
   flex-direction: column;
-
+  height: auto;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   overflow: visible;
 }
 
+.sd-grid-item .sd-card {
+  flex: unset;
+}
+
 .sd-grid-item-0 {
   grid-column: 1;
-  grid-row: 1 / span 2;
+  grid-row: 1;
+  height: auto;
 }
 
-.sd-grid-item-1 {
+.sd-grid-item-1-4 {
   grid-column: 2;
   grid-row: 1;
-}
-
-.sd-grid-item-2 {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.sd-grid-item-3 {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.sd-grid-item-4 {
-  grid-column: 3;
-  grid-row: 2;
+  height: auto;
+  border: 1px solid rgba(53, 64, 142, 0.37);
+  display: flex;
+  align-self: stretch;
 }
 
 .sd-grid-item-5 {
-  grid-column: 1 / span 3;
-  grid-row: 3;
+  grid-column: 1 / span 2;
+  grid-row: 2;
 }
+
+.sd-grid-item-0,
+.sd-grid-item-1-4 {
+  display: flex;
+  flex-direction: column !important;
+  height: auto;
+}
+
+.sd-grid-item-0 .sd-card-body {
+  flex-direction: column;
+}
+
+.sd-grid-item-0 .sd-subject-list {
+  flex: 0 !important;
+  overflow-y: visible !important;
+}
+
+.sd-grid-item-1-4 .sd-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.sd-grid-item-1-4 .sd-card-body {
+  flex: 1;
+  display: flex;
+}
+
+.chart-container {
+  flex: 1;
+  position: relative;
+}
+
 
 /* ══════════════════════════════════════════════════════
    CARD ADJUSTMENTS
@@ -92,7 +119,7 @@
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
 }
 
 .sd-card-header {
@@ -118,12 +145,23 @@
 
 .sd-card-body {
   padding: 0 20px 16px;
-  flex: 1;
-  overflow-y: auto;
   overflow-x: clip;
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  overflow-x: hidden;
+}
+
+.sd-grid-item-1-4 .chart-container {
+  flex: 1;
+}
+
+.chart-container {
+  flex: 1;
+  position: relative;
+}
+
+.chart-container canvas {
+  height: 100% !important;
 }
 
 .sd-timeline .sd-attempt-row:nth-child(odd) {
@@ -276,16 +314,20 @@
 /* ══════════════════════════════════════════════════════
    TIMELINE
    ══════════════════════════════════════════════════════ */
+.sd-card .chrono-header {
+  border-radius: 10px 10px 0 0;
+}
 
-.sd-timeline {
+.sd-card-body .sd-timeline {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  width: 100%;
   margin-left: -20px;
   margin-right: -20px;
-  width: calc(100% + 40px);
-  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+
+  /* border: 1px solid red; */
 }
 
 .sd-attempt-row {
@@ -296,11 +338,12 @@
   border-bottom: 1px solid #f0f2f9;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  min-width: 0;
 }
 
 .sd-attempt-row:hover {
-  background: var(--accent-yellow) !important;
-  transform: scale(1.01);
+  background: #d7e3fc !important;
+  /* transform: scale(1.01); */
   z-index: 2;
 }
 
@@ -321,6 +364,10 @@
 
 .sd-grid-item-0 {
   border: 1px solid rgba(53, 64, 142, 0.37);
+}
+
+.sd-grid-item-0 .sd-card-body {
+  flex-direction: column;
 }
 
 .sd-subject-list {
@@ -467,6 +514,16 @@
   color: #6b7280;
 }
 
+.sd-timeline-wrapper {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin-left: -20px;
+  margin-right: -40px;
+  width: 100%;
+}
+
 /* ══════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════ */
@@ -499,6 +556,8 @@
 
   .sd-grid-item-5 {
     order: 6;
+    width: 100%;
+    overflow: hidden !important;
   }
 
   .sd-grid-item-0,
@@ -511,13 +570,15 @@
     grid-row: auto;
   }
 
-  .sd-grid-item {
+  .sd-timeline-chrono {
     max-width: 100%;
-    overflow: hidden;
+    overflow: hidden !important;
   }
 
   .sd-timeline-wrapper {
-    overflow-x: visible !important;
+    margin-left: -20px !important;
+    margin-right: -40px !important;
+    width: 100% !important; 
   }
 
   .sd-timeline {
@@ -534,6 +595,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow-x: hidden !important;
   }
 
   .sd-attempt-left,
@@ -555,5 +617,6 @@
 .sd-attempt-status {
   justify-self: center;
 } */
+
 
 }

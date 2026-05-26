@@ -1,3 +1,23 @@
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+} from 'chart.js';
+
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+);
+``
+
 import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
@@ -313,6 +333,52 @@ const StudentDashboard = ({ me, onNavigate }) => {
   if (loading) return <div className="sd-loading">Loading dashboard...</div>;
   if (error) return <div className="sd-error">{error}</div>;
 
+  const chartData = {
+    labels: ['Total Exams', 'Passed', 'To Improve', 'Correct/Total Score'],
+    datasets: [
+      {
+        label: 'Statistics',
+        data: [
+          totalTaken,
+          passed,
+          toImprove,
+          totalPossible > 0 ? (totalEarned / totalPossible) * 10 : 0
+        ],
+        backgroundColor: [
+          '#35408E', // total
+          '#16a34a', // passed
+          '#dc2626', // improve
+          '#d97706'  // overall %
+        ],
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            if (context.dataIndex === 3) {
+              return `Score: ${totalEarned}/${totalPossible}`;
+            }
+            return `Value: ${context.raw}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+
+
   return (
     <main className="s-dashboard-container">
 
@@ -375,65 +441,17 @@ const StudentDashboard = ({ me, onNavigate }) => {
             </div>
           </div>
 
-          {/* 1 — Exams Taken */}
-          <div className="sd-grid-item sd-grid-item-1">
-            <StatCard
-              div={true}
-              className="stat-card-inside"
-              accentColor="#35408E"
-              bigLabel={totalTaken}
-              subLabel="Exams taken"
-              subtitle={
-                <div className="sd-pill-group">
-                  <span className="sd-pill sd-pill-pass">
-                    {passed} passed
-                  </span>
-                  <span className="sd-pill sd-pill-improve">
-                    {toImprove} to improve
-                  </span>
-                </div>
-              }
+          {/* 1 — Statistics Chart */}
+          <div className="sd-grid-item sd-grid-item-1-4">
+            <div className="sd-card">
+              <div className="sd-card-header">
+                <span className="sd-card-title">Performance Overview</span>
+              </div>
 
-            />
-          </div>
-
-          {/* 2 — Average */}
-          <div className="sd-grid-item sd-grid-item-2">
-            <StatCard
-              accentColor="#16a34a"
-
-              bigLabel={overallScore}
-
-              subLabel="Correct/Total Score"
-            />
-          </div>
-
-          {/* 3 — Highest */}
-          <div className="sd-grid-item sd-grid-item-3">
-            <StatCard
-              accentColor="#d97706"
-              bigLabel={
-                highestAttempt
-                  ? `${highestAttempt.rawScore}/${highestAttempt.totalScore}`
-                  : '—'
-              }
-              subLabel="Highest score"
-              subtitle={highestAttempt?.examName ?? '—'}
-            />
-          </div>
-
-          {/* 4 — Lowest */}
-          <div className="sd-grid-item sd-grid-item-4">
-            <StatCard
-              accentColor="#dc2626"
-              bigLabel={
-                lowestAttempt
-                  ? `${lowestAttempt.rawScore}/${lowestAttempt.totalScore}`
-                  : '—'
-              }
-              subLabel="Lowest score"
-              subtitle={lowestAttempt?.examName ?? '—'}
-            />
+              <div className="sd-card-body chart-container">
+                <Bar data={chartData} options={chartOptions} />
+              </div>
+            </div>
           </div>
 
           {/* 5 — Chronological Log */}
@@ -445,7 +463,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
                 </span>
               </div>
 
-              <div className="sd-card-body">
+              <div className="sd-card-body sd-timeline-chrono">
                 {attempts.length === 0 ? (
                   <p className="sd-empty">No attempts yet.</p>
                 ) : (
