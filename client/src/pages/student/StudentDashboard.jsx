@@ -154,14 +154,13 @@ function AttemptRow({ attempt, isSelected, onClick }) {
 
       {/* Left: date + exam info */}
       <div className="sd-attempt-left">
-        <div className="sd-attempt-date">
-          {formatDate(attempt.date)}
-        </div>
-
         <div className="sd-attempt-name">
           {attempt.examName}
         </div>
 
+        <div className="sd-attempt-date">
+          {formatDate(attempt.date)}
+        </div>
 
         <div className="sd-attempt-meta">
           {attempt.totalItems} items
