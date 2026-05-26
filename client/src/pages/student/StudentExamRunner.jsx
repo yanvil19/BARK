@@ -35,6 +35,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   const violationCountRef = useRef(0);
   const cleanupSecurityRef = useRef(null);
   const autoSubmitTriggeredRef = useRef(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
@@ -48,7 +49,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
       setViolationCount(newCount);
 
-      if (attemptId) {
+      if (newCount > 2 && attemptId) {
         apiAuth(`${BASE}/api/student-exams/attempt/${attemptId}/violation`, {
           method: 'POST',
           body: { type: 'focus_lost', reason },
@@ -176,6 +177,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   };
 
   const submitFinal = async (finalAnswers, { autoSubmitted = false } = {}) => {
+    isSubmittingRef.current = true;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
