@@ -16,6 +16,27 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        setZoomedImage(null);
+      }
+    }
+
+    if (zoomedImage) {
+      window.addEventListener('keydown', handleEsc);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [zoomedImage]);
 
   // Fetch and randomize questions for Test Run
   useEffect(() => {
@@ -154,10 +175,10 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
       {submitted && (
         <div className="mbep-stats" style={{ marginTop: '12px' }}>
           <div className="mbep-progress-card" style={{ background: '#f0fdf4', borderColor: '#22c55e', textAlign: 'center' }}>
-             <h2 style={{ margin: 0, color: '#166534', fontFamily: 'var(--font-title)' }}>
-                Your Score: {score.correct} / {score.total} ({( (score.correct / score.total) * 100 ).toFixed(1)}%)
-             </h2>
-             <p style={{ margin: '8px 0 0', color: '#15803d', fontSize: '14px' }}>Review your answers below. Correct answers are highlighted in green.</p>
+            <h2 style={{ margin: 0, color: '#166534', fontFamily: 'var(--font-title)' }}>
+              Your Score: {score.correct} / {score.total} ({((score.correct / score.total) * 100).toFixed(1)}%)
+            </h2>
+            <p style={{ margin: '8px 0 0', color: '#15803d', fontSize: '14px' }}>Review your answers below. Correct answers are highlighted in green.</p>
           </div>
         </div>
       )}
@@ -182,7 +203,28 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                    <img
+                      key={i}
+                      src={img.startsWith('/') ? `${BASE}${img}` : img}
+                      alt="Ref"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '300px',
+                        borderRadius: '8px',
+                        cursor: 'zoom-in'
+                      }}
+                      onClick={() => {
+                        console.log("ZOOM IMAGE (RAW):", img);
+
+                        const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
+                        console.log("ZOOM IMAGE (FINAL):", finalImage);
+
+                        setZoomedImage(finalImage);
+                        setZoomLevel(1)
+                        setPosition({ x: 0, y: 0 });
+                      }}
+                    />
+
                   ))}
                 </div>
               )}
@@ -199,8 +241,8 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
                   if (showWrong) optionClass += " is-wrong-preview"; // Custom class for wrong
 
                   return (
-                    <div 
-                      key={answer._id} 
+                    <div
+                      key={answer._id}
                       className={optionClass}
                       onClick={() => handleSelect(currentQuestion._id, answer._id)}
                       style={{ cursor: submitted ? 'default' : 'pointer' }}
@@ -221,16 +263,16 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
         <div className="mbep-navigator-wrap">
           <div className="mbep-nav-bar">
             {questions.map((q, i) => {
-               const isAnswered = !!answers[q._id];
-               let dotClass = "mbep-nav-circle";
-               if (currentIdx === i) dotClass += " active";
-               else if (isAnswered && !submitted) dotClass += " is-answered-preview";
+              const isAnswered = !!answers[q._id];
+              let dotClass = "mbep-nav-circle";
+              if (currentIdx === i) dotClass += " active";
+              else if (isAnswered && !submitted) dotClass += " is-answered-preview";
 
-               return (
+              return (
                 <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
                   {i + 1}
                 </button>
-               );
+              );
             })}
           </div>
 
@@ -244,6 +286,107 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
           </div>
         </div>
       </main>
+
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          onWheel={(e) => {
+            e.preventDefault();
+
+            setZoomLevel(prev => {
+              const next = e.deltaY < 0 ? prev + 0.2 : prev - 0.2;
+              return Math.min(Math.max(next, 1), 4); // 1x → 4x
+            });
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+          }}
+        >
+
+          <button
+
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomedImage(null);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--primary-bg)';
+            }}
+
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              zIndex: 4000,
+              background: 'var(--primary-bg)',
+              color: 'var(--accent-yellow)',
+              border: 'none',
+              fontSize: '28px',
+              fontWeight: 'bold',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              transition: '0.2s',
+            }}
+          >
+            ×
+          </button>
+
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            draggable={false}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
+              transition: dragging ? 'none' : 'transform 0.2s ease',
+              borderRadius: '10px',
+              boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+              cursor: zoomLevel > 1 ? 'grab' : 'zoom-in',
+            }}
+
+            onMouseDown={(e) => {
+              if (zoomLevel > 1) {
+                setDragging(true);
+                setStartPos({
+                  x: e.clientX - position.x,
+                  y: e.clientY - position.y,
+                });
+              }
+            }}
+
+            onMouseMove={(e) => {
+              if (dragging) {
+                setPosition({
+                  x: e.clientX - startPos.x,
+                  y: e.clientY - startPos.y,
+                });
+              }
+            }}
+
+            onMouseUp={() => setDragging(false)}
+            onMouseLeave={() => setDragging(false)}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+        </div>
+      )}
+
     </div>
   );
 }

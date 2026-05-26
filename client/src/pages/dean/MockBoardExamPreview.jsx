@@ -11,6 +11,23 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        setZoomedImage(null);
+      }
+    }
+
+    if (zoomedImage) {
+      window.addEventListener('keydown', handleEsc);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [zoomedImage]);
 
   useEffect(() => {
     async function fetchExam() {
@@ -125,25 +142,35 @@ export default function MockBoardExamPreview({ examId, onBack }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img 
-                      key={i} 
-                      src={img.startsWith('/') ? `${BASE}${img}` : img} 
+                    <img
+                      key={i}
+                      src={img.startsWith('/') ? `${BASE}${img}` : img}
                       alt="Ref"
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '300px', 
-                        borderRadius: '8px', 
-                        border: '1px solid rgba(53, 64, 142, 0.15)' 
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '300px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(53, 64, 142, 0.15)',
+                        cursor: 'zoom-in'
+                      }}
+                      onClick={() => {
+                        console.log("ZOOM IMAGE (RAW):", img);
+
+                        const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
+                        console.log("ZOOM IMAGE (FINAL):", finalImage);
+
+                        setZoomedImage(finalImage);
                       }}
                     />
+
                   ))}
                 </div>
               )}
 
               <div className="mbep-options">
                 {(currentQuestion.answers || []).map((answer) => (
-                  <div 
-                    key={answer._id} 
+                  <div
+                    key={answer._id}
                     className={`mbep-option ${answer.isCorrect ? 'is-correct' : ''}`}
                   >
                     <div className="mbep-option-circle">{answer.optionLabel}</div>
@@ -161,7 +188,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
         <div className="mbep-navigator-wrap">
           <div className="mbep-nav-bar">
             {questions.map((_, i) => (
-              <button 
+              <button
                 key={i}
                 className={`mbep-nav-circle ${currentIdx === i ? 'active' : ''}`}
                 onClick={() => setCurrentIdx(i)}
@@ -172,15 +199,15 @@ export default function MockBoardExamPreview({ examId, onBack }) {
           </div>
 
           <div className="mbep-nav-actions">
-            <button 
-              className="mbep-btn-nav" 
+            <button
+              className="mbep-btn-nav"
               onClick={() => setCurrentIdx(prev => Math.max(0, prev - 1))}
               disabled={currentIdx === 0}
             >
               ← Previous
             </button>
-            <button 
-              className="mbep-btn-nav" 
+            <button
+              className="mbep-btn-nav"
               onClick={() => setCurrentIdx(prev => Math.min(questions.length - 1, prev + 1))}
               disabled={currentIdx === questions.length - 1}
             >
@@ -193,6 +220,41 @@ export default function MockBoardExamPreview({ examId, onBack }) {
       <footer style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#8b92bc', opacity: 0.6 }}>
         NU-BOARD • Mock Board Exam Preview
       </footer>
+
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+          }}
+        >
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            style={{
+              width: 'auto',
+              height: 'auto',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: '10px',
+              cursor: 'zoom-out',
+              boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
     </div>
   );
 }

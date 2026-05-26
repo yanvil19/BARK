@@ -21,6 +21,13 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
+  // Image zoom states (from Stud_ImageZoom)
+  const [zoomedImage, setZoomedImage] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+
   const [isBlurred, setIsBlurred] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [violationCount, setViolationCount] = useState(0);
@@ -76,6 +83,8 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
       if ((e.metaKey || e.key === 'Meta') && e.shiftKey) {
         triggerBlur('Meta+Shift (Shortcut)');
       }
+      // Close zoom on Escape
+      if (e.key === 'Escape') setZoomedImage(null);
     };
 
     const handleVisibilityChange = () => {
@@ -311,7 +320,12 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
             <p className="mbep-subtitle">{examInfo?.description || 'Mock Board Exam'}</p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="mbep-exit-btn" onClick={handleManualSubmit} style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }} disabled={submitting}>
+            <button
+              className="mbep-exit-btn"
+              onClick={handleManualSubmit}
+              style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}
+              disabled={submitting}
+            >
               {submitting ? 'Submitting...' : '+ Submit Exam'}
             </button>
           </div>
@@ -350,10 +364,27 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                   )}
                 </div>
 
+                {/* Images with zoom support (from Stud_ImageZoom) */}
                 {currentQuestion.images?.length > 0 && (
                   <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     {currentQuestion.images.map((img, i) => (
-                      <img key={i} src={img.startsWith('/') ? `${BASE}${img}` : img} alt="Ref" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
+                      <img
+                        key={i}
+                        src={img.startsWith('/') ? `${BASE}${img}` : img}
+                        alt="Ref"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '300px',
+                          borderRadius: '8px',
+                          cursor: 'zoom-in'
+                        }}
+                        onClick={() => {
+                          const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
+                          setZoomedImage(finalImage);
+                          setZoomLevel(1);
+                          setPosition({ x: 0, y: 0 });
+                        }}
+                      />
                     ))}
                   </div>
                 )}
@@ -397,16 +428,116 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
             </div>
 
             <div className="mbep-nav-actions">
-              <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}>
+              <button
+                className="mbep-btn-nav"
+                onClick={() => setCurrentIdx(p => Math.max(0, p - 1))}
+                disabled={currentIdx === 0}
+              >
                 ← Previous
               </button>
-              <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
+              <button
+                className="mbep-btn-nav"
+                onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))}
+                disabled={currentIdx === questions.length - 1}
+              >
                 Next →
               </button>
             </div>
           </div>
         </main>
       </div>
+
+      {/* Image Zoom Modal (from Stud_ImageZoom) */}
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          onWheel={(e) => {
+            e.preventDefault();
+            setZoomLevel(prev => {
+              const next = e.deltaY < 0 ? prev + 0.2 : prev - 0.2;
+              return Math.min(Math.max(next, 1), 4);
+            });
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomedImage(null);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--primary-bg)';
+            }}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              zIndex: 4000,
+              background: 'var(--primary-bg)',
+              color: 'var(--accent-yellow)',
+              border: 'none',
+              fontSize: '28px',
+              fontWeight: 'bold',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              transition: '0.2s',
+            }}
+          >
+            ×
+          </button>
+
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            draggable={false}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
+              transition: dragging ? 'none' : 'transform 0.2s ease',
+              borderRadius: '10px',
+              boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+              cursor: zoomLevel > 1 ? (dragging ? 'grabbing' : 'grab') : 'zoom-in',
+            }}
+            onMouseDown={(e) => {
+              if (zoomLevel > 1) {
+                setDragging(true);
+                setStartPos({
+                  x: e.clientX - position.x,
+                  y: e.clientY - position.y,
+                });
+              }
+            }}
+            onMouseMove={(e) => {
+              if (!dragging) return;
+              setPosition({
+                x: e.clientX - startPos.x,
+                y: e.clientY - startPos.y,
+              });
+            }}
+            onMouseUp={() => setDragging(false)}
+            onMouseLeave={() => setDragging(false)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   );
 }
