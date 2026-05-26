@@ -51,6 +51,9 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [questionToSubmit, setQuestionToSubmit] = useState(null);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState(null);
+  const [showProgramPickerModal, setShowProgramPickerModal] = useState(false);
+  const [pendingDeanAction, setPendingDeanAction] = useState('create');
+  const [pendingProgramId, setPendingProgramId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -206,6 +209,36 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   function openCreateModal() {
     setEditQuestion(null);
     setShowForm(true);
+  }
+
+  function requestDeanProgramThen(action) {
+    if (role !== 'dean') {
+      if (action === 'import') openImportModal();
+      else openCreateModal();
+      return;
+    }
+
+    setPendingDeanAction(action);
+    setPendingProgramId(programId || programs[0]?._id || '');
+    setShowProgramPickerModal(true);
+  }
+
+  function closeProgramPickerModal() {
+    setShowProgramPickerModal(false);
+    setPendingDeanAction('create');
+    setPendingProgramId('');
+  }
+
+  function confirmProgramPickerModal() {
+    if (!pendingProgramId) return;
+    onProgramChange?.(pendingProgramId);
+    setShowProgramPickerModal(false);
+
+    if (pendingDeanAction === 'import') openImportModal();
+    else openCreateModal();
+
+    setPendingDeanAction('create');
+    setPendingProgramId('');
   }
 
   function openEditModal(question) {
@@ -369,16 +402,26 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
               <span className="qp-program-chip">{programLabel}</span>
             ) : null}
 
-            {canCreateQuestion && (
-              <div className="qp-header-actions-buttons">
-                <button type="button" className="qp-btn-add" onClick={openImportModal}>
-                  + Import Questions
-                </button>
-                <button type="button" className="qp-btn-add" onClick={openCreateModal}>
-                  + Create Question
-                </button>
-              </div>
-            )}
+            <div className="qp-header-actions-buttons">
+              <button
+                type="button"
+                className="qp-btn-add"
+                onClick={() => requestDeanProgramThen('import')}
+                disabled={role === 'dean' && programs.length === 0}
+                title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
+              >
+                + Import Questions
+              </button>
+              <button
+                type="button"
+                className="qp-btn-add"
+                onClick={() => requestDeanProgramThen('create')}
+                disabled={role === 'dean' && programs.length === 0}
+                title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
+              >
+                + Create Question
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -446,7 +489,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       </div>
 
       {!canCreateQuestion && role === 'dean' ? (
-        <p className="qp-helper-note">Select a program first before creating a question.</p>
+        <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
       ) : null}
 
       <div className="qp-table-wrap">
@@ -758,6 +801,51 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           >
             Cancel
           </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showProgramPickerModal}
+        onClose={closeProgramPickerModal}
+        title="Choose Program"
+      >
+        <div className="qp-modal-copy">
+          <p className="qp-modal-subtitle">
+            Select a program before continuing.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gap: '12px' }}>
+          <select
+            className="qp-filter-select"
+            value={pendingProgramId}
+            onChange={(e) => setPendingProgramId(e.target.value)}
+          >
+            <option value="">Select a program</option>
+            {programs.map((program) => (
+              <option key={program._id} value={program._id}>
+                {program.name} ({program.code})
+              </option>
+            ))}
+          </select>
+
+          <div className="modal-actions qp-modal-actions">
+            <button
+              type="button"
+              className="modal-btn-cancel"
+              onClick={closeProgramPickerModal}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={confirmProgramPickerModal}
+              disabled={!pendingProgramId}
+            >
+              Continue
+            </button>
+          </div>
         </div>
       </Modal>
 

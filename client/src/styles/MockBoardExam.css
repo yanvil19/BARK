@@ -516,6 +516,17 @@
   margin-bottom: 10px;
 }
 
+.mbe-expand-icon {
+  margin-left: auto;
+  color: #6b76b3;
+  font-size: 14px;
+  transition: transform 0.18s ease;
+}
+
+.mbe-expand-icon.is-open {
+  transform: rotate(180deg);
+}
+
 .mbe-select-btn {
   min-width: 74px;
   padding: 8px 12px;
@@ -557,6 +568,21 @@
 
 .mbe-question-copy {
   min-width: 0;
+}
+
+.mbe-question-toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mbe-question-toggle:focus-visible {
+  outline: 2px solid #8e99d1;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .mbe-question-actions {
@@ -620,6 +646,14 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #e5e9f6;
+}
+
+.mbe-question-description {
+  margin: 0;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .mbe-preview-images {

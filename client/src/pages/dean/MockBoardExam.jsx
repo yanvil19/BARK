@@ -52,6 +52,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [approvedSelectionFilter, setApprovedSelectionFilter] = useState('all');
   const [questionStateFilter, setQuestionStateFilter] = useState('all');
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
+  const [expandedQuestionIds, setExpandedQuestionIds] = useState({});
   const [returnModal, setReturnModal] = useState(null);
   const [returnNote, setReturnNote] = useState('');
   const [returnSubmitting, setReturnSubmitting] = useState(false);
@@ -274,6 +275,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     setReturnModal(question);
     setReturnNote(feedbackByQuestionId[question._id] || '');
     setReturnError('');
+  }
+
+  function toggleQuestionExpanded(questionId) {
+    setExpandedQuestionIds((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
   }
 
   async function submitReturnQuestion() {
@@ -589,6 +597,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     const isSelected = selectedQuestionIds.has(String(question._id));
                     const imageCount = question.images?.length || 0;
                     const answerCount = question.answers?.length || 0;
+                    const isExpanded = !!expandedQuestionIds[question._id];
 
                     return (
                       <article
@@ -596,13 +605,19 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                         className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''}`}
                       >
                         <div className="mbe-question-main">
-                          <div className="mbe-question-copy">
+                          <button
+                            type="button"
+                            className="mbe-question-copy mbe-question-toggle"
+                            onClick={() => toggleQuestionExpanded(question._id)}
+                            aria-expanded={isExpanded}
+                          >
                             <div className="mbe-question-meta-row">
                               <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
                               <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
                               {question.createdBy?.name ? (
                                 <span className="mbe-meta-text">By {question.createdBy.name}</span>
                               ) : null}
+                              <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
                             </div>
 
                             <div className="mbe-question-headline mbe-question-headline--compact">
@@ -612,31 +627,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                 {question.state === 'in_use' && <span className="mbe-state-badge mbe-state-badge--inuse">In Use</span>}
                                 {question.state === 'in_draft' && <span className="mbe-state-badge mbe-state-badge--indraft">In Draft</span>}
                               </h3>
-                              <p>{question.description || 'No description provided.'}</p>
                             </div>
-
-                            {imageCount > 0 ? (
-                              <div className="mbe-question-thumbs">
-                                {question.images.slice(0, 3).map((image, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    className="mbe-question-thumb-link"
-                                    onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                  >
-                                    <img
-                                      className="mbe-question-thumb"
-                                      src={resolveImageUrl(image)}
-                                      alt={`${question.title} thumbnail ${index + 1}`}
-                                    />
-                                  </button>
-                                ))}
-                                {imageCount > 3 ? (
-                                  <span className="mbe-thumb-more">+{imageCount - 3} more</span>
-                                ) : null}
-                              </div>
-                            ) : null}
-                          </div>
+                          </button>
 
                           <div className="mbe-question-actions">
                             <button
@@ -656,7 +648,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                           </div>
                         </div>
 
+                        {isExpanded ? (
                         <div className="mbe-question-details">
+                          <section className="mbe-question-panel">
+                            <p className="mbe-panel-label">Question</p>
+                            <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
+                          </section>
+
                           {imageCount > 0 ? (
                             <section className="mbe-question-panel">
                               <p className="mbe-panel-label">Images</p>
@@ -692,6 +690,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                             </ul>
                           </section>
                         </div>
+                        ) : null}
                       </article>
                     );
                   })}

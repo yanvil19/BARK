@@ -311,6 +311,13 @@
   color: var(--primary-bg) !important;
 }
 
+.dtp-modal-body .react-datepicker__time-list-item--disabled,
+.dtp-modal-body .react-datepicker__time-list-item--disabled:hover {
+  color: #cbd5e1 !important;
+  background: transparent !important;
+  cursor: not-allowed !important;
+}
+
 .dtp-modal-body .react-datepicker__time-list-item--selected {
   background: var(--primary-bg) !important;
   color: var(--accent-yellow) !important;

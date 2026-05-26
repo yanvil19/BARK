@@ -57,6 +57,11 @@
   opacity: 0.85;
 }
 
+.qp-btn-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .qp-program-chip,
 .qp-modal-program-chip {
   display: inline-flex;

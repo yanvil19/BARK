@@ -53,6 +53,18 @@ export default function DateTimePicker({ value, onChange, onCancel, autoOpen = f
     if (onCancel) onCancel();
   };
 
+  const isSameDay = (left, right) =>
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+
+  const isTimeSelectable = (time) => {
+    const selectedDate = draft instanceof Date ? draft : new Date();
+    const now = new Date();
+    if (!isSameDay(selectedDate, now)) return true;
+    return time.getTime() >= now.getTime();
+  };
+
   const displayValue = value
     ? new Date(value).toLocaleString('en-PH', {
         month: 'short', day: 'numeric', year: 'numeric',
@@ -84,6 +96,7 @@ export default function DateTimePicker({ value, onChange, onCancel, autoOpen = f
             dateFormat="MMM d, yyyy h:mm aa"
             timeCaption="Time"
             minDate={new Date()}
+            filterTime={isTimeSelectable}
             inline
           />
         </div>
