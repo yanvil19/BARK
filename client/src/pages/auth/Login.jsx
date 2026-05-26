@@ -7,8 +7,7 @@ function clearSessionExpiredFromUrl() {
   const url = new URL(window.location.href);
   if (!url.searchParams.has('session')) return;
   url.searchParams.delete('session');
-  const nextPath = url.pathname.endsWith('/login') ? '/' : url.pathname;
-  window.history.replaceState({}, '', `${nextPath}${url.search}${url.hash}`);
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 export default function Login({ onLogin, onNavigate }) {
@@ -26,6 +25,7 @@ export default function Login({ onLogin, onNavigate }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('session') === 'expired') {
       setShowSessionExpired(true);
+      clearSessionExpiredFromUrl();
     }
   }, []);
 
@@ -165,7 +165,7 @@ export default function Login({ onLogin, onNavigate }) {
               <form className="login-form" onSubmit={handleSubmit}>
                 {/* [FIX - SESSION EXPIRED MESSAGE] */}
                 {showSessionExpired ? (
-                  <p
+                  <div
                     className="login-session-expired-banner"
                     role="status"
                     style={{
@@ -176,10 +176,25 @@ export default function Login({ onLogin, onNavigate }) {
                       borderRadius: '8px',
                       fontSize: '13px',
                       margin: '0 0 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
                     }}
                   >
-                    Your session has expired. Please log in again.
-                  </p>
+                    <span>Your session has expired. Please log in again.</span>
+                    <button
+                      type="button"
+                      className="login-inline-link"
+                      onClick={() => {
+                        setShowSessionExpired(false);
+                        if (typeof onNavigate === 'function') onNavigate('Dashboard');
+                      }}
+                    >
+                      Back to Home
+                    </button>
+                  </div>
                 ) : null}
 
                 <div className="login-form-group">

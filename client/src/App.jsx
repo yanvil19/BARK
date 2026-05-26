@@ -60,8 +60,19 @@ export default function App() {
 
   // [FIX - SESSION EXPIRED MESSAGE]
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('session') === 'expired' || window.location.pathname.endsWith('/login')) {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+
+    if (params.get('session') === 'expired') {
+      setToken('');
+      setMe(null);
+      setRoute('login');
+      params.delete('session');
+      window.history.replaceState({}, '', `${url.pathname}${params.toString() ? `?${params}` : ''}${url.hash}`);
+      return;
+    }
+
+    if (url.pathname.endsWith('/login')) {
       setRoute('login');
     }
   }, []);
