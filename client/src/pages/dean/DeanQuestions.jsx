@@ -22,7 +22,7 @@ export default function DeanQuestions({ me }) {
         setPrograms(deptPrograms);
         setSelectedProgramId((prev) => {
           if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
-          return deptPrograms[0]?._id || '';
+          return '';
         });
       } catch (err) {
         console.error('Failed to load programs:', err);

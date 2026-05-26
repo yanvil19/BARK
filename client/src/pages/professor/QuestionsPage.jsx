@@ -53,6 +53,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [feedbackModal, setFeedbackModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
 
   const fetchQuestions = useCallback(async () => {
@@ -62,6 +63,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       const data = await apiAuth(`${BASE}/api/questions?page=${encodeURIComponent(currentPage)}&limit=${encodeURIComponent(itemsPerPage)}${programParam}`);
       setQuestions(data.questions || []);
       setTotalPages(typeof data.totalPages === 'number' ? Math.max(1, data.totalPages) : 1);
+      setTotalItems(typeof data.totalItems === 'number' ? Math.max(0, data.totalItems) : 0);
     } catch (err) {
       console.error('Failed to load questions:', err);
     } finally {
@@ -95,7 +97,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery, subjectFilter, sortBy]);
+  }, [filter, searchQuery, subjectFilter, sortBy, programId]);
 
   const baseQuestions = useMemo(() => {
     return questions.filter((q) => {
@@ -559,7 +561,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       {!loading && filteredQuestions.length > 0 && (
         <div className="qp-pagination">
           <div className="qp-pagination-info">
-            Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
+            Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + filteredQuestions.length} of {totalItems} questions
           </div>
           <div className="qp-pagination-controls">
             <button
