@@ -356,8 +356,14 @@ export default function AdminUsers({ me }) {
         departmentId: editForm.departmentId || null,
         programId: editForm.programId || null,
       };
-      if (editForm.role === 'student' && editForm.studentId) body.studentId = editForm.studentId;
-      if (editForm.role === 'alumni' && editForm.alumniId) body.alumniId = editForm.alumniId;
+      if (editForm.role === 'student' || editForm.role === 'alumni') {
+        const learnerId = (editForm.studentId || editForm.alumniId || '').trim();
+        body.studentId = learnerId || null;
+        body.alumniId = learnerId || null;
+      } else {
+        body.studentId = null;
+        body.alumniId = null;
+      }
       if (isSelf) {
         body.email = editForm.email;
         if (editForm.password) body.password = editForm.password;
@@ -817,6 +823,8 @@ export default function AdminUsers({ me }) {
               <span className="um-segment-label">User Role</span>
               <div className="um-segmented">
                 {[
+                  { value: 'student', label: 'Student' },
+                  { value: 'alumni', label: 'Alumni' },
                   { value: 'professor', label: 'Professor' },
                   { value: 'program_chair', label: 'Program Chair' },
                   { value: 'dean', label: 'Dean' },
@@ -826,13 +834,52 @@ export default function AdminUsers({ me }) {
                     key={roleObj.value}
                     type="button"
                     className={editForm.role === roleObj.value ? 'is-active' : ''}
-                    onClick={() => setEditForm((f) => ({ ...f, role: roleObj.value }))}
+                    onClick={() =>
+                      setEditForm((f) => {
+                        const next = { ...f, role: roleObj.value };
+                        const existingLearnerId = (f.studentId || f.alumniId || '').trim();
+
+                        if (roleObj.value === 'student') {
+                          next.studentId = existingLearnerId;
+                          next.alumniId = existingLearnerId;
+                        } else if (roleObj.value === 'alumni') {
+                          next.studentId = existingLearnerId;
+                          next.alumniId = existingLearnerId;
+                        } else {
+                          next.studentId = '';
+                          next.alumniId = '';
+                        }
+                        return next;
+                      })
+                    }
                   >
                     {roleObj.label}
                   </button>
                 ))}
               </div>
             </div>
+
+            {editForm.role === 'student' ? (
+              <div className="um-form-group full-width">
+                <label>Student ID</label>
+                <input
+                  value={editForm.studentId || ''}
+                  onChange={(e) => setEditForm((f) => ({ ...f, studentId: e.target.value }))}
+                  placeholder="YYYY-XXXXXX (e.g., 2026-123456)"
+                />
+              </div>
+            ) : null}
+
+            {editForm.role === 'alumni' ? (
+              <div className="um-form-group full-width">
+                <label>Alumni ID</label>
+                <input
+                  value={editForm.alumniId || ''}
+                  onChange={(e) => setEditForm((f) => ({ ...f, alumniId: e.target.value }))}
+                  placeholder="YYYY-XXXXXX (e.g., 2026-123456)"
+                />
+              </div>
+            ) : null}
           </div>
           {editError ? <p className="um-error">{editError}</p> : null}
           <div className="modal-actions">

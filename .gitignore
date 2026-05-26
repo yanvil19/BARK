@@ -38,3 +38,6 @@ Desktop.ini
 # Uploaded files (keep folder via .gitkeep)
 server/uploads/*
 !server/uploads/.gitkeep
+
+# Local-only admin seeding script
+server/scripts/seedSuperAdmin.js
