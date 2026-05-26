@@ -88,6 +88,8 @@ export default function AdminUsers({ me }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterProgram, setFilterProgram] = useState('');
+  const [filterStatus, setFilterStatus] = useState(''); // '' | 'active' | 'inactive'
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -120,7 +122,7 @@ export default function AdminUsers({ me }) {
     return allEmailTargets.every((u) => u.receiveEmails !== false);
   }, [allEmailTargets]);
 
-  async function fetchUsersList(search, role, dept) {
+  async function fetchUsersList(search, role, dept, program, status) {
     setBusy(true);
     setError('');
     try {
@@ -128,6 +130,9 @@ export default function AdminUsers({ me }) {
       if (search) params.append('search', search);
       if (role) params.append('role', role);
       if (dept) params.append('department', dept);
+      if (program) params.append('program', program);
+      if (status === 'active') params.append('isActive', 'true');
+      if (status === 'inactive') params.append('isActive', 'false');
 
       const res = await apiAuth(`/api/auth/users?${params.toString()}`);
       setData(res);
@@ -255,10 +260,19 @@ export default function AdminUsers({ me }) {
   useEffect(() => {
     const t = setTimeout(() => {
       setCurrentPage(1);
-      fetchUsersList(searchQuery, filterRole, filterDepartment);
+      fetchUsersList(searchQuery, filterRole, filterDepartment, filterProgram, filterStatus);
     }, 100);
     return () => clearTimeout(t);
-  }, [searchQuery, filterRole, filterDepartment]);
+  }, [searchQuery, filterRole, filterDepartment, filterProgram, filterStatus]);
+
+  useEffect(() => {
+    if (!filterDepartment) return;
+    const ok = programs.some((p) => {
+      const deptId = p.department?._id || p.department;
+      return String(deptId) === String(filterDepartment) && String(p._id) === String(filterProgram);
+    });
+    if (filterProgram && !ok) setFilterProgram('');
+  }, [filterDepartment, filterProgram, programs]);
 
   function closeModal() {
     setCurrentPage(1);
@@ -471,7 +485,7 @@ export default function AdminUsers({ me }) {
           <input
             className="um-search"
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Search users by name, email, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -498,16 +512,41 @@ export default function AdminUsers({ me }) {
               <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
             ))}
           </select>
+          <select
+            className="um-filter-select"
+            value={filterProgram}
+            onChange={(e) => setFilterProgram(e.target.value)}
+          >
+            <option value="">Filter: All Programs</option>
+            {programs
+              .filter((p) => {
+                if (!filterDepartment) return true;
+                const deptId = p.department?._id || p.department;
+                return String(deptId) === String(filterDepartment);
+              })
+              .map((p) => (
+                <option key={p._id} value={p._id}>{p.code} - {p.name}</option>
+              ))}
+          </select>
+          <select
+            className="um-filter-select"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="">Filter: All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
 
           <button
             type="button"
             className={`um-email-switch ${allEmailsEnabled ? 'um-email-switch--on' : 'um-email-switch--off'}`}
             disabled={bulkEmailBusy || busy || allEmailTargets.length === 0}
             onClick={() => bulkSetReceiveEmails(!allEmailsEnabled)}
-            title={allEmailsEnabled ? 'Disable email receiving for all users' : 'Enable email receiving for all users'}
+            title={allEmailsEnabled ? 'Deselect all emails (disable for all users)' : 'Select all emails (enable for all users)'}
             aria-pressed={allEmailsEnabled}
           >
-            <span className="um-email-switch-label">Receive Emails</span>
+            <span className="um-email-switch-label">Select All Emails</span>
             <span className="um-email-switch-track" aria-hidden="true">
               <span className="um-email-switch-text">{allEmailsEnabled ? 'ON' : 'OFF'}</span>
               <span className="um-email-switch-knob" />
@@ -539,8 +578,8 @@ export default function AdminUsers({ me }) {
                   <col style={{ width: '11%' }} />
                 </colgroup>
                 <thead>
-                  <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Receive Emails ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
-                </thead>
+                <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Email Opt-In ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
+              </thead>
                 <tbody>
                   {paginatedUsers.length === 0 ? <tr><td colSpan={8} className="um-empty">No users found.</td></tr> : (
                     paginatedUsers.map((u) => (
@@ -611,7 +650,7 @@ export default function AdminUsers({ me }) {
           <div className="scroll-x">
             <table className="um-table">
               <thead>
-                <tr><th style={{ width: '200px' }}>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Receive Emails ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
+                <tr><th style={{ width: '200px' }}>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Email Opt-In ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {paginatedUsers.length === 0 ? <tr><td colSpan={8} className="um-empty">No users found.</td></tr> : (

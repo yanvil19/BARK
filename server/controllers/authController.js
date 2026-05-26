@@ -362,11 +362,18 @@ const listUsers = async (req, res) => {
     if (req.query.role) filter.role = req.query.role;
     if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
     if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
+    if (req.query.isActive === 'true') filter.isActive = true;
+    if (req.query.isActive === 'false') filter.isActive = false;
 
     const search = (req.query.search || '').trim();
     if (search) {
       const safe = escapeRegExp(search);
-      filter.$or = [{ name: new RegExp(safe, 'i') }, { email: new RegExp(safe, 'i') }];
+      filter.$or = [
+        { name: new RegExp(safe, 'i') },
+        { email: new RegExp(safe, 'i') },
+        { studentId: new RegExp(safe, 'i') },
+        { alumniId: new RegExp(safe, 'i') },
+      ];
     }
 
     const [total, users] = await Promise.all([
