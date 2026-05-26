@@ -77,7 +77,22 @@ export default function App() {
   }, [me, route]);
 
   useEffect(() => {
-    if (me?.role === 'student' && route === 'student') setRoute('Dashboard');
+    const isLearner = me?.role === 'student' || me?.role === 'alumni';
+    if (isLearner && route === 'student') setRoute('Dashboard');
+  }, [me, route]);
+
+  useEffect(() => {
+    const isLearner = me?.role === 'student' || me?.role === 'alumni';
+    const learnerRoutes = new Set([
+      'studentAvailableExams',
+      'studentExamRunner',
+      'studentExamResult',
+      'studentExamResults',
+    ]);
+
+    if (route && learnerRoutes.has(route) && !isLearner) {
+      setRoute('Dashboard');
+    }
   }, [me, route]);
 
   useEffect(() => {

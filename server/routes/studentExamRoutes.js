@@ -11,7 +11,7 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 router.use(protect);
-router.use(authorizeRoles('student'));
+router.use(authorizeRoles('student', 'alumni'));
 
 router.get('/available', getAvailableExams);
 router.get('/my-attempts', getMyAttempts);

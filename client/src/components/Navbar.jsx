@@ -85,6 +85,8 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
   const isChair = me?.role === 'program_chair';
   const isProfessor = me?.role === 'professor';
   const isStudent = me?.role === 'student';
+  const isAlumni = me?.role === 'alumni';
+  const isLearner = isStudent || isAlumni;
 
   const getInitials = (name = '') => {
     const parts = name.trim().split(' ');
@@ -109,7 +111,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
           </button>
         )}
 
-        {me && me.role !== 'student' && !isDean && (
+        {me && !isLearner && !isDean && (
           <button className={cls('student')} onClick={handle('student')}>
             Student Register
           </button>
@@ -148,7 +150,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
           </>
         )}
 
-        {isStudent && (
+        {isLearner && (
           <>
             <button className={cls('studentAvailableExams')} onClick={handle('studentAvailableExams')}>
               Available Exams
