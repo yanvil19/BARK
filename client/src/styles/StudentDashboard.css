@@ -181,13 +181,26 @@
 }
 
 .sd-attempt-name {
-  font-size: 14px;
-  font-weight: 900;
-  color: #fad02c;
-  padding: 0.3em 0.5em;
-  background-color: #2b3980;
-  border-radius: 5px;
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--font-title) !important;
+  color: #2b3980;
+  /* background-color: #2b3980;
+  border: 1px solid #ecbf0a;
+  padding: 0.1em 0.5em; */
+  border-radius: 10px;
   width: fit-content;
+  text-transform: uppercase;
+}
+
+.sd-attempt-date {
+  padding-top: 0.5em;
+}
+
+.sd-attempt-date,
+.sd-attempt-meta {
+  font-size: 14px;
+  color: #8b96c8;
 }
 
 /* ══════════════════════════════════════════════════════
