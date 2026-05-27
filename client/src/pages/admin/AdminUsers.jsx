@@ -398,6 +398,32 @@ export default function AdminUsers({ me }) {
     return programs.filter((p) => String(p.department?._id || p.department) === String(editForm.departmentId));
   }, [programs, editForm.departmentId]);
 
+  const editRoleOptions = useMemo(() => {
+    const baseRole = selectedUser?.role || editForm.role;
+    if (baseRole === 'student' || baseRole === 'alumni') {
+      return [
+        { value: 'student', label: 'Student' },
+        { value: 'alumni', label: 'Alumni' },
+      ];
+    }
+    if (baseRole === 'professor' || baseRole === 'program_chair' || baseRole === 'dean') {
+      return [
+        { value: 'professor', label: 'Professor' },
+        { value: 'program_chair', label: 'Program Chair' },
+        { value: 'dean', label: 'Dean' },
+      ];
+    }
+    if (baseRole === 'super_admin') return [];
+    return [
+      { value: 'student', label: 'Student' },
+      { value: 'alumni', label: 'Alumni' },
+      { value: 'professor', label: 'Professor' },
+      { value: 'program_chair', label: 'Program Chair' },
+      { value: 'dean', label: 'Dean' },
+      { value: 'super_admin', label: 'Super Admin' },
+    ];
+  }, [selectedUser?.role, editForm.role]);
+
   const createDepartmentPrograms = useMemo(() => {
     if (!createForm.departmentId) return programs;
     return programs.filter((p) => String(p.department?._id || p.department) === String(createForm.departmentId));
@@ -860,42 +886,38 @@ export default function AdminUsers({ me }) {
 
             <div className="um-form-group full-width">
               <span className="um-segment-label">User Role</span>
-              <div className="um-segmented">
-                {[
-                  { value: 'student', label: 'Student' },
-                  { value: 'alumni', label: 'Alumni' },
-                  { value: 'professor', label: 'Professor' },
-                  { value: 'program_chair', label: 'Program Chair' },
-                  { value: 'dean', label: 'Dean' },
-                  { value: 'super_admin', label: 'Super Admin' },
-                ].map((roleObj) => (
-                  <button
-                    key={roleObj.value}
-                    type="button"
-                    className={editForm.role === roleObj.value ? 'is-active' : ''}
-                    onClick={() =>
-                      setEditForm((f) => {
-                        const next = { ...f, role: roleObj.value };
-                        const existingLearnerId = (f.studentId || f.alumniId || '').trim();
+              {editRoleOptions.length ? (
+                <div className="um-segmented">
+                  {editRoleOptions.map((roleObj) => (
+                    <button
+                      key={roleObj.value}
+                      type="button"
+                      className={editForm.role === roleObj.value ? 'is-active' : ''}
+                      onClick={() =>
+                        setEditForm((f) => {
+                          const next = { ...f, role: roleObj.value };
+                          const existingLearnerId = (f.studentId || f.alumniId || '').trim();
 
-                        if (roleObj.value === 'student') {
-                          next.studentId = existingLearnerId;
-                          next.alumniId = existingLearnerId;
-                        } else if (roleObj.value === 'alumni') {
-                          next.studentId = existingLearnerId;
-                          next.alumniId = existingLearnerId;
-                        } else {
-                          next.studentId = '';
-                          next.alumniId = '';
-                        }
-                        return next;
-                      })
-                    }
-                  >
-                    {roleObj.label}
-                  </button>
-                ))}
-              </div>
+                          if (roleObj.value === 'student' || roleObj.value === 'alumni') {
+                            next.studentId = existingLearnerId;
+                            next.alumniId = existingLearnerId;
+                          } else {
+                            next.studentId = '';
+                            next.alumniId = '';
+                          }
+                          return next;
+                        })
+                      }
+                    >
+                      {roleObj.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: '10px 0', color: '#4b5563', fontWeight: 600 }}>
+                  {selectedUser?.role === 'super_admin' ? 'Super Admin' : (editForm.role || '').replace(/_/g, ' ')}
+                </div>
+              )}
             </div>
 
             {editForm.role === 'student' ? (
