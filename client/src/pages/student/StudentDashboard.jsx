@@ -3,20 +3,21 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  ArcElement,
   Tooltip,
   Legend
 } from 'chart.js';
 
-import { Bar } from 'react-chartjs-2';
+import { Bar, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  ArcElement,
   Tooltip,
   Legend
 );
-``
 
 import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
@@ -333,7 +334,7 @@ const StudentDashboard = ({ me, onNavigate }) => {
   if (error) return <div className="sd-error">{error}</div>;
 
   const chartData = {
-    labels: ['Total Exams', 'Passed', 'To Improve', 'Correct/Total Score'],
+    labels: ['Total Exams', 'Passed', 'To Improve'],
     datasets: [
       {
         label: 'Statistics',
@@ -341,13 +342,11 @@ const StudentDashboard = ({ me, onNavigate }) => {
           totalTaken,
           passed,
           toImprove,
-          totalPossible > 0 ? (totalEarned / totalPossible) * 10 : 0
         ],
         backgroundColor: [
           '#35408E', // total
           '#16a34a', // passed
           '#dc2626', // improve
-          '#d97706'  // overall %
         ],
         borderRadius: 6,
       },
@@ -376,6 +375,62 @@ const StudentDashboard = ({ me, onNavigate }) => {
       },
     },
   };
+
+  const donutData = {
+    labels: ['Correct', 'Incorrect'],
+    datasets: [
+      {
+        data: [totalEarned, totalPossible - totalEarned],
+        backgroundColor: ['#16a34a', '#d97706'],
+        borderWidth: 0
+      },
+    ],
+  };
+
+  const donutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '55%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const label = context.label || '';
+            const value = context.raw;
+            return `${label}: ${value}/${totalPossible}`;
+          },
+        },
+      },
+    },
+  };
+
+  // Center text plugin
+  const centerTextPlugin = {
+    id: 'centerText',
+    beforeDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const centerX = (chartArea.left + chartArea.right) / 2;
+      const centerY = (chartArea.top + chartArea.bottom) / 2;
+      const pct = totalPossible > 0
+        ? Math.round((totalEarned / totalPossible) * 100)
+        : 0;
+
+      ctx.save();
+      ctx.font = `bold 22px var(--font-title)`;
+      ctx.fillStyle = '#2b3980';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pct}%`, centerX, centerY - 8);
+
+      ctx.font = `12px var(--font-body)`;
+      ctx.fillStyle = '#8b96c8';
+      ctx.fillText('Overall', centerX, centerY + 14);
+      ctx.restore();
+    },
+  };
+
 
 
   return (
@@ -450,6 +505,44 @@ const StudentDashboard = ({ me, onNavigate }) => {
               <div className="sd-card-body chart-container">
                 <Bar data={chartData} options={chartOptions} />
               </div>
+            </div>
+          </div>
+
+          {/* Score Ratio Donut */}
+          <div className="sd-grid-item sd-grid-item-2">
+            <div className="sd-card">
+              <div className="sd-card-header">
+                <span className="sd-card-title">Score Ratio</span>
+              </div>
+              <div className="sd-card-body sd-donut-body">
+                {totalPossible > 0 ? (
+                  <Doughnut
+                    data={donutData}
+                    options={donutOptions}
+                    plugins={[centerTextPlugin]}
+                  />
+                ) : (
+                  <div className="sd-empty-state">
+                    <p className="sd-empty-text">No score data yet.</p>
+                  </div>
+                )}
+              </div>
+              {totalPossible > 0 && (
+                <div className="sd-donut-legend">
+                  <span className="sd-donut-legend-item">
+                    <span className="sd-donut-dot sd-donut-dot--correct" />
+                    Correct ({totalEarned})
+                  </span>
+                  <span className="sd-donut-legend-item">
+                    <span className="sd-donut-dot sd-donut-dot--incorrect" />
+                    Incorrect ({totalPossible - totalEarned})
+                  </span>
+                  <span className="sd-donut-legend-item">
+                    <span className="sd-donut-dot sd-donut-dot--total" />
+                    Total ({totalPossible})
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

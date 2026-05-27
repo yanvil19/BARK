@@ -37,7 +37,7 @@
 .sd-grid {
   padding: 30px;
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
+  grid-template-columns: 1.5fr 1fr 0.5fr;
   grid-template-rows: auto auto;
   gap: 14px;
   align-items: start;
@@ -53,6 +53,14 @@
   overflow: visible;
 }
 
+.sd-grid-item-2 {
+  grid-column: 3;
+  grid-row: 1;
+  border: 1px solid rgba(53, 64, 142, 0.37);
+  display: flex;
+  align-self: stretch;
+}
+
 .sd-grid-item .sd-card {
   flex: unset;
 }
@@ -61,6 +69,7 @@
   grid-column: 1;
   grid-row: 1;
   height: auto;
+  align-self: stretch;
 }
 
 .sd-grid-item-1-4 {
@@ -73,7 +82,7 @@
 }
 
 .sd-grid-item-5 {
-  grid-column: 1 / span 2;
+  grid-column: 1 / span 3;
   grid-row: 2;
 }
 
@@ -297,7 +306,7 @@
 .sd-pill-improve {
   color: #991b1b;
   background: #fee2e2;
-  border-color: #fecaca;
+  border-color: #d97706;
 }
 
 .sd-subject-header {
@@ -332,7 +341,44 @@
   padding-right: 20px;
 }
 
+.sd-donut-body {
+  min-height: 150px;
+  padding: 16px 20px;
+}
 
+.sd-donut-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 20px 16px;
+  font-size: 12px;
+}
+
+.sd-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sd-donut-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.sd-donut-dot--correct {
+  background: #16a34a;
+}
+
+.sd-donut-dot--incorrect {
+  background: #d97706;
+}
+
+.sd-donut-dot--total {
+  background: #8fb320
+}
 
 /* ══════════════════════════════════════════════════════
    TIMELINE
@@ -601,7 +647,7 @@
   .sd-timeline-wrapper {
     margin-left: -20px !important;
     margin-right: -40px !important;
-    width: 100% !important; 
+    width: 100% !important;
   }
 
   .sd-timeline {
