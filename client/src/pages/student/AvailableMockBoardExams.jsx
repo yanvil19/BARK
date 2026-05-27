@@ -54,6 +54,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
+  const [expandedQuestionId, setExpandedQuestionId] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [schedulingExamId, setSchedulingExamId] = useState(null);
   const [confirmationModal, setConfirmationModal] = useState(null);
@@ -75,6 +76,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
     fetchExams();
   }, [refreshKey]);
+
+  useEffect(() => {
+    setExpandedQuestionId(null);
+  }, [selectedExam?._id]);
 
   function closeConfirmationModal() {
     if (modalBusy) return;
@@ -576,87 +581,98 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                 {selectedExamQuestions.map((question, index) => {
                   const answers = organizeQuestionAnswers(question).answers || [];
                   const questionImages = (question.images || []).map(resolveImageSrc).filter(Boolean);
+                  const isExpanded = String(expandedQuestionId) === String(question._id);
 
                   return (
-                    <article key={question._id} className="ambe-question-card">
-                      <div className="ambe-question-card-top">
-                        <div className="ambe-question-title-block">
-                          <span className="ambe-question-number">
-                            Question {String(index + 1).padStart(2, '0')}
-                          </span>
-                          <h4 className="ambe-question-title">
-                            {question.title || `Untitled Question ${index + 1}`}
-                          </h4>
-                        </div>
-
-                        <div className="ambe-question-top-meta">
-                          {question.tag?.name ? (
-                            <span className="ambe-pill subject">{question.tag.name}</span>
-                          ) : (
-                            <span className="ambe-question-meta-fallback">No subject tag</span>
-                          )}
-                          {questionImages.length > 0 && (
-                            <span className="ambe-question-image-count">
-                              {formatCount(questionImages.length, 'image')}
+                    <article key={question._id} className={`ambe-question-card ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+                      <button
+                        type="button"
+                        className="ambe-question-toggle"
+                        onClick={() => setExpandedQuestionId((prev) => (String(prev) === String(question._id) ? null : question._id))}
+                        aria-expanded={isExpanded}
+                      >
+                        <div className="ambe-question-card-top">
+                          <div className="ambe-question-title-block">
+                            <span className="ambe-question-number">
+                              Question {String(index + 1).padStart(2, '0')}
                             </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="ambe-question-content">
-                        <div className="ambe-question-main">
-                          <div className="ambe-question-copy">
-                            <span className="ambe-section-label">Prompt</span>
-                            <p className="ambe-question-text">
-                              {question.description || 'No question prompt provided.'}
-                            </p>
+                            <h4 className="ambe-question-title">
+                              {question.title || `Untitled Question ${index + 1}`}
+                            </h4>
                           </div>
 
-                          {questionImages.length > 0 && (
-                            <div className="ambe-question-gallery">
-                              <span className="ambe-section-label">Reference Images</span>
-                              <div className="ambe-question-thumbs">
-                                {questionImages.map((image, imageIndex) => (
-                                  <button
-                                    key={`${question._id}-image-${imageIndex}`}
-                                    type="button"
-                                    className="ambe-question-image-button"
-                                    onClick={() => setFullscreenImage(image)}
-                                  >
-                                    <img
-                                      src={image}
-                                      alt={`Question ${index + 1} image ${imageIndex + 1}`}
-                                      className="ambe-question-thumb"
-                                    />
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          <div className="ambe-question-top-meta">
+                            {question.tag?.name ? (
+                              <span className="ambe-pill subject">{question.tag.name}</span>
+                            ) : (
+                              <span className="ambe-question-meta-fallback">No subject tag</span>
+                            )}
+                            {questionImages.length > 0 && (
+                              <span className="ambe-question-image-count">
+                                {formatCount(questionImages.length, 'image')}
+                              </span>
+                            )}
+                            <span className="ambe-question-chevron" aria-hidden="true" />
+                          </div>
                         </div>
+                      </button>
 
-                        <div className="ambe-question-answers-panel">
-                          <span className="ambe-section-label">Answer Choices</span>
-                          <ul className="ambe-answers ambe-answers--styled">
-                            {answers.map((answer) => (
-                              <li
-                                key={answer._id || `${answer.optionLabel}-${answer.text}`}
-                                className={`ambe-answer-item ${answer.isCorrect ? 'is-correct' : ''}`}
-                              >
-                                <div className="ambe-answer-left">
-                                  <span className="ambe-answer-label">{answer.optionLabel}</span>
+                      {isExpanded && (
+                        <div className="ambe-question-content">
+                          <div className="ambe-question-main">
+                            <div className="ambe-question-copy">
+                              <span className="ambe-section-label">Prompt</span>
+                              <p className="ambe-question-text">
+                                {question.description || 'No question prompt provided.'}
+                              </p>
+                            </div>
+
+                            {questionImages.length > 0 && (
+                              <div className="ambe-question-gallery">
+                                <span className="ambe-section-label">Reference Images</span>
+                                <div className="ambe-question-thumbs">
+                                  {questionImages.map((image, imageIndex) => (
+                                    <button
+                                      key={`${question._id}-image-${imageIndex}`}
+                                      type="button"
+                                      className="ambe-question-image-button"
+                                      onClick={() => setFullscreenImage(image)}
+                                    >
+                                      <img
+                                        src={image}
+                                        alt={`Question ${index + 1} image ${imageIndex + 1}`}
+                                        className="ambe-question-thumb"
+                                      />
+                                    </button>
+                                  ))}
                                 </div>
-                                <div className="ambe-answer-body">
-                                  <div className="ambe-answer-text">{answer.text}</div>
-                                  {answer.isCorrect && (
-                                    <span className="ambe-answer-badge">Correct Answer</span>
-                                  )}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="ambe-question-answers-panel">
+                            <span className="ambe-section-label">Answer Choices</span>
+                            <ul className="ambe-answers ambe-answers--styled">
+                              {answers.map((answer) => (
+                                <li
+                                  key={answer._id || `${answer.optionLabel}-${answer.text}`}
+                                  className={`ambe-answer-item ${answer.isCorrect ? 'is-correct' : ''}`}
+                                >
+                                  <div className="ambe-answer-left">
+                                    <span className="ambe-answer-label">{answer.optionLabel}</span>
+                                  </div>
+                                  <div className="ambe-answer-body">
+                                    <div className="ambe-answer-text">{answer.text}</div>
+                                    {answer.isCorrect && (
+                                      <span className="ambe-answer-badge">Correct Answer</span>
+                                    )}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </article>
                   );
                 })}

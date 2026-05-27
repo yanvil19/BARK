@@ -404,6 +404,42 @@
   padding: 20px;
 }
 
+.ambe-question-toggle {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.ambe-question-toggle:focus-visible {
+  outline: 3px solid rgba(53, 64, 142, 0.25);
+  outline-offset: 6px;
+  border-radius: 14px;
+}
+
+.ambe-question-card.is-collapsed .ambe-question-card-top {
+  margin-bottom: 0;
+}
+
+.ambe-question-chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(53, 64, 142, 0.75);
+  border-bottom: 2px solid rgba(53, 64, 142, 0.75);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  margin-left: 6px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.ambe-question-card.is-expanded .ambe-question-chevron {
+  transform: rotate(45deg);
+}
+
 .ambe-question-card-top {
   display: flex;
   justify-content: space-between;
