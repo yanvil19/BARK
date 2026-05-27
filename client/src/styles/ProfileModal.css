@@ -145,9 +145,9 @@ word-break: break-word;
 
 /* LOGOUT BUTTON INSIDE MODAL */
 .profile-modal .logout-btn {
-  background-color: #ffffff !important;
-  color: #475467 !important;
-  border: 1px solid #d0d5dd !important;
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #dc2626 !important;
   width: calc(100% - 40px);
   align-self: center;
   margin: 12px 20px 10px;
@@ -160,8 +160,8 @@ word-break: break-word;
 }
 
 .profile-modal .logout-btn:hover {
-  background-color: #f8fafc !important;
-  border-color: #b8c4d5 !important;
+  background-color: #b91c1c !important;
+  border-color: #b91c1c !important;
 }
 
 .profile-modal .change-credentials-btn {

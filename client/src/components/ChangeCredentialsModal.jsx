@@ -23,7 +23,8 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [status, setStatus] = useState({ kind: '', message: '' }); // kind: success|error
-  const [saving, setSaving] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [serverEmailNextAt, setServerEmailNextAt] = useState(null);
   const [serverPasswordNextAt, setServerPasswordNextAt] = useState(null);
@@ -103,78 +104,106 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
   const emailSectionDisabled = emailCooldownActive;
   const passwordSectionDisabled = passwordCooldownActive;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSaveEmail() {
     setStatus({ kind: '', message: '' });
     setServerEmailNextAt(null);
-    setServerPasswordNextAt(null);
 
-    const wantsEmailChange = !emailSectionDisabled && (newEmail.trim() || confirmNewEmail.trim());
-    const wantsPasswordChange = !passwordSectionDisabled && (currentPassword || newPassword || confirmNewPassword);
-
-    if (!wantsEmailChange && !wantsPasswordChange) {
-      setStatus({ kind: 'error', message: 'Enter a new email and/or password to update.' });
+    if (emailSectionDisabled) {
+      setStatus({ kind: 'error', message: 'Email changes are currently on cooldown.' });
       return;
     }
 
-    const body = {};
-
-    if (wantsEmailChange) {
-      const email = newEmail.trim().toLowerCase();
-      const email2 = confirmNewEmail.trim().toLowerCase();
-      if (!email || !email2) {
-        setStatus({ kind: 'error', message: 'Please fill out both new email fields.' });
-        return;
-      }
-      if (email !== email2) {
-        setStatus({ kind: 'error', message: 'New email and confirmation do not match.' });
-        return;
-      }
-      body.newEmail = email;
+    const email = newEmail.trim().toLowerCase();
+    const email2 = confirmNewEmail.trim().toLowerCase();
+    if (!email || !email2) {
+      setStatus({ kind: 'error', message: 'Please fill out both new email fields.' });
+      return;
+    }
+    if (email !== email2) {
+      setStatus({ kind: 'error', message: 'New email and confirmation do not match.' });
+      return;
     }
 
-    if (wantsPasswordChange) {
-      if (!currentPassword || !newPassword || !confirmNewPassword) {
-        setStatus({ kind: 'error', message: 'Please fill out all password fields.' });
-        return;
-      }
-      if (newPassword !== confirmNewPassword) {
-        setStatus({ kind: 'error', message: 'New password and confirmation do not match.' });
-        return;
-      }
-      body.currentPassword = currentPassword;
-      body.newPassword = newPassword;
-    }
-
-    setSaving(true);
+    setSavingEmail(true);
     try {
-      const res = await apiAuth('/api/auth/update-credentials', { method: 'PATCH', body });
-      setStatus({ kind: 'success', message: res?.message || 'Credentials updated.' });
+      const res = await apiAuth('/api/auth/update-credentials', { method: 'PATCH', body: { newEmail: email } });
+      setStatus({ kind: 'success', message: res?.message || 'Email updated.' });
       setNewEmail('');
       setConfirmNewEmail('');
+      await onUpdated?.();
+    } catch (err) {
+      const nextEmail = err?.data?.nextEmailChangeAt || err?.data?.emailNextAt;
+      if (nextEmail) setServerEmailNextAt(nextEmail);
+
+      const message =
+        err?.data?.message ||
+        err?.message ||
+        'Failed to update email.';
+      setStatus({ kind: 'error', message });
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  async function handleSavePassword() {
+    setStatus({ kind: '', message: '' });
+    setServerPasswordNextAt(null);
+
+    if (passwordSectionDisabled) {
+      setStatus({ kind: 'error', message: 'Password changes are currently on cooldown.' });
+      return;
+    }
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setStatus({ kind: 'error', message: 'Please fill out all password fields.' });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setStatus({ kind: 'error', message: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const res = await apiAuth('/api/auth/update-credentials', {
+        method: 'PATCH',
+        body: { currentPassword, newPassword },
+      });
+      setStatus({ kind: 'success', message: res?.message || 'Password updated.' });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
       await onUpdated?.();
     } catch (err) {
-      const nextEmail = err?.data?.nextEmailChangeAt || err?.data?.emailNextAt;
       const nextPass = err?.data?.nextPasswordChangeAt || err?.data?.passwordNextAt;
-      if (nextEmail) setServerEmailNextAt(nextEmail);
       if (nextPass) setServerPasswordNextAt(nextPass);
 
       const message =
         err?.data?.message ||
         err?.message ||
-        'Failed to update credentials.';
+        'Failed to update password.';
       setStatus({ kind: 'error', message });
     } finally {
-      setSaving(false);
+      setSavingPassword(false);
     }
   }
 
+  const canSaveEmail =
+    !emailSectionDisabled &&
+    !savingEmail &&
+    !!newEmail.trim() &&
+    !!confirmNewEmail.trim();
+
+  const canSavePassword =
+    !passwordSectionDisabled &&
+    !savingPassword &&
+    !!currentPassword &&
+    !!newPassword &&
+    !!confirmNewPassword;
+
   return (
     <Modal open={open} onClose={onClose} title="Change Email & Password">
-      <form onSubmit={handleSubmit} className="change-credentials-form">
+      <div className="change-credentials-form">
         <section className="change-credentials-section">
           <div className="change-credentials-section-header">
             <h3>Change Email</h3>
@@ -214,6 +243,18 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
               </div>
             </div>
           </fieldset>
+
+          <div className="change-credentials-section-actions">
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={handleSaveEmail}
+              disabled={!canSaveEmail}
+              aria-disabled={!canSaveEmail}
+            >
+              {savingEmail ? 'Saving...' : 'Save Email'}
+            </button>
+          </div>
         </section>
 
         <section className="change-credentials-section">
@@ -263,6 +304,18 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
               </div>
             </div>
           </fieldset>
+
+          <div className="change-credentials-section-actions">
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={handleSavePassword}
+              disabled={!canSavePassword}
+              aria-disabled={!canSavePassword}
+            >
+              {savingPassword ? 'Saving...' : 'Save Password'}
+            </button>
+          </div>
         </section>
 
         {status.message && (
@@ -272,14 +325,9 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
         )}
 
         <div className="modal-actions">
-          <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={saving}>
-            Cancel
-          </button>
-          <button type="submit" className="modal-btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {/* Cancel button removed for cleaner UX; users can close via modal X */}
         </div>
-      </form>
+      </div>
     </Modal>
   );
 }
