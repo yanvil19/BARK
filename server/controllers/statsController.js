@@ -659,8 +659,13 @@ const getExamActivityLogs = async (req, res) => {
           ? Math.round((answeredCount / totalQuestions) * 100)
           : 0;
 
+        const hasActivity = Boolean(
+          (attempt.progressMilestones && attempt.progressMilestones.length > 0)
+          || (attempt.violations && attempt.violations.length > 0)
+        );
+
         const inferredStatus =
-          (attempt.status === 'submitted' && totalQuestions === 0 && answeredCount === 0)
+          (attempt.status === 'submitted' && answeredCount === 0 && attempt.autoSubmitted && !hasActivity)
             ? 'missed'
             : attempt.status;
 
