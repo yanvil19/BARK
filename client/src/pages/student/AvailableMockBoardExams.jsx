@@ -267,49 +267,19 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
   function handleEdit(exam) {
     if (exam.status === 'published') {
-      setConfirmationModal({
-        type: 'editPublished',
-        exam,
-        title: 'Edit Published Exam',
+      setFeedbackModal({
+        title: 'Editing Disabled',
+        tone: 'warning',
         message: (
           <p style={{ margin: 0 }}>
-            Editing <strong>{exam.name}</strong> will turn it back into a draft and take it offline first.
+            <strong>{exam.name}</strong> is published and can no longer be edited.
           </p>
         ),
-        confirmLabel: 'Turn to Draft',
-        confirmVariant: 'primary',
       });
       return;
     }
 
     onEditExam(exam._id);
-  }
-
-  async function confirmEditPublished(exam) {
-    try {
-      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
-        method: 'PATCH',
-        body: { status: 'draft' },
-      });
-      updateExamStatus(exam._id, 'draft');
-      setFeedbackModal({
-        title: 'Published Exam Reverted to Draft',
-        tone: 'warning',
-        dismissLabel: 'Continue to Edit',
-        message: (
-          <p style={{ margin: 0 }}>
-            <strong>{exam.name}</strong> was taken offline and moved back to draft so it can be edited safely.
-          </p>
-        ),
-        onClose: () => onEditExam(exam._id),
-      });
-    } catch (err) {
-      setFeedbackModal({
-        title: 'Unable to Edit Published Exam',
-        tone: 'danger',
-        message: err.message || 'Failed to revert the exam to draft.',
-      });
-    }
   }
 
   async function handleConfirmAction() {
@@ -326,8 +296,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
         await confirmArchive(exam);
       } else if (type === 'publish') {
         await confirmPublish(exam);
-      } else if (type === 'editPublished') {
-        await confirmEditPublished(exam);
       }
     } finally {
       setModalBusy(false);
@@ -459,7 +427,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                           </button>
                         )}
 
-                        {exam.status !== 'finished' && exam.status !== 'archived' && (
+                        {exam.status === 'draft' && (
                           <button
                             type="button"
                             className="ambe-btn primary"
