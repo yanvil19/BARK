@@ -47,6 +47,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   useEffect(() => {
     const triggerBlur = (reason = 'Unknown') => {
       if (isSubmittingRef.current) return;
+      if (autoSubmitTriggeredRef.current) return;
       const now = Date.now();
       if (now - lastViolationTimeRef.current < 500) return;
       lastViolationTimeRef.current = now;
@@ -234,6 +235,14 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
 
     autoSubmitTriggeredRef.current = true;
     cleanupSecurityRef.current?.();
+
+    // Prevent modal loops when time runs out while security warnings are active.
+    setShowWarningModal(false);
+    setIsBlurred(false);
+    setShowSubmitConfirm(false);
+    setFeedbackModal(null);
+    setAutoSubmitModal(null);
+
     setAutoSubmitModal({
       title: 'Time Is Up',
       tone: 'warning',

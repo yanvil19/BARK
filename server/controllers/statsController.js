@@ -634,6 +634,12 @@ const getExamActivityLogs = async (req, res) => {
       return res.status(404).json({ message: 'Exam not found for your program' });
     }
 
+    const examDoc = await MockBoardExam.findById(examId)
+      .select('questions')
+      .lean();
+
+    const examTotalQuestions = Array.isArray(examDoc?.questions) ? examDoc.questions.length : 0;
+
     const rawAttempts = await StudentExamAttempt.find({ exam: examId })
       .populate({
         path: 'student',
@@ -647,11 +653,16 @@ const getExamActivityLogs = async (req, res) => {
     const attempts = rawAttempts
       .filter((attempt) => attempt.student != null)
       .map((attempt) => {
-        const totalQuestions = attempt.randomizedQuestions?.length || 0;
+        const totalQuestions = attempt.randomizedQuestions?.length || examTotalQuestions || 0;
         const answeredCount = countAnswered(attempt.answers);
         const progressPercent = totalQuestions > 0
           ? Math.round((answeredCount / totalQuestions) * 100)
           : 0;
+
+        const inferredStatus =
+          (attempt.status === 'submitted' && totalQuestions === 0 && answeredCount === 0)
+            ? 'missed'
+            : attempt.status;
 
         let durationMs = null;
         if (attempt.endTime && attempt.startTime) {
@@ -665,7 +676,7 @@ const getExamActivityLogs = async (req, res) => {
           studentId: attempt.student._id,
           studentName: buildStudentDisplayName(attempt.student),
           studentEmail: attempt.student.email || '',
-          status: attempt.status,
+          status: inferredStatus,
           startTime: attempt.startTime,
           endTime: attempt.endTime,
           durationMs,

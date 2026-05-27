@@ -33,6 +33,7 @@ function formatDuration(ms) {
 function statusLabel(status) {
   if (status === 'in_progress') return 'In progress';
   if (status === 'submitted') return 'Submitted';
+  if (status === 'missed') return 'Missed the exam';
   return status || '—';
 }
 
@@ -220,8 +221,14 @@ export default function ChairCheatingLogs() {
                             {statusLabel(row.status)}
                           </span>
                           <span className="el-duration">
-                            {row.status === 'submitted' ? 'Completed in ' : 'Elapsed '}
-                            {formatDuration(row.durationMs)}
+                            {row.status === 'missed'
+                              ? 'Missed the exam'
+                              : (
+                                <>
+                                  {row.status === 'submitted' ? 'Completed in ' : 'Elapsed '}
+                                  {formatDuration(row.durationMs)}
+                                </>
+                              )}
                           </span>
                         </div>
                       </div>

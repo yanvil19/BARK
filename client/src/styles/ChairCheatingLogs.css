@@ -208,6 +208,11 @@
   color: #15803d;
 }
 
+.el-status-pill--missed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .el-duration {
   font-size: 12px;
   color: #4b5563;
