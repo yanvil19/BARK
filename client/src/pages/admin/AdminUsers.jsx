@@ -364,12 +364,18 @@ export default function AdminUsers({ me }) {
     setEditError('');
     try {
       const isSelf = selectedUser._id === me?._id;
+      const isSuperAdminEdit = editForm.role === 'super_admin';
       const body = {
         name: editForm.name,
         role: editForm.role,
-        departmentId: editForm.departmentId || null,
-        programId: editForm.programId || null,
       };
+      if (isSuperAdminEdit) {
+        body.departmentId = null;
+        body.programId = null;
+      } else {
+        body.departmentId = editForm.departmentId || null;
+        body.programId = editForm.programId || null;
+      }
       if (editForm.role === 'student' || editForm.role === 'alumni') {
         const learnerId = (editForm.studentId || editForm.alumniId || '').trim();
         body.studentId = learnerId || null;
@@ -378,7 +384,7 @@ export default function AdminUsers({ me }) {
         body.studentId = null;
         body.alumniId = null;
       }
-      if (isSelf) {
+      if (isSelf && selectedUser.role !== 'super_admin') {
         body.email = editForm.email;
         if (editForm.password) body.password = editForm.password;
       }
@@ -480,6 +486,9 @@ export default function AdminUsers({ me }) {
       </svg>
     );
   }
+
+  const isEditingSelf = selectedUser?._id === me?._id;
+  const isEditingSuperAdmin = selectedUser?.role === 'super_admin' || editForm.role === 'super_admin';
 
   return (
     <main className="um-page">
@@ -849,7 +858,7 @@ export default function AdminUsers({ me }) {
               <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
             </div>
 
-            {selectedUser?._id === me?._id && (
+            {isEditingSelf && !isEditingSuperAdmin && (
               <>
                 <div className="um-form-group">
                   <label>Email Address</label>
@@ -865,24 +874,28 @@ export default function AdminUsers({ me }) {
               </>
             )}
 
-            <div className="um-form-group">
-              <label>Department</label>
-              <select value={editForm.departmentId} onChange={(e) => setEditForm((f) => ({ ...f, departmentId: e.target.value, programId: '' }))}>
-                <option value="">(none)</option>
-                {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
-              </select>
-            </div>
-            <div className="um-form-group">
-              <label>Program</label>
-              <select 
-                value={editForm.programId} 
-                onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
-                disabled={!editForm.departmentId}
-              >
-                <option value="">{editForm.departmentId ? '(none)' : 'Select Department first'}</option>
-                {departmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
-              </select>
-            </div>
+            {!isEditingSuperAdmin && (
+              <>
+                <div className="um-form-group">
+                  <label>Department</label>
+                  <select value={editForm.departmentId} onChange={(e) => setEditForm((f) => ({ ...f, departmentId: e.target.value, programId: '' }))}>
+                    <option value="">(none)</option>
+                    {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div className="um-form-group">
+                  <label>Program</label>
+                  <select 
+                    value={editForm.programId} 
+                    onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
+                    disabled={!editForm.departmentId}
+                  >
+                    <option value="">{editForm.departmentId ? '(none)' : 'Select Department first'}</option>
+                    {departmentPrograms.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="um-form-group full-width">
               <span className="um-segment-label">User Role</span>

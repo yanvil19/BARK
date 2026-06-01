@@ -217,7 +217,6 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
                 me={me}
                 onLogout={onLogout}
                 onOpenChangeCredentials={() => {
-                  if (me?.role === 'super_admin') return;
                   setOpen(false);
                   setChangeCredsOpen(true);
                 }}
@@ -252,7 +251,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
         </div>
       )}
 
-      {me?.role !== 'super_admin' && (
+      {me && (
         <ChangeCredentialsModal
           open={changeCredsOpen}
           onClose={() => setChangeCredsOpen(false)}

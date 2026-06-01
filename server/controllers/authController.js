@@ -248,10 +248,6 @@ const updateCredentials = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.role === 'super_admin') {
-      return res.status(403).json({ message: 'Super Admin is not allowed to update credentials using this endpoint' });
-    }
-
     const now = new Date();
     const nowMs = now.getTime();
 
@@ -418,6 +414,10 @@ const updateUser = async (req, res) => {
 
     const { name, email, password, role, studentId, alumniId } = req.body || {};
 
+    if (isSelf && user.role === 'super_admin' && (email !== undefined || password !== undefined)) {
+      return res.status(403).json({ message: 'Super Admin cannot update its own email or password from User Management' });
+    }
+
     if (email !== undefined) {
       if (!isValidEmail(email)) return res.status(400).json({ message: 'Please provide a valid email' });
       const normalizedEmail = String(email).toLowerCase().trim();
@@ -484,7 +484,10 @@ const updateUser = async (req, res) => {
     if (departmentId === '' || departmentId === null) departmentId = null;
     if (programId === '' || programId === null) programId = null;
 
-    if (departmentId !== undefined || programId !== undefined) {
+    if (user.role === 'super_admin') {
+      user.department = null;
+      user.program = null;
+    } else if (departmentId !== undefined || programId !== undefined) {
       const nextProgramId = programId === undefined ? (user.program ? String(user.program) : null) : programId;
       let nextDepartmentId = departmentId === undefined ? (user.department ? String(user.department) : null) : departmentId;
 
