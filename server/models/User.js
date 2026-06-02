@@ -108,7 +108,19 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.index({ studentId: 1 }, { unique: true, sparse: true });
-userSchema.index({ alumniId: 1 }, { unique: true, sparse: true });
+userSchema.index(
+  { studentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { studentId: { $type: 'string' } },
+  }
+);
+userSchema.index(
+  { alumniId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { alumniId: { $type: 'string' } },
+  }
+);
 
 module.exports = mongoose.model('User', userSchema);
