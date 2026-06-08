@@ -14,7 +14,9 @@ exports.listExamsWithStatus = async (req, res) => {
   try {
     const exams = await MockBoardExam.find({ 
       department: req.user.department 
-    }).sort({ startDateTime: -1 });
+    })
+      .populate('program', 'name code')
+      .sort({ startDateTime: -1 });
 
     const results = await MockExamResult.find({ 
       department: req.user.department 

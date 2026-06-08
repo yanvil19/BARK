@@ -187,6 +187,7 @@ const ExamResults = () => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
+  const [selectedProgramId, setSelectedProgramId] = useState('all');
 
   const fetchExams = useCallback(async () => {
     try {
@@ -260,12 +261,45 @@ const ExamResults = () => {
     [exams, selectedExamId]
   );
 
-  const examStats = useMemo(() => {
-    const total = exams.length;
-    const ready = exams.filter((exam) => exam.computationStatus === 'computed').length;
-    const readyToCompute = exams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
-    return { total, ready, readyToCompute };
+  const programs = useMemo(() => {
+    const programMap = new Map();
+
+    exams.forEach((exam) => {
+      const programId = exam.program?._id || exam.program;
+      if (!programId || programMap.has(String(programId))) return;
+
+      programMap.set(String(programId), {
+        _id: String(programId),
+        name: exam.program?.name || exam.program?.code || `Program ${String(programId).slice(-6)}`,
+      });
+    });
+
+    return [...programMap.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [exams]);
+
+  const filteredExams = useMemo(() => {
+    if (selectedProgramId === 'all') return exams;
+    return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
+  }, [exams, selectedProgramId]);
+
+  const examStats = useMemo(() => {
+    const total = filteredExams.length;
+    const ready = filteredExams.filter((exam) => exam.computationStatus === 'computed').length;
+    const readyToCompute = filteredExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
+    return { total, ready, readyToCompute };
+  }, [filteredExams]);
+
+  useEffect(() => {
+    if (!selectedExamId) return;
+    if (selectedProgramId === 'all') return;
+
+    const selectedStillVisible = filteredExams.some((exam) => exam._id === selectedExamId);
+    if (!selectedStillVisible) {
+      setSelectedExamId(null);
+      setActiveReport(null);
+      setExpandedSubjectName(null);
+    }
+  }, [filteredExams, selectedExamId, selectedProgramId]);
 
   const enrichedSubjects = useMemo(() => {
     if (!activeReport) return [];
@@ -320,8 +354,23 @@ const ExamResults = () => {
               </div>
             </div>
 
+            <label className="er-program-filter">
+              <span>Program</span>
+              <select
+                value={selectedProgramId}
+                onChange={(event) => setSelectedProgramId(event.target.value)}
+              >
+                <option value="all">All programs</option>
+                {programs.map((program) => (
+                  <option key={program._id} value={program._id}>
+                    {program.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div className="er-sidebar-scroll">
-              {!loading && exams.length === 0 && (
+              {!loading && filteredExams.length === 0 && (
                 <EmptyStatePanel
                   compact
                   eyebrow="No Exams"
@@ -330,7 +379,7 @@ const ExamResults = () => {
                 />
               )}
 
-              {exams.map((exam) => (
+              {filteredExams.map((exam) => (
                 <SidebarExamItem
                   key={exam._id}
                   exam={exam}
@@ -343,7 +392,7 @@ const ExamResults = () => {
         </aside>
 
         <main className="er-content">
-          {loading && exams.length === 0 && (
+          {loading && filteredExams.length === 0 && (
             <EmptyStatePanel
               eyebrow="Loading"
               title="Loading exam results"
@@ -351,7 +400,7 @@ const ExamResults = () => {
             />
           )}
 
-          {!loading && exams.length > 0 && !selectedExamId && (
+          {!loading && filteredExams.length > 0 && !selectedExamId && (
             <EmptyStatePanel
               eyebrow="Nothing Selected"
               title="Choose an exam to open its report"
