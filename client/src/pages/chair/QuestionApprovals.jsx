@@ -1,8 +1,9 @@
-﻿import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import QuestionRenderer from '../../components/QuestionRenderer.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -42,6 +43,40 @@ function truncateText(text, max = 100) {
   if (!text) return '';
   if (text.length <= max) return text;
   return `${text.slice(0, max)}...`;
+}
+
+/**
+ * Extracts a plain-text string from a TipTap JSON doc (or a legacy plain string).
+ * Used for list-card previews where we don't want to mount a full editor.
+ */
+function extractPlainText(content) {
+  if (!content) return '';
+
+  // Already a plain string (legacy question)
+  if (typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed?.type !== 'doc') return content;
+      return extractPlainText(parsed);
+    } catch {
+      return content;
+    }
+  }
+
+  // TipTap JSON object
+  if (typeof content === 'object' && content.type === 'doc') {
+    function traverse(node) {
+      if (!node) return '';
+      if (node.type === 'text') return node.text || '';
+      // Represent inline math as the raw latex wrapped in $…$
+      if (node.type === 'inlineMath') return node.attrs?.latex ? `$${node.attrs.latex}$` : '';
+      if (Array.isArray(node.content)) return node.content.map(traverse).join('');
+      return '';
+    }
+    return traverse(content);
+  }
+
+  return String(content);
 }
 
 function isBeingEvaluated(question, meId) {
@@ -725,7 +760,7 @@ export default function QuestionApprovals({ me }) {
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <h3 className="ca-card-title">{question.title}</h3>
-                          <p className="ca-card-desc">{truncateText(question.description, 100)}</p>
+                          <p className="ca-card-desc">{truncateText(extractPlainText(question.description), 100)}</p>
                         </div>
                         <div className="ca-card-badges">
                           <div className={`ca-state-badge ca-state--${question.state}`}>
@@ -814,7 +849,7 @@ export default function QuestionApprovals({ me }) {
               <section className="ca-section">
                 <h3 className="ca-section-label">Question</h3>
                 <h4 className="ca-question-detail-title">{selectedQuestion.title}</h4>
-                <p className="ca-question-detail-text">{selectedQuestion.description}</p>
+                <QuestionRenderer content={selectedQuestion.description} className="ca-question-detail-text" />
               </section>
 
               {selectedQuestion.images && selectedQuestion.images.length > 0 && (

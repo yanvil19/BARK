@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import QuestionRenderer from '../../components/QuestionRenderer.jsx';
 import '../../styles/MockBoardExamPreview.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -133,9 +134,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
               <div className="mbep-question-title">
                 {currentQuestion.title}
                 {currentQuestion.description && (
-                  <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                    {currentQuestion.description}
-                  </p>
+                  <QuestionRenderer content={currentQuestion.description} />
                 )}
               </div>
 

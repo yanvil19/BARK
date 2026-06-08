@@ -5,6 +5,7 @@ import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import ExamCalendar from '../../components/examCalendar/ExamCalendar.jsx';
+import QuestionRenderer from '../../components/QuestionRenderer.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -695,9 +696,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           <div className="ambe-question-main">
                             <div className="ambe-question-copy">
                               <span className="ambe-section-label">Prompt</span>
-                              <p className="ambe-question-text">
-                                {question.description || 'No question prompt provided.'}
-                              </p>
+                              <QuestionRenderer content={question.description} className="ambe-question-text" />
                             </div>
 
                             {questionImages.length > 0 && (

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import QuestionRenderer from '../../components/QuestionRenderer.jsx';
 import '../../styles/MockBoardExamPreview.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -367,9 +368,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                 <div className="mbep-question-title">
                   {currentQuestion.title}
                   {currentQuestion.description && (
-                    <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                      {currentQuestion.description}
-                    </p>
+                    <QuestionRenderer content={currentQuestion.description} />
                   )}
                 </div>
 

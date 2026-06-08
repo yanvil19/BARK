@@ -85,3 +85,66 @@ strong {
   margin: 2px 0 0 0;
   font-weight: 400;
 }
+
+/* ─── QuestionRenderer — read-only TipTap output ─────────────── */
+.qr-wrapper {
+  line-height: 1.6;
+}
+
+/* Strip default ProseMirror focus outline & padding in read-only mode */
+.qr-wrapper .ProseMirror {
+  outline: none;
+  padding: 0;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Paragraphs */
+.qr-wrapper .ProseMirror p {
+  margin: 0 0 6px 0;
+}
+.qr-wrapper .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Inline formatting */
+.qr-wrapper .ProseMirror strong { font-weight: 700; }
+.qr-wrapper .ProseMirror em     { font-style: italic; }
+.qr-wrapper .ProseMirror u      { text-decoration: underline; }
+
+/* Tables */
+.qr-wrapper .ProseMirror table,
+.qr-wrapper .qr-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.qr-wrapper .ProseMirror th,
+.qr-wrapper .ProseMirror td {
+  border: 1px solid #c8cbdf;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.qr-wrapper .ProseMirror th {
+  background: #f0f2fb;
+  font-weight: 600;
+  color: #35408e;
+}
+
+/* KaTeX inline math — keep it from collapsing */
+.qr-wrapper .ProseMirror .katex-display,
+.qr-wrapper .ProseMirror .katex {
+  display: inline;
+}
+
+/* Override global strong { color: accent-yellow } inside the renderer */
+.qr-wrapper .ProseMirror strong {
+  color: inherit;
+  font-family: inherit;
+}
+

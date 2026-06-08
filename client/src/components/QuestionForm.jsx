@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
+import RichQuestionEditor from './RichQuestionEditor.jsx';
 import { useToast } from './Toast.jsx';
 import '../styles/QuestionForm.css';
 
@@ -10,6 +11,27 @@ const BASE = import.meta.env.VITE_API_URL;
 
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
+}
+
+function questionDescriptionHasContent(description) {
+  if (!description?.trim()) return false;
+
+  try {
+    const parsed = JSON.parse(description);
+    let hasContent = false;
+
+    function visit(node) {
+      if (!node || hasContent) return;
+      if (node.type === 'text' && node.text?.trim()) hasContent = true;
+      if (node.type === 'inlineMath' && node.attrs?.latex?.trim()) hasContent = true;
+      if (Array.isArray(node.content)) node.content.forEach(visit);
+    }
+
+    visit(parsed);
+    return hasContent;
+  } catch {
+    return description.trim().length > 0;
+  }
 }
 
 export default function QuestionForm({
@@ -299,7 +321,7 @@ export default function QuestionForm({
     if (!q.title.trim()) {
       flags.push({ severity: 'ERROR', message: 'Question Title cannot be empty', field: 'title' });
     }
-    if (!q.description.trim()) {
+    if (!questionDescriptionHasContent(q.description)) {
       flags.push({ severity: 'ERROR', message: 'Question text cannot be empty', field: 'description' });
     }
     if (!q.tagId) {
@@ -598,11 +620,10 @@ export default function QuestionForm({
 
                 <div className="qf-field qf-field--full">
                   <label>Question *</label>
-                  <textarea
-                    placeholder="Write the full question here..."
+                  <RichQuestionEditor
                     value={q.description}
-                    onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
-                    rows={5}
+                    onChange={(description) => updateQuestion(q.id, curr => ({ ...curr, description }))}
+                    placeholder="Write the full question here..."
                     disabled={readOnly}
                   />
                 </div>
