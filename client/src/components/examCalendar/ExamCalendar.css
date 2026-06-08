@@ -1,0 +1,182 @@
+.exam-calendar-shell {
+  margin: 24px 32px 0;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(34, 48, 96, 0.08);
+  overflow: hidden;
+}
+
+.exam-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.1);
+  background: #f8faff;
+}
+
+.exam-calendar-toolbar h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2947;
+}
+
+.exam-calendar-toolbar p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #6b7697;
+}
+
+.exam-calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.exam-calendar-select {
+  min-height: 38px;
+  min-width: 220px;
+  padding: 0 12px;
+  border: 1px solid rgba(53, 64, 142, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2947;
+  font-weight: 700;
+}
+
+.exam-calendar-status,
+.exam-calendar-error {
+  margin: 16px 22px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.exam-calendar-status {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.exam-calendar-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.exam-calendar-frame {
+  padding: 18px;
+}
+
+.exam-calendar-frame .rbc-toolbar {
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.exam-calendar-frame .rbc-toolbar button {
+  border-color: rgba(53, 64, 142, 0.18);
+  color: #35408e;
+  font-weight: 700;
+}
+
+.exam-calendar-frame .rbc-toolbar button.rbc-active {
+  background: #35408e;
+  border-color: #35408e;
+  color: #ffffff;
+}
+
+.exam-calendar-frame .rbc-header {
+  padding: 10px 6px;
+  color: #3b4664;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.exam-calendar-frame .rbc-event {
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.exam-calendar-event-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.exam-calendar-event-label span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exam-calendar-conflict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.exam-calendar-details {
+  display: grid;
+  gap: 14px;
+}
+
+.exam-calendar-details div {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(53, 64, 142, 0.12);
+  border-radius: 8px;
+  background: #f8faff;
+}
+
+.exam-calendar-details span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6370a5;
+}
+
+.exam-calendar-details strong {
+  color: #1f2947;
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .exam-calendar-shell {
+    margin: 18px 14px 0;
+  }
+
+  .exam-calendar-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .exam-calendar-actions,
+  .exam-calendar-select {
+    width: 100%;
+  }
+
+  .exam-calendar-frame {
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .exam-calendar-frame .rbc-calendar {
+    min-width: 720px;
+  }
+}

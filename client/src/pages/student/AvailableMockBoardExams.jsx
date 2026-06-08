@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import ExamCalendar from '../../components/examCalendar/ExamCalendar.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -50,8 +51,36 @@ function resolveImageSrc(image) {
   return image.startsWith('/') ? `${BASE}${image}` : image;
 }
 
-export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
+function renderConflictMessage(err) {
+  const conflicts = err?.data?.conflicts || [];
+
+  if (conflicts.length === 0) {
+    return err.message || 'Failed to publish exam.';
+  }
+
+  return (
+    <div className="ambe-conflict-message">
+      <p>
+        This exam overlaps with an existing exam schedule. Please adjust the schedule before publishing.
+      </p>
+      <div className="ambe-conflict-list">
+        {conflicts.map((conflict) => (
+          <article key={conflict._id || conflict.name} className="ambe-conflict-item">
+            <strong>{conflict.name}</strong>
+            <span>{conflict.program?.name || conflict.program?.code || 'Program not specified'}</span>
+            <span>{formatDateTime(conflict.startDateTime)} - {formatDateTime(conflict.endDateTime)}</span>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) {
   const [exams, setExams] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
   const [expandedQuestionId, setExpandedQuestionId] = useState(null);
@@ -76,6 +105,31 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
     fetchExams();
   }, [refreshKey]);
+
+  useEffect(() => {
+    async function fetchPrograms() {
+      if (me?.role !== 'dean' || !me?.department) return;
+
+      try {
+        const data = await apiAuth(`${BASE}/api/catalog/programs`);
+        const deptId = me.department?._id || me.department;
+        const deptPrograms = (data.programs || []).filter((program) => {
+          const programDept = program.department?._id || program.department;
+          return String(programDept) === String(deptId);
+        });
+
+        setPrograms(deptPrograms);
+        setSelectedProgramId((prev) => {
+          if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
+          return deptPrograms[0]?._id || '';
+        });
+      } catch (err) {
+        console.error('Failed to load dean programs:', err);
+      }
+    }
+
+    fetchPrograms();
+  }, [me]);
 
   useEffect(() => {
     setExpandedQuestionId(null);
@@ -214,7 +268,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
       setFeedbackModal({
         title: 'Publish Failed',
         tone: 'danger',
-        message: err.message || 'Failed to publish exam.',
+        message: err.status === 409 ? renderConflictMessage(err) : (err.message || 'Failed to publish exam.'),
       });
     }
   }
@@ -322,6 +376,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
 
   const selectedExamQuestions = selectedExam?.questions || [];
   const selectedExamSubjects = selectedExam?.subjectTags || [];
+  const visibleExams = useMemo(() => {
+    if (me?.role !== 'dean' || !selectedProgramId) return exams;
+    return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
+  }, [exams, me?.role, selectedProgramId]);
   const selectedExamStats = selectedExam ? [
     { label: 'Exam Start', value: formatDateTime(selectedExam.startDateTime) },
     { label: 'Exam End', value: formatDateTime(selectedExam.endDateTime) },
@@ -340,13 +398,59 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
         </p>
       </header>
 
+      {me?.role === 'dean' && (
+        <section className="ambe-view-controls" aria-label="Board exam view controls">
+          <div className="ambe-view-toggle">
+            <button
+              type="button"
+              className={viewMode === 'list' ? 'is-active' : ''}
+              onClick={() => setViewMode('list')}
+            >
+              List View
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'calendar' ? 'is-active' : ''}
+              onClick={() => setViewMode('calendar')}
+            >
+              Calendar View
+            </button>
+          </div>
+
+          <select
+            className="ambe-program-select"
+            value={selectedProgramId}
+            onChange={(event) => setSelectedProgramId(event.target.value)}
+            aria-label="Filter exams by program"
+          >
+            {programs.length === 0 ? <option value="">No programs found</option> : null}
+            {programs.map((program) => (
+              <option key={program._id} value={program._id}>
+                {program.name} {program.code ? `(${program.code})` : ''}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
+
+      <div style={{ display: viewMode === 'calendar' ? 'block' : 'none' }}>
+        <ExamCalendar
+          role={me?.role}
+          programId={selectedProgramId}
+          programs={programs}
+          onProgramChange={setSelectedProgramId}
+        />
+      </div>
+
+      <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+
       {loading && <p className="ambe-loading">Loading mock board exams...</p>}
 
-      {!loading && exams.length === 0 && (
+      {!loading && visibleExams.length === 0 && (
         <p className="ambe-empty">No mock board exams found.</p>
       )}
 
-      {!loading && exams.length > 0 && (
+      {!loading && visibleExams.length > 0 && (
         <div className="ambe-table-card">
           <div className="ambe-scroll-x">
             <table className="ambe-table">
@@ -363,7 +467,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
                 </tr>
               </thead>
               <tbody>
-                {exams.map((exam) => (
+                {visibleExams.map((exam) => (
                   <tr key={exam._id}>
                     <td>{exam.name}</td>
                     <td>
@@ -476,6 +580,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam }) {
           </div>
         </div>
       )}
+      </div>
 
       {selectedExam && (
         <section className="ambe-details">

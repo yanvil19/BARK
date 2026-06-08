@@ -170,6 +170,7 @@ export default function App() {
   if (route === 'availableMockBoardExams')
     page = (
       <AvailableMockBoardExams
+        me={me}
         refreshKey={mockBoardExamRefreshKey}
         onEditExam={(id, action = 'edit') => {
           if (action === 'edit') {

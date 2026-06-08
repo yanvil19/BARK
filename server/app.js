@@ -12,6 +12,7 @@ const mockBoardExamRoutes = require('./routes/mockBoardExamRoutes');
 const importRoutes = require('./routes/importRoutes');
 const studentExamRoutes = require('./routes/studentExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/mock-board-exams', mockBoardExamRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/student-exams', studentExamRoutes);
 app.use('/api/mock-exam-results', mockExamResultRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.get('/', (req, res) => {
     res.send('API is running...');

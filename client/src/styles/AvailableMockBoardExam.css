@@ -16,6 +16,90 @@
   box-shadow: 0 18px 48px rgba(34, 48, 96, 0.08);
 }
 
+.ambe-view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 32px 0;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(34, 48, 96, 0.07);
+}
+
+.ambe-view-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ambe-view-toggle button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: #35408e;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ambe-view-toggle button.is-active {
+  background: #35408e;
+  color: #ffffff;
+}
+
+.ambe-program-select {
+  min-height: 40px;
+  min-width: 260px;
+  padding: 0 12px;
+  border: 1px solid rgba(53, 64, 142, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2947;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ambe-conflict-message {
+  display: grid;
+  gap: 14px;
+  color: #7f1d1d;
+}
+
+.ambe-conflict-message p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.ambe-conflict-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ambe-conflict-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 28, 28, 0.14);
+  border-radius: 8px;
+  background: #fff7f7;
+}
+
+.ambe-conflict-item strong {
+  color: #991b1b;
+}
+
+.ambe-conflict-item span {
+  color: #7f1d1d;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .ambe-table-card,
 .ambe-details {
   margin: 24px 32px 0;
@@ -699,10 +783,25 @@
 
   .ambe-loading,
   .ambe-empty,
+  .ambe-view-controls,
   .ambe-table-card,
   .ambe-details {
     margin: 16px;
     border-radius: 20px;
+  }
+
+  .ambe-view-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ambe-view-toggle,
+  .ambe-program-select {
+    width: 100%;
+  }
+
+  .ambe-view-toggle button {
+    flex: 1 1 0;
   }
 
   .ambe-details-header-new,

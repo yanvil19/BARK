@@ -4,6 +4,7 @@ const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
 const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
+const { checkExamScheduleConflict } = require('../services/examScheduleConflictService');
 const { logAudit } = require('../utils/auditLogger');
 
 async function getDeanPrograms(user) {
@@ -26,6 +27,48 @@ function parseTagIds(raw) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function formatProgramName(program) {
+  if (!program) return 'Unknown program';
+  return program.code ? `${program.name} (${program.code})` : program.name;
+}
+
+function formatConflictMessage(conflicts, action = 'saving') {
+  const conflictList = conflicts
+    .map((exam) => {
+      const programName = formatProgramName(exam.program);
+      return `${exam.name} for ${programName} from ${new Date(exam.startDateTime).toISOString()} to ${new Date(exam.endDateTime).toISOString()}`;
+    })
+    .join('; ');
+
+  return `Schedule conflict detected with existing exam(s): ${conflictList}. Please resolve the schedule conflict before ${action}.`;
+}
+
+async function buildScheduleConflictResponse(payload, examId = null) {
+  const conflictResult = await checkExamScheduleConflict({
+    programId: payload.program._id,
+    startDateTime: payload.startDateTime,
+    endDateTime: payload.endDateTime,
+    status: payload.status,
+    examId,
+  });
+
+  if (!conflictResult.hasConflict) {
+    return { shouldBlock: false, warnings: [] };
+  }
+
+  const message = formatConflictMessage(
+    conflictResult.conflicts,
+    payload.status === 'published' ? 'publishing' : 'saving'
+  );
+
+  return {
+    shouldBlock: payload.status === 'published',
+    message,
+    conflicts: conflictResult.conflicts,
+    warnings: [{ message, conflicts: conflictResult.conflicts }],
+  };
 }
 
 async function listApprovedQuestions(req, res) {
@@ -152,6 +195,14 @@ async function createMockBoardExam(req, res) {
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
+    const scheduleConflict = await buildScheduleConflictResponse(payload);
+    if (scheduleConflict.shouldBlock) {
+      return res.status(409).json({
+        message: scheduleConflict.message,
+        conflicts: scheduleConflict.conflicts,
+      });
+    }
+
     const exam = await MockBoardExam.create({
       name: payload.name,
       program: payload.program._id,
@@ -192,7 +243,7 @@ async function createMockBoardExam(req, res) {
       });
     }
 
-    res.status(201).json({ exam: populated });
+    res.status(201).json({ exam: populated, warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -340,6 +391,14 @@ async function updateMockBoardExam(req, res) {
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
+    const scheduleConflict = await buildScheduleConflictResponse(payload, existing._id);
+    if (scheduleConflict.shouldBlock) {
+      return res.status(409).json({
+        message: scheduleConflict.message,
+        conflicts: scheduleConflict.conflicts,
+      });
+    }
+
     const oldQuestionIds = existing.questions.map((id) => id.toString());
     const newQuestionIds = payload.questionIds.map((id) => id.toString());
 
@@ -391,7 +450,7 @@ async function updateMockBoardExam(req, res) {
       });
     }
 
-    res.json({ exam: populated });
+    res.json({ exam: populated, warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
