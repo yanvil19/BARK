@@ -121,10 +121,10 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
           <>
             <button className={cls('studentManager')} onClick={handle('studentManager')}>Student Register</button>
             <button className={cls('deanTags')} onClick={handle('deanTags')}>Manage Subject</button>
-            <button className={cls('deanQuestions')} onClick={handle('deanQuestions')}>My Questions</button>
+            <button className={cls('deanQuestions')} onClick={handle('deanQuestions')}>Create Questions</button>
             <button className={cls('deanQuestionApprovals')} onClick={handle('deanQuestionApprovals')}>Approve Questions</button>
-            <button className={cls('mockBoardExam')} onClick={handle('mockBoardExam')}>Mock Board Exams</button>
-            <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Available Mock Board Exams</button>
+            <button className={cls('mockBoardExam')} onClick={handle('mockBoardExam')}>Create Exams</button>
+            <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Board Exams</button>
             <button className={cls('examResults')} onClick={handle('examResults')}>Exam Results</button>
           </>
         )}
