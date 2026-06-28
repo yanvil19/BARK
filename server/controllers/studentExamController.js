@@ -1,6 +1,5 @@
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
-const Question = require('../models/Question');
 const mongoose = require('mongoose');
 
 // Helper to shuffle arrays
@@ -13,6 +12,29 @@ function shuffleArray(array) {
 }
 
 const PROGRESS_LOG_THRESHOLDS = [25, 50, 75];
+
+async function advanceExamStatuses(query = {}) {
+  const now = new Date();
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: 'published',
+      startDateTime: { $lte: now },
+      endDateTime: { $gt: now },
+    },
+    { $set: { status: 'ongoing' } }
+  );
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: { $in: ['published', 'ongoing'] },
+      endDateTime: { $lt: now },
+    },
+    { $set: { status: 'finished' } }
+  );
+}
 
 function countAnsweredQuestions(attempt) {
   if (!attempt.answers) return 0;
@@ -96,31 +118,11 @@ async function autoSubmitIfExpired(attempt) {
 async function getAvailableExams(req, res) {
   try {
     const now = new Date();
-    const examsToArchive = await MockBoardExam.find({
-      status: 'published',
-      endDateTime: { $lt: now }
-    }).select('_id questions');
-
-    if (examsToArchive.length > 0) {
-      const examIds = examsToArchive.map(e => e._id);
-      const questionIdsToRetire = examsToArchive.flatMap(e => e.questions);
-
-      if (questionIdsToRetire.length > 0) {
-        await Question.updateMany(
-          { _id: { $in: questionIdsToRetire } },
-          { $set: { state: 'retired' } }
-        );
-      }
-
-      await MockBoardExam.updateMany(
-        { _id: { $in: examIds } },
-        { $set: { status: 'finished' } }
-      );
-    }
+    await advanceExamStatuses({ program: req.user.program });
 
     const exams = await MockBoardExam.find({
       program: req.user.program,
-      status: 'published',
+      status: { $in: ['published', 'ongoing'] },
       endDateTime: { $gt: now },
     })
       .select('name startDateTime endDateTime status program subjectTags questions')
@@ -171,17 +173,27 @@ async function startExam(req, res) {
 
     const now = new Date();
 
-    if (now < exam.startDateTime) {
+    await advanceExamStatuses({ _id: exam._id });
+    const currentExam = await MockBoardExam.findById(examId).populate({
+      path: 'questions',
+      select: 'title description images answers tag',
+    });
+
+    if (now < currentExam.startDateTime) {
       return res.status(403).json({
         message: 'This exam has not started yet.',
-        startsAt: exam.startDateTime,
+        startsAt: currentExam.startDateTime,
       });
     }
 
-    if (now >= exam.endDateTime) {
+    if (now >= currentExam.endDateTime) {
       return res.status(403).json({
         message: 'This exam window has already closed.',
       });
+    }
+
+    if (currentExam.status !== 'ongoing') {
+      return res.status(403).json({ message: 'This exam is not open for answering yet.' });
     }
 
     let attempt = await StudentExamAttempt.findOne({
@@ -194,7 +206,7 @@ async function startExam(req, res) {
     }
 
     if (!attempt) {
-      const shuffledQuestions = shuffleArray([...exam.questions]);
+      const shuffledQuestions = shuffleArray([...currentExam.questions]);
       const randomizedStructure = shuffledQuestions.map(q => {
         const shuffledAnswers = shuffleArray([...q.answers]);
         return {
@@ -233,11 +245,11 @@ async function startExam(req, res) {
       return res.status(403).json({ message: 'Your exam time has expired and it was automatically submitted.' });
     }
 
-    const remainingTimeSeconds = Math.floor((exam.endDateTime - now) / 1000);
+    const remainingTimeSeconds = Math.floor((currentExam.endDateTime - now) / 1000);
 
     const responseQuestions = [];
     const qMap = new Map();
-    exam.questions.forEach(q => qMap.set(String(q._id), q));
+    currentExam.questions.forEach(q => qMap.set(String(q._id), q));
 
     attempt.randomizedQuestions.forEach(rq => {
       const fullQ = qMap.get(String(rq.question));
@@ -263,15 +275,15 @@ async function startExam(req, res) {
     return res.json({
       attemptId: attempt._id,
       exam: {
-        _id: exam._id,
-        name: exam.name,
-        description: exam.description,
-        instructions: exam.instructions
+        _id: currentExam._id,
+        name: currentExam.name,
+        description: currentExam.description,
+        instructions: currentExam.instructions
       },
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
       remainingTimeSeconds,
-      endDateTime: exam.endDateTime,
+      endDateTime: currentExam.endDateTime,
     });
 
   } catch (err) {

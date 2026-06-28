@@ -211,6 +211,43 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     });
   }
 
+  function handleReuse(exam) {
+    setConfirmationModal({
+      type: 'reuse',
+      exam,
+      title: 'Reuse Archived Exam',
+      message: (
+        <p style={{ margin: 0 }}>
+          Create a new draft copy of <strong>{exam.name}</strong>?
+        </p>
+      ),
+      confirmLabel: 'Create Draft Copy',
+      confirmVariant: 'primary',
+    });
+  }
+
+  async function confirmReuse(exam) {
+    try {
+      const data = await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/reuse`, { method: 'POST' });
+      if (data.exam) setExams((prev) => [data.exam, ...prev]);
+      setFeedbackModal({
+        title: 'Draft Copy Created',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            A new draft was created from <strong>{exam.name}</strong>.
+          </p>
+        ),
+      });
+    } catch (err) {
+      setFeedbackModal({
+        title: 'Reuse Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to create a draft copy.',
+      });
+    }
+  }
+
   async function confirmArchive(exam) {
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/archive`, { method: 'PATCH' });
@@ -320,13 +357,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }
 
   function handleEdit(exam) {
-    if (exam.status === 'published') {
+    if (['ongoing', 'finished', 'archived'].includes(exam.status)) {
       setFeedbackModal({
         title: 'Editing Disabled',
         tone: 'warning',
         message: (
           <p style={{ margin: 0 }}>
-            <strong>{exam.name}</strong> is published and can no longer be edited.
+            <strong>{exam.name}</strong> is {exam.status} and can no longer be edited.
           </p>
         ),
       });
@@ -350,6 +387,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         await confirmArchive(exam);
       } else if (type === 'publish') {
         await confirmPublish(exam);
+      } else if (type === 'reuse') {
+        await confirmReuse(exam);
       }
     } finally {
       setModalBusy(false);
@@ -521,7 +560,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           </button>
                         )}
 
-                        {exam.status !== 'finished' && exam.status !== 'archived' && (
+                        {exam.status !== 'ongoing' && exam.status !== 'finished' && exam.status !== 'archived' && (
                           <button
                             type="button"
                             className="ambe-btn primary"
@@ -531,7 +570,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           </button>
                         )}
 
-                        {exam.status === 'draft' && (
+                        {(exam.status === 'draft' || exam.status === 'published') && (
                           <button
                             type="button"
                             className="ambe-btn primary"
@@ -559,6 +598,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                             onClick={() => handleArchive(exam)}
                           >
                             Archive
+                          </button>
+                        )}
+
+                        {exam.status === 'archived' && (
+                          <button
+                            type="button"
+                            className="ambe-btn publish"
+                            onClick={() => handleReuse(exam)}
+                          >
+                            Reuse
                           </button>
                         )}
 

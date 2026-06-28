@@ -71,6 +71,29 @@ async function buildScheduleConflictResponse(payload, examId = null) {
   };
 }
 
+async function advanceExamStatuses(query = {}) {
+  const now = new Date();
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: 'published',
+      startDateTime: { $lte: now },
+      endDateTime: { $gt: now },
+    },
+    { $set: { status: 'ongoing' } }
+  );
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: { $in: ['published', 'ongoing'] },
+      endDateTime: { $lt: now },
+    },
+    { $set: { status: 'finished' } }
+  );
+}
+
 async function listApprovedQuestions(req, res) {
   try {
     if (req.user.role !== 'dean') {
@@ -92,10 +115,13 @@ async function listApprovedQuestions(req, res) {
     if (validTagIds.length === 0) return res.json({ questions: [] });
 
     const queryStates = states ? states.split(',') : ['approved'];
+    const eligibleStates = queryStates.includes('approved')
+      ? [...new Set([...queryStates, 'in_draft', 'in_use', 'retired'])]
+      : queryStates;
 
     const questions = await Question.find({
       program: programId,
-      state: { $in: queryStates },
+      state: { $in: eligibleStates },
       tag: { $in: validTagIds },
     })
       .populate('tag', 'name')
@@ -118,14 +144,15 @@ async function validateExamPayload(user, body) {
   const questionIds = Array.isArray(body.questionIds) ? body.questionIds.filter(Boolean) : [];
   const status = body.status || 'draft';
   const instructions = body.instructions?.trim() || '';
+  const description = body.description?.trim() || '';
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
-  if (!body.startDateTime) errors.push('Start date and time is required');
-  if (!body.endDateTime) errors.push('End date and time is required');
+  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
-  if (!['draft', 'published', 'archived'].includes(status)) errors.push('Invalid exam status');
+  if (!['draft', 'published'].includes(status)) errors.push('Invalid exam status');
 
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
@@ -135,6 +162,7 @@ async function validateExamPayload(user, body) {
 
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
+  if ((start && !end) || (!start && end)) errors.push('Both start and end date are required when scheduling an exam');
   if (start && end && end <= start) errors.push('End date must be later than the start date');
   
   const now = new Date();
@@ -175,6 +203,7 @@ async function validateExamPayload(user, body) {
       startDateTime: start,
       endDateTime: end,
       instructions,
+      description,
       status,
       tags,
       questions,
@@ -190,7 +219,7 @@ async function createMockBoardExam(req, res) {
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
-    if (payload.startDateTime && payload.startDateTime <= new Date()) {
+    if (payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
       errors.push('Start date must be in the future');
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
@@ -212,18 +241,11 @@ async function createMockBoardExam(req, res) {
       startDateTime: payload.startDateTime,
       endDateTime: payload.endDateTime,
       instructions: payload.instructions,
+      description: payload.description,
       status: payload.status,
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
     });
-
-    if (payload.questionIds.length > 0) {
-      const questionState = payload.status === 'draft' ? 'in_draft' : 'in_use';
-      await Question.updateMany(
-        { _id: { $in: payload.questionIds } },
-        { $set: { state: questionState } }
-      );
-    }
 
     const populated = await MockBoardExam.findById(exam._id)
       .populate('program', 'name code')
@@ -258,35 +280,12 @@ async function listMockBoardExams(req, res) {
       const programs = await getDeanPrograms(req.user);
       const programIds = programs.map((program) => program._id);
       
-      // Auto-archive expired exams for the Dean as well
-      const now = new Date();
-      const expiredExams = await MockBoardExam.find({
-        program: { $in: programIds },
-        status: 'published',
-        endDateTime: { $lt: now }
-      }).select('_id questions');
-
-      if (expiredExams.length > 0) {
-        const expiredIds = expiredExams.map(e => e._id);
-        const qIdsToRetire = expiredExams.flatMap(e => e.questions);
-
-        if (qIdsToRetire.length > 0) {
-          await Question.updateMany(
-            { _id: { $in: qIdsToRetire } },
-            { $set: { state: 'retired' } }
-          );
-        }
-
-        await MockBoardExam.updateMany(
-          { _id: { $in: expiredIds } },
-          { $set: { status: 'finished' } }
-        );
-      }
+      await advanceExamStatuses({ program: { $in: programIds } });
 
       query = { program: { $in: programIds } };
     } 
     else {
-      query = { status: 'published' };
+      query = { status: { $in: ['published', 'ongoing'] } };
     }
 
     const exams = await MockBoardExam.find(query)
@@ -370,22 +369,26 @@ async function updateMockBoardExam(req, res) {
     const existing = await MockBoardExam.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Mock board exam not found' });
 
-    if (['finished', 'archived'].includes(existing.status)) {
-      return res.status(400).json({ message: `Cannot edit a ${existing.status} exam` });
+    await advanceExamStatuses({ _id: existing._id });
+    const current = await MockBoardExam.findById(req.params.id);
+    if (['ongoing', 'finished', 'archived'].includes(current.status)) {
+      return res.status(400).json({ message: `Cannot edit a ${current.status} exam` });
     }
 
-    const accessible = await ensureDeanProgramAccess(req.user, existing.program);
+    const accessible = await ensureDeanProgramAccess(req.user, current.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
 
     const mergedBody = {
-      name: req.body.name ?? existing.name,
-      programId: req.body.programId ?? existing.program.toString(),
-      subjectTagIds: req.body.subjectTagIds ?? existing.subjectTags.map((item) => item.toString()),
-      questionIds: req.body.questionIds ?? existing.questions.map((item) => item.toString()),
-      startDateTime: req.body.startDateTime ?? existing.startDateTime,
-      endDateTime: req.body.endDateTime ?? existing.endDateTime,
-      instructions: req.body.instructions ?? existing.instructions,
-      status: existing.status === 'published' ? 'draft' : (req.body.status ?? existing.status),
+      name: req.body.name ?? current.name,
+      programId: req.body.programId ?? current.program.toString(),
+      subjectTagIds: req.body.subjectTagIds ?? current.subjectTags.map((item) => item.toString()),
+      questionIds: req.body.questionIds ?? current.questions.map((item) => item.toString()),
+      startDateTime: req.body.startDateTime ?? current.startDateTime,
+      endDateTime: req.body.endDateTime ?? current.endDateTime,
+      instructions: req.body.instructions ?? current.instructions,
+      description: req.body.description ?? current.description,
+      status: req.body.status ?? current.status,
+      passingThreshold: req.body.passingThreshold ?? current.passingThreshold,
     };
 
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
@@ -399,49 +402,31 @@ async function updateMockBoardExam(req, res) {
       });
     }
 
-    const oldQuestionIds = existing.questions.map((id) => id.toString());
-    const newQuestionIds = payload.questionIds.map((id) => id.toString());
+    const oldStatus = current.status;
+    current.name = payload.name;
+    current.program = payload.program._id;
+    current.department = payload.program.department;
+    current.subjectTags = payload.subjectTagIds;
+    current.questions = payload.questionIds;
+    current.startDateTime = payload.startDateTime;
+    current.endDateTime = payload.endDateTime;
+    current.instructions = payload.instructions;
+    current.description = payload.description;
+    current.status = payload.status;
+    current.passingThreshold = payload.passingThreshold;
+    await current.save();
 
-    const oldStatus = existing.status;
-    existing.name = payload.name;
-    existing.program = payload.program._id;
-    existing.department = payload.program.department;
-    existing.subjectTags = payload.subjectTagIds;
-    existing.questions = payload.questionIds;
-    existing.startDateTime = payload.startDateTime;
-    existing.endDateTime = payload.endDateTime;
-    existing.instructions = payload.instructions;
-    existing.status = payload.status;
-    existing.passingThreshold = payload.passingThreshold;
-    await existing.save();
-
-    // Handle question state transitions based on exam status
-    const targetState = payload.status === 'draft' ? 'in_draft' : 'in_use';
-    const removedIds = oldQuestionIds.filter((id) => !newQuestionIds.includes(id));
-    const addedIds = newQuestionIds.filter((id) => !oldQuestionIds.includes(id));
-
-    if (removedIds.length > 0) {
-      await Question.updateMany({ _id: { $in: removedIds } }, { $set: { state: 'approved' } });
-    }
-    
-    const statusChanged = oldStatus !== payload.status;
-    const idsToUpdate = statusChanged ? newQuestionIds : addedIds;
-
-    if (idsToUpdate.length > 0) {
-      await Question.updateMany({ _id: { $in: idsToUpdate } }, { $set: { state: targetState } });
-    }
-
-    const populated = await MockBoardExam.findById(existing._id)
+    const populated = await MockBoardExam.findById(current._id)
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
       .populate('questions', 'title tag')
       .populate('createdBy', 'name');
-    await logAudit(req.user._id, 'mock_exam_updated', 'MockBoardExam', existing._id, {
-      name: existing.name,
-      programId: existing.program,
+    await logAudit(req.user._id, 'mock_exam_updated', 'MockBoardExam', current._id, {
+      name: current.name,
+      programId: current.program,
       oldStatus,
-      newStatus: existing.status,
-      questionCount: existing.questions?.length || 0,
+      newStatus: current.status,
+      questionCount: current.questions?.length || 0,
     });
 
     if (oldStatus !== 'published' && payload.status === 'published') {
@@ -469,12 +454,6 @@ async function deleteMockBoardExam(req, res) {
     const accessible = await ensureDeanProgramAccess(req.user, exam.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
 
-    // Revert question states before deleting to ensure they aren't stuck in "in_use"
-    if (['draft', 'published', 'finished'].includes(exam.status) && exam.questions.length > 0) {
-      await Question.updateMany({ _id: { $in: exam.questions } }, { $set: { state: 'approved' } });
-    }
-    // draft / archived: no question state changes needed
-
     await exam.deleteOne();
     await logAudit(req.user._id, 'mock_exam_deleted', 'MockBoardExam', exam._id, {
       name: exam.name,
@@ -490,7 +469,8 @@ async function deleteMockBoardExam(req, res) {
 
 async function listPublishedExams(req, res) {
   try {
-    const exams = await MockBoardExam.find({ status: 'published' })
+    await advanceExamStatuses();
+    const exams = await MockBoardExam.find({ status: { $in: ['published', 'ongoing'] } })
       .populate('program', 'name code')
       .select('name program updatedAt')
       .sort({ updatedAt: -1 });
@@ -521,13 +501,6 @@ async function archiveExam(req, res) {
     exam.status = 'archived';
     await exam.save();
 
-    // Ensure questions turn to 'retired' when archived
-    if (exam.questions && exam.questions.length > 0) {
-      await Question.updateMany(
-        { _id: { $in: exam.questions } },
-        { $set: { state: 'retired' } }
-      );
-    }
     await logAudit(req.user._id, 'mock_exam_archived', 'MockBoardExam', exam._id, {
       name: exam.name,
       programId: exam.program,
@@ -536,6 +509,60 @@ async function archiveExam(req, res) {
     });
 
     res.json({ message: 'Exam archived successfully', exam: { _id: exam._id, status: exam.status } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
+async function reuseArchivedExam(req, res) {
+  try {
+    if (req.user.role !== 'dean') {
+      return res.status(403).json({ message: 'Only Deans can reuse archived exams' });
+    }
+
+    const exam = await MockBoardExam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ message: 'Mock board exam not found' });
+
+    const accessible = await ensureDeanProgramAccess(req.user, exam.program);
+    if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
+
+    if (exam.status !== 'archived') {
+      return res.status(400).json({ message: 'Only archived exams can be reused as a new draft' });
+    }
+
+    const reused = await MockBoardExam.create({
+      name: `${exam.name} (Copy)`,
+      program: exam.program,
+      department: exam.department,
+      subjectTags: exam.subjectTags,
+      questions: exam.questions,
+      startDateTime: null,
+      endDateTime: null,
+      description: exam.description || '',
+      instructions: exam.instructions || '',
+      status: 'draft',
+      passingThreshold: exam.passingThreshold,
+      resultsReleaseDate: null,
+      missedAttemptsProcessedAt: null,
+      createdBy: req.user._id,
+    });
+
+    const populated = await MockBoardExam.findById(reused._id)
+      .populate('program', 'name code')
+      .populate('subjectTags', 'name')
+      .populate('questions', 'title tag')
+      .populate('createdBy', 'name');
+
+    await logAudit(req.user._id, 'mock_exam_created', 'MockBoardExam', reused._id, {
+      name: reused.name,
+      programId: reused.program,
+      status: reused.status,
+      reusedFromExamId: exam._id,
+      questionCount: reused.questions?.length || 0,
+    });
+
+    res.status(201).json({ exam: populated });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -613,5 +640,6 @@ module.exports = {
   deleteMockBoardExam,
   listPublishedExams,
   archiveExam,
+  reuseArchivedExam,
   setResultsReleaseDate,
 };

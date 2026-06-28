@@ -7,13 +7,13 @@ async function checkExamScheduleConflict({
   status,
   examId = null,
 }) {
-  if (!programId || !startDateTime || !endDateTime || !['draft', 'published'].includes(status)) {
+  if (!programId || !startDateTime || !endDateTime || !['draft', 'published', 'ongoing'].includes(status)) {
     return { hasConflict: false, conflicts: [] };
   }
 
   const query = {
     program: programId,
-    status: { $in: ['draft', 'published'] },
+    status: { $in: ['draft', 'published', 'ongoing'] },
     startDateTime: { $lt: endDateTime },
     endDateTime: { $gt: startDateTime },
   };

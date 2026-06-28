@@ -8,7 +8,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
-const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected', 'in_use', 'retired'];
+const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected'];
 
 const LOCK_STALE_MS = 10 * 60 * 1000;
 
@@ -656,13 +656,6 @@ export default function QuestionApprovals({ me }) {
                     <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
                   </>
                 )}
-                {selectedState === 'retired' && (
-                  <>
-                    <button className="ca-bulk-btn ca-bulk-btn--approve" onClick={handleBulkReuse} disabled={bulkSubmitting}>Use Again All</button>
-                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('restore'); setNote(''); }} disabled={bulkSubmitting}>Restore All</button>
-                    <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
-                  </>
-                )}
                 <button
                   className="ca-bulk-btn ca-bulk-btn--clear"
                   onClick={handleClearSelections}
@@ -896,12 +889,6 @@ export default function QuestionApprovals({ me }) {
                 </>
               ) : (selectedQuestion.state === 'rejected') ? (
                 <>
-                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore for Revision</button>
-                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
-                </>
-              ) : (selectedQuestion.state === 'retired') ? (
-                <>
-                  <button className="ca-btn ca-btn--reuse" onClick={() => handleReuse(selectedQuestion)}>Use Again</button>
                   <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore for Revision</button>
                   <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
                 </>

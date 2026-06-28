@@ -381,16 +381,12 @@ const reviewQuestion = async (req, res) => {
       requiredState = 'pending_chair';
       updateSet = { state: 'rejected', rejectionReason: note.trim(), currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'restore') {
-      requiredState = { $in: ['rejected', 'retired'] };
+      requiredState = 'rejected';
       updateSet = { state: 'draft', revisionNote: note.trim(), currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'reuse') {
-      if (req.user.role !== 'dean') {
-        return res.status(403).json({ message: 'Only Deans can mark retired questions for reuse' });
-      }
-      requiredState = 'retired';
-      updateSet = { state: 'pending_chair', currentReviewer: null, reviewStartedAt: null };
+      return res.status(400).json({ message: 'Questions are reusable once approved and no longer need to be marked for reuse' });
     } else if (action === 'delete') {
-      requiredState = { $in: ['rejected', 'retired'] };
+      requiredState = 'rejected';
       // delete is handled separately below
     }
 

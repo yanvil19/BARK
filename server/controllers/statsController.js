@@ -413,6 +413,9 @@ const getDeanDashboardStats = async (req, res) => {
             published: {
               $sum: { $cond: [{ $eq: ['$status', 'published'] }, 1, 0] },
             },
+            ongoing: {
+              $sum: { $cond: [{ $eq: ['$status', 'ongoing'] }, 1, 0] },
+            },
             draft: {
               $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] },
             },
@@ -474,7 +477,7 @@ const getDeanDashboardStats = async (req, res) => {
     }));
 
     const totalApprovedQuestions = approvedQuestionsByProgramRaw.reduce((sum, item) => sum + item.count, 0);
-    const examsPublished = mockExamCountsRaw.reduce((sum, item) => sum + (item.published || 0), 0);
+    const examsPublished = mockExamCountsRaw.reduce((sum, item) => sum + (item.published || 0) + (item.ongoing || 0), 0);
     const draftExams = mockExamCountsRaw.reduce((sum, item) => sum + (item.draft || 0), 0);
     const returnedQuestions = myQuestionStateMap.returned || 0;
 
@@ -497,7 +500,7 @@ const getDeanDashboardStats = async (req, res) => {
         students: studentCountMap[String(program._id)] || 0,
         approvedQuestions: approvedQuestionMap[String(program._id)] || 0,
         subjects: subjectCountMap[String(program._id)] || 0,
-        publishedExams: exams.published || 0,
+        publishedExams: (exams.published || 0) + (exams.ongoing || 0),
         draftExams: exams.draft || 0,
       };
     });
@@ -614,7 +617,7 @@ const getExamActivityLogs = async (req, res) => {
 
     const exams = await MockBoardExam.find({
       program: programId,
-      status: { $in: ['published', 'finished'] },
+      status: { $in: ['published', 'ongoing', 'finished'] },
     })
       .select('name startDateTime endDateTime status')
       .sort({ startDateTime: -1 })

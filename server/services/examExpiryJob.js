@@ -41,12 +41,24 @@ const startExamExpiryJob = () => {
       const result = await MockBoardExam.updateMany(
         {
           status: 'published',
+          startDateTime: { $lte: now },
+          endDateTime: { $gt: now }
+        },
+        { status: 'ongoing' }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`[ExamExpiryJob] ${result.modifiedCount} exam(s) transitioned to ongoing`);
+      }
+
+      const finishedResult = await MockBoardExam.updateMany(
+        {
+          status: { $in: ['published', 'ongoing'] },
           endDateTime: { $lt: now }
         },
         { status: 'finished' }
       );
-      if (result.modifiedCount > 0) {
-        console.log(`[ExamExpiryJob] ${result.modifiedCount} exam(s) transitioned to finished`);
+      if (finishedResult.modifiedCount > 0) {
+        console.log(`[ExamExpiryJob] ${finishedResult.modifiedCount} exam(s) transitioned to finished`);
       }
 
       const examsToProcess = await MockBoardExam.find({

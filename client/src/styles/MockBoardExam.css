@@ -99,6 +99,11 @@
   color: #21603a;
 }
 
+.mbe-status-pill--ongoing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .mbe-status-pill--archived {
   background: #eceff7;
   color: #5e678f;

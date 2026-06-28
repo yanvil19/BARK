@@ -53,7 +53,7 @@ async function getStudentCalendarExams({ programId }) {
 
   return MockBoardExam.find({
     program: programId,
-    status: 'published',
+    status: { $in: ['published', 'ongoing'] },
     endDateTime: { $gt: now },
   })
     .select('_id name program startDateTime endDateTime status')

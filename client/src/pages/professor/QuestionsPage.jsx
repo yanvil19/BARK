@@ -12,7 +12,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
-const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved', 'rejected', 'in_use', 'retired'];
+const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved', 'rejected'];
 
 function formatDate(iso) {
   if (!iso) return '-';

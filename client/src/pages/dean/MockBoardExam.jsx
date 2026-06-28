@@ -468,7 +468,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                 >
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
-                  <option value="archived">Archived</option>
                 </select>
               </label>
             </div>
@@ -623,9 +622,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                             <div className="mbe-question-headline mbe-question-headline--compact">
                               <h3>
                                 {question.title}
-                                {question.state === 'retired' && <span className="mbe-state-badge mbe-state-badge--retired">Retired</span>}
-                                {question.state === 'in_use' && <span className="mbe-state-badge mbe-state-badge--inuse">In Use</span>}
-                                {question.state === 'in_draft' && <span className="mbe-state-badge mbe-state-badge--indraft">In Draft</span>}
                               </h3>
                             </div>
                           </button>

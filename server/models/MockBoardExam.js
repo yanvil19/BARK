@@ -35,13 +35,14 @@ const mockBoardExamSchema = new mongoose.Schema(
     ],
     startDateTime: {
       type: Date,
-      required: [true, 'Start date and time is required'],
+      default: null,
     },
     endDateTime: {
       type: Date,
-      required: [true, 'End date and time is required'],
+      default: null,
       validate: {
         validator: function (value) {
+          if (!value || !this.startDateTime) return true;
           return value > this.startDateTime;
         },
         message: 'endDateTime must be after startDateTime',
@@ -59,7 +60,7 @@ const mockBoardExamSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'published', 'finished', 'archived'],
+      enum: ['draft', 'published', 'ongoing', 'finished', 'archived'],
       default: 'draft',
       index: true,
     },

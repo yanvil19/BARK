@@ -26,6 +26,7 @@ export function getExamEventColor(status, role) {
   const colors = {
     draft: '#ca8a04',
     published: '#15803d',
+    ongoing: '#2563eb',
     finished: '#6b7280',
     archived: '#374151',
   };

@@ -220,6 +220,11 @@
   color: #15803d;
 }
 
+.ambe-status.ongoing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .ambe-status.finished {
   background: #f1ebff;
   color: #7c3aed;
