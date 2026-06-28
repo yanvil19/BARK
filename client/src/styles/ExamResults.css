@@ -753,7 +753,7 @@
 }
 
 .er-questions-grid {
-  padding: 0 30px 26px;
+  padding: 30px 26px;
   background: #f7f9fd;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
