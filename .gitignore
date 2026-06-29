@@ -4,7 +4,7 @@
 # Environment variables / secrets
 .env
 .env.*
-!.env.example
+.env.test
 
 # Logs
 *.log
