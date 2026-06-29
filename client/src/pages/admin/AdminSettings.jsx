@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AdminSettings.css';
 import '../../styles/Modal.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(false);
@@ -68,14 +69,11 @@ export default function AdminSettings() {
 
   return (
     <main className="as-page">
-      <header className="as-page-header">
-        <div className="as-header">
-          <div>
-            <h1 className="as-title">Settings</h1>
-            <p className="as-subtitle">Configure system cooldowns for credential changes.</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="Settings"
+        subtitle="Configure system cooldowns for credential changes."
+      />
 
       <div className="as-content">
         <section className="as-card">

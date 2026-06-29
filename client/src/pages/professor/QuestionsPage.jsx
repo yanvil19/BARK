@@ -6,6 +6,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/QuestionsPage.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -390,41 +391,38 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
   return (
     <main className="qp-page">
-      <header className="qp-page-header">
-        <div className="qp-header">
-          <div>
-            <h1 className="qp-title">{getPageTitle()}</h1>
-            <p className="qp-subtitle">{getPageSubtitle()}</p>
-          </div>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title={getPageTitle()}
+        subtitle={getPageSubtitle()}
+      >
+        <div className="qp-header-actions">
+          {role !== 'dean' && programLabel ? (
+            <span className="qp-program-chip">{programLabel}</span>
+          ) : null}
 
-          <div className="qp-header-actions">
-            {role !== 'dean' && programLabel ? (
-              <span className="qp-program-chip">{programLabel}</span>
-            ) : null}
-
-            <div className="qp-header-actions-buttons">
-              <button
-                type="button"
-                className="qp-btn-add"
-                onClick={() => requestDeanProgramThen('import')}
-                disabled={role === 'dean' && programs.length === 0}
-                title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
-              >
-                + Import Questions
-              </button>
-              <button
-                type="button"
-                className="qp-btn-add"
-                onClick={() => requestDeanProgramThen('create')}
-                disabled={role === 'dean' && programs.length === 0}
-                title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
-              >
-                + Create Question
-              </button>
-            </div>
+          <div className="qp-header-actions-buttons">
+            <button
+              type="button"
+              className="qp-btn-add"
+              onClick={() => requestDeanProgramThen('import')}
+              disabled={role === 'dean' && programs.length === 0}
+              title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
+            >
+              + Import Questions
+            </button>
+            <button
+              type="button"
+              className="qp-btn-add"
+              onClick={() => requestDeanProgramThen('create')}
+              disabled={role === 'dean' && programs.length === 0}
+              title={role === 'dean' && programs.length === 0 ? 'No program available for your department.' : ''}
+            >
+              + Create Question
+            </button>
           </div>
         </div>
-      </header>
+      </PageHeader>
 
       <div className="qp-state-pills">
         {STATE_FILTERS.map((state) => (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import Pagination from '../../components/Pagination.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/ChairCheatingLogs.css';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -120,20 +121,18 @@ export default function ChairCheatingLogs() {
 
   return (
     <div className="el-page">
-      <div className="el-page-header">
-        <div>
-          <h1 className="el-title">Logs</h1>
-          <p className="el-subtitle">
-            Monitor exam activity for your program — start, window focus, submission, and progress.
-          </p>
-        </div>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="Logs"
+        subtitle="Monitor exam activity for your program — start, window focus, submission, and progress."
+      >
         {lastUpdated && selectedExamId && (
-          <p className="el-last-updated">
+          <p className="el-last-updated" style={{ margin: 0, fontSize: '13px', color: '#8c96ae' }}>
             Last updated {formatDateTime(lastUpdated)}
             {examLive ? ` · refreshes every ${POLL_MS / 1000}s while exam is live` : ''}
           </p>
         )}
-      </div>
+      </PageHeader>
 
       <div className="el-filters">
         <select

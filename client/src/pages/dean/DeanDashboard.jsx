@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const DeanDashboard = ({ me }) => {
   const [deanStats, setDeanStats] = useState(null);
@@ -32,12 +33,16 @@ const DeanDashboard = ({ me }) => {
   const attentionItems = deanStats?.attentionItems || [];
   const recentActivity = deanStats?.recentActivity || [];
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+
   return (
     <main className="dashboard-pc-main">
-      <header className="dashboard-pc-header">
-        <h1>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, Dean {me.firstName}</h1>
-        <p>{deanStats?.department?.name || me.department?.name || 'Department not assigned'}</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title={`Good ${greeting}, Dean ${me?.firstName || ''}`}
+        subtitle={me?.department?.school?.name || 'School not assigned'}
+      />
 
       {deanLoading ? (
         <div className="pc-loading">Loading dashboard data...</div>

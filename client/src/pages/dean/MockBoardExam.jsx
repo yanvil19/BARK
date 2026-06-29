@@ -5,6 +5,7 @@ import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/MockBoardExam.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -380,10 +381,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
   return (
     <main className="mbe-page">
-      <header className="mbe-page-header">
-        <h1>Mock Board Exam</h1>
-        <p>Create a mock board exam by selecting the program first, then the subjects, then the approved questions.</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="Mock Board Exam"
+        subtitle="Create a mock board exam by selecting the program first, then the subjects, then the approved questions."
+      />
 
       <form className="mbe-form" onSubmit={handleSubmit}>
         <section className="mbe-card mbe-form-card">

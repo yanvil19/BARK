@@ -1,6 +1,7 @@
-﻿import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/QuestionApprovals.css';
+import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 
@@ -586,10 +587,11 @@ export default function QuestionApprovals({ me }) {
 
   return (
     <main className="ca-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Questions for Review and Approval</h1>
-        <p className="page-header-subtitle">Questions submitted by faculty for Program Chair review</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Questions for Review and Approval"
+        subtitle="Questions submitted by faculty for Program Chair review"
+      />
 
       <div className="ca-state-pills">
         {STATE_FILTERS.map((state) => (

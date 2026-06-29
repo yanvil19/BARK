@@ -5,6 +5,7 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/SubjectTags.css';
 import '../../styles/global.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -151,22 +152,17 @@ export default function ChairTags({ me }) {
 
   return (
     <main className="qp-page ct-page">
-      <header className="qp-page-header">
-        <div className="qp-header">
-          <div>
-            <h1 className="qp-title">Manage Subjects</h1>
-            <p className="qp-subtitle">
-              {isDean
-                ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'
-                : 'Create and manage subjects for your program. Professors will use these subjects to categorize their questions.'}
-            </p>
-          </div>
-
-          <button type="button" className="qp-btn-add" onClick={() => setShowAddModal(true)} disabled={isDean && !programId}>
-            + Add New Subject
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="Manage Subjects"
+        subtitle={isDean
+          ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'
+          : 'Create and manage subjects for your program. Professors will use these subjects to categorize their questions.'}
+      >
+        <button type="button" className="qp-btn-add" onClick={() => setShowAddModal(true)} disabled={isDean && !programId}>
+          + Add New Subject
+        </button>
+      </PageHeader>
 
       <div className="ct-controls-row">
         <div className="qp-state-pill qp-state-pill--active">

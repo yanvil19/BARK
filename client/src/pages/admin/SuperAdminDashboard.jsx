@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const SuperAdminDashboard = ({ onNavigate, stats }) => {
   const navigate = onNavigate || (() => { });
@@ -46,10 +47,11 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
 
   return (
     <main className="dashboard-sa-main">
-      <header className="dashboard-sa-header">
-        <h1>Dashboard</h1>
-        <p>National University Laguna • Super Admin Portal</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="Dashboard"
+        subtitle="National University Laguna • Super Admin Portal"
+      />
 
       <div className="dashboard-sa-top-grid">
         <section className="dashboard-box">

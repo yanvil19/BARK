@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import '../../styles/Login.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX - SESSION EXPIRED MESSAGE]
 function clearSessionExpiredFromUrl() {
@@ -144,13 +145,11 @@ export default function Login({ onLogin, onNavigate }) {
 
   return (
     <main className="login-page-container">
-      <header className="login-page-header">
-        <h2>Login</h2>
-        <p className="login-subtitle">
-          Access your account to manage your activities, view updates, and continue where you left off. Enter your
-          email and password below to get started.
-        </p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Login"
+        subtitle="Access your account to manage your activities, view updates, and continue where you left off. Enter your credentials below to get started."
+      />
 
       <div className="login-shell">
         <section className="login-card">
