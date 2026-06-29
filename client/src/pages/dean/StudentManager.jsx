@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import StudentRegister from '../student/StudentRegister.jsx';
 import DeanApprovals from './DeanApprovals.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/StudentManager.css';
 
 export default function StudentManager({ onNavigate }) {
@@ -8,10 +9,11 @@ export default function StudentManager({ onNavigate }) {
 
   return (
     <main className="sm-page">
-      <header className="sm-page-header">
-        <h1>Student Register</h1>
-        <p>Register students and approve registration requests from one dean-only page.</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Student Register"
+        subtitle="Register students and approve registration requests from one dean-only page."
+      />
 
       <div className="sm-tabs">
         <button

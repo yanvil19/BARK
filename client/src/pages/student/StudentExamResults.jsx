@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AvailableExams.css';
 import '../../styles/StudentExamResults.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -139,10 +140,11 @@ const StudentExamResults = () => {
 
   return (
     <main className="sae-page-container">
-      <header className="sae-page-header">
-        <h2>Exam Results</h2>
-        <p className="sae-header-subtitle">View your completed exam results and performance breakdown</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Exam Results"
+        subtitle="View your completed exam results and performance breakdown"
+      />
 
       <div className="ca-filters ae-filters">
         <input

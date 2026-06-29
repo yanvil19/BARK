@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const ProfessorDashboard = ({ me }) => {
   const [stats, setStats] = useState(null);
@@ -47,10 +48,11 @@ const ProfessorDashboard = ({ me }) => {
 
   return (
     <main className="dashboard-pc-main">
-      <header className="dashboard-pc-header">
-        <h1>{greeting}, Professor {me?.firstName || 'Professor'}</h1>
-        <p>{stats?.program?.programName || me?.program?.name || 'Program not assigned'}</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title={`${greeting}, Professor ${me?.firstName || ''}`}
+        subtitle={me?.department?.name || 'Department not assigned'}
+      />
 
       {loading ? (
         <div className="pc-loading">Loading dashboard data...</div>

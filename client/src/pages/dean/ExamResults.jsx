@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
 import '../../styles/ExamResults.css';
+import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 
 const getStatusClass = (avg, threshold) => {
@@ -327,10 +328,11 @@ const ExamResults = () => {
 
   return (
     <div className="er-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Mock Board Exam Results</h1>
-        <p className="page-header-subtitle">Review computed analytics, pending exams, and topic-level performance in one place.</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Mock Board Exam Results"
+        subtitle="Review computed analytics, pending exams, and topic-level performance in one place."
+      />
 
       <div className="er-layout">
         <aside className="er-sidebar">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import '../../styles/MockBoardExamPreview.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -97,17 +98,15 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   return (
     <div className="mbep-page">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="mbep-header">
-        <div className="mbep-header-info">
-          <h1 className="mbep-title">{exam.name}</h1>
-          <p className="mbep-subtitle">
-            {exam.description || exam.program?.name || 'Academic Program Preview'}
-          </p>
-        </div>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title={exam.name}
+        subtitle={exam.description || exam.program?.name || 'Academic Program Preview'}
+      >
         <button className="mbep-exit-btn" onClick={onBack}>
           Exit Preview
         </button>
-      </header>
+      </PageHeader>
 
       {/* ── Progress ───────────────────────────────────────────── */}
       <div className="mbep-stats">

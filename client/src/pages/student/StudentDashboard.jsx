@@ -23,6 +23,7 @@ import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/StudentDashboard.css';
 import '../../styles/global.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -260,6 +261,9 @@ const StudentDashboard = ({ me, onNavigate }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+
   useEffect(() => {
     async function fetchAttempts() {
       setLoading(true);
@@ -437,10 +441,11 @@ const StudentDashboard = ({ me, onNavigate }) => {
     <main className="s-dashboard-container">
 
       {/* ── HEADER ─────────────────────────────────────────────── */}
-      <header className="s-dashboard-header">
-        <h2>Dashboard</h2>
-        <p className="s-dashboard-subtitle">Check your past results and explore!</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title={`${greeting}, ${me?.firstName || 'Student'}`}
+        subtitle={`${me?.program?.name || 'Program not assigned'} • ${me?.department?.name || 'Department'}`}
+      />
 
       <div className="sd-body">
 

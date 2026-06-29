@@ -1,0 +1,62 @@
+.shared-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 18px 32px 11px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.shared-page-header--bleed {
+  margin: -20px -20px 20px;
+}
+
+/* For pages whose container already uses margin: -20px (all sides).
+   The container already bleeds to the edges — header just needs no extra margin. */
+.shared-page-header--bleed-lr {
+  margin: 0 0 20px;
+}
+
+.shared-page-header-text {
+  flex: 1;
+}
+
+.shared-page-header-title {
+  font-family: var(--font-title, 'Poppins', sans-serif);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-bg, #2b3980);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.shared-page-header-subtitle {
+  font-size: 13px;
+  color: #8b92bc;
+  margin: 4px 0 0 0;
+  line-height: 1.5;
+  max-width: 800px;
+}
+
+.shared-page-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .shared-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+  
+  .shared-page-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

@@ -4,6 +4,7 @@ import '../../styles/AdminUsers.css';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 
 function PasswordToggle({ shown, onToggle, label, disabled }) {
   function handleKeyDown(e) {
@@ -493,26 +494,22 @@ export default function AdminUsers({ me }) {
   return (
     <main className="um-page">
       {/* ── Page Header ── */}
-      <header className="um-page-header">
-        <div className="um-header">
-          <div>
-            <h1 className="um-title">User Management</h1>
-            <p className="um-subtitle">Create, edit, and manage all system users</p>
-          </div>
-          <div className="um-header-actions">
-            <button
-              type="button"
-              className={`um-btn-delete-mode ${deleteMode ? 'um-btn-delete-mode--active' : ''}`}
-              onClick={() => setDeleteMode((value) => !value)}
-            >
-              {deleteMode ? 'Exit Delete Mode' : 'Delete Mode'}
-            </button>
-            <button className="um-btn-add" onClick={startCreate}>
-              + Add User
-            </button>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title="User Management"
+        subtitle="Create, edit, and manage all system users"
+      >
+        <button
+          type="button"
+          className={`um-btn-delete-mode ${deleteMode ? 'um-btn-delete-mode--active' : ''}`}
+          onClick={() => setDeleteMode((value) => !value)}
+        >
+          {deleteMode ? 'Exit Delete Mode' : 'Delete Mode'}
+        </button>
+        <button className="um-btn-add" onClick={startCreate}>
+          + Add User
+        </button>
+      </PageHeader>
 
       <div style={{ padding: '0 20px' }}>
         {/* ── Filters ── */}

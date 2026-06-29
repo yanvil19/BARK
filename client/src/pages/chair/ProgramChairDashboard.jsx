@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/Dashboard.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 const ProgramChairDashboard = ({ me, onRoute }) => {
   const [pcStats, setPcStats] = useState(null);
@@ -100,10 +101,11 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
 
   return (
     <main className="dashboard-pc-main">
-      <header className="dashboard-pc-header">
-        <h1>{greeting}, Program Chair {me.firstName}</h1>
-        <p>{me.department?.school?.name || me.department?.name || me.school?.name || 'School not assigned'}</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed"
+        title={`${greeting}, Program Chair ${me?.firstName || ''}`}
+        subtitle={me?.department?.school?.name || me?.department?.name || me?.school?.name || 'School not assigned'}
+      />
 
       {pcLoading ? (
         <div className="pc-loading">Loading dashboard data...</div>

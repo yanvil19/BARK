@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
@@ -430,12 +431,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   return (
     <main className="ambe-page">
-      <header className="page-header">
-        <h1 className="page-header-title">Available Mock Board Exams</h1>
-        <p className="page-header-subtitle">
-          This page lists the mock board exams created by the dean for department programs.
-        </p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Available Mock Board Exams"
+        subtitle="This page lists the mock board exams created by the dean for department programs."
+      />
 
       {me?.role === 'dean' && (
         <section className="ambe-view-controls" aria-label="Board exam view controls">

@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/MockBoardExamPreview.css';
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -323,11 +324,11 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
       />
 
       <div className={`mbep-page ${isBlurred ? 'mbep-page-blurred' : 'mbep-page-secure'}`}>
-        <header className="mbep-header">
-          <div className="mbep-header-info">
-            <h1 className="mbep-title">{examInfo?.name}</h1>
-            <p className="mbep-subtitle">{examInfo?.description || 'Mock Board Exam'}</p>
-          </div>
+        <PageHeader
+          className="shared-page-header--bleed-lr"
+          title={examInfo?.name}
+          subtitle={examInfo?.description || 'Mock Board Exam'}
+        >
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               className="mbep-exit-btn"
@@ -338,7 +339,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
               {submitting ? 'Submitting...' : '+ Submit Exam'}
             </button>
           </div>
-        </header>
+        </PageHeader>
 
         <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px' }}>
           <div className="mbep-progress-card">

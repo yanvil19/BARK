@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AvailableExams.css';
+import PageHeader from '../../components/PageHeader.jsx';
 import '../../styles/QuestionApprovals.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -127,10 +128,11 @@ export default function AvailableExams({ onTakeExam }) {
   return (
     <main className="sae-page-container">
 
-      <header className="sae-page-header">
-        <h2>Available Exams</h2>
-        <p className="sae-header-subtitle">Browse and take available mock board exams for your program</p>
-      </header>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title="Available Exams"
+        subtitle="Browse and take available mock board exams for your program"
+      />
 
       <div className="ca-state-pills ae-state-pills" role="tablist" aria-label="Exam status filters">
         <button

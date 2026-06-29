@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
+import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -134,13 +135,11 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
         confirmVariant="primary"
       />
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="mbep-header">
-        <div className="mbep-header-info">
-          <h1 className="mbep-title">{exam.name} {submitted && <span style={{ color: '#22c55e' }}>(Result)</span>}</h1>
-          <p className="mbep-subtitle">
-            {exam.description || `Dean Test Run Mode • ${exam.program?.name}`}
-          </p>
-        </div>
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title={<>{exam.name} {submitted && <span style={{ color: '#22c55e' }}>(Result)</span>}</>}
+        subtitle={exam.description || `Dean Test Run Mode • ${exam.program?.name}`}
+      >
         <div style={{ display: 'flex', gap: '12px' }}>
           {!submitted && (
             <button className="mbep-exit-btn" onClick={handleSubmit} style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}>
@@ -151,7 +150,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
             Exit Test Run
           </button>
         </div>
-      </header>
+      </PageHeader>
 
       {/* ── Stats Bar (Progress & Timer) ───────────────────────── */}
       <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px' }}>
