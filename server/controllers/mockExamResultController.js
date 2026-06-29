@@ -69,7 +69,7 @@ exports.getResult = async (req, res) => {
 exports.computeResults = async (req, res) => {
   try {
     const { examId } = req.params;
-    const { passingThreshold } = req.body;
+    const { passingThreshold = 70 } = req.body || {};
 
     // 1. EXAM & DEPARTMENT CHECK
     const exam = await MockBoardExam.findOne({
@@ -177,23 +177,11 @@ exports.computeResults = async (req, res) => {
       department: req.user.department
     };
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    let finalResult;
-    try {
-      finalResult = await MockExamResult.findOneAndUpdate(
-        { examId },
-        resultData,
-        { upsert: true, returnDocument: 'after', session }
-      );
-
-      await session.commitTransaction();
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    const finalResult = await MockExamResult.findOneAndUpdate(
+      { examId },
+      resultData,
+      { upsert: true, returnDocument: 'after' }
+    );
 
     res.json({ result: finalResult });
   } catch (err) {
