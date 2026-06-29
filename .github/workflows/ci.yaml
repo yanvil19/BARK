@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret-for-ci
+      GEMINI_API_KEY: test-fake-gemini-key
+      GEMINI_MODEL: gemini-1.5-flash
+      GEMINI_RPM_LIMIT: 60
+      GEMINI_RPD_LIMIT: 1000
+      IMPORT_MAX_FILE_SIZE_MB: 10
+      IMPORT_MAX_QUESTIONS: 20
+      IMPORT_USER_HOURLY_LIMIT: 5
+      R2_ACCOUNT_ID: test-account-id
+      R2_ACCESS_KEY_ID: test-access-key
+      R2_SECRET_ACCESS_KEY: test-secret-key
+      R2_BUCKET_NAME: test-bucket
+      R2_PUBLIC_URL: https://test.r2.cloudflarestorage.com/test-bucket
+      CLIENT_URL: http://localhost:5173
+      BREVO_API_KEY: test-brevo-key
+      EMAIL_FROM: test@example.com
+      MONGO_URI: mongodb://localhost/test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
