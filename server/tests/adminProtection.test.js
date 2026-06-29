@@ -4,9 +4,9 @@ const { createUserAndToken } = require('./helpers');
 
 // These tests verify that admin-only routes are protected from non-admin roles
 const adminRoutes = [
-  { method: 'get', path: '/api/admin/catalog' },
+  { method: 'get', path: '/api/admin/catalog/departments' },
   { method: 'get', path: '/api/admin/settings' },
-  { method: 'get', path: '/api/stats' },
+  { method: 'get', path: '/api/stats/program-chair/stats' },
 ];
 
 describe('Admin route protection', () => {

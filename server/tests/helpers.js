@@ -11,8 +11,7 @@ async function createUserAndToken(overrides = {}) {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const userData = {
-    firstName: 'Test',
-    lastName: 'User',
+    name: 'Test User',
     email: `test-${Date.now()}@example.com`,
     password: hashedPassword,
     role: 'professor',
@@ -22,7 +21,10 @@ async function createUserAndToken(overrides = {}) {
     ...(overrides.password && { password: await bcrypt.hash(overrides.password, 10) }),
   };
 
-  const user = await User.create(userData);
+  // Tell the pre-save hook the password is already hashed so it doesn't double-hash
+  const user = new User(userData);
+  user._passwordAlreadyHashed = true;
+  await user.save();
 
   const token = jwt.sign(
     { id: user._id, role: user.role },
