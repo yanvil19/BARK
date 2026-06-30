@@ -138,6 +138,7 @@ export default function App() {
       <LandingPage onNavigate={setRoute} />
     );
   }
+  if (route === 'landing') page = <LandingPage onNavigate={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
   if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
@@ -254,7 +255,11 @@ export default function App() {
         {page}
       </main>
 
-      <Footer onNavigate={setRoute} isPublic={(!me && route === 'Dashboard') || route === 'credits'} />
+      <Footer
+        onNavigate={setRoute}
+        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing'}
+        landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
+      />
     </div>
   );
 }

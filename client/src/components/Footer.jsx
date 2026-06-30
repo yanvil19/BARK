@@ -1,6 +1,6 @@
 import '../styles/Footer.css';
 
-export default function Footer({ onNavigate, isPublic = false }) {
+export default function Footer({ onNavigate, isPublic = false, landingSectionsAvailable = false }) {
   const year = new Date().getFullYear();
 
   const goToRoute = (routeName) => {
@@ -15,8 +15,8 @@ export default function Footer({ onNavigate, isPublic = false }) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
-    if (!isPublic) {
-      onNavigate?.('Dashboard');
+    if (!landingSectionsAvailable) {
+      onNavigate?.('landing');
       window.setTimeout(scrollToTarget, 120);
       return;
     }
