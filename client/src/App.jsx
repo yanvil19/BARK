@@ -254,7 +254,7 @@ export default function App() {
         {page}
       </main>
 
-      <Footer onNavigate={setRoute} isPublic={!me && route === 'Dashboard'} />
+      <Footer onNavigate={setRoute} isPublic={(!me && route === 'Dashboard') || route === 'credits'} />
     </div>
   );
 }
