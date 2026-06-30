@@ -27,6 +27,7 @@ import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
 import StudentExamResults from './pages/student/StudentExamResults.jsx';
+import Credits from './pages/Credits.jsx';
 import { apiAuth, getToken, setToken } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import "react-datepicker/dist/react-datepicker.css";
@@ -242,6 +243,7 @@ export default function App() {
     );
   if (route === 'studentExamResults')
     page = <StudentExamResults />;
+  if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
   return (
     <div className="app-container">
@@ -252,7 +254,7 @@ export default function App() {
         {page}
       </main>
 
-      <Footer />
+      <Footer onNavigate={setRoute} isPublic={!me && route === 'Dashboard'} />
     </div>
   );
 }
