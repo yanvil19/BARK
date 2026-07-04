@@ -471,8 +471,9 @@ async function listPublishedExams(req, res) {
   try {
     await advanceExamStatuses();
     const exams = await MockBoardExam.find({ status: { $in: ['published', 'ongoing'] } })
-      .populate('program', 'name code')
-      .select('name program updatedAt')
+      .populate('program', 'name code department')
+      .populate('department', 'name code')
+      .select('name program department startDateTime endDateTime status updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({ exams });
