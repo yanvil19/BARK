@@ -7,12 +7,35 @@ const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementE
 const { checkExamScheduleConflict } = require('../services/examScheduleConflictService');
 const { logAudit } = require('../utils/auditLogger');
 
-async function getDeanPrograms(user) {
-  if (user.role !== 'dean' || !user.department) return [];
-  const programs = await Program.find({ department: user.department, isActive: true }).select('_id department name code');
-  return programs;
+const EXAM_MANAGER_ROLES = ['dean', 'program_chair'];
+
+function isExamManager(user) {
+  return Boolean(user) && EXAM_MANAGER_ROLES.includes(user.role);
 }
 
+// Returns the programs a user is allowed to manage exams for.
+// Deans get every active program in their department, while Program Chairs
+// are scoped to only the single program they are assigned to.
+async function getDeanPrograms(user) {
+  if (user.role === 'dean') {
+    if (!user.department) return [];
+    const programs = await Program.find({ department: user.department, isActive: true }).select('_id department name code');
+    return programs;
+  }
+
+  if (user.role === 'program_chair') {
+    if (!user.program) return [];
+    const program = await Program.findOne({ _id: user.program, isActive: true }).select('_id department name code');
+    return program ? [program] : [];
+  }
+
+  return [];
+}
+
+// Confirms the given program is one the user is permitted to manage.
+// Because getDeanPrograms already scopes Program Chairs to their single
+// assigned program, this rejects any program a Program Chair does not
+// manage, even if a different programId is passed in the request.
 async function ensureDeanProgramAccess(user, programId) {
   const programs = await getDeanPrograms(user);
   const program = programs.find((item) => item._id.toString() === String(programId));
@@ -96,8 +119,8 @@ async function advanceExamStatuses(query = {}) {
 
 async function listApprovedQuestions(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can access approved questions for exam creation' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can access approved questions for exam creation' });
     }
 
     const { program: programId, states } = req.query;
@@ -214,8 +237,8 @@ async function validateExamPayload(user, body) {
 
 async function createMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can create mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can create mock board exams' });
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
@@ -276,7 +299,7 @@ async function listMockBoardExams(req, res) {
   try {
     let query = {};
 
-    if (req.user && req.user.role === 'dean') {
+    if (isExamManager(req.user)) {
       const programs = await getDeanPrograms(req.user);
       const programIds = programs.map((program) => program._id);
       
@@ -334,8 +357,8 @@ async function listMockBoardExams(req, res) {
 
 async function getMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can view mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can view mock board exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id)
@@ -362,8 +385,8 @@ async function getMockBoardExam(req, res) {
 
 async function updateMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can update mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can update mock board exams' });
     }
 
     const existing = await MockBoardExam.findById(req.params.id);
@@ -444,8 +467,8 @@ async function updateMockBoardExam(req, res) {
 
 async function deleteMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can delete mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can delete mock board exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -484,8 +507,8 @@ async function listPublishedExams(req, res) {
 
 async function archiveExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can archive exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can archive exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -517,8 +540,8 @@ async function archiveExam(req, res) {
 
 async function reuseArchivedExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can reuse archived exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can reuse archived exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -571,8 +594,8 @@ async function reuseArchivedExam(req, res) {
 
 async function setResultsReleaseDate(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can schedule result releases' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can schedule result releases' });
     }
 
     const { resultsReleaseDate } = req.body;
