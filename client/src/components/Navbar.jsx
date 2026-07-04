@@ -111,11 +111,11 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
           </button>
         )}
 
-        {me && !isLearner && !isDean && (
+        {/* {me && !isLearner && !isDean && (
           <button className={cls('student')} onClick={handle('student')}>
             Student Register
           </button>
-        )}
+        )} */}
 
         {isDean && (
           <>
@@ -131,10 +131,14 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
 
         {isChair && (
           <>
+            <button className={cls('studentManager')} onClick={handle('studentManager')}>Student Register</button>
             <button className={cls('chairTags')} onClick={handle('chairTags')}>Manage Subjects</button>
             <button className={cls('chairQuestions')} onClick={handle('chairQuestions')}>My Questions</button>
             <button className={cls('chairQuestionApprovals')} onClick={handle('chairQuestionApprovals')}>Approve Questions</button>
             <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Logs</button>
+            <button className={cls('mockBoardExam')} onClick={handle('mockBoardExam')}>Create Exams</button>
+            <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Board Exams</button>
+            <button className={cls('examResults')} onClick={handle('examResults')}>Exam Results</button>
           </>
         )}
 
