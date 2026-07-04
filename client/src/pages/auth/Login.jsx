@@ -20,12 +20,16 @@ export default function Login({ onLogin, onNavigate }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showSessionExpired, setShowSessionExpired] = useState(false);
+  const [showAccountDeactivated, setShowAccountDeactivated] = useState(false);
 
   // [FIX - SESSION EXPIRED MESSAGE]
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('session') === 'expired') {
       setShowSessionExpired(true);
+      clearSessionExpiredFromUrl();
+    } else if (params.get('session') === 'deactivated') {
+      setShowAccountDeactivated(true);
       clearSessionExpiredFromUrl();
     }
   }, []);
@@ -163,7 +167,7 @@ export default function Login({ onLogin, onNavigate }) {
             {mode === 'login' ? (
               <form className="login-form" onSubmit={handleSubmit}>
                 {/* [FIX - SESSION EXPIRED MESSAGE] */}
-                {showSessionExpired ? (
+                 {showSessionExpired ? (
                   <div
                     className="login-session-expired-banner"
                     role="status"
@@ -196,6 +200,40 @@ export default function Login({ onLogin, onNavigate }) {
                   </div>
                 ) : null}
 
+                {showAccountDeactivated ? (
+                  <div
+                    className="login-session-expired-banner"
+                    role="status"
+                    style={{
+                      background: '#fef2f2',
+                      border: '1px solid #fca5a5',
+                      color: '#991b1b',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      margin: '0 0 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span>Account is deactivated. Contact the admins for assistance.</span>
+                    <button
+                      type="button"
+                      className="login-inline-link"
+                      onClick={() => {
+                        setShowAccountDeactivated(false);
+                        if (typeof onNavigate === 'function') onNavigate('Dashboard');
+                      }}
+                      style={{ color: '#b91c1c' }}
+                    >
+                      Back to Home
+                    </button>
+                  </div>
+                ) : null}
+
                 <div className="login-form-group">
                   <label htmlFor="login-email">Email Address</label>
                   <input
@@ -205,6 +243,7 @@ export default function Login({ onLogin, onNavigate }) {
                     onChange={(e) => {
                       setEmail(e.target.value);
                       if (showSessionExpired) setShowSessionExpired(false);
+                      if (showAccountDeactivated) setShowAccountDeactivated(false);
                     }}
                     placeholder="ex. juandelacruz@gmail.com"
                   />
@@ -218,6 +257,7 @@ export default function Login({ onLogin, onNavigate }) {
                     onChange={(e) => {
                       setPassword(e.target.value);
                       if (showSessionExpired) setShowSessionExpired(false);
+                      if (showAccountDeactivated) setShowAccountDeactivated(false);
                     }}
                     placeholder="Enter password"
                   />

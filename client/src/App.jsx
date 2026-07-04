@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard/index.jsx';
 import LandingPage from './pages/LandingPage.jsx';
@@ -39,6 +40,7 @@ export default function App() {
   const [examRunnerId, setExamRunnerId] = useState('');
   const [examRunnerMode, setExamRunnerMode] = useState('details');
   const [studentExamId, setStudentExamId] = useState('');
+  const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
 
   async function refreshMe() {
     const token = getToken();
@@ -58,12 +60,44 @@ export default function App() {
     refreshMe();
   }, []);
 
+  // [SESSION POLL - Deactivation detection]
+  // Polls /api/auth/me every 10 seconds while logged in so that if an admin
+  // deactivates the account, the user is automatically kicked out.
+  useEffect(() => {
+    const POLL_INTERVAL_MS = 10_000;
+    const id = setInterval(() => {
+      if (getToken()) {
+        // apiAuth will call handleSessionExpired on 401, which redirects to
+        // /login?session=deactivated if the account was deactivated.
+        refreshMe();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // [DEACTIVATION MODAL - Listen for account-deactivated event from api.js]
+  useEffect(() => {
+    const onDeactivated = () => setShowDeactivatedModal(true);
+    window.addEventListener('account-deactivated', onDeactivated);
+    return () => window.removeEventListener('account-deactivated', onDeactivated);
+  }, []);
+
+  function handleDeactivatedAcknowledge() {
+    setShowDeactivatedModal(false);
+    setToken('');
+    setMe(null);
+    // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
+    window.history.replaceState({}, '', '/login?session=deactivated');
+    setRoute('login');
+  }
+
   // [FIX - SESSION EXPIRED MESSAGE]
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
-    if (params.get('session') === 'expired') {
+    const sessionVal = params.get('session');
+    if (sessionVal === 'expired' || sessionVal === 'deactivated') {
       setToken('');
       setMe(null);
       setRoute('login');
@@ -128,10 +162,10 @@ export default function App() {
   let page = null;
   if (route === 'Dashboard') {
     page = me ? (
-      <Dashboard 
-        me={me} 
-        onNavigate={setRoute} 
-        onRoute={setRoute} 
+      <Dashboard
+        me={me}
+        onNavigate={setRoute}
+        onRoute={setRoute}
       />
     ) : (
       <LandingPage onNavigate={setRoute} />
@@ -253,6 +287,34 @@ export default function App() {
       </main>
 
       <Footer />
+
+      {/* [DEACTIVATION MODAL] */}
+      <Modal
+        open={showDeactivatedModal}
+        onClose={() => { }}
+        title="Account Deactivated"
+        size="compact"
+        bodyClassName="custom-modal-body--compact"
+      >
+        <div className="modal-confirmation">
+          <div className="modal-confirmation-message">
+            Your account has been <strong>deactivated</strong> by an administrator.
+          </div>
+          <div className="modal-confirmation-extra">
+            You have been signed out. If you believe this is a mistake or need your account
+            restored, please reach out to the admins for assistance.
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="modal-btn-primary"
+            onClick={handleDeactivatedAcknowledge}
+          >
+            OK, Got It
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
