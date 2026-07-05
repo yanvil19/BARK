@@ -50,7 +50,12 @@ export default function App() {
     }
     try {
       const data = await apiAuth('/api/auth/me');
-      setMe(data);
+      setMe((prev) => {
+        if (prev && JSON.stringify(prev) === JSON.stringify(data)) {
+          return prev;
+        }
+        return data;
+      });
     } catch (err) {
       setMe(null);
     }
