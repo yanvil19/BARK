@@ -294,14 +294,11 @@ export default function App() {
         {page}
       </main>
 
-<<<<<<< HEAD
       <Footer
         onNavigate={setRoute}
         isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing'}
         landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
       />
-=======
-      <Footer />
 
       {/* [DEACTIVATION MODAL] */}
       <Modal
@@ -330,7 +327,6 @@ export default function App() {
           </button>
         </div>
       </Modal>
->>>>>>> FixDeactivateAccount
     </div>
   );
 }
