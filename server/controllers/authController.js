@@ -67,6 +67,20 @@ async function ensureDeptProgramValid({ departmentId, programId }) {
   return { ok: true, dept, program };
 }
 
+// Cookie options for the auth token
+// httpOnly: JS cannot read this cookie at all (XSS mitigation)
+// secure: only sent over HTTPS (browsers exempt localhost, so dev works fine)
+// sameSite: 'strict' — cookie is never sent on cross-site requests (CSRF mitigation)
+// maxAge: matches the 1d JWT expiry
+const AUTH_COOKIE_NAME = 'nu_board_token';
+const AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict',
+  maxAge: 24 * 60 * 60 * 1000, // 1 day in ms
+  path: '/',
+};
+
 // Generate JWT token
 const generateToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -180,25 +194,37 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
-    // Generate token and respond
+    // Generate token, set it as an httpOnly cookie (never in response body)
     const token = generateToken(user._id, user.role);
 
-    res.status(200).json({
-      message: 'Login successful',
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        program: user.program,
-      },
-    });
+    res
+      .status(200)
+      .cookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
+      .json({
+        message: 'Login successful',
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          program: user.program,
+        },
+      });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
+};
+
+// @desc    Logout user (clear cookie)
+// @route   POST /api/auth/logout
+// @access  Public
+const logoutUser = (req, res) => {
+  res
+    .status(200)
+    .cookie(AUTH_COOKIE_NAME, '', { ...AUTH_COOKIE_OPTIONS, maxAge: 0 })
+    .json({ message: 'Logged out successfully' });
 };
 
 // @desc    Get current logged-in user profile
@@ -972,6 +998,7 @@ const rejectRegistrationRequest = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  logoutUser,
   getMe,
   updateCredentials,
   listUsers,

@@ -13,7 +13,7 @@ describe('GET /api/admin/settings', () => {
   it('should return 200 with settings as super_admin', async () => {
     const res = await request(app)
       .get('/api/admin/settings')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('emailCooldownDays');
   });
@@ -27,7 +27,7 @@ describe('GET /api/admin/settings', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/admin/settings')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -36,7 +36,7 @@ describe('PATCH /api/admin/settings', () => {
   it('should update emailCooldownDays', async () => {
     const res = await request(app)
       .patch('/api/admin/settings')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ emailCooldownDays: 5 });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('emailCooldownDays', 5);
@@ -53,7 +53,7 @@ describe('PATCH /api/admin/settings', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .patch('/api/admin/settings')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `nu_board_token=${token}`)
       .send({ emailCooldownDays: 5 });
     expect(res.status).toBe(403);
   });

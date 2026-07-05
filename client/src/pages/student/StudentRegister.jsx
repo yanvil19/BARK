@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocalStorage } from '../../hooks/useLocalStorage.js';
 import { api } from '../../lib/api.js';
 import {
   ID_FORMATS,
@@ -75,15 +76,20 @@ function PasswordToggle({ shown, onToggle, label, disabled }) {
 export default function StudentRegister({ onNavigate, embedded = false }) {
   const saved = useMemo(() => loadSaved(), []);
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [regForm, setRegForm, clearRegForm] = useLocalStorage('nu_board_register_draft', {
+    name: '',
+    email: '',
+    userType: 'student',
+    studentId: '',
+    alumniId: '',
+    departmentId: '',
+    programId: '',
+  });
+
+  const { name, email, userType, studentId, alumniId, departmentId, programId } = regForm;
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userType, setUserType] = useState('student');
-  const [studentId, setStudentId] = useState('');
-  const [alumniId, setAlumniId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [programId, setProgramId] = useState('');
 
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -125,7 +131,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
   useEffect(() => {
     if (!departmentId) {
       setPrograms([]);
-      setProgramId('');
+      setRegForm(prev => ({ ...prev, programId: '' }));
       return;
     }
 
@@ -208,12 +214,9 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
         setStatus('pending');
 
         // Clear form fields to allow submitting multiple accounts easily
-        setName('');
-        setEmail('');
+        clearRegForm();
         setPassword('');
         setConfirmPassword('');
-        setStudentId('');
-        setAlumniId('');
       }
     } catch (err) {
       setError(err.message || 'Failed to submit request');
@@ -280,10 +283,10 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
   function updateIdValue(value) {
     setIdError('');
     if (userType === 'student') {
-      setStudentId(value);
+      setRegForm(prev => ({ ...prev, studentId: value }));
       return;
     }
-    setAlumniId(value);
+    setRegForm(prev => ({ ...prev, alumniId: value }));
   }
 
   // [UX IMPROVEMENT - Check Status]
@@ -355,7 +358,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                     id="student-register-name"
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => setRegForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="ex. Juan Dela Cruz"
                     disabled={disableForm}
                   />
@@ -366,7 +369,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                     id="student-register-email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setRegForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="ex. juandlc@gmail.com"
                     disabled={disableForm}
                   />
@@ -420,7 +423,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <select
                     id="student-register-department"
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
+                    onChange={(e) => setRegForm(prev => ({ ...prev, departmentId: e.target.value }))}
                     disabled={disableForm}
                   >
                     <option value="">Select department</option>
@@ -436,7 +439,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                   <select
                     id="student-register-program"
                     value={programId}
-                    onChange={(e) => setProgramId(e.target.value)}
+                    onChange={(e) => setRegForm(prev => ({ ...prev, programId: e.target.value }))}
                     disabled={!departmentId || disableForm}
                   >
                     <option value="">Select program</option>
@@ -457,7 +460,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                       type="button"
                       className={userType === 'student' ? 'is-active' : ''}
                       onClick={() => {
-                        setUserType('student');
+                        setRegForm(prev => ({ ...prev, userType: 'student' }));
                         setIdError('');
                       }}
                       disabled={disableForm}
@@ -468,7 +471,7 @@ export default function StudentRegister({ onNavigate, embedded = false }) {
                       type="button"
                       className={userType === 'alumni' ? 'is-active' : ''}
                       onClick={() => {
-                        setUserType('alumni');
+                        setRegForm(prev => ({ ...prev, userType: 'alumni' }));
                         setIdError('');
                       }}
                       disabled={disableForm}

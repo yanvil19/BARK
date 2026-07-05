@@ -29,7 +29,7 @@ import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
 import StudentExamResults from './pages/student/StudentExamResults.jsx';
 import Credits from './pages/Credits.jsx';
-import { apiAuth, getToken, setToken } from './lib/api.js';
+import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -44,13 +44,8 @@ export default function App() {
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
 
   async function refreshMe() {
-    const token = getToken();
-    if (!token) {
-      setMe(null);
-      return;
-    }
     try {
-      const data = await apiAuth('/api/auth/me');
+      const data = await api('/api/auth/me');
       setMe((prev) => {
         if (prev && JSON.stringify(prev) === JSON.stringify(data)) {
           return prev;
@@ -58,11 +53,22 @@ export default function App() {
         return data;
       });
     } catch (err) {
+      if (err.status === 401) {
+        const isDeactivated = Boolean(err.message && err.message.toLowerCase().includes('deactivated'));
+        if (isDeactivated) {
+          setMe((prev) => {
+            if (prev) window.dispatchEvent(new CustomEvent('account-deactivated'));
+            return null;
+          });
+          return;
+        }
+      }
       setMe(null);
     }
   }
 
   useEffect(() => {
+    window.localStorage.removeItem('nu_board_token');
     refreshMe();
   }, []);
 
@@ -72,11 +78,7 @@ export default function App() {
   useEffect(() => {
     const POLL_INTERVAL_MS = 10_000;
     const id = setInterval(() => {
-      if (getToken()) {
-        // apiAuth will call handleSessionExpired on 401, which redirects to
-        // /login?session=deactivated if the account was deactivated.
-        refreshMe();
-      }
+      refreshMe();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
@@ -90,7 +92,7 @@ export default function App() {
 
   function handleDeactivatedAcknowledge() {
     setShowDeactivatedModal(false);
-    setToken('');
+    api('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setMe(null);
     // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
     window.history.replaceState({}, '', '/login?session=deactivated');
@@ -104,7 +106,6 @@ export default function App() {
 
     const sessionVal = params.get('session');
     if (sessionVal === 'expired' || sessionVal === 'deactivated') {
-      setToken('');
       setMe(null);
       setRoute('login');
       params.delete('session');
@@ -117,8 +118,7 @@ export default function App() {
     }
   }, []);
 
-  function handleLogin(token) {
-    setToken(token);
+  function handleLogin() {
     refreshMe();
     setRoute('Dashboard');
   }
@@ -159,8 +159,12 @@ export default function App() {
     }
   }, [examRunnerId, route]);
 
-  function handleLogout() {
-    setToken('');
+  async function handleLogout() {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Clear client state even if logout request fails
+    }
     setMe(null);
     setRoute('Dashboard');
   }

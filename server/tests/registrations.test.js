@@ -87,7 +87,7 @@ describe('GET /api/auth/registrations', () => {
     const { token } = await createUserAndToken({ role: 'dean', department: dept._id });
     const res = await request(app)
       .get('/api/auth/registrations')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -100,7 +100,7 @@ describe('GET /api/auth/registrations', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/auth/registrations')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -123,7 +123,7 @@ describe('PATCH /api/auth/registrations/:id/approve', () => {
     const { token } = await createUserAndToken({ role: 'dean', department: dept._id });
     const res = await request(app)
       .patch(`/api/auth/registrations/${reg._id}/approve`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 });
@@ -146,7 +146,7 @@ describe('PATCH /api/auth/registrations/:id/reject', () => {
     const { token } = await createUserAndToken({ role: 'dean', department: dept._id });
     const res = await request(app)
       .patch(`/api/auth/registrations/${reg._id}/reject`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `nu_board_token=${token}`)
       .send({ reason: 'Invalid student ID' });
     expect(res.status).toBe(200);
   });

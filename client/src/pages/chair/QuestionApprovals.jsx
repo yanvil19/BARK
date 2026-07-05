@@ -124,11 +124,10 @@ export default function QuestionApprovals({ me }) {
     const handleUnload = () => {
       const id = lockedIdRef.current;
       if (!id) return;
-      const token = window.localStorage.getItem('nu_board_token');
-      if (!token) return;
       fetch(`${BASE}/api/questions/${id}/unlock`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
         keepalive: true,
       });

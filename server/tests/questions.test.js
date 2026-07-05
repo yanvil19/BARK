@@ -8,7 +8,7 @@ describe('GET /api/questions', () => {
 
     const res = await request(app)
       .get('/api/questions')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
 
     expect(res.status).toBe(200);
   });
@@ -25,7 +25,7 @@ describe('Role-based access on /api/questions', () => {
 
     const res = await request(app)
       .get('/api/questions')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
 
     // Students should not have access to the question bank
     expect(res.status).toBe(403);

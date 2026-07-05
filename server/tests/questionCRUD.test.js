@@ -32,7 +32,7 @@ describe('POST /api/questions', () => {
   it('should create a draft question as professor', async () => {
     const res = await request(app)
       .post('/api/questions')
-      .set('Authorization', `Bearer ${profToken}`)
+      .set('Cookie', `nu_board_token=${profToken}`)
       .send({ ...validQuestion(), program: prog._id });
     expect(res.status).toBe(201);
     expect(res.body.question).toHaveProperty('state', 'draft');
@@ -41,7 +41,7 @@ describe('POST /api/questions', () => {
   it('should return 400 with no title', async () => {
     const res = await request(app)
       .post('/api/questions')
-      .set('Authorization', `Bearer ${profToken}`)
+      .set('Cookie', `nu_board_token=${profToken}`)
       .send({ description: 'No title provided', answers: [{ text: '2', isCorrect: true }], program: prog._id });
     expect(res.status).toBe(400);
   });
@@ -50,7 +50,7 @@ describe('POST /api/questions', () => {
     const { token } = await createUserAndToken({ role: 'student' });
     const res = await request(app)
       .post('/api/questions')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `nu_board_token=${token}`)
       .send({ ...validQuestion(), program: prog._id });
     expect(res.status).toBe(403);
   });
@@ -64,7 +64,7 @@ describe('PATCH /api/questions/:id', () => {
     });
     const res = await request(app)
       .patch(`/api/questions/${q._id}`)
-      .set('Authorization', `Bearer ${profToken}`)
+      .set('Cookie', `nu_board_token=${profToken}`)
       .send({ title: 'Updated Title' });
     expect(res.status).toBe(200);
   });
@@ -73,7 +73,7 @@ describe('PATCH /api/questions/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .patch(`/api/questions/${fakeId}`)
-      .set('Authorization', `Bearer ${profToken}`)
+      .set('Cookie', `nu_board_token=${profToken}`)
       .send({ title: 'Updated' });
     expect(res.status).toBe(404);
   });
@@ -85,7 +85,7 @@ describe('PATCH /api/questions/:id', () => {
     });
     const res = await request(app)
       .patch(`/api/questions/${q._id}`)
-      .set('Authorization', `Bearer ${profToken}`)
+      .set('Cookie', `nu_board_token=${profToken}`)
       .send({ title: 'Updated' });
     expect(res.status).toBe(403);
   });
@@ -99,7 +99,7 @@ describe('DELETE /api/questions/:id', () => {
     });
     const res = await request(app)
       .delete(`/api/questions/${q._id}`)
-      .set('Authorization', `Bearer ${profToken}`);
+      .set('Cookie', `nu_board_token=${profToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -110,7 +110,7 @@ describe('DELETE /api/questions/:id', () => {
     });
     const res = await request(app)
       .delete(`/api/questions/${q._id}`)
-      .set('Authorization', `Bearer ${profToken}`);
+      .set('Cookie', `nu_board_token=${profToken}`);
     expect(res.status).toBe(400);
   });
 });
@@ -126,7 +126,7 @@ describe('POST /api/questions/:id/submit', () => {
     });
     const res = await request(app)
       .post(`/api/questions/${q._id}/submit`)
-      .set('Authorization', `Bearer ${profToken}`);
+      .set('Cookie', `nu_board_token=${profToken}`);
     expect(res.status).toBe(200);
   });
 });
@@ -135,14 +135,14 @@ describe('GET /api/questions/approvals', () => {
   it('should return 200 as program_chair', async () => {
     const res = await request(app)
       .get('/api/questions/approvals')
-      .set('Authorization', `Bearer ${chairToken}`);
+      .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(200);
   });
 
   it('should return 403 as professor', async () => {
     const res = await request(app)
       .get('/api/questions/approvals')
-      .set('Authorization', `Bearer ${profToken}`);
+      .set('Cookie', `nu_board_token=${profToken}`);
     expect(res.status).toBe(403);
   });
 });
@@ -155,7 +155,7 @@ describe('POST /api/questions/:id/review', () => {
     });
     const res = await request(app)
       .post(`/api/questions/${q._id}/review`)
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ action: 'approve' });
     expect(res.status).toBe(200);
   });
@@ -167,7 +167,7 @@ describe('POST /api/questions/:id/review', () => {
     });
     const res = await request(app)
       .post(`/api/questions/${q._id}/review`)
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ action: 'invalid_action' });
     expect(res.status).toBe(400);
   });
@@ -181,7 +181,7 @@ describe('PATCH /api/questions/:id/lock and unlock', () => {
     });
     const res = await request(app)
       .patch(`/api/questions/${q._id}/lock`)
-      .set('Authorization', `Bearer ${chairToken}`);
+      .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -192,7 +192,7 @@ describe('PATCH /api/questions/:id/lock and unlock', () => {
     });
     const res = await request(app)
       .patch(`/api/questions/${q._id}/unlock`)
-      .set('Authorization', `Bearer ${chairToken}`);
+      .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(200);
   });
 });

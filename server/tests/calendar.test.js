@@ -19,7 +19,7 @@ describe('GET /api/calendar/dean', () => {
   it('should return 200 as dean', async () => {
     const res = await request(app)
       .get('/api/calendar/dean')
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -32,7 +32,7 @@ describe('GET /api/calendar/dean', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/calendar/dean')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -42,7 +42,7 @@ describe('GET /api/calendar/student', () => {
     const { token } = await createUserAndToken({ role: 'student', department: dept._id, program: prog._id });
     const res = await request(app)
       .get('/api/calendar/student')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -50,7 +50,7 @@ describe('GET /api/calendar/student', () => {
     const { token } = await createUserAndToken({ role: 'professor', department: dept._id, program: prog._id });
     const res = await request(app)
       .get('/api/calendar/student')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -58,7 +58,7 @@ describe('GET /api/calendar/student', () => {
     const { token } = await createUserAndToken({ role: 'program_chair', department: dept._id, program: prog._id });
     const res = await request(app)
       .get('/api/calendar/student')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 
@@ -70,7 +70,7 @@ describe('GET /api/calendar/student', () => {
   it('should return 403 as dean', async () => {
     const res = await request(app)
       .get('/api/calendar/student')
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(403);
   });
 });
@@ -80,7 +80,7 @@ describe('GET /api/calendar/chair', () => {
     const { token } = await createUserAndToken({ role: 'program_chair', department: dept._id, program: prog._id });
     const res = await request(app)
       .get('/api/calendar/chair')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -93,7 +93,7 @@ describe('GET /api/calendar/chair', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/calendar/chair')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });

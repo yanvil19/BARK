@@ -11,9 +11,7 @@ export const uploadDocumentForImport = async (file, tags = []) => {
 
     const response = await fetch(`${BASE}/api/import/upload`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('nu_board_token')}`,
-        },
+        credentials: 'include',
         body: formData
     });
 
@@ -36,9 +34,9 @@ export const uploadDocumentForImport = async (file, tags = []) => {
 export const submitImportedQuestions = async (questions, programId) => {
     const response = await fetch(`${BASE}/api/import/submit`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('nu_board_token')}`,
         },
         body: JSON.stringify({ questions, programId })
     });
@@ -61,9 +59,7 @@ export const submitImportedQuestions = async (questions, programId) => {
  */
 export const getImportJobStatus = async (jobId) => {
     const response = await fetch(`${BASE}/api/import/status/${jobId}`, {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('nu_board_token')}`,
-        }
+        credentials: 'include',
     });
 
     if (!response.ok) {

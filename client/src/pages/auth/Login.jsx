@@ -52,7 +52,7 @@ export default function Login({ onLogin, onNavigate }) {
       // [FIX - SESSION EXPIRED MESSAGE]
       clearSessionExpiredFromUrl();
       setShowSessionExpired(false);
-      onLogin(data.token);
+      onLogin();
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

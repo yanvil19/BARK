@@ -26,7 +26,7 @@ describe('GET /api/student-exams/available', () => {
   it('should return 200 as student', async () => {
     const res = await request(app)
       .get('/api/student-exams/available')
-      .set('Authorization', `Bearer ${studentToken}`);
+      .set('Cookie', `nu_board_token=${studentToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -39,7 +39,7 @@ describe('GET /api/student-exams/available', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/student-exams/available')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -48,7 +48,7 @@ describe('GET /api/student-exams/my-attempts', () => {
   it('should return 200 with empty array initially', async () => {
     const res = await request(app)
       .get('/api/student-exams/my-attempts')
-      .set('Authorization', `Bearer ${studentToken}`);
+      .set('Cookie', `nu_board_token=${studentToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.attempts)).toBe(true);
   });
@@ -68,7 +68,7 @@ describe('POST /api/student-exams/:id/start', () => {
     });
     const res = await request(app)
       .post(`/api/student-exams/${exam._id}/start`)
-      .set('Authorization', `Bearer ${studentToken}`);
+      .set('Cookie', `nu_board_token=${studentToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -80,7 +80,7 @@ describe('POST /api/student-exams/:id/start', () => {
     });
     const res = await request(app)
       .post(`/api/student-exams/${exam._id}/start`)
-      .set('Authorization', `Bearer ${studentToken}`);
+      .set('Cookie', `nu_board_token=${studentToken}`);
     expect(res.status).toBe(403);
   });
 });
@@ -103,7 +103,7 @@ describe('PATCH /api/student-exams/attempt/:attemptId/progress', () => {
     });
     const res = await request(app)
       .patch(`/api/student-exams/attempt/${attempt._id}/progress`)
-      .set('Authorization', `Bearer ${studentToken}`)
+      .set('Cookie', `nu_board_token=${studentToken}`)
       .send({ answers: { [q._id]: q.answers[0]._id } });
     expect(res.status).toBe(200);
   });
@@ -127,7 +127,7 @@ describe('POST /api/student-exams/attempt/:attemptId/submit', () => {
     });
     const res = await request(app)
       .post(`/api/student-exams/attempt/${attempt._id}/submit`)
-      .set('Authorization', `Bearer ${studentToken}`)
+      .set('Cookie', `nu_board_token=${studentToken}`)
       .send({});
     expect(res.status).toBe(200);
   });

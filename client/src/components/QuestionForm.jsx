@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
@@ -13,6 +14,7 @@ function generateId() {
 }
 
 export default function QuestionForm({
+  me,
   tags,
   programId,
   initialData,
@@ -20,14 +22,27 @@ export default function QuestionForm({
   onClose,
   readOnly = false,
   importedQuestions = [],
+  isImportDraft = false,
   onFeedback,
 }) {
-  const isImportMode = importedQuestions && importedQuestions.length > 0;
+  const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   const useBubbleNav = !readOnly && (isImportMode || !initialData);
 
   const { notify } = useToast();
 
-  const [questionsData, setQuestionsData] = useState(() => {
+  const isEditing = !!initialData;
+  const userId = me?._id || 'guest';
+  
+  let draftKey = null;
+  if (!readOnly && !isEditing) {
+    if (isImportMode) {
+      draftKey = `question_draft_import_${userId}`;
+    } else {
+      draftKey = `question_draft_new_${userId}`;
+    }
+  }
+
+  const [questionsData, setQuestionsData, clearQuestionsData] = useLocalStorage(draftKey, () => {
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
@@ -439,6 +454,9 @@ export default function QuestionForm({
         }
       }
 
+      if (clearQuestionsData) {
+        clearQuestionsData();
+      }
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
       showFeedback({
@@ -489,6 +507,9 @@ export default function QuestionForm({
           savedQuestions.push({ ...question, state: 'pending_chair' });
         }
 
+        if (clearQuestionsData) {
+          clearQuestionsData();
+        }
         onSaved(savedQuestions, !!initialData && questionsData.length === 1);
       } catch (err) {
         notify(err.message || 'Failed to save question(s).', { variant: 'error' });

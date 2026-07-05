@@ -15,7 +15,7 @@ describe('GET /api/admin/catalog/departments', () => {
   it('should return 200 as super_admin', async () => {
     const res = await request(app)
       .get('/api/admin/catalog/departments')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -28,7 +28,7 @@ describe('GET /api/admin/catalog/departments', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/admin/catalog/departments')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -37,7 +37,7 @@ describe('POST /api/admin/catalog/departments', () => {
   it('should create a department with valid fields', async () => {
     const res = await request(app)
       .post('/api/admin/catalog/departments')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Engineering', code: 'ENG' });
     expect(res.status).toBe(201);
     expect(res.body.department).toHaveProperty('name', 'Engineering');
@@ -46,7 +46,7 @@ describe('POST /api/admin/catalog/departments', () => {
   it('should return 400 with missing fields', async () => {
     const res = await request(app)
       .post('/api/admin/catalog/departments')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Engineering' }); // Missing code
     expect(res.status).toBe(400);
   });
@@ -57,7 +57,7 @@ describe('PATCH /api/admin/catalog/departments/:id', () => {
     const dept = await Department.create({ name: 'Engineering', code: 'ENG' });
     const res = await request(app)
       .patch(`/api/admin/catalog/departments/${dept._id}`)
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Engineering Updated' });
     expect(res.status).toBe(200);
   });
@@ -66,7 +66,7 @@ describe('PATCH /api/admin/catalog/departments/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .patch(`/api/admin/catalog/departments/${fakeId}`)
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Updated' });
     expect(res.status).toBe(404);
   });
@@ -77,7 +77,7 @@ describe('DELETE /api/admin/catalog/departments/:id', () => {
     const dept = await Department.create({ name: 'Engineering', code: 'ENG' });
     const res = await request(app)
       .delete(`/api/admin/catalog/departments/${dept._id}`)
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -86,7 +86,7 @@ describe('DELETE /api/admin/catalog/departments/:id', () => {
     await Program.create({ name: 'Computer Science', code: 'CS', department: dept._id });
     const res = await request(app)
       .delete(`/api/admin/catalog/departments/${dept._id}`)
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(400);
   });
 });
@@ -95,7 +95,7 @@ describe('GET /api/admin/catalog/programs', () => {
   it('should return 200 as super_admin', async () => {
     const res = await request(app)
       .get('/api/admin/catalog/programs')
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
   });
 });
@@ -105,7 +105,7 @@ describe('POST /api/admin/catalog/programs', () => {
     const dept = await Department.create({ name: 'Engineering', code: 'ENG' });
     const res = await request(app)
       .post('/api/admin/catalog/programs')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Computer Science', code: 'CS', departmentId: dept._id });
     expect(res.status).toBe(201);
   });
@@ -113,7 +113,7 @@ describe('POST /api/admin/catalog/programs', () => {
   it('should return 400 with missing fields', async () => {
     const res = await request(app)
       .post('/api/admin/catalog/programs')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Computer Science', code: 'CS' }); // Missing department
     expect(res.status).toBe(400);
   });
@@ -122,7 +122,7 @@ describe('POST /api/admin/catalog/programs', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .post('/api/admin/catalog/programs')
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Computer Science', code: 'CS', departmentId: fakeId });
     expect(res.status).toBe(404);
   });
@@ -134,7 +134,7 @@ describe('PATCH /api/admin/catalog/programs/:id', () => {
     const prog = await Program.create({ name: 'Computer Science', code: 'CS', department: dept._id });
     const res = await request(app)
       .patch(`/api/admin/catalog/programs/${prog._id}`)
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'CS Updated' });
     expect(res.status).toBe(200);
   });
@@ -143,7 +143,7 @@ describe('PATCH /api/admin/catalog/programs/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .patch(`/api/admin/catalog/programs/${fakeId}`)
-      .set('Authorization', `Bearer ${adminToken}`)
+      .set('Cookie', `nu_board_token=${adminToken}`)
       .send({ name: 'Updated' });
     expect(res.status).toBe(404);
   });
@@ -155,7 +155,7 @@ describe('DELETE /api/admin/catalog/programs/:id', () => {
     const prog = await Program.create({ name: 'Computer Science', code: 'CS', department: dept._id });
     const res = await request(app)
       .delete(`/api/admin/catalog/programs/${prog._id}`)
-      .set('Authorization', `Bearer ${adminToken}`);
+      .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocalStorage } from '../../hooks/useLocalStorage.js';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -36,12 +37,16 @@ function ensureISOString(value) {
 }
 
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
+  const isEditing = !!editingExamId;
+  const userId = me?._id || 'guest';
+  const baseKey = isEditing ? null : `mbe_new_${userId}`;
+
   const [programs, setPrograms] = useState([]);
-  const [programId, setProgramId] = useState('');
+  const [programId, setProgramId, clearProgramId] = useLocalStorage(baseKey ? `${baseKey}_programId` : null, '');
   const [subjectOptions, setSubjectOptions] = useState([]);
-  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [selectedTagIds, setSelectedTagIds, clearTagIds] = useLocalStorage(baseKey ? `${baseKey}_tags` : null, []);
   const [approvedQuestions, setApprovedQuestions] = useState([]);
-  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [selectedQuestions, setSelectedQuestions, clearQuestions] = useLocalStorage(baseKey ? `${baseKey}_questions` : null, []);
   const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -59,7 +64,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnError, setReturnError] = useState('');
   const [feedbackModal, setFeedbackModal] = useState(null);
-  const [form, setForm] = useState({
+  const [form, setForm, clearForm] = useLocalStorage(baseKey ? `${baseKey}_form` : null, {
     name: '',
     startDateTime: '',
     endDateTime: '',
@@ -358,6 +363,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           body: payload,
         });
       }
+
+      clearForm();
+      clearTagIds();
+      clearQuestions();
+      clearProgramId();
 
       setForm({
         name: '',

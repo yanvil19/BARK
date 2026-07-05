@@ -30,7 +30,7 @@ function truncateText(text, max = 100) {
   return `${text.slice(0, max)}...`;
 }
 
-export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange }) {
+export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange, me }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -58,6 +58,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [hasImportDraft, setHasImportDraft] = useState(false);
+  const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
   const itemsPerPage = 10;
 
   const fetchQuestions = useCallback(async () => {
@@ -98,10 +100,28 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     fetchTags();
   }, [fetchTags]);
 
-
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, searchQuery, subjectFilter, sortBy, programId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const importDraftKey = `question_draft_import_${me?._id || 'guest'}`;
+      const item = window.localStorage.getItem(importDraftKey);
+      if (item) {
+        try {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setHasImportDraft(true);
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      setHasImportDraft(false);
+    }
+  }, [showImportModal, me?._id]);
 
   const baseQuestions = useMemo(() => {
     return questions.filter((q) => {
@@ -196,6 +216,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setShowForm(false);
     setEditQuestion(null);
     setImportedQuestions([]);
+    setIsRestoringImportDraft(false);
   }
 
   function closeViewModal() {
@@ -375,7 +396,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         throw new Error('No questions could be extracted from this file. Please check the format and try again.');
       }
 
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(`question_draft_import_${me?._id || 'guest'}`);
+      }
+
       setImportedQuestions(preFilledQuestions);
+      setIsRestoringImportDraft(false);
       setShowImportModal(false);
       setEditQuestion(null);
       setShowForm(true);
@@ -651,10 +677,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <QuestionForm
+          me={me}
           tags={tags}
           programId={programId}
           initialData={editQuestion}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
+          isImportDraft={isRestoringImportDraft}
           onFeedback={setFeedbackModal}
           onSaved={(savedData, isEdit) => {
             handleSaved(savedData, isEdit);
@@ -791,6 +819,22 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <div className="modal-actions qp-modal-actions">
+          {hasImportDraft && (
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={() => {
+                setImportedQuestions([]);
+                setIsRestoringImportDraft(true);
+                setShowImportModal(false);
+                setEditQuestion(null);
+                setShowForm(true);
+              }}
+              disabled={importLoading}
+            >
+              Restore Previous Session
+            </button>
+          )}
           <button
             type="button"
             className="modal-btn-cancel"

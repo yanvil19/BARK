@@ -3,7 +3,7 @@ const app = require('../app');
 const { createUserAndToken } = require('./helpers');
 
 describe('POST /api/auth/login', () => {
-  it('should return 200 and a token with valid credentials', async () => {
+  it('should return 200 and set an httpOnly cookie with valid credentials', async () => {
     const { user } = await createUserAndToken({ email: 'login@example.com', password: 'TestPassword123!' });
 
     const res = await request(app)
@@ -11,7 +11,12 @@ describe('POST /api/auth/login', () => {
       .send({ email: 'login@example.com', password: 'TestPassword123!' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).toHaveProperty('user');
+    expect(res.body).not.toHaveProperty('token');
+    const setCookie = res.headers['set-cookie'];
+    expect(setCookie).toBeDefined();
+    expect(setCookie.some((c) => c.startsWith('nu_board_token='))).toBe(true);
+    expect(setCookie.some((c) => c.includes('HttpOnly'))).toBe(true);
   });
 
   it('should return 401 with wrong password', async () => {
@@ -50,7 +55,7 @@ describe('GET /api/auth/me', () => {
 
     const res = await request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('email', 'me@example.com');
@@ -66,7 +71,7 @@ describe('GET /api/auth/me', () => {
 
     const res = await request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
 
     expect(res.status).toBe(401);
     expect(res.body.message).toContain('deactivated');

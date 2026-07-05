@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const {
   registerUser,
   loginUser,
+  logoutUser,
   getMe,
   updateCredentials,
   listUsers,
@@ -58,6 +59,10 @@ router.post(
   loginRateLimiter,
   loginUser
 );
+
+// @route   POST /api/auth/logout
+// @access  Public
+router.post('/logout', logoutUser);
 
 // @route   POST /api/auth/forgot-password
 // @access  Public

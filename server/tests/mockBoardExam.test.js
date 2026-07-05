@@ -45,7 +45,7 @@ describe('GET /api/mock-board-exams', () => {
   it('should return 200 as dean', async () => {
     const res = await request(app)
       .get('/api/mock-board-exams')
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -58,7 +58,7 @@ describe('GET /api/mock-board-exams', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/mock-board-exams')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -67,7 +67,7 @@ describe('GET /api/mock-board-exams/approved-questions', () => {
   it('should return 200 as dean', async () => {
     const res = await request(app)
       .get(`/api/mock-board-exams/approved-questions?program=${prog._id}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 });
@@ -81,7 +81,7 @@ describe('GET /api/mock-board-exams/:id', () => {
     });
     const res = await request(app)
       .get(`/api/mock-board-exams/${exam._id}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -89,7 +89,7 @@ describe('GET /api/mock-board-exams/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .get(`/api/mock-board-exams/${fakeId}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(404);
   });
 });
@@ -100,7 +100,7 @@ describe('POST /api/mock-board-exams', () => {
     const q = await Question.create({ title: 'Q1', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
     const res = await request(app)
       .post('/api/mock-board-exams')
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({
         name: 'New Draft Exam',
         programId: prog._id,
@@ -117,7 +117,7 @@ describe('POST /api/mock-board-exams', () => {
   it('should return 400 with missing fields', async () => {
     const res = await request(app)
       .post('/api/mock-board-exams')
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({ name: 'Incomplete Exam' });
     expect(res.status).toBe(400);
   });
@@ -134,7 +134,7 @@ describe('PATCH /api/mock-board-exams/:id', () => {
     });
     const res = await request(app)
       .patch(`/api/mock-board-exams/${exam._id}`)
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({ 
         name: 'New Name',
         programId: prog._id,
@@ -148,7 +148,7 @@ describe('PATCH /api/mock-board-exams/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .patch(`/api/mock-board-exams/${fakeId}`)
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({ name: 'Updated' });
     expect(res.status).toBe(404);
   });
@@ -163,7 +163,7 @@ describe('PATCH /api/mock-board-exams/:id/archive', () => {
     });
     const res = await request(app)
       .patch(`/api/mock-board-exams/${exam._id}/archive`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 });
@@ -177,7 +177,7 @@ describe('DELETE /api/mock-board-exams/:id', () => {
     });
     const res = await request(app)
       .delete(`/api/mock-board-exams/${exam._id}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -185,7 +185,7 @@ describe('DELETE /api/mock-board-exams/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .delete(`/api/mock-board-exams/${fakeId}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(404);
   });
 });
@@ -199,7 +199,7 @@ describe('PATCH /api/mock-board-exams/:id/release-results', () => {
     });
     const res = await request(app)
       .patch(`/api/mock-board-exams/${exam._id}/release-results`)
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({ resultsReleaseDate: futureDate(1) });
     expect(res.status).toBe(200);
   });

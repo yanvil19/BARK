@@ -24,7 +24,7 @@ describe('GET /api/mock-exam-results/list', () => {
   it('should return 200 empty list as dean', async () => {
     const res = await request(app)
       .get('/api/mock-exam-results/list')
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -37,7 +37,7 @@ describe('GET /api/mock-exam-results/list', () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)
       .get('/api/mock-exam-results/list')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -51,7 +51,7 @@ describe('GET /api/mock-exam-results/:examId', () => {
     });
     const res = await request(app)
       .get(`/api/mock-exam-results/${exam._id}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect([200, 404]).toContain(res.status);
   });
 });
@@ -78,7 +78,7 @@ describe('POST /api/mock-exam-results/:examId/compute', () => {
 
     const res = await request(app)
       .post(`/api/mock-exam-results/${exam._id}/compute`)
-      .set('Authorization', `Bearer ${deanToken}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
       .send({});
     expect(res.status).toBe(200);
   });
@@ -95,7 +95,7 @@ describe('DELETE /api/mock-exam-results/:examId', () => {
 
     const res = await request(app)
       .delete(`/api/mock-exam-results/${exam._id}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -103,7 +103,7 @@ describe('DELETE /api/mock-exam-results/:examId', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .delete(`/api/mock-exam-results/${fakeId}`)
-      .set('Authorization', `Bearer ${deanToken}`);
+      .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(403);
   });
 });

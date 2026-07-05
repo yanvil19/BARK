@@ -21,7 +21,7 @@ describe('GET /api/tags', () => {
     const { token } = await createUserAndToken({ role: 'professor', department: dept._id, program: prog._id });
     const res = await request(app)
       .get(`/api/tags?program=${prog._id}`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -34,7 +34,7 @@ describe('GET /api/tags', () => {
     const { token } = await createUserAndToken({ role: 'student' });
     const res = await request(app)
       .get('/api/tags')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', `nu_board_token=${token}`);
     expect(res.status).toBe(403);
   });
 });
@@ -43,7 +43,7 @@ describe('POST /api/tags', () => {
   it('should create a tag as program_chair', async () => {
     const res = await request(app)
       .post('/api/tags')
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ name: 'Algebra', program: prog._id });
     expect(res.status).toBe(201);
   });
@@ -52,7 +52,7 @@ describe('POST /api/tags', () => {
     const { token } = await createUserAndToken({ role: 'professor', program: prog._id });
     const res = await request(app)
       .post('/api/tags')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', `nu_board_token=${token}`)
       .send({ name: 'Algebra', program: prog._id });
     expect(res.status).toBe(403);
   });
@@ -61,7 +61,7 @@ describe('POST /api/tags', () => {
     await Tag.create({ name: 'Algebra', program: prog._id, createdBy: chairUser._id });
     const res = await request(app)
       .post('/api/tags')
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ name: 'Algebra', program: prog._id });
     expect(res.status).toBe(409);
   });
@@ -72,7 +72,7 @@ describe('PATCH /api/tags/:id', () => {
     const tag = await Tag.create({ name: 'Algebra', program: prog._id, createdBy: chairUser._id });
     const res = await request(app)
       .patch(`/api/tags/${tag._id}`)
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ name: 'Advanced Algebra' });
     expect(res.status).toBe(200);
   });
@@ -81,7 +81,7 @@ describe('PATCH /api/tags/:id', () => {
     const fakeId = '000000000000000000000001';
     const res = await request(app)
       .patch(`/api/tags/${fakeId}`)
-      .set('Authorization', `Bearer ${chairToken}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
       .send({ name: 'Updated' });
     expect(res.status).toBe(404);
   });
@@ -92,7 +92,7 @@ describe('DELETE /api/tags/:id', () => {
     const tag = await Tag.create({ name: 'Algebra', program: prog._id, createdBy: chairUser._id });
     const res = await request(app)
       .delete(`/api/tags/${tag._id}`)
-      .set('Authorization', `Bearer ${chairToken}`);
+      .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(200);
   });
 
@@ -108,7 +108,7 @@ describe('DELETE /api/tags/:id', () => {
     });
     const res = await request(app)
       .delete(`/api/tags/${tag._id}`)
-      .set('Authorization', `Bearer ${chairToken}`);
+      .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(400);
   });
 });
