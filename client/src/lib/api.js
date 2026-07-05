@@ -18,13 +18,20 @@ export function authHeader() {
 }
 
 // [FIX - SESSION EXPIRY 401 HANDLER]
-function handleSessionExpired() {
+function handleSessionExpired(isDeactivated = false) {
+  if (isDeactivated) {
+    // Fire a custom event so App.jsx can show a modal before logging the user out.
+    // Do NOT clear the token or redirect here — App.jsx handles that after the modal.
+    window.dispatchEvent(new CustomEvent('account-deactivated'));
+    return new Promise(() => {});
+  }
+
   setToken('');
   localStorage.removeItem('token');
 
   const onLoginPage = window.location.pathname.endsWith('/login');
-  const hasExpiredParam = window.location.search.includes('session=expired');
-  if (!onLoginPage || !hasExpiredParam) {
+  const hasSessionParam = window.location.search.includes('session=');
+  if (!onLoginPage || !hasSessionParam) {
     window.location.href = '/login?session=expired';
   }
 
@@ -59,7 +66,8 @@ export async function api(path, { method = 'GET', body, headers } = {}) {
   );
 
   if (res.status === 401 && sentAuthHeader) {
-    return handleSessionExpired();
+    const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
+    return handleSessionExpired(isDeactivated);
   }
 
   if (!res.ok) {
@@ -91,7 +99,8 @@ export async function apiAuthUpload(path, formData) {
 
   // [FIX - SESSION EXPIRY 401 HANDLER]
   if (res.status === 401 && token) {
-    return handleSessionExpired();
+    const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
+    return handleSessionExpired(isDeactivated);
   }
 
   if (!res.ok) {

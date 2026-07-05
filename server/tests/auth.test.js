@@ -31,6 +31,17 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('should return 403 if account is deactivated', async () => {
+    await createUserAndToken({ email: 'deactivated@example.com', password: 'TestPassword123!', isActive: false });
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'deactivated@example.com', password: 'TestPassword123!' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('deactivated');
+  });
 });
 
 describe('GET /api/auth/me', () => {
@@ -48,5 +59,16 @@ describe('GET /api/auth/me', () => {
   it('should return 401 when no token is provided', async () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);
+  });
+
+  it('should return 401 when the user account is deactivated', async () => {
+    const { token } = await createUserAndToken({ email: 'me-deactivated@example.com', isActive: false });
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toContain('deactivated');
   });
 });

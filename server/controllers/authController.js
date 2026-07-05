@@ -171,7 +171,7 @@ const loginUser = async (req, res) => {
 
     // Check if account is active
     if (!user.isActive) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
+      return res.status(403).json({ message: 'Account is deactivated. Contact the admins for assistance.' });
     }
 
     // Check password
