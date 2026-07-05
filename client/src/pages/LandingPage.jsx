@@ -242,10 +242,10 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
           <div>
             <span className="published-exams-modal-kicker">Currently open</span>
             <h2 id={titleId} className="published-exams-modal-title">
-              Published Mock Board Exams
+              On-going Mock Board Exams!
             </h2>
             <p className="published-exams-modal-copy">
-              {examCount} {examCount === 1 ? 'exam is' : 'exams are'} open for students right now.
+              {examCount} {examCount === 1 ? 'exam is' : 'exams are'} open for students right now. Check them out and log in to answer!
             </p>
           </div>
           <button
