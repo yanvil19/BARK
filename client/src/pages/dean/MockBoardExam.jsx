@@ -92,7 +92,21 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           return String(programDept) === String(deptId);
         });
         setPrograms(deptPrograms);
+
         if (!editingExamId && deptPrograms.length === 1) setProgramId(deptPrograms[0]._id);
+
+        let filtered = deptPrograms;
+
+        if (me.role === 'program_chair') {
+          const myProgramId = me?.program?._id || me?.program;
+          filtered = deptPrograms.filter((program) => String(program._id) === String(myProgramId));
+          setPrograms(filtered);
+
+          if (filtered.length === 1) {
+            setProgramId(filtered[0]._id);
+          }
+        }
+
       } catch (err) {
         console.error('Failed to load programs:', err);
       } finally {
@@ -425,7 +439,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     setSelectedQuestions([]);
                   }}
                   required
-                  disabled={loadingPrograms}
+                  disabled={loadingPrograms || me.role === 'program_chair'}
                 >
                   <option value="">Select a program</option>
                   {programs.map((program) => (

@@ -145,7 +145,7 @@ export default function App() {
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'studentManager') page = <StudentManager onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
-  if (route === 'examResults') page = <ExamResults />;
+  if (route === 'examResults') page = <ExamResults me={me} />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers me={me} />;
   if (route === 'adminSettings') page = me?.role === 'super_admin' ? <AdminSettings /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
