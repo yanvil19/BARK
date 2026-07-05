@@ -1,7 +1,6 @@
 .ambe-page {
   margin: -20px;
   padding-bottom: 32px;
-  background: #f5f7ff;
 }
 
 .ambe-loading,
@@ -20,32 +19,39 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin: 24px 32px 0;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.14);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(34, 48, 96, 0.07);
+  gap: 12px;
+  margin: 20px 32px 0;
+  flex-wrap: wrap;
+}
+
+.ambe-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .ambe-view-toggle {
   display: inline-flex;
   overflow: hidden;
-  border: 1px solid rgba(53, 64, 142, 0.18);
+  border: 1.5px solid rgba(53, 64, 142, 0.25);
   border-radius: 8px;
-  background: #ffffff;
+  background: #f9faff;
+  flex-shrink: 0;
 }
 
 .ambe-view-toggle button {
-  min-height: 40px;
+  min-height: 38px;
   padding: 0 16px;
   border: 0;
   background: transparent;
-  color: #35408e;
+  color: #5a63a8;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
 
 .ambe-view-toggle button.is-active {
@@ -53,9 +59,35 @@
   color: #ffffff;
 }
 
+.ambe-filter-select {
+  min-height: 38px;
+  min-width: 160px;
+  padding: 0 12px;
+  border: 1.5px solid rgba(53, 64, 142, 0.25);
+  border-radius: 8px;
+  background: #f9faff;
+  color: #5a63a8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.ambe-filter-select:focus {
+  outline: none;
+  border-color: #35408e;
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
+  background: #fff;
+}
+
+.ambe-filter-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .ambe-program-select {
   min-height: 40px;
-  min-width: 260px;
+  min-width: 200px;
   padding: 0 12px;
   border: 1px solid rgba(53, 64, 142, 0.18);
   border-radius: 8px;
@@ -63,6 +95,42 @@
   color: #1f2947;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* SearchBar inside the controls bar */
+.ambe-search-bar {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  border: 1.5px solid rgba(53, 64, 142, 0.25) !important;
+  background-color: #f9faff !important;
+  border-radius: 8px;
+}
+
+.ambe-search-bar:focus-within {
+  border-color: #35408e !important;
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1) !important;
+  background: #fff !important;
+}
+
+.ambe-search-bar .search-bar-input {
+  font-size: 13px;
+  color: #1f2947;
+}
+
+.ambe-search-bar .search-bar-icon {
+  color: #9aa0b4;
+}
+
+/* Pagination footer */
+.ambe-pagination-footer {
+  margin: 0 32px 16px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-top: none;
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 12px 28px rgba(34, 48, 96, 0.06);
 }
 
 .ambe-conflict-message {
@@ -108,6 +176,12 @@
   border-radius: 24px;
   box-shadow: 0 18px 42px rgba(34, 48, 96, 0.08);
   overflow: hidden;
+}
+
+.ambe-table-card:has(+ .ambe-pagination-footer) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
 }
 
 .ambe-scroll-x {
@@ -302,6 +376,20 @@
   background: #fef2f2;
   border-color: rgba(220, 38, 38, 0.18);
   color: #dc2626;
+}
+
+.ambe-btn.ambe-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.ambe-btn.ambe-btn-icon:hover {
+  transform: scale(1.1);
 }
 
 .ambe-details-header-new {

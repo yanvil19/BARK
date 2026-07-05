@@ -21,7 +21,7 @@ export function getCalendarRange(date, view) {
 }
 
 export function getExamEventColor(status, role) {
-  if (role !== 'dean') return '#2563eb';
+  if (role !== 'dean' && role !== 'program_chair') return '#2563eb';
 
   const colors = {
     draft: '#ca8a04',
