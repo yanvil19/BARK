@@ -54,12 +54,12 @@ describe('GET /api/calendar/student', () => {
     expect(res.status).toBe(200);
   });
 
-  it('should return 200 as program_chair', async () => {
+  it('should return 403 as program_chair', async () => {
     const { token } = await createUserAndToken({ role: 'program_chair', department: dept._id, program: prog._id });
     const res = await request(app)
       .get('/api/calendar/student')
       .set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 
   it('should return 401 with no auth', async () => {
@@ -71,6 +71,29 @@ describe('GET /api/calendar/student', () => {
     const res = await request(app)
       .get('/api/calendar/student')
       .set('Authorization', `Bearer ${deanToken}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('GET /api/calendar/chair', () => {
+  it('should return 200 as program_chair', async () => {
+    const { token } = await createUserAndToken({ role: 'program_chair', department: dept._id, program: prog._id });
+    const res = await request(app)
+      .get('/api/calendar/chair')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('should return 401 with no auth', async () => {
+    const res = await request(app).get('/api/calendar/chair');
+    expect(res.status).toBe(401);
+  });
+
+  it('should return 403 as professor', async () => {
+    const { token } = await createUserAndToken({ role: 'professor' });
+    const res = await request(app)
+      .get('/api/calendar/chair')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
   });
 });
