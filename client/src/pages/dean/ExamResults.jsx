@@ -3,6 +3,7 @@ import { listExamsWithStatus, getExamResult, computeExamResult } from '../../ser
 import '../../styles/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import IndividualReportView from './IndividualReportView.jsx';
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -179,7 +180,24 @@ const CircularProgress = ({ percentage, threshold }) => {
   );
 };
 
-const ExamResults = () => {
+const ReportTabToggle = ({ activeTab, onChange }) => (
+  <div className="er-report-tab-toggle">
+    <button 
+      className={`er-tab-btn ${activeTab === 'overall' ? 'active' : ''}`}
+      onClick={() => onChange('overall')}
+    >
+      Overall
+    </button>
+    <button 
+      className={`er-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
+      onClick={() => onChange('individual')}
+    >
+      Individual
+    </button>
+  </div>
+);
+
+const ExamResults = ({ me }) => {
   const { notify } = useToast();
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(null);
@@ -188,7 +206,13 @@ const ExamResults = () => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
-  const [selectedProgramId, setSelectedProgramId] = useState('all');
+  
+  const isProgramChair = me?.role === 'program_chair';
+  const userProgramId = me?.program?._id || me?.program;
+  const initialProgramId = isProgramChair && userProgramId ? String(userProgramId) : 'all';
+  
+  const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
+  const [activeTab, setActiveTab] = useState('overall');
 
   const fetchExams = useCallback(async () => {
     try {
@@ -361,6 +385,7 @@ const ExamResults = () => {
               <select
                 value={selectedProgramId}
                 onChange={(event) => setSelectedProgramId(event.target.value)}
+                disabled={isProgramChair}
               >
                 <option value="all">All programs</option>
                 {programs.map((program) => (
@@ -457,65 +482,76 @@ const ExamResults = () => {
           )}
 
           {activeReport && summary && (
-            <div className="er-report-view">
-              <div className="er-report-header">
-                <div>
-                  <span className="er-report-kicker">Computed Report</span>
-                  <h2 className="er-report-title">{activeReport.examName}</h2>
-                </div>
+            <>
+              <div style={{ display: 'flex' }}>
+                <ReportTabToggle activeTab={activeTab} onChange={setActiveTab} />
+              </div>
+              <div className="er-report-view">
+                <div className="er-report-header">
+                  <div className="er-report-title-group">
+                    <span className="er-report-kicker">Computed Report</span>
+                    <h2 className="er-report-title">{activeReport.examName}</h2>
+                  </div>
                 <div className="er-report-meta">
                   <span className="er-report-ts">Last computed: {summary.computedAt}</span>
                   <span className="er-divider">|</span>
-                  <div style={{ fontWeight: '600', color: '#35408e', background: '#f0f4ff', padding: '4px 12px', borderRadius: '6px' }}>
+                  <div className="er-threshold-badge">
                     Threshold: {threshold}%
                   </div>
                 </div>
               </div>
 
-              <section className="er-hero-card">
-                <div className="er-hero-topline">
-                  <span className="er-hero-eyebrow">Overall performance snapshot</span>
-                  <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
-                </div>
+              {activeTab === 'overall' ? (
+                <>
+                  <section className="er-hero-card">
+                    <div className="er-hero-topline">
+                      <span className="er-hero-eyebrow">Overall performance snapshot</span>
+                      <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
+                    </div>
 
-                <div className="er-hero-body">
-                  <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
-                </div>
+                    <div className="er-hero-body">
+                      <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
+                    </div>
 
-                <div className="er-hero-metrics">
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.overallAvg}%</span>
-                    <span className="m-label">Average score</span>
-                  </div>
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.takers}</span>
-                    <span className="m-label">Total takers</span>
-                  </div>
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.date}</span>
-                    <span className="m-label">Date conducted</span>
-                  </div>
-                </div>
-              </section>
+                    <div className="er-hero-metrics">
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.overallAvg}%</span>
+                        <span className="m-label">Average score</span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.takers}</span>
+                        <span className="m-label">Total takers</span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.date}</span>
+                        <span className="m-label">Date conducted</span>
+                      </div>
+                    </div>
+                  </section>
 
-              <section className="er-breakdown-card">
-                <div className="er-breakdown-header">
-                  <h2>Score Breakdown by Topic</h2>
-                  <p>Performance across each subject area in this exam. Expand a row to inspect question-level trends.</p>
-                </div>
+                  <section className="er-breakdown-card">
+                    <div className="er-breakdown-header">
+                      <h2>Score Breakdown by Topic</h2>
+                      <p>Performance across each subject area in this exam. Expand a row to inspect question-level trends.</p>
+                    </div>
 
-                <div className="er-topic-list">
-                  {enrichedSubjects.map((subject, idx) => (
-                    <TopicRow
-                      key={idx}
-                      subject={subject}
-                      isExpanded={expandedSubjectName === subject.name}
-                      onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
-                    />
-                  ))}
-                </div>
-              </section>
+                    <div className="er-topic-list">
+                      {enrichedSubjects.map((subject, idx) => (
+                        <TopicRow
+                          key={idx}
+                          subject={subject}
+                          isExpanded={expandedSubjectName === subject.name}
+                          onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                </>
+              ) : (
+                <IndividualReportView examId={selectedExamId} threshold={threshold} />
+              )}
             </div>
+            </>
           )}
         </main>
       </div>

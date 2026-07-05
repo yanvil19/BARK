@@ -109,7 +109,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   useEffect(() => {
     async function fetchPrograms() {
-      if (me?.role !== 'dean' || !me?.department) return;
+      if ((me?.role !== 'dean' && me?.role !== 'program_chair') || !me?.department) return;
 
       try {
         const data = await apiAuth(`${BASE}/api/catalog/programs`);
@@ -120,12 +120,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         });
 
         setPrograms(deptPrograms);
-        setSelectedProgramId((prev) => {
-          if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
-          return deptPrograms[0]?._id || '';
-        });
+        if (me?.role === 'program_chair') {
+          const chairProgramId = me?.program?._id || me?.program;
+          setSelectedProgramId(chairProgramId ? String(chairProgramId) : '');
+        } else {
+          setSelectedProgramId((prev) => {
+            if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
+            return deptPrograms[0]?._id || '';
+          });
+        }
       } catch (err) {
-        console.error('Failed to load dean programs:', err);
+        console.error('Failed to load programs:', err);
       }
     }
 
@@ -417,7 +422,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const selectedExamQuestions = selectedExam?.questions || [];
   const selectedExamSubjects = selectedExam?.subjectTags || [];
   const visibleExams = useMemo(() => {
-    if (me?.role !== 'dean' || !selectedProgramId) return exams;
+    if ((me?.role !== 'dean' && me?.role !== 'program_chair') || !selectedProgramId) return exams;
     return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
   }, [exams, me?.role, selectedProgramId]);
   const selectedExamStats = selectedExam ? [
@@ -437,7 +442,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />
 
-      {me?.role === 'dean' && (
+      {(me?.role === 'dean' || me?.role === 'program_chair') && (
         <section className="ambe-view-controls" aria-label="Board exam view controls">
           <div className="ambe-view-toggle">
             <button
@@ -461,6 +466,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             value={selectedProgramId}
             onChange={(event) => setSelectedProgramId(event.target.value)}
             aria-label="Filter exams by program"
+            disabled={me?.role === 'program_chair'}
           >
             {programs.length === 0 ? <option value="">No programs found</option> : null}
             {programs.map((program) => (

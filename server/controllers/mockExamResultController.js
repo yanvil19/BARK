@@ -12,15 +12,21 @@ const Tag = require('../models/Tag');
  */
 exports.listExamsWithStatus = async (req, res) => {
   try {
-    const exams = await MockBoardExam.find({ 
-      department: req.user.department 
-    })
+    const examQuery = { department: req.user.department };
+    if (req.user.role === 'program_chair') {
+      examQuery.program = req.user.program;
+    }
+
+    const exams = await MockBoardExam.find(examQuery)
       .populate('program', 'name code')
       .sort({ startDateTime: -1 });
 
-    const results = await MockExamResult.find({ 
-      department: req.user.department 
-    }).select('examId status computedAt');
+    const resultQuery = { department: req.user.department };
+    if (req.user.role === 'program_chair') {
+      resultQuery.examId = { $in: exams.map(e => e._id) };
+    }
+
+    const results = await MockExamResult.find(resultQuery).select('examId status computedAt');
 
     const examsWithStatus = exams.map(exam => {
       const result = results.find(r => String(r.examId) === String(exam._id));
@@ -210,6 +216,106 @@ exports.deleteResult = async (req, res) => {
     res.json({ message: 'Result record deleted successfully' });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+/**
+ * @desc    Get individual student results for a specific exam
+ * @route   GET /api/mock-exam-results/:examId/students
+ * @access  Private (Dean, Program Chair)
+ */
+exports.getStudentResults = async (req, res) => {
+  try {
+    const { examId } = req.params;
+
+    // 1. Fetch exam to ensure it exists and get its passing threshold and questions
+    const exam = await MockBoardExam.findOne({
+      _id: examId,
+      department: req.user.department
+    }).populate('questions').populate('subjectTags', 'name');
+
+    if (!exam) {
+      return res.status(403).json({ message: 'Forbidden or exam not found' });
+    }
+
+    // 2. Fetch attempts
+    // We populate the 'student' to get name, email, studentId, program.
+    const attempts = await StudentExamAttempt.find({ exam: examId, status: 'submitted' })
+      .populate('student', 'name email studentId alumniId program')
+      .populate('subjectScores.tag', 'name');
+
+    let filteredAttempts = attempts.filter(attempt => attempt.student);
+
+    // Access Control: If program chair, restrict to their program
+    if (req.user.role === 'program_chair') {
+      filteredAttempts = filteredAttempts.filter(
+        attempt => String(attempt.student.program) === String(req.user.program)
+      );
+    }
+
+    const passingThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null)
+      ? exam.passingThreshold 
+      : 70;
+
+    // 3. Format the data for the frontend
+    const studentsData = filteredAttempts.map(attempt => {
+      let totalCorrect = 0;
+      let totalItems = 0;
+      
+      const subjectBreakdowns = attempt.subjectScores.map(ss => {
+        totalCorrect += ss.correct;
+        totalItems += ss.total;
+        
+        const tagIdStr = String(ss.tag._id || ss.tag);
+        const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+        
+        const questionBreakdowns = subjectQuestions.map(q => {
+          const qId = String(q._id);
+          const studentAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
+          const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
+          const isCorrect = String(studentAnswerId) === correctOptionId;
+          
+          return {
+            questionId: qId,
+            label: q.title || q.description || 'Question',
+            isCorrect: isCorrect,
+            points: isCorrect ? 1 : 0
+          };
+        });
+
+        const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
+        
+        return {
+          subjectId: tagIdStr,
+          subjectName: ss.tag.name || 'Unknown Subject',
+          correct: ss.correct,
+          total: ss.total,
+          percentage,
+          questions: questionBreakdowns
+        };
+      });
+
+      const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+      const passed = overallPercentage >= passingThreshold;
+
+      return {
+        attemptId: attempt._id,
+        student: {
+          _id: attempt.student._id,
+          name: attempt.student.name,
+          email: attempt.student.email,
+          studentId: attempt.student.studentId || attempt.student.alumniId,
+        },
+        overallPercentage,
+        passed,
+        subjectBreakdowns
+      };
+    });
+
+    res.json({ students: studentsData });
+  } catch (err) {
+    console.error('getStudentResults Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
