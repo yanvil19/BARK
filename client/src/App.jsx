@@ -28,6 +28,10 @@ import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
 import StudentExamResults from './pages/student/StudentExamResults.jsx';
+import AlumniAvailableExams from './pages/alumni/AlumniAvailableExams.jsx';
+import AlumniExamRunner from './pages/alumni/AlumniExamRunner.jsx';
+import AlumniExamResult from './pages/alumni/AlumniExamResult.jsx';
+import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
 import Credits from './pages/Credits.jsx';
 import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
@@ -41,6 +45,8 @@ export default function App() {
   const [examRunnerId, setExamRunnerId] = useState('');
   const [examRunnerMode, setExamRunnerMode] = useState('details');
   const [studentExamId, setStudentExamId] = useState('');
+  const [alumniExamId, setAlumniExamId] = useState('');
+  const [alumniResultExamId, setAlumniResultExamId] = useState('');
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
 
   async function refreshMe() {
@@ -139,9 +145,29 @@ export default function App() {
       'studentExamRunner',
       'studentExamResult',
       'studentExamResults',
+      'alumniAvailableExams',
+      'alumniExamRunner',
+      'alumniExamResult',
+      'alumniExamResults',
     ]);
 
     if (route && learnerRoutes.has(route) && !isLearner) {
+      setRoute('Dashboard');
+    }
+  }, [me, route]);
+
+  useEffect(() => {
+    if (me?.role === 'alumni') {
+      const studentToAlumniRoute = {
+        studentAvailableExams: 'alumniAvailableExams',
+        studentExamRunner: 'alumniExamRunner',
+        studentExamResult: 'alumniExamResult',
+        studentExamResults: 'alumniExamResults',
+      };
+      if (studentToAlumniRoute[route]) setRoute(studentToAlumniRoute[route]);
+    }
+
+    if (me?.role === 'student' && route?.startsWith('alumni')) {
       setRoute('Dashboard');
     }
   }, [me, route]);
@@ -287,6 +313,40 @@ export default function App() {
     );
   if (route === 'studentExamResults')
     page = <StudentExamResults />;
+  if (route === 'alumniAvailableExams')
+    page = (
+      <AlumniAvailableExams
+        onTakeExam={(id) => {
+          setAlumniExamId(id);
+          setAlumniResultExamId(id);
+          setRoute('alumniExamRunner');
+        }}
+        onViewResults={(id) => {
+          setAlumniResultExamId(id);
+          setRoute('alumniExamResults');
+        }}
+      />
+    );
+  if (route === 'alumniExamRunner')
+    page = (
+      <AlumniExamRunner
+        examId={alumniExamId}
+        onFinish={() => {
+          setAlumniResultExamId(alumniExamId);
+          setRoute('alumniExamResult');
+        }}
+        me={me}
+      />
+    );
+  if (route === 'alumniExamResult')
+    page = (
+      <AlumniExamResult
+        onReturn={() => setRoute('alumniAvailableExams')}
+        onViewResults={() => setRoute('alumniExamResults')}
+      />
+    );
+  if (route === 'alumniExamResults')
+    page = <AlumniExamResults examId={alumniResultExamId} />;
   if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
   return (

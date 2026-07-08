@@ -12,6 +12,7 @@ const questionRoutes = require('./routes/questionRoutes');
 const mockBoardExamRoutes = require('./routes/mockBoardExamRoutes');
 const importRoutes = require('./routes/importRoutes');
 const studentExamRoutes = require('./routes/studentExamRoutes');
+const alumniExamRoutes = require('./routes/alumniExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 
@@ -42,6 +43,7 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/mock-board-exams', mockBoardExamRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/student-exams', studentExamRoutes);
+app.use('/api/alumni-exams', alumniExamRoutes);
 app.use('/api/mock-exam-results', mockExamResultRoutes);
 app.use('/api/calendar', calendarRoutes);
 

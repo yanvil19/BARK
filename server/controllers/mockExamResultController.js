@@ -2,8 +2,127 @@ const mongoose = require('mongoose');
 const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
+const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const Question = require('../models/Question');
 const Tag = require('../models/Tag');
+
+function getTotalItemsFromAttempt(attempt, exam) {
+  const totalFromSubjects = (attempt.subjectScores || []).reduce(
+    (sum, subjectScore) => sum + (subjectScore.total || 0),
+    0
+  );
+  return exam.questions?.length || totalFromSubjects || 0;
+}
+
+function getAttemptPercentage(attempt, exam) {
+  const totalItems = getTotalItemsFromAttempt(attempt, exam);
+  return totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+}
+
+function pickHighestAttemptByAlumni(attempts, exam) {
+  const bestByAlumni = new Map();
+
+  attempts.forEach((attempt) => {
+    const alumniId = String(attempt.alumni?._id || attempt.alumni);
+    const currentBest = bestByAlumni.get(alumniId);
+    if (!currentBest) {
+      bestByAlumni.set(alumniId, attempt);
+      return;
+    }
+
+    const nextPct = getAttemptPercentage(attempt, exam);
+    const currentPct = getAttemptPercentage(currentBest, exam);
+    const nextSubmittedAt = new Date(attempt.endTime || attempt.updatedAt || attempt.createdAt || 0);
+    const currentSubmittedAt = new Date(currentBest.endTime || currentBest.updatedAt || currentBest.createdAt || 0);
+
+    if (nextPct > currentPct || (nextPct === currentPct && nextSubmittedAt > currentSubmittedAt)) {
+      bestByAlumni.set(alumniId, attempt);
+    }
+  });
+
+  return [...bestByAlumni.values()];
+}
+
+async function buildAlumniHighestScoreReport(exam, user) {
+  const attempts = await AlumniExamAttempt.find({
+    exam: exam._id,
+    status: 'submitted',
+  })
+    .populate('alumni', 'program')
+    .populate('subjectScores.tag', 'name');
+
+  const scopedAttempts = user.role === 'program_chair'
+    ? attempts.filter((attempt) => String(attempt.alumni?.program) === String(user.program))
+    : attempts;
+
+  const bestAttempts = pickHighestAttemptByAlumni(scopedAttempts, exam);
+  if (bestAttempts.length === 0) return null;
+
+  const totalTakers = bestAttempts.length;
+  const questionRates = [];
+
+  for (const question of exam.questions) {
+    const qId = String(question._id);
+    const correctOptionId = String(question.answers.find((a) => a.isCorrect)?._id);
+    const correctCount = bestAttempts.reduce((count, attempt) => {
+      const alumniAnswerId = attempt.answers ? String(attempt.answers.get(qId)) : '';
+      return count + (alumniAnswerId === correctOptionId ? 1 : 0);
+    }, 0);
+
+    questionRates.push({
+      qId,
+      tagId: String(question.tag),
+      label: question.title,
+      correctRate: Math.round((correctCount / totalTakers) * 100),
+    });
+  }
+
+  const tagIds = [...new Set(questionRates.map((qr) => qr.tagId))];
+  const tags = await Tag.find({ _id: { $in: tagIds } });
+
+  const subjectsArray = tagIds.map((tagId) => {
+    const tag = tags.find((t) => String(t._id) === tagId);
+    const subjectQuestions = questionRates.filter((qr) => qr.tagId === tagId);
+    const totalRates = subjectQuestions.reduce((acc, qr) => acc + qr.correctRate, 0);
+    const averageScore = subjectQuestions.length > 0 ? Math.round(totalRates / subjectQuestions.length) : 0;
+    const totalCorrectInAttempts = bestAttempts.reduce((acc, attempt) => {
+      const scoreEntry = attempt.subjectScores.find((ss) => String(ss.tag?._id || ss.tag) === tagId);
+      return acc + (scoreEntry?.correct || 0);
+    }, 0);
+    const avgCorrect = Math.round(totalCorrectInAttempts / totalTakers);
+
+    return {
+      name: tag ? tag.name : 'Unknown Subject',
+      averageScore,
+      correctCount: avgCorrect,
+      totalItems: subjectQuestions.length,
+      questions: subjectQuestions.map((sq) => ({
+        label: sq.label,
+        correctRate: sq.correctRate,
+      })),
+    };
+  });
+
+  const totalPercent = bestAttempts.reduce((sum, attempt) => sum + getAttemptPercentage(attempt, exam), 0);
+  const latestSubmittedAt = bestAttempts.reduce((latest, attempt) => {
+    const submittedAt = new Date(attempt.endTime || attempt.updatedAt || attempt.createdAt || 0);
+    return submittedAt > latest ? submittedAt : latest;
+  }, new Date(0));
+
+  return {
+    examId: exam._id,
+    examName: exam.name,
+    dateConducted: latestSubmittedAt,
+    totalTakers,
+    totalAttempts: scopedAttempts.length,
+    passingThreshold: exam.passingThreshold ?? 70,
+    status: 'computed',
+    computedAt: new Date(),
+    targetAudience: 'alumni',
+    overallAverageScore: Math.round(totalPercent / totalTakers),
+    subjects: subjectsArray,
+  };
+}
 
 /**
  * @desc    Get the list of mock board exams with their computation status
@@ -28,12 +147,36 @@ exports.listExamsWithStatus = async (req, res) => {
 
     const results = await MockExamResult.find(resultQuery).select('examId status computedAt');
 
+    const alumniAttemptAgg = await AlumniExamAttempt.aggregate([
+      {
+        $match: {
+          exam: { $in: exams.map(e => e._id) },
+          status: 'submitted',
+        },
+      },
+      {
+        $group: {
+          _id: '$exam',
+          count: { $sum: 1 },
+          computedAt: { $max: '$endTime' },
+        },
+      },
+    ]);
+    const alumniAttemptStats = new Map(alumniAttemptAgg.map(item => [String(item._id), item]));
+
     const examsWithStatus = exams.map(exam => {
       const result = results.find(r => String(r.examId) === String(exam._id));
+      const alumniStats = alumniAttemptStats.get(String(exam._id));
+      const isAlumniExam = (exam.targetAudience || 'student') === 'alumni';
       return {
         ...exam.toObject(),
-        computationStatus: result ? result.status : 'none',
-        computedAt: result ? result.computedAt : null
+        computationStatus: isAlumniExam
+          ? (alumniStats ? 'computed' : 'none')
+          : (result ? result.status : 'none'),
+        computedAt: isAlumniExam
+          ? (alumniStats?.computedAt || null)
+          : (result ? result.computedAt : null),
+        alumniSubmissionCount: alumniStats?.count || 0,
       };
     });
 
@@ -51,6 +194,23 @@ exports.listExamsWithStatus = async (req, res) => {
  */
 exports.getResult = async (req, res) => {
   try {
+    const exam = await MockBoardExam.findOne({
+      _id: req.params.examId,
+      department: req.user.department,
+    }).populate('questions');
+
+    if (!exam) {
+      return res.status(403).json({ message: 'Forbidden or exam not found' });
+    }
+
+    if ((exam.targetAudience || 'student') === 'alumni') {
+      const report = await buildAlumniHighestScoreReport(exam, req.user);
+      if (!report) {
+        return res.json({ result: null, message: 'No alumni attempts found for this exam.' });
+      }
+      return res.json({ result: report });
+    }
+
     const result = await MockExamResult.findOne({ 
       examId: req.params.examId,
       department: req.user.department 
@@ -237,6 +397,83 @@ exports.getStudentResults = async (req, res) => {
 
     if (!exam) {
       return res.status(403).json({ message: 'Forbidden or exam not found' });
+    }
+
+    if ((exam.targetAudience || 'student') === 'alumni') {
+      const attempts = await AlumniExamAttempt.find({ exam: examId, status: 'submitted' })
+        .populate('alumni', 'name email alumniId program')
+        .populate('subjectScores.tag', 'name');
+
+      let filteredAttempts = attempts.filter(attempt => attempt.alumni);
+
+      if (req.user.role === 'program_chair') {
+        filteredAttempts = filteredAttempts.filter(
+          attempt => String(attempt.alumni.program) === String(req.user.program)
+        );
+      }
+
+      const bestAttempts = pickHighestAttemptByAlumni(filteredAttempts, exam);
+      const passingThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null)
+        ? exam.passingThreshold
+        : 70;
+
+      const alumniData = bestAttempts.map(attempt => {
+        let totalCorrect = 0;
+        let totalItems = 0;
+
+        const subjectBreakdowns = attempt.subjectScores.map(ss => {
+          totalCorrect += ss.correct;
+          totalItems += ss.total;
+
+          const tagIdStr = String(ss.tag._id || ss.tag);
+          const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+
+          const questionBreakdowns = subjectQuestions.map(q => {
+            const qId = String(q._id);
+            const alumniAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
+            const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
+            const isCorrect = String(alumniAnswerId) === correctOptionId;
+
+            return {
+              questionId: qId,
+              label: q.title || q.description || 'Question',
+              isCorrect,
+              points: isCorrect ? 1 : 0,
+            };
+          });
+
+          const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
+
+          return {
+            subjectId: tagIdStr,
+            subjectName: ss.tag.name || 'Unknown Subject',
+            correct: ss.correct,
+            total: ss.total,
+            percentage,
+            questions: questionBreakdowns,
+          };
+        });
+
+        const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+        const passed = overallPercentage >= passingThreshold;
+
+        return {
+          attemptId: attempt._id,
+          attemptNumber: attempt.attemptNumber,
+          submittedAt: attempt.endTime,
+          student: {
+            _id: attempt.alumni._id,
+            name: attempt.alumni.name,
+            email: attempt.alumni.email,
+            studentId: attempt.alumni.alumniId,
+          },
+          overallPercentage,
+          passed,
+          subjectBreakdowns,
+        };
+      });
+
+      return res.json({ students: alumniData, audience: 'alumni' });
     }
 
     // 2. Fetch attempts

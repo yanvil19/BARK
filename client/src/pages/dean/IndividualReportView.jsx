@@ -87,7 +87,7 @@ const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject
   );
 });
 
-export default function IndividualReportView({ examId, threshold }) {
+export default function IndividualReportView({ examId, threshold, audience = 'student' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [studentsData, setStudentsData] = useState([]);
@@ -154,6 +154,8 @@ export default function IndividualReportView({ examId, threshold }) {
     return filtered;
   }, [studentsData, searchQuery, sortOrder]);
 
+  const audienceNoun = audience === 'alumni' ? 'alumni' : 'students';
+
   if (loading) return <div className="er-ind-loading">Loading individual results...</div>;
   if (error) return <div className="er-ind-error">{error}</div>;
 
@@ -162,7 +164,7 @@ export default function IndividualReportView({ examId, threshold }) {
       <div className="er-ind-controls">
         <input 
           type="text" 
-          placeholder="Search students..." 
+          placeholder={`Search ${audienceNoun}...`}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="er-ind-search"
@@ -182,7 +184,7 @@ export default function IndividualReportView({ examId, threshold }) {
 
       <div className="er-ind-list">
         {filteredAndSorted.length === 0 ? (
-          <div className="er-ind-empty">No students found matching your criteria.</div>
+          <div className="er-ind-empty">No {audienceNoun} found matching your criteria.</div>
         ) : (
           filteredAndSorted.map(data => (
             <StudentResultCard 

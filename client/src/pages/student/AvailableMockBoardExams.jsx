@@ -34,6 +34,7 @@ function formatCount(value, singular, plural = `${singular}s`) {
 }
 
 function canScheduleResultsRelease(exam) {
+  if ((exam.targetAudience || 'student') === 'alumni') return false;
   if (exam.status !== 'finished') return false;
   // Release time passed — students can see results; no more changes
   if (exam.resultsReleased === true) return false;
@@ -95,10 +96,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedAudience, setSelectedAudience] = useState('');
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedProgramId, selectedStatus]);
+  }, [searchQuery, selectedProgramId, selectedStatus, selectedAudience]);
 
   useEffect(() => {
     async function fetchExams() {
@@ -332,13 +334,14 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }
 
   function handlePublish(exam) {
+    const audienceLabel = exam.targetAudience === 'alumni' ? 'alumni' : 'students';
     setConfirmationModal({
       type: 'publish',
       exam,
       title: 'Publish Draft Exam',
       message: (
         <p style={{ margin: 0 }}>
-          Publish <strong>{exam.name}</strong>? This will make it available to students.
+          Publish <strong>{exam.name}</strong>? This will make it available to {audienceLabel}.
         </p>
       ),
       confirmLabel: 'Publish Exam',
@@ -358,7 +361,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         tone: 'success',
         message: (
           <p style={{ margin: 0 }}>
-            <strong>{exam.name}</strong> is now live for students.
+            <strong>{exam.name}</strong> is now live for {exam.targetAudience === 'alumni' ? 'alumni' : 'students'}.
           </p>
         ),
       });
@@ -490,8 +493,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     if (selectedStatus) {
       filtered = filtered.filter((exam) => exam.status === selectedStatus);
     }
+    if (selectedAudience) {
+      filtered = filtered.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
+    }
     return filtered;
-  }, [exams, me?.role, selectedProgramId, searchQuery, selectedStatus]);
+  }, [exams, me?.role, selectedProgramId, searchQuery, selectedStatus, selectedAudience]);
 
   const paginatedExams = useMemo(() => {
     const start = (currentPage - 1) * 10;
@@ -503,6 +509,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     { label: 'Exam End', value: formatDateTime(selectedExam.endDateTime) },
     { label: 'Duration', value: formatDuration(selectedExam.durationMinutes) },
     { label: 'Passing Threshold', value: `${selectedExam.passingThreshold || 0}%` },
+    { label: 'Audience', value: selectedExam.targetAudience === 'alumni' ? 'Alumni' : 'Students' },
     { label: 'Total Items', value: formatCount(selectedExamQuestions.length, 'item') },
     { label: 'Subjects', value: formatCount(selectedExamSubjects.length, 'subject') },
   ] : [];
@@ -552,6 +559,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               <option value="ongoing">Ongoing</option>
               <option value="finished">Finished</option>
               <option value="archived">Archived</option>
+            </select>
+
+            <select
+              className="ambe-filter-select"
+              value={selectedAudience}
+              onChange={(event) => setSelectedAudience(event.target.value)}
+              aria-label="Filter exams by audience"
+            >
+              <option value="">All Audiences</option>
+              <option value="student">Student Exams</option>
+              <option value="alumni">Alumni Exams</option>
             </select>
           </div>
 
@@ -606,6 +624,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                   <th>Duration</th>
                   <th>Questions</th>
                   <th>Submissions</th>
+                  <th>Audience</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -636,7 +655,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                     <td className="ambe-muted">{formatDateTime(exam.endDateTime)}</td>
                     <td className="ambe-muted">{formatDuration(exam.durationMinutes)}</td>
                     <td>{exam.questions?.length || 0}</td>
-                    <td>{exam.submissionCount || 0}/{exam.totalStudents || 0}</td>
+                    <td>
+                      {(exam.targetAudience || 'student') === 'alumni'
+                        ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
+                        : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`}
+                    </td>
+                    <td>
+                      <span className="ambe-pill program">
+                        {(exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students'}
+                      </span>
+                    </td>
                     <td>
                       <span className={`ambe-status ${exam.status}`}>
                         {exam.status}

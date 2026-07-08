@@ -154,12 +154,23 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
           </>
         )}
 
-        {isLearner && (
+        {isStudent && (
           <>
             <button className={cls('studentAvailableExams')} onClick={handle('studentAvailableExams')}>
               Available Exams
             </button>
             <button className={cls('studentExamResults')} onClick={handle('studentExamResults')}>
+              Exam Results
+            </button>
+          </>
+        )}
+
+        {isAlumni && (
+          <>
+            <button className={cls('alumniAvailableExams')} onClick={handle('alumniAvailableExams')}>
+              Available Exams
+            </button>
+            <button className={cls('alumniExamResults')} onClick={handle('alumniExamResults')}>
               Exam Results
             </button>
           </>

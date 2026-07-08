@@ -70,6 +70,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     endDateTime: '',
     description: '',
     instructions: '',
+    targetAudience: 'student',
     status: 'draft',
     passingThreshold: 70,
   });
@@ -143,6 +144,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           endDateTime: toLocalDateTimeInput(exam.endDateTime),
           description: exam.description || '',
           instructions: exam.instructions || '',
+          targetAudience: exam.targetAudience || 'student',
           status: exam.status || 'draft',
           passingThreshold: exam.passingThreshold || 70,
         });
@@ -348,6 +350,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         endDateTime: ensureISOString(form.endDateTime),
         description: form.description,
         instructions: form.instructions,
+        targetAudience: form.targetAudience || 'student',
         status: form.status,
         passingThreshold: form.passingThreshold,
       };
@@ -375,6 +378,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         endDateTime: '',
         description: '',
         instructions: '',
+        targetAudience: 'student',
         status: 'draft',
         passingThreshold: 70,
       });
@@ -494,6 +498,25 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                 >
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="mbe-field">
+              <label>
+                Target Audience
+                <select
+                  className="mbe-input"
+                  value={form.targetAudience || 'student'}
+                  onChange={(e) => setForm((prev) => ({
+                    ...prev,
+                    targetAudience: e.target.value,
+                    startDateTime: e.target.value === 'alumni' ? '' : prev.startDateTime,
+                    endDateTime: e.target.value === 'alumni' ? '' : prev.endDateTime,
+                  }))}
+                >
+                  <option value="student">Students</option>
+                  <option value="alumni">Alumni</option>
                 </select>
               </label>
             </div>

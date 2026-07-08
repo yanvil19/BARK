@@ -5,6 +5,7 @@ const Tag = require('../models/Tag');
 const Question = require('../models/Question');
 const User = require('../models/User');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
+const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
 const { checkExamScheduleConflict } = require('../services/examScheduleConflictService');
 const { logAudit } = require('../utils/auditLogger');
@@ -170,11 +171,14 @@ async function validateExamPayload(user, body) {
   const status = body.status || 'draft';
   const instructions = body.instructions?.trim() || '';
   const description = body.description?.trim() || '';
+  const targetAudience = body.targetAudience || 'student';
+  const isAlumniExam = targetAudience === 'alumni';
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
-  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
+  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
   if (!['draft', 'published'].includes(status)) errors.push('Invalid exam status');
@@ -182,8 +186,8 @@ async function validateExamPayload(user, body) {
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
 
-  const start = body.startDateTime ? new Date(body.startDateTime) : null;
-  const end = body.endDateTime ? new Date(body.endDateTime) : null;
+  const start = !isAlumniExam && body.startDateTime ? new Date(body.startDateTime) : null;
+  const end = !isAlumniExam && body.endDateTime ? new Date(body.endDateTime) : null;
 
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
@@ -230,6 +234,7 @@ async function validateExamPayload(user, body) {
       instructions,
       description,
       status,
+      targetAudience,
       tags,
       questions,
       passingThreshold: body.passingThreshold ?? 70,
@@ -244,12 +249,14 @@ async function createMockBoardExam(req, res) {
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
-    if (payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
+    if (payload.targetAudience !== 'alumni' && payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
       errors.push('Start date must be in the future');
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = await buildScheduleConflictResponse(payload);
+    const scheduleConflict = payload.targetAudience === 'alumni'
+      ? { shouldBlock: false, warnings: [] }
+      : await buildScheduleConflictResponse(payload);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,
@@ -267,6 +274,7 @@ async function createMockBoardExam(req, res) {
       endDateTime: payload.endDateTime,
       instructions: payload.instructions,
       description: payload.description,
+      targetAudience: payload.targetAudience,
       status: payload.status,
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
@@ -281,10 +289,11 @@ async function createMockBoardExam(req, res) {
       name: exam.name,
       programId: exam.program,
       status: exam.status,
+      targetAudience: exam.targetAudience,
       questionCount: exam.questions?.length || 0,
     });
 
-    if (payload.status === 'published') {
+    if (payload.targetAudience !== 'alumni' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });
@@ -335,6 +344,11 @@ async function listMockBoardExams(req, res) {
       { $group: { _id: '$exam', count: { $sum: 1 } } }
     ]) : [];
     const submissionCounts = new Map(submissionCountsAgg.map(item => [String(item._id), item.count]));
+    const alumniSubmissionCountsAgg = examIds.length > 0 ? await AlumniExamAttempt.aggregate([
+      { $match: { exam: { $in: examIds }, status: 'submitted' } },
+      { $group: { _id: '$exam', count: { $sum: 1 } } }
+    ]) : [];
+    const alumniSubmissionCounts = new Map(alumniSubmissionCountsAgg.map(item => [String(item._id), item.count]));
 
     const programIds = [...new Set(exams.map((exam) => String(exam.program?._id || exam.program)))];
     const totalStudentsCounts = new Map();
@@ -354,12 +368,14 @@ async function listMockBoardExams(req, res) {
         : null;
 
       const submissionCount = submissionCounts.get(String(exam._id)) || 0;
+      const alumniSubmissionCount = alumniSubmissionCounts.get(String(exam._id)) || 0;
       const totalStudents = totalStudentsCounts.get(String(exam.program?._id || exam.program)) || 0;
 
       return {
         ...exam,
         durationMinutes,
         submissionCount,
+        alumniSubmissionCount,
         totalStudents,
         resultsReleaseDate,
         computationStatus: resultsUploaded ? 'computed' : 'none',
@@ -431,13 +447,16 @@ async function updateMockBoardExam(req, res) {
       instructions: req.body.instructions ?? current.instructions,
       description: req.body.description ?? current.description,
       status: req.body.status ?? current.status,
+      targetAudience: req.body.targetAudience ?? current.targetAudience ?? 'student',
       passingThreshold: req.body.passingThreshold ?? current.passingThreshold,
     };
 
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = await buildScheduleConflictResponse(payload, existing._id);
+    const scheduleConflict = payload.targetAudience === 'alumni'
+      ? { shouldBlock: false, warnings: [] }
+      : await buildScheduleConflictResponse(payload, existing._id);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,
@@ -455,6 +474,7 @@ async function updateMockBoardExam(req, res) {
     current.endDateTime = payload.endDateTime;
     current.instructions = payload.instructions;
     current.description = payload.description;
+    current.targetAudience = payload.targetAudience;
     current.status = payload.status;
     current.passingThreshold = payload.passingThreshold;
     await current.save();
@@ -469,10 +489,11 @@ async function updateMockBoardExam(req, res) {
       programId: current.program,
       oldStatus,
       newStatus: current.status,
+      targetAudience: current.targetAudience,
       questionCount: current.questions?.length || 0,
     });
 
-    if (oldStatus !== 'published' && payload.status === 'published') {
+    if (payload.targetAudience !== 'alumni' && oldStatus !== 'published' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });
@@ -516,7 +537,7 @@ async function listPublishedExams(req, res) {
     const exams = await MockBoardExam.find({ status: { $in: ['published', 'ongoing'] } })
       .populate('program', 'name code department')
       .populate('department', 'name code')
-      .select('name program department startDateTime endDateTime status updatedAt')
+      .select('name program department startDateTime endDateTime status targetAudience updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({ exams });
@@ -582,6 +603,7 @@ async function copyExam(req, res) {
       description: exam.description || '',
       instructions: exam.instructions || '',
       status: 'draft',
+      targetAudience: exam.targetAudience || 'student',
       passingThreshold: exam.passingThreshold,
       resultsReleaseDate: null,
       missedAttemptsProcessedAt: null,

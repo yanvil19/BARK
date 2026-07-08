@@ -41,6 +41,7 @@ const formatShortDate = (dateStr) => {
 
 const getComputationLabel = (exam) => {
   if (exam.computationStatus === 'computed') return 'Ready';
+  if ((exam.targetAudience || 'student') === 'alumni') return 'No attempts';
   if (exam.status === 'finished') return 'Ready to compute';
   return 'Pending';
 };
@@ -50,6 +51,8 @@ const getComputationTone = (exam) => {
   if (exam.status === 'finished') return 'action';
   return 'pending';
 };
+
+const getAudienceLabel = (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students');
 
 const QuestionRow = memo(({ question }) => {
   const tagInfo = getQuestionTagInfo(question.correctRate);
@@ -146,6 +149,7 @@ const SidebarExamItem = memo(({ exam, isActive, onSelect }) => {
 
       <div className="er-sidebar-item-bottom">
         <span className="er-side-threshold">Threshold {exam.passingThreshold ?? 70}%</span>
+        <span className="er-side-threshold">{getAudienceLabel(exam)}</span>
       </div>
     </div>
   );
@@ -180,7 +184,7 @@ const CircularProgress = ({ percentage, threshold }) => {
   );
 };
 
-const ReportTabToggle = ({ activeTab, onChange }) => (
+const ReportTabToggle = ({ activeTab, onChange, showIndividual = true }) => (
   <div className="er-report-tab-toggle">
     <button 
       className={`er-tab-btn ${activeTab === 'overall' ? 'active' : ''}`}
@@ -188,12 +192,14 @@ const ReportTabToggle = ({ activeTab, onChange }) => (
     >
       Overall
     </button>
-    <button 
-      className={`er-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
-      onClick={() => onChange('individual')}
-    >
-      Individual
-    </button>
+    {showIndividual && (
+      <button
+        className={`er-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
+        onClick={() => onChange('individual')}
+      >
+        Individual
+      </button>
+    )}
   </div>
 );
 
@@ -212,6 +218,7 @@ const ExamResults = ({ me }) => {
   const initialProgramId = isProgramChair && userProgramId ? String(userProgramId) : 'all';
   
   const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
+  const [selectedAudience, setSelectedAudience] = useState('student');
   const [activeTab, setActiveTab] = useState('overall');
 
   const fetchExams = useCallback(async () => {
@@ -238,6 +245,7 @@ const ExamResults = ({ me }) => {
       const data = await getExamResult(examId);
       setActiveReport(data.result || null);
       setExpandedSubjectName(null);
+      setActiveTab('overall');
     } catch (err) {
       setActiveReport(null);
       console.warn('Could not load report:', err.message);
@@ -303,28 +311,33 @@ const ExamResults = ({ me }) => {
   }, [exams]);
 
   const filteredExams = useMemo(() => {
-    if (selectedProgramId === 'all') return exams;
-    return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
-  }, [exams, selectedProgramId]);
+    let next = exams;
+    if (selectedProgramId !== 'all') {
+      next = next.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
+    }
+    if (selectedAudience !== 'all') {
+      next = next.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
+    }
+    return next;
+  }, [exams, selectedProgramId, selectedAudience]);
 
   const examStats = useMemo(() => {
     const total = filteredExams.length;
-    const ready = filteredExams.filter((exam) => exam.computationStatus === 'computed').length;
-    const readyToCompute = filteredExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
+    const studentExams = filteredExams.filter((exam) => (exam.targetAudience || 'student') === 'student');
+    const ready = studentExams.filter((exam) => exam.computationStatus === 'computed').length;
+    const readyToCompute = studentExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
     return { total, ready, readyToCompute };
   }, [filteredExams]);
 
   useEffect(() => {
     if (!selectedExamId) return;
-    if (selectedProgramId === 'all') return;
-
     const selectedStillVisible = filteredExams.some((exam) => exam._id === selectedExamId);
     if (!selectedStillVisible) {
       setSelectedExamId(null);
       setActiveReport(null);
       setExpandedSubjectName(null);
     }
-  }, [filteredExams, selectedExamId, selectedProgramId]);
+  }, [filteredExams, selectedExamId]);
 
   const enrichedSubjects = useMemo(() => {
     if (!activeReport) return [];
@@ -343,8 +356,9 @@ const ExamResults = ({ me }) => {
     );
 
     return {
-      overallAvg: avg,
+      overallAvg: activeReport.overallAverageScore ?? avg,
       takers: activeReport.totalTakers,
+      totalAttempts: activeReport.totalAttempts,
       date: formatShortDate(activeReport.dateConducted),
       computedAt: formatDateTime(activeReport.computedAt)
     };
@@ -393,6 +407,18 @@ const ExamResults = ({ me }) => {
                     {program.name}
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className="er-program-filter">
+              <span>Exam Audience</span>
+              <select
+                value={selectedAudience}
+                onChange={(event) => setSelectedAudience(event.target.value)}
+              >
+                <option value="student">Student Exams</option>
+                <option value="alumni">Alumni Exams</option>
+                <option value="all">All Audiences</option>
               </select>
             </label>
 
@@ -449,7 +475,30 @@ const ExamResults = ({ me }) => {
             />
           )}
 
-          {selectedExamId && !loading && !activeReport && (
+          {selectedExamId && !loading && selectedExam?.targetAudience === 'alumni' && !activeReport && (
+            <EmptyStatePanel
+              eyebrow="No Attempts"
+              title="No alumni attempts yet"
+              message="Once alumni submit attempts for this exam, this page will show the average of each alumni's highest score."
+            >
+              <div className="er-empty-meta-grid">
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Exam</span>
+                  <strong>{selectedExam?.name || 'Selected exam'}</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Audience</span>
+                  <strong>Alumni</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Threshold</span>
+                  <strong>{threshold}%</strong>
+                </div>
+              </div>
+            </EmptyStatePanel>
+          )}
+
+          {selectedExamId && !loading && selectedExam?.targetAudience !== 'alumni' && !activeReport && (
             <EmptyStatePanel
               eyebrow="Analysis Pending"
               title="This exam does not have computed results yet"
@@ -484,12 +533,18 @@ const ExamResults = ({ me }) => {
           {activeReport && summary && (
             <>
               <div style={{ display: 'flex' }}>
-                <ReportTabToggle activeTab={activeTab} onChange={setActiveTab} />
+                <ReportTabToggle
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  showIndividual
+                />
               </div>
               <div className="er-report-view">
                 <div className="er-report-header">
                   <div className="er-report-title-group">
-                    <span className="er-report-kicker">Computed Report</span>
+                    <span className="er-report-kicker">
+                      {activeReport.targetAudience === 'alumni' ? 'Alumni Highest Score Report' : 'Computed Report'}
+                    </span>
                     <h2 className="er-report-title">{activeReport.examName}</h2>
                   </div>
                 <div className="er-report-meta">
@@ -505,7 +560,11 @@ const ExamResults = ({ me }) => {
                 <>
                   <section className="er-hero-card">
                     <div className="er-hero-topline">
-                      <span className="er-hero-eyebrow">Overall performance snapshot</span>
+                      <span className="er-hero-eyebrow">
+                        {activeReport.targetAudience === 'alumni'
+                          ? "Average of each alumni's highest score"
+                          : 'Overall performance snapshot'}
+                      </span>
                       <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
                     </div>
 
@@ -520,11 +579,19 @@ const ExamResults = ({ me }) => {
                       </div>
                       <div className="er-metric-item">
                         <span className="m-value">{summary.takers}</span>
-                        <span className="m-label">Total takers</span>
+                        <span className="m-label">
+                          {activeReport.targetAudience === 'alumni' ? 'Alumni counted' : 'Total takers'}
+                        </span>
                       </div>
                       <div className="er-metric-item">
-                        <span className="m-value">{summary.date}</span>
-                        <span className="m-label">Date conducted</span>
+                        <span className="m-value">
+                          {activeReport.targetAudience === 'alumni'
+                            ? (summary.totalAttempts ?? summary.takers)
+                            : summary.date}
+                        </span>
+                        <span className="m-label">
+                          {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Date conducted'}
+                        </span>
                       </div>
                     </div>
                   </section>
@@ -548,7 +615,11 @@ const ExamResults = ({ me }) => {
                   </section>
                 </>
               ) : (
-                <IndividualReportView examId={selectedExamId} threshold={threshold} />
+                <IndividualReportView
+                  examId={selectedExamId}
+                  threshold={threshold}
+                  audience={activeReport.targetAudience === 'alumni' ? 'alumni' : 'student'}
+                />
               )}
             </div>
             </>

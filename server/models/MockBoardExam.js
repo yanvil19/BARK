@@ -58,6 +58,12 @@ const mockBoardExamSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    targetAudience: {
+      type: String,
+      enum: ['student', 'alumni'],
+      default: 'student',
+      index: true,
+    },
     status: {
       type: String,
       enum: ['draft', 'published', 'ongoing', 'finished', 'archived'],
@@ -90,6 +96,13 @@ const mockBoardExamSchema = new mongoose.Schema(
 mockBoardExamSchema.virtual('durationMinutes').get(function () {
   if (!this.startDateTime || !this.endDateTime) return null;
   return Math.round((this.endDateTime - this.startDateTime) / 60000);
+});
+
+mockBoardExamSchema.pre('validate', function () {
+  if (this.targetAudience === 'alumni') {
+    this.startDateTime = null;
+    this.endDateTime = null;
+  }
 });
 
 module.exports = mongoose.model('MockBoardExam', mockBoardExamSchema);
