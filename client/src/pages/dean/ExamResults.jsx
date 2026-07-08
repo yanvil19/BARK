@@ -54,21 +54,67 @@ const getComputationTone = (exam) => {
 
 const getAudienceLabel = (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students');
 
-const QuestionRow = memo(({ question }) => {
+const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
   const tagInfo = getQuestionTagInfo(question.correctRate);
+  const answerCounts = question.answerCounts || [];
+  const totalAnswers = answerCounts.reduce((sum, answer) => sum + (answer.count || 0), 0) + (question.unansweredCount || 0);
 
   return (
     <div className="er-question-item">
-      <div className="er-q-header">
-        <span className="er-q-label">{question.label}</span>
-        <span className="er-q-rate">{question.correctRate}%</span>
-      </div>
-      <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
+      <button type="button" className="er-question-row" onClick={onToggle}>
+        <div className="er-question-main">
+          <span className="er-q-label">{question.label}</span>
+          <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
+        </div>
+
+        <div className="er-question-row-meta">
+          <span className="er-q-rate">{question.correctRate}% correct</span>
+          <span className="er-q-respondents">{totalAnswers} responses</span>
+        </div>
+
+        <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="er-question-details">
+          <div className="er-question-prompt-card">
+            <span className="er-question-detail-label">Question</span>
+            <p>{question.description || question.label}</p>
+          </div>
+
+          <div className="er-answer-breakdown">
+            <span className="er-question-detail-label">Answer choices</span>
+            {answerCounts.length > 0 ? (
+              answerCounts.map((answer) => (
+                <div key={answer.answerId || answer.text} className={`er-answer-row ${answer.isCorrect ? 'correct' : ''}`}>
+                  <div className="er-answer-copy">
+                    <span className="er-answer-text">{answer.text || 'Untitled answer'}</span>
+                    {answer.isCorrect && <span className="er-answer-correct-pill">Correct answer</span>}
+                  </div>
+                  <strong>{answer.count || 0}</strong>
+                </div>
+              ))
+            ) : (
+              <div className="er-answer-empty">No answer choices were stored for this question.</div>
+            )}
+            {(question.unansweredCount || 0) > 0 && (
+              <div className="er-answer-row muted">
+                <span className="er-answer-text">No answer submitted</span>
+                <strong>{question.unansweredCount}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
 
-const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
+const TopicRow = memo(({ subject, isExpanded, onToggle, expandedQuestionKey, onQuestionToggle }) => {
   const status = getStatusClass(subject.averageScore, subject.threshold);
 
   return (
@@ -103,9 +149,14 @@ const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
       </button>
 
       {isExpanded && (
-        <div className="er-questions-grid">
+        <div className="er-questions-list">
           {subject.questions.map((question, idx) => (
-            <QuestionRow key={idx} question={question} />
+            <QuestionRow
+              key={question.questionId || `${subject.name}-${idx}`}
+              question={question}
+              isExpanded={expandedQuestionKey === `${subject.name}-${question.questionId || idx}`}
+              onToggle={() => onQuestionToggle(`${subject.name}-${question.questionId || idx}`)}
+            />
           ))}
         </div>
       )}
@@ -212,6 +263,7 @@ const ExamResults = ({ me }) => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
+  const [expandedQuestionKey, setExpandedQuestionKey] = useState(null);
   
   const isProgramChair = me?.role === 'program_chair';
   const userProgramId = me?.program?._id || me?.program;
@@ -245,6 +297,7 @@ const ExamResults = ({ me }) => {
       const data = await getExamResult(examId);
       setActiveReport(data.result || null);
       setExpandedSubjectName(null);
+      setExpandedQuestionKey(null);
       setActiveTab('overall');
     } catch (err) {
       setActiveReport(null);
@@ -336,6 +389,7 @@ const ExamResults = ({ me }) => {
       setSelectedExamId(null);
       setActiveReport(null);
       setExpandedSubjectName(null);
+      setExpandedQuestionKey(null);
     }
   }, [filteredExams, selectedExamId]);
 
@@ -608,7 +662,15 @@ const ExamResults = ({ me }) => {
                           key={idx}
                           subject={subject}
                           isExpanded={expandedSubjectName === subject.name}
-                          onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
+                          expandedQuestionKey={expandedQuestionKey}
+                          onToggle={() => {
+                            setExpandedSubjectName((prev) => {
+                              const next = prev === subject.name ? null : subject.name;
+                              if (next !== subject.name) setExpandedQuestionKey(null);
+                              return next;
+                            });
+                          }}
+                          onQuestionToggle={(questionKey) => setExpandedQuestionKey((prev) => (prev === questionKey ? null : questionKey))}
                         />
                       ))}
                     </div>

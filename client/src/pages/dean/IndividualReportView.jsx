@@ -45,8 +45,9 @@ const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle }) => {
   );
 });
 
-const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard }) => {
+const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard, audience }) => {
   const { student, overallPercentage, passed, subjectBreakdowns } = studentData;
+  const isAlumni = audience === 'alumni';
   return (
     <div className="er-ind-student-card">
       <button type="button" className="er-ind-student-header" onClick={onToggleCard}>
@@ -61,6 +62,11 @@ const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject
           <div className="er-ind-student-name">
             {student.name}
             {student.studentId && <span className="er-ind-student-badge">{student.studentId}</span>}
+            {isAlumni && (
+              <span className="er-ind-student-badge">
+                {studentData.attemptCount || 0} attempt{Number(studentData.attemptCount || 0) === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
           <div className="er-ind-student-email">{student.email}</div>
         </div>
@@ -190,6 +196,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
             <StudentResultCard 
               key={data.attemptId}
               studentData={data}
+              audience={audience}
               isCardExpanded={expandedCards.has(data.attemptId)}
               onToggleCard={() => toggleCard(data.attemptId)}
               expandedSubjects={expandedSubjectsByCard[data.attemptId] || new Set()}

@@ -174,7 +174,8 @@
 .er-sidebar-item:focus-visible,
 .er-compute-link:focus-visible,
 .er-primary-btn:focus-visible,
-.er-topic-row:focus-visible {
+.er-topic-row:focus-visible,
+.er-question-row:focus-visible {
   outline: 3px solid rgba(53, 64, 142, 0.28);
   outline-offset: 2px;
 }
@@ -752,36 +753,53 @@
   transform: rotate(180deg);
 }
 
-.er-questions-grid {
+.er-questions-list {
   padding: 30px 26px;
   background: #f7f9fd;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .er-question-item {
-  padding: 14px 16px;
   background: #fff;
   border: 1px solid rgba(30, 45, 107, 0.08);
   border-radius: 16px;
   box-shadow: 0 10px 18px rgba(30, 45, 107, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overflow: hidden;
 }
 
-.er-q-header {
+.er-question-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 32px;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.er-question-row:hover {
+  background: #fbfcff;
+}
+
+.er-question-main {
+  min-width: 0;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .er-q-label {
   font-size: 13px;
-  font-weight: 700;
-  color: #475569;
+  font-weight: 800;
+  color: var(--er-navy);
+  line-height: 1.35;
 }
 
 .er-q-rate {
@@ -792,12 +810,133 @@
   color: var(--er-navy);
 }
 
+.er-question-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.er-q-respondents {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
 .er-q-tag {
   width: fit-content;
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 11px;
   font-weight: 700;
+}
+
+.er-question-details {
+  border-top: 1px solid #edf1f8;
+  background: #fbfcff;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.2fr);
+  gap: 16px;
+}
+
+.er-question-prompt-card,
+.er-answer-breakdown {
+  border: 1px solid rgba(30, 45, 107, 0.08);
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px;
+}
+
+.er-question-detail-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b96bc;
+}
+
+.er-question-prompt-card p {
+  margin: 0;
+  color: var(--er-text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.er-answer-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.er-answer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #f7f9fd;
+  border: 1px solid rgba(30, 45, 107, 0.06);
+}
+
+.er-answer-row.correct {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.er-answer-row.muted {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.er-answer-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.er-answer-text {
+  color: var(--er-text);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.er-answer-row strong {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--er-navy);
+  font-family: var(--font-title);
+  font-size: 15px;
+  box-shadow: 0 4px 10px rgba(30, 45, 107, 0.05);
+}
+
+.er-answer-correct-pill {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.er-answer-empty {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .tag-green {
@@ -970,9 +1109,18 @@
   .er-hero-card,
   .er-breakdown-header,
   .er-topic-row,
-  .er-questions-grid {
+  .er-questions-list {
     padding-left: 20px;
     padding-right: 20px;
+  }
+
+  .er-question-row,
+  .er-question-details {
+    grid-template-columns: 1fr;
+  }
+
+  .er-question-row-meta {
+    align-items: flex-start;
   }
 
   .er-empty-state-card {

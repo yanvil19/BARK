@@ -288,6 +288,17 @@ describe('alumni exam attempts', () => {
       overallAverageScore: 50,
       status: 'computed',
     });
+    expect(res.body.result.subjects[0].questions[0]).toMatchObject({
+      label: 'Q1',
+      correctRate: 50,
+      unansweredCount: 0,
+    });
+    expect(res.body.result.subjects[0].questions[0].answerCounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Correct', count: 1, isCorrect: true }),
+        expect.objectContaining({ text: 'Wrong', count: 1, isCorrect: false }),
+      ])
+    );
   });
 
   it("returns individual alumni results using each alumni's highest attempt", async () => {
@@ -304,6 +315,7 @@ describe('alumni exam attempts', () => {
     expect(res.body.students).toHaveLength(1);
     expect(res.body.students[0]).toMatchObject({
       attemptNumber: 2,
+      attemptCount: 2,
       overallPercentage: 100,
       passed: true,
       student: {

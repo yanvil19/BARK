@@ -43,6 +43,43 @@ function pickHighestAttemptByAlumni(attempts, exam) {
   return [...bestByAlumni.values()];
 }
 
+function buildQuestionRates(exam, attempts) {
+  const totalTakers = attempts.length;
+
+  return exam.questions.map((question) => {
+    const qId = String(question._id);
+    const correctOptionId = String(question.answers.find((a) => a.isCorrect)?._id);
+    const answerCounts = question.answers.map((answer) => {
+      const answerId = String(answer._id);
+      const count = attempts.reduce((sum, attempt) => {
+        const selectedAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
+        return sum + (String(selectedAnswerId || '') === answerId ? 1 : 0);
+      }, 0);
+
+      return {
+        answerId: answer._id,
+        text: answer.text || '',
+        count,
+        isCorrect: !!answer.isCorrect,
+      };
+    });
+
+    const correctCount = answerCounts.find((answer) => String(answer.answerId) === correctOptionId)?.count || 0;
+    const answeredCount = answerCounts.reduce((sum, answer) => sum + answer.count, 0);
+
+    return {
+      qId,
+      questionId: question._id,
+      tagId: String(question.tag),
+      label: question.title,
+      description: question.description || '',
+      correctRate: totalTakers > 0 ? Math.round((correctCount / totalTakers) * 100) : 0,
+      answerCounts,
+      unansweredCount: Math.max(totalTakers - answeredCount, 0),
+    };
+  });
+}
+
 async function buildAlumniHighestScoreReport(exam, user) {
   const attempts = await AlumniExamAttempt.find({
     exam: exam._id,
@@ -59,23 +96,7 @@ async function buildAlumniHighestScoreReport(exam, user) {
   if (bestAttempts.length === 0) return null;
 
   const totalTakers = bestAttempts.length;
-  const questionRates = [];
-
-  for (const question of exam.questions) {
-    const qId = String(question._id);
-    const correctOptionId = String(question.answers.find((a) => a.isCorrect)?._id);
-    const correctCount = bestAttempts.reduce((count, attempt) => {
-      const alumniAnswerId = attempt.answers ? String(attempt.answers.get(qId)) : '';
-      return count + (alumniAnswerId === correctOptionId ? 1 : 0);
-    }, 0);
-
-    questionRates.push({
-      qId,
-      tagId: String(question.tag),
-      label: question.title,
-      correctRate: Math.round((correctCount / totalTakers) * 100),
-    });
-  }
+  const questionRates = buildQuestionRates(exam, bestAttempts);
 
   const tagIds = [...new Set(questionRates.map((qr) => qr.tagId))];
   const tags = await Tag.find({ _id: { $in: tagIds } });
@@ -97,8 +118,12 @@ async function buildAlumniHighestScoreReport(exam, user) {
       correctCount: avgCorrect,
       totalItems: subjectQuestions.length,
       questions: subjectQuestions.map((sq) => ({
+        questionId: sq.questionId,
         label: sq.label,
+        description: sq.description,
         correctRate: sq.correctRate,
+        answerCounts: sq.answerCounts,
+        unansweredCount: sq.unansweredCount,
       })),
     };
   });
@@ -268,30 +293,7 @@ exports.computeResults = async (req, res) => {
 
     // 4. COMPUTE PER-QUESTION RATES
     const totalTakers = attempts.length;
-    const questionRates = []; // { qId, tagId, correctRate, label }
-
-    for (const question of exam.questions) {
-      let correctCount = 0;
-      const qId = String(question._id);
-      const correctOptionId = String(question.answers.find(a => a.isCorrect)?._id);
-
-      attempts.forEach(attempt => {
-        const studentAnswerId = String(attempt.answers.get(qId));
-        if (studentAnswerId === correctOptionId) {
-          correctCount++;
-        }
-      });
-
-      // Division by zero guard & Math.round
-      const correctRate = totalTakers > 0 ? Math.round((correctCount / totalTakers) * 100) : 0;
-      
-      questionRates.push({
-        qId,
-        tagId: String(question.tag),
-        label: question.title,
-        correctRate
-      });
-    }
+    const questionRates = buildQuestionRates(exam, attempts);
 
     // 5. COMPUTE PER-SUBJECT AVERAGES (Average of question rates)
     const tagIds = [...new Set(questionRates.map(qr => qr.tagId))];
@@ -319,8 +321,12 @@ exports.computeResults = async (req, res) => {
         correctCount: avgCorrect,
         totalItems,
         questions: subjectQuestions.map(sq => ({
+          questionId: sq.questionId,
           label: sq.label,
-          correctRate: sq.correctRate
+          description: sq.description,
+          correctRate: sq.correctRate,
+          answerCounts: sq.answerCounts,
+          unansweredCount: sq.unansweredCount,
         }))
       };
     });
@@ -413,6 +419,11 @@ exports.getStudentResults = async (req, res) => {
       }
 
       const bestAttempts = pickHighestAttemptByAlumni(filteredAttempts, exam);
+      const attemptCountsByAlumni = filteredAttempts.reduce((counts, attempt) => {
+        const alumniId = String(attempt.alumni?._id || attempt.alumni);
+        counts.set(alumniId, (counts.get(alumniId) || 0) + 1);
+        return counts;
+      }, new Map());
       const passingThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null)
         ? exam.passingThreshold
         : 70;
@@ -460,6 +471,7 @@ exports.getStudentResults = async (req, res) => {
         return {
           attemptId: attempt._id,
           attemptNumber: attempt.attemptNumber,
+          attemptCount: attemptCountsByAlumni.get(String(attempt.alumni._id)) || 1,
           submittedAt: attempt.endTime,
           student: {
             _id: attempt.alumni._id,

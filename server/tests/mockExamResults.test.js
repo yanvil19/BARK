@@ -69,11 +69,24 @@ describe('POST /api/mock-exam-results/:examId/compute', () => {
       status: 'finished', createdBy: deanUser._id,
     });
     const { user: student } = await createUserAndToken({ role: 'student', department: dept._id, program: prog._id });
+    const { user: secondStudent } = await createUserAndToken({
+      role: 'student',
+      department: dept._id,
+      program: prog._id,
+      email: 'second-student@example.com',
+      studentId: '2026-000002',
+    });
     await StudentExamAttempt.create({
       exam: exam._id, student: student._id,
       status: 'submitted', randomizedQuestions: [q._id],
       answers: new Map([[q._id.toString(), q.answers[0]._id]]),
       score: 1, submittedAt: pastDate(1),
+    });
+    await StudentExamAttempt.create({
+      exam: exam._id, student: secondStudent._id,
+      status: 'submitted', randomizedQuestions: [q._id],
+      answers: new Map([[q._id.toString(), q.answers[1]._id]]),
+      score: 0, submittedAt: pastDate(1),
     });
 
     const res = await request(app)
@@ -81,6 +94,17 @@ describe('POST /api/mock-exam-results/:examId/compute', () => {
       .set('Cookie', `nu_board_token=${deanToken}`)
       .send({});
     expect(res.status).toBe(200);
+    expect(res.body.result.subjects[0].questions[0]).toMatchObject({
+      label: 'Q1',
+      correctRate: 50,
+      unansweredCount: 0,
+    });
+    expect(res.body.result.subjects[0].questions[0].answerCounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'A', count: 1, isCorrect: true }),
+        expect.objectContaining({ text: 'B', count: 1, isCorrect: false }),
+      ])
+    );
   });
 });
 
