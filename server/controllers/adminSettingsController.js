@@ -56,6 +56,33 @@ const updateSettingsPending = async (req, res) => {
   }
 };
 
+// @desc    Directly update application settings (no pending flow)
+// @route   PATCH /api/admin/settings
+// @access  Private (Super Admin only)
+const updateSettings = async (req, res) => {
+  try {
+    const emailCooldownDays = toIntOrUndefined(req.body?.emailCooldownDays);
+    const passwordCooldownDays = toIntOrUndefined(req.body?.passwordCooldownDays);
+    const maxUploadImages = toIntOrUndefined(req.body?.maxUploadImages);
+
+    const update = {};
+    if (emailCooldownDays !== undefined) update.emailCooldownDays = emailCooldownDays;
+    if (passwordCooldownDays !== undefined) update.passwordCooldownDays = passwordCooldownDays;
+    if (maxUploadImages !== undefined) update.maxUploadImages = maxUploadImages;
+
+    const settings = await AppSettings.findOneAndUpdate(
+      { key: 'singleton' },
+      { $set: update },
+      { new: true, upsert: true, returnDocument: 'after' }
+    );
+
+    res.status(200).json(settings.toObject());
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message || 'Something went wrong. Please try again later.' });
+  }
+};
+
 const cancelSettingsUpdate = async (req, res) => {
   try {
     await settingsManager.cancelCountdown();
@@ -76,5 +103,5 @@ const getPendingStatus = async (req, res) => {
   }
 };
 
-module.exports = { getSettings, getPublicSettings, updateSettingsPending, cancelSettingsUpdate, getPendingStatus };
+module.exports = { getSettings, getPublicSettings, updateSettings, updateSettingsPending, cancelSettingsUpdate, getPendingStatus };
 

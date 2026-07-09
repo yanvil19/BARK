@@ -15,7 +15,7 @@ describe('GET /api/admin/settings', () => {
       .get('/api/admin/settings')
       .set('Cookie', `nu_board_token=${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('emailCooldownDays');
+    expect(res.body.settings).toHaveProperty('emailCooldownDays');
   });
 
   it('should return 401 with no auth', async () => {
