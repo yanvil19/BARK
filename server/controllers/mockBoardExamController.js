@@ -173,12 +173,17 @@ async function validateExamPayload(user, body) {
   const description = body.description?.trim() || '';
   const targetAudience = body.targetAudience || 'student';
   const isAlumniExam = targetAudience === 'alumni';
+  const isTimed = isAlumniExam ? Boolean(body.isTimed) : false;
+  const timeLimitMinutes = isTimed ? Number(body.timeLimitMinutes) : null;
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
   if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
   if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
   if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
+    errors.push('Time limit must be at least 1 minute');
+  }
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
   if (!['draft', 'published'].includes(status)) errors.push('Invalid exam status');
@@ -235,6 +240,8 @@ async function validateExamPayload(user, body) {
       description,
       status,
       targetAudience,
+      isTimed,
+      timeLimitMinutes,
       tags,
       questions,
       passingThreshold: body.passingThreshold ?? 70,
@@ -275,6 +282,8 @@ async function createMockBoardExam(req, res) {
       instructions: payload.instructions,
       description: payload.description,
       targetAudience: payload.targetAudience,
+      isTimed: payload.isTimed,
+      timeLimitMinutes: payload.timeLimitMinutes,
       status: payload.status,
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
@@ -290,6 +299,8 @@ async function createMockBoardExam(req, res) {
       programId: exam.program,
       status: exam.status,
       targetAudience: exam.targetAudience,
+      isTimed: exam.isTimed,
+      timeLimitMinutes: exam.timeLimitMinutes,
       questionCount: exam.questions?.length || 0,
     });
 
@@ -363,9 +374,12 @@ async function listMockBoardExams(req, res) {
       const resultsReleased = Boolean(
         resultsReleaseDate && new Date(resultsReleaseDate) <= now
       );
-      const durationMinutes = exam.startDateTime && exam.endDateTime
-        ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
-        : null;
+      const isAlumniExam = (exam.targetAudience || 'student') === 'alumni';
+      const durationMinutes = isAlumniExam && exam.isTimed
+        ? exam.timeLimitMinutes
+        : exam.startDateTime && exam.endDateTime
+          ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
+          : null;
 
       const submissionCount = submissionCounts.get(String(exam._id)) || 0;
       const alumniSubmissionCount = alumniSubmissionCounts.get(String(exam._id)) || 0;
@@ -448,6 +462,8 @@ async function updateMockBoardExam(req, res) {
       description: req.body.description ?? current.description,
       status: req.body.status ?? current.status,
       targetAudience: req.body.targetAudience ?? current.targetAudience ?? 'student',
+      isTimed: req.body.isTimed ?? current.isTimed ?? false,
+      timeLimitMinutes: req.body.timeLimitMinutes ?? current.timeLimitMinutes,
       passingThreshold: req.body.passingThreshold ?? current.passingThreshold,
     };
 
@@ -475,6 +491,8 @@ async function updateMockBoardExam(req, res) {
     current.instructions = payload.instructions;
     current.description = payload.description;
     current.targetAudience = payload.targetAudience;
+    current.isTimed = payload.isTimed;
+    current.timeLimitMinutes = payload.timeLimitMinutes;
     current.status = payload.status;
     current.passingThreshold = payload.passingThreshold;
     await current.save();
@@ -490,6 +508,8 @@ async function updateMockBoardExam(req, res) {
       oldStatus,
       newStatus: current.status,
       targetAudience: current.targetAudience,
+      isTimed: current.isTimed,
+      timeLimitMinutes: current.timeLimitMinutes,
       questionCount: current.questions?.length || 0,
     });
 
@@ -604,6 +624,8 @@ async function copyExam(req, res) {
       instructions: exam.instructions || '',
       status: 'draft',
       targetAudience: exam.targetAudience || 'student',
+      isTimed: exam.isTimed || false,
+      timeLimitMinutes: exam.timeLimitMinutes || null,
       passingThreshold: exam.passingThreshold,
       resultsReleaseDate: null,
       missedAttemptsProcessedAt: null,

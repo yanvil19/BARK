@@ -24,8 +24,14 @@ function formatDateTime(value) {
 }
 
 function formatDuration(minutes) {
+  if (minutes === null || minutes === undefined || minutes === '') return '-';
   const total = Number(minutes) || 0;
   return `${total} minute${total === 1 ? '' : 's'}`;
+}
+
+function formatExamDuration(exam) {
+  if ((exam?.targetAudience || 'student') === 'alumni' && !exam?.isTimed) return 'Untimed';
+  return formatDuration(exam?.durationMinutes);
 }
 
 function formatCount(value, singular, plural = `${singular}s`) {
@@ -507,7 +513,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const selectedExamStats = selectedExam ? [
     { label: 'Exam Start', value: formatDateTime(selectedExam.startDateTime) },
     { label: 'Exam End', value: formatDateTime(selectedExam.endDateTime) },
-    { label: 'Duration', value: formatDuration(selectedExam.durationMinutes) },
+    { label: 'Duration', value: formatExamDuration(selectedExam) },
     { label: 'Passing Threshold', value: `${selectedExam.passingThreshold || 0}%` },
     { label: 'Audience', value: selectedExam.targetAudience === 'alumni' ? 'Alumni' : 'Students' },
     { label: 'Total Items', value: formatCount(selectedExamQuestions.length, 'item') },
@@ -653,7 +659,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                     </td>
                     <td className="ambe-muted">{formatDateTime(exam.startDateTime)}</td>
                     <td className="ambe-muted">{formatDateTime(exam.endDateTime)}</td>
-                    <td className="ambe-muted">{formatDuration(exam.durationMinutes)}</td>
+                    <td className="ambe-muted">{formatExamDuration(exam)}</td>
                     <td>{exam.questions?.length || 0}</td>
                     <td>
                       {(exam.targetAudience || 'student') === 'alumni'

@@ -2,6 +2,8 @@ const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { shuffleArray, calculateScore } = require('../utils/examAttemptUtils');
 
+const TIME_LIMIT_GRACE_MS = 10 * 1000;
+
 function getTotalItems(exam, attempt) {
   const totalFromSubjects = (attempt.subjectScores || []).reduce(
     (sum, ss) => sum + (ss.total || 0),
@@ -13,6 +15,24 @@ function getTotalItems(exam, attempt) {
 function getPassed(score, totalItems, passingThreshold) {
   if (!totalItems) return false;
   return (score / totalItems) * 100 >= passingThreshold;
+}
+
+function getTimedDeadline(exam, attempt) {
+  if (!exam?.isTimed || !exam?.timeLimitMinutes || !attempt?.startTime) return null;
+  return new Date(new Date(attempt.startTime).getTime() + Number(exam.timeLimitMinutes) * 60000);
+}
+
+function getRemainingTimeSeconds(exam, attempt) {
+  const deadline = getTimedDeadline(exam, attempt);
+  if (!deadline) return null;
+  return Math.max(0, Math.floor((deadline.getTime() - Date.now()) / 1000));
+}
+
+async function submitExpiredTimedAttempt(attempt, exam, deadline) {
+  attempt.status = 'submitted';
+  attempt.endTime = deadline;
+  await calculateScore(attempt, exam);
+  await attempt.save();
 }
 
 function serializeSubjectScores(subjectScores = []) {
@@ -30,7 +50,7 @@ async function getAvailableExams(req, res) {
       targetAudience: 'alumni',
       status: 'published',
     })
-      .select('name status program subjectTags questions passingThreshold targetAudience')
+      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes')
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
       .sort({ updatedAt: -1 })
@@ -42,6 +62,7 @@ async function getAvailableExams(req, res) {
       return {
         ...exam,
         questionCount,
+        durationMinutes: exam.isTimed ? exam.timeLimitMinutes : null,
         examCardStatus: 'available',
       };
     });
@@ -77,6 +98,14 @@ async function startExam(req, res) {
       exam: examId,
       status: 'in_progress',
     });
+
+    if (attempt) {
+      const deadline = getTimedDeadline(currentExam, attempt);
+      if (deadline && Date.now() > deadline.getTime() + TIME_LIMIT_GRACE_MS) {
+        await submitExpiredTimedAttempt(attempt, currentExam, deadline);
+        attempt = null;
+      }
+    }
 
     if (!attempt) {
       const attemptNumber = await AlumniExamAttempt.countDocuments({
@@ -152,7 +181,10 @@ async function startExam(req, res) {
         description: currentExam.description,
         instructions: currentExam.instructions,
         passingThreshold: currentExam.passingThreshold,
+        isTimed: currentExam.isTimed,
+        timeLimitMinutes: currentExam.timeLimitMinutes,
       },
+      remainingTimeSeconds: getRemainingTimeSeconds(currentExam, attempt),
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
     });
@@ -187,8 +219,9 @@ async function submitExam(req, res) {
       }
     }
 
+    const deadline = getTimedDeadline(exam, attempt);
     attempt.status = 'submitted';
-    attempt.endTime = new Date();
+    attempt.endTime = deadline && Date.now() > deadline.getTime() ? deadline : new Date();
     await calculateScore(attempt, exam);
     await attempt.save();
     await attempt.populate('subjectScores.tag', 'name');

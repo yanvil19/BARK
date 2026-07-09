@@ -14,6 +14,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   const [questions, setQuestions] = useState([]);
   const [attemptId, setAttemptId] = useState(null);
   const [attemptNumber, setAttemptNumber] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +35,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
         setQuestions(data.questions);
         setAttemptId(data.attemptId);
         setAttemptNumber(data.attemptNumber);
+        setTimeRemaining(data.remainingTimeSeconds ?? null);
         setAnswers(data.answers || {});
       } catch (err) {
         setError(err.message || 'Failed to start exam.');
@@ -75,6 +77,32 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
       });
       setSubmitting(false);
     }
+  };
+
+  useEffect(() => {
+    if (timeRemaining === null || loading || submitting || error || isSubmittingRef.current) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null) return null;
+        return prev > 0 ? prev - 1 : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [error, loading, submitting, timeRemaining]);
+
+  useEffect(() => {
+    if (timeRemaining !== 0 || submitting || isSubmittingRef.current || !attemptId) return;
+    submitFinal();
+  }, [attemptId, submitting, timeRemaining]);
+
+  const formatTimer = (seconds) => {
+    const total = Math.max(0, Number(seconds) || 0);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
@@ -132,7 +160,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
           </div>
         </PageHeader>
 
-        <div className="mbep-stats">
+        <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: timeRemaining === null ? '1fr' : '1fr auto', gap: '20px' }}>
           <div className="mbep-progress-card">
             <div className="mbep-progress-info">
               <span>Progress ({answeredCount} answered)</span>
@@ -142,6 +170,13 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
               <div className="mbep-progress-fill" style={{ width: `${progressPercent}%` }}></div>
             </div>
           </div>
+          {timeRemaining !== null ? (
+            <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-bg)' }}>
+                {formatTimer(timeRemaining)}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <main className="mbep-content">

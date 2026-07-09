@@ -64,6 +64,15 @@ const mockBoardExamSchema = new mongoose.Schema(
       default: 'student',
       index: true,
     },
+    isTimed: {
+      type: Boolean,
+      default: false,
+    },
+    timeLimitMinutes: {
+      type: Number,
+      default: null,
+      min: [1, 'Time limit must be at least 1 minute'],
+    },
     status: {
       type: String,
       enum: ['draft', 'published', 'ongoing', 'finished', 'archived'],
@@ -94,6 +103,9 @@ const mockBoardExamSchema = new mongoose.Schema(
 );
 
 mockBoardExamSchema.virtual('durationMinutes').get(function () {
+  if (this.targetAudience === 'alumni') {
+    return this.isTimed ? this.timeLimitMinutes : null;
+  }
   if (!this.startDateTime || !this.endDateTime) return null;
   return Math.round((this.endDateTime - this.startDateTime) / 60000);
 });
@@ -102,6 +114,10 @@ mockBoardExamSchema.pre('validate', function () {
   if (this.targetAudience === 'alumni') {
     this.startDateTime = null;
     this.endDateTime = null;
+    if (!this.isTimed) this.timeLimitMinutes = null;
+  } else {
+    this.isTimed = false;
+    this.timeLimitMinutes = null;
   }
 });
 

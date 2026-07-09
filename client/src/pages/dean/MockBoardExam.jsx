@@ -36,6 +36,16 @@ function ensureISOString(value) {
   return date.toISOString();
 }
 
+function formatDurationFromMinutes(value) {
+  const total = Number(value);
+  if (!Number.isFinite(total) || total <= 0) return '';
+  const hrs = Math.floor(total / 60);
+  const mins = total % 60;
+  if (hrs && mins) return `${hrs} hours ${mins} minutes`;
+  if (hrs) return `${hrs} hour${hrs === 1 ? '' : 's'}`;
+  return `${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
   const isEditing = !!editingExamId;
   const userId = me?._id || 'guest';
@@ -72,8 +82,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     instructions: '',
     targetAudience: 'student',
     status: 'draft',
+    isTimed: false,
+    timeLimitMinutes: 180,
     passingThreshold: 70,
   });
+
+  const isAlumniExam = (form.targetAudience || 'student') === 'alumni';
 
   const computedDuration = useMemo(() => {
     if (!form.startDateTime || !form.endDateTime) return null;
@@ -146,6 +160,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           instructions: exam.instructions || '',
           targetAudience: exam.targetAudience || 'student',
           status: exam.status || 'draft',
+          isTimed: Boolean(exam.isTimed),
+          timeLimitMinutes: exam.timeLimitMinutes || 180,
           passingThreshold: exam.passingThreshold || 70,
         });
       } catch (err) {
@@ -346,12 +362,14 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         programId,
         subjectTagIds: selectedTagIds,
         questionIds: selectedQuestions.map((question) => question._id),
-        startDateTime: ensureISOString(form.startDateTime),
-        endDateTime: ensureISOString(form.endDateTime),
+        startDateTime: isAlumniExam ? '' : ensureISOString(form.startDateTime),
+        endDateTime: isAlumniExam ? '' : ensureISOString(form.endDateTime),
         description: form.description,
         instructions: form.instructions,
         targetAudience: form.targetAudience || 'student',
-        status: form.status,
+        status: form.status || 'draft',
+        isTimed: isAlumniExam ? Boolean(form.isTimed) : false,
+        timeLimitMinutes: isAlumniExam && form.isTimed ? Number(form.timeLimitMinutes) : null,
         passingThreshold: form.passingThreshold,
       };
 
@@ -380,6 +398,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         instructions: '',
         targetAudience: 'student',
         status: 'draft',
+        isTimed: false,
+        timeLimitMinutes: 180,
         passingThreshold: 70,
       });
       setSelectedTagIds([]);
@@ -420,7 +440,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           <div className="mbe-section-heading">
             <div>
               <h2>{editingExamId ? 'Edit Mock Board Exam' : 'Create Mock Board Exam'}</h2>
-              <p>Set the exam details, availability, and publishing status.</p>
+              <p>
+                {isAlumniExam
+                  ? 'Create a reusable alumni practice exam and decide if each attempt should be timed.'
+                  : 'Create a student exam with a scheduled opening and closing time.'}
+              </p>
             </div>
             <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>
               {getStatusLabel(form.status)}
@@ -438,6 +462,31 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   required
                 />
+              </label>
+            </div>
+
+            <div className="mbe-field">
+              <label>
+                Target Audience
+                <select
+                  className="mbe-input"
+                  value={form.targetAudience || 'student'}
+                  onChange={(e) => {
+                    const targetAudience = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      targetAudience,
+                      startDateTime: targetAudience === 'alumni' ? '' : prev.startDateTime,
+                      endDateTime: targetAudience === 'alumni' ? '' : prev.endDateTime,
+                      isTimed: targetAudience === 'alumni' ? prev.isTimed : false,
+                      timeLimitMinutes: prev.timeLimitMinutes || 180,
+                    }));
+                  }}
+                  required
+                >
+                  <option value="student">Students</option>
+                  <option value="alumni">Alumni</option>
+                </select>
               </label>
             </div>
 
@@ -465,61 +514,74 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               </label>
             </div>
 
-            <div className="mbe-field">
-              <div className="mbe-field-heading">
-                <label>Exam Start</label>
+            {!isAlumniExam ? (
+              <>
+                <div className="mbe-field">
+                  <div className="mbe-field-heading">
+                    <label>Exam Start</label>
+                  </div>
+                  <DateTimePicker
+                    value={form.startDateTime}
+                    onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
+                  />
+                </div>
+
+                <div className="mbe-field">
+                  <div className="mbe-field-heading">
+                    <label>Exam End</label>
+                    <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
+                      {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
+                    </span>
+                  </div>
+                  <DateTimePicker
+                    value={form.endDateTime}
+                    onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="mbe-field mbe-field--full">
+                <div className="mbe-alumni-settings">
+                  <div>
+                    <h3>Alumni Attempt Timer</h3>
+                    <p>This alumni exam becomes available when published and stays open until it is archived or unpublished.</p>
+                  </div>
+
+                  <label className="mbe-check-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.isTimed)}
+                      onChange={(e) => setForm((prev) => ({
+                        ...prev,
+                        isTimed: e.target.checked,
+                        timeLimitMinutes: prev.timeLimitMinutes || 180,
+                      }))}
+                    />
+                    <span>Make each alumni attempt timed</span>
+                  </label>
+
+                  {form.isTimed ? (
+                    <label className="mbe-timer-field">
+                      Time Limit (minutes)
+                      <input
+                        className="mbe-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.timeLimitMinutes}
+                        onChange={(e) => setForm((prev) => ({ ...prev, timeLimitMinutes: e.target.value }))}
+                        required
+                      />
+                      <span className="mbe-field-meta">
+                        {formatDurationFromMinutes(form.timeLimitMinutes) || 'Enter the allowed attempt time.'}
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="mbe-availability-note">Attempts will be untimed.</p>
+                  )}
+                </div>
               </div>
-              <DateTimePicker
-                value={form.startDateTime}
-                onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
-              />
-            </div>
-
-            <div className="mbe-field">
-              <div className="mbe-field-heading">
-                <label>Exam End</label>
-                <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
-                  {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
-                </span>
-              </div>
-              <DateTimePicker
-                value={form.endDateTime}
-                onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
-              />
-            </div>
-
-            <div className="mbe-field">
-              <label>
-                Status
-                <select
-                  className="mbe-input"
-                  value={form.status}
-                  onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="mbe-field">
-              <label>
-                Target Audience
-                <select
-                  className="mbe-input"
-                  value={form.targetAudience || 'student'}
-                  onChange={(e) => setForm((prev) => ({
-                    ...prev,
-                    targetAudience: e.target.value,
-                    startDateTime: e.target.value === 'alumni' ? '' : prev.startDateTime,
-                    endDateTime: e.target.value === 'alumni' ? '' : prev.endDateTime,
-                  }))}
-                >
-                  <option value="student">Students</option>
-                  <option value="alumni">Alumni</option>
-                </select>
-              </label>
-            </div>
+            )}
 
             <div className="mbe-field">
               <label>
@@ -536,7 +598,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               </label>
             </div>
 
-            <div className="mbe-field mbe-field--full" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div className="mbe-field mbe-field--full mbe-textarea-grid">
               <label>
                 Description
                 <textarea
