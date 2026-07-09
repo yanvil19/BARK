@@ -275,9 +275,84 @@ async function getMyAttempts(req, res) {
   }
 }
 
+async function getDashboardAttempts(req, res) {
+  try {
+    const attempts = await AlumniExamAttempt.find({
+      alumni: req.user._id,
+      status: 'submitted',
+    })
+      .populate({
+        path: 'exam',
+        select: 'name questions passingThreshold',
+      })
+      .populate({
+        path: 'subjectScores.tag',
+        select: 'name',
+      })
+      .sort({ endTime: -1 })
+      .lean();
+
+    const enrichedAttempts = attempts.map((attempt) => {
+      const totalFromExam = attempt.exam?.questions?.length || 0;
+
+      const totalFromSubjects = (attempt.subjectScores || []).reduce(
+        (sum, ss) => sum + (ss.total || 0),
+        0
+      );
+
+      const totalItems =
+        totalFromExam || totalFromSubjects || 0;
+
+      const threshold =
+        attempt.exam?.passingThreshold ?? 70;
+
+      const pct =
+        totalItems > 0
+          ? (attempt.score / totalItems) * 100
+          : 0;
+
+      const durationMinutes =
+        attempt.endTime && attempt.startTime
+          ? Math.round(
+              (new Date(attempt.endTime) -
+                new Date(attempt.startTime)) /
+                60000
+            )
+          : null;
+
+      return {
+        id: attempt._id,
+        examId: attempt.exam?._id,
+        examName: attempt.exam?.name || 'Unknown Exam',
+        date: attempt.startTime,
+        submittedAt: attempt.endTime,
+        durationMinutes,
+        totalItems,
+        rawScore: attempt.score,
+        totalScore: totalItems,
+        passed: pct >= threshold,
+        status: pct >= threshold ? 'passed' : 'failed',
+        passingThreshold: threshold,
+        subjectScores: serializeSubjectScores(
+          attempt.subjectScores || []
+        ),
+      };
+    });
+
+    res.json({ attempts: enrichedAttempts });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'Something went wrong. Please try again later.'
+    });
+  }
+}
+
 module.exports = {
   getAvailableExams,
   startExam,
   submitExam,
   getMyAttempts,
+  getDashboardAttempts,
 };
