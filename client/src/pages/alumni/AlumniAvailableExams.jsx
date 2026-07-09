@@ -15,6 +15,16 @@ function IconList(props) {
   );
 }
 
+function formatDuration(minutes) {
+  const total = Number(minutes);
+  if (!Number.isFinite(total) || total <= 0) return 'Untimed';
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  if (hours && mins) return `${hours}h ${mins}m`;
+  if (hours) return `${hours}h`;
+  return `${mins}m`;
+}
+
 function SkeletonCard({ keyId }) {
   return (
     <div key={keyId} className="ae-card ae-card--skeleton" aria-hidden="true">
@@ -125,6 +135,9 @@ export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
                   </div>
                   <div className="ae-pill" title="Availability">
                     <span>Available now</span>
+                  </div>
+                  <div className="ae-pill" title="Attempt timer">
+                    <span>{exam.isTimed ? `Timed: ${formatDuration(exam.timeLimitMinutes)}` : 'Untimed'}</span>
                   </div>
                 </div>
               </div>

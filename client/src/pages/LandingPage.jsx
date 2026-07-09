@@ -61,16 +61,49 @@ const getValidDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const isExamCurrentlyOpen = (exam, now = new Date()) => {
+const isAlumniExam = (exam) => (exam.targetAudience || 'student') === 'alumni';
+
+const isStudentExam = (exam) => !isAlumniExam(exam);
+
+const isStudentExamScheduled = (exam, now = new Date()) => {
+  const start = getValidDate(exam.startDateTime);
+  return Boolean(isStudentExam(exam) && exam.status === 'published' && start && start > now);
+};
+
+const isStudentExamActive = (exam, now = new Date()) => {
   const start = getValidDate(exam.startDateTime);
   const end = getValidDate(exam.endDateTime);
   const isPublishedStatus = ['published', 'ongoing'].includes(exam.status);
-  return Boolean(isPublishedStatus && start && end && start <= now && now < end);
+  return Boolean(isStudentExam(exam) && isPublishedStatus && start && end && start <= now && now < end);
 };
 
 const formatDateTime = (value) => {
   const date = getValidDate(value);
   return date ? DATE_TIME_FORMATTER.format(date) : 'Schedule pending';
+};
+
+const getExamTiming = (exam, now = new Date()) => {
+  if (isAlumniExam(exam)) {
+    return {
+      meta: 'Available anytime',
+      badge: 'Reviewer',
+      tone: 'alumni',
+    };
+  }
+
+  if (isStudentExamActive(exam, now)) {
+    return {
+      meta: `Started ${formatDateTime(exam.startDateTime)}`,
+      badge: `Closes ${formatDateTime(exam.endDateTime)}`,
+      tone: 'active',
+    };
+  }
+
+  return {
+    meta: `Starts ${formatDateTime(exam.startDateTime)}`,
+    badge: `Opens ${formatDateTime(exam.startDateTime)}`,
+    tone: 'scheduled',
+  };
 };
 
 const getFocusableElements = (container) => {
@@ -82,7 +115,7 @@ const getFocusableElements = (container) => {
   ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true');
 };
 
-function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin }) {
+function PublishedExamsWelcomeModal({ open, onClose, categories, onLogin }) {
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
@@ -91,6 +124,7 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
   // Transition and Mount states
   const [shouldRender, setShouldRender] = useState(open);
   const [isClosing, setIsClosing] = useState(false);
+  const [activeCategoryKey, setActiveCategoryKey] = useState('');
   const [activeDeptKey, setActiveDeptKey] = useState('');
   const [displayDeptKey, setDisplayDeptKey] = useState('');
   const [isChangingDept, setIsChangingDept] = useState(false);
@@ -125,16 +159,17 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
   }, [activeDeptKey, displayDeptKey]);
 
   // Drag-to-scroll refs
+  const categoryTabsRef = useRef(null);
   const tabsRef = useRef(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeftState = useRef(0);
   const dragDistance = useRef(0);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e, targetRef = tabsRef) => {
     isDragging.current = true;
-    startX.current = e.pageX - (tabsRef.current?.offsetLeft || 0);
-    scrollLeftState.current = tabsRef.current?.scrollLeft || 0;
+    startX.current = e.pageX - (targetRef.current?.offsetLeft || 0);
+    scrollLeftState.current = targetRef.current?.scrollLeft || 0;
     dragDistance.current = 0;
   };
 
@@ -149,22 +184,34 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
     }, 0);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging.current || !tabsRef.current) return;
+  const handleMouseMove = (e, targetRef = tabsRef) => {
+    if (!isDragging.current || !targetRef.current) return;
     e.preventDefault();
-    const x = e.pageX - tabsRef.current.offsetLeft;
+    const x = e.pageX - targetRef.current.offsetLeft;
     const walk = (x - startX.current) * 1.5;
-    tabsRef.current.scrollLeft = scrollLeftState.current - walk;
+    targetRef.current.scrollLeft = scrollLeftState.current - walk;
     dragDistance.current = Math.abs(x - startX.current);
   };
 
   useEffect(() => {
-    if (open && groups.length > 0) {
-      if (!activeDeptKey || !groups.some((g) => g.key === activeDeptKey)) {
-        setActiveDeptKey(groups[0].key);
+    if (open && categories.length > 0) {
+      if (!activeCategoryKey || !categories.some((category) => category.key === activeCategoryKey)) {
+        setActiveCategoryKey(categories[0].key);
       }
     }
-  }, [open, groups, activeDeptKey]);
+  }, [activeCategoryKey, categories, open]);
+
+  const activeCategory = categories.find((category) => category.key === activeCategoryKey) || categories[0];
+  const activeGroups = activeCategory?.groups || [];
+
+  useEffect(() => {
+    if (open && activeGroups.length > 0) {
+      if (!activeDeptKey || !activeGroups.some((group) => group.key === activeDeptKey)) {
+        setActiveDeptKey(activeGroups[0].key);
+        setDisplayDeptKey(activeGroups[0].key);
+      }
+    }
+  }, [activeCategoryKey, activeDeptKey, activeGroups, open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -219,9 +266,9 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
     };
   }, [onClose, open]);
 
-  if (!shouldRender || groups.length === 0 || typeof document === 'undefined') return null;
+  if (!shouldRender || categories.length === 0 || typeof document === 'undefined') return null;
 
-  const activeGroup = groups.find((g) => g.key === displayDeptKey || g.key === activeDeptKey) || groups[0];
+  const activeGroup = activeGroups.find((g) => g.key === displayDeptKey || g.key === activeDeptKey) || activeGroups[0];
 
   return createPortal(
     <div
@@ -240,13 +287,10 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
       >
         <header className="published-exams-modal-header">
           <div>
-            <span className="published-exams-modal-kicker">Currently open</span>
+            <span className="published-exams-modal-kicker">{activeCategory.kicker}</span>
             <h2 id={titleId} className="published-exams-modal-title">
-              On-going Mock Board Exams!
+              {activeCategory.title}
             </h2>
-            <p className="published-exams-modal-copy">
-              {examCount} {examCount === 1 ? 'exam is' : 'exams are'} open for students right now. Check them out and log in to answer!
-            </p>
           </div>
           <button
             ref={closeButtonRef}
@@ -259,18 +303,54 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
           </button>
         </header>
 
-        {groups.length > 1 && (
+        {categories.length > 1 && (
+          <div
+            ref={categoryTabsRef}
+            className="published-exams-modal-category-tabs"
+            role="tablist"
+            aria-label="Exam categories"
+            onMouseDown={(event) => handleMouseDown(event, categoryTabsRef)}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={(event) => handleMouseMove(event, categoryTabsRef)}
+          >
+            {categories.map((category) => {
+              const isActive = category.key === activeCategory.key;
+              return (
+                <button
+                  key={category.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`published-exams-modal-category-tab${isActive ? ' active' : ''}`}
+                  onClick={(event) => {
+                    if (dragDistance.current > 5) {
+                      event.preventDefault();
+                      return;
+                    }
+                    setActiveCategoryKey(category.key);
+                  }}
+                >
+                  <span>{category.label}</span>
+                  <strong>{category.count}</strong>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeGroups.length > 1 && (
           <div
             ref={tabsRef}
             className="published-exams-modal-tabs"
             role="tablist"
             aria-label="Departments"
-            onMouseDown={handleMouseDown}
+            onMouseDown={(event) => handleMouseDown(event, tabsRef)}
             onMouseLeave={handleMouseLeave}
             onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
+            onMouseMove={(event) => handleMouseMove(event, tabsRef)}
           >
-            {groups.map((dept) => {
+            {activeGroups.map((dept) => {
               const isActive = dept.key === activeDeptKey;
               return (
                 <button
@@ -319,14 +399,14 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
                             <h4 className="published-exams-row-title">{exam.name}</h4>
                             <div className="published-exams-row-meta">
                               <span className="published-exams-meta-item">
-                                Started {formatDateTime(exam.startDateTime)}
+                                {getExamTiming(exam).meta}
                               </span>
                             </div>
                           </div>
                           <div className="published-exams-row-right">
-                            <div className="published-exams-deadline-badge">
+                            <div className={`published-exams-deadline-badge is-${getExamTiming(exam).tone}`}>
                               <span className="deadline-dot"></span>
-                              <span>Closes {formatDateTime(exam.endDateTime)}</span>
+                              <span>{getExamTiming(exam).badge}</span>
                             </div>
                           </div>
                         </article>
@@ -341,7 +421,7 @@ function PublishedExamsWelcomeModal({ open, onClose, groups, examCount, onLogin 
 
         <footer className="published-exams-modal-footer">
           <button type="button" className="btn-login-yellow" onClick={onLogin}>
-            Log in to answer
+            Log In
           </button>
         </footer>
       </section>
@@ -480,19 +560,25 @@ const LandingPage = ({ onNavigate }) => {
     return rawDepartment || programDepartment;
   };
 
-  const featuredExams = exams.slice(0, 7);
-
-  const openPublishedExams = useMemo(() => {
+  const examCategories = useMemo(() => {
     const now = new Date();
-    return exams
-      .filter((exam) => isExamCurrentlyOpen(exam, now))
+    const scheduled = exams
+      .filter((exam) => isStudentExamScheduled(exam, now))
+      .sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+    const active = exams
+      .filter((exam) => isStudentExamActive(exam, now))
       .sort((a, b) => new Date(a.endDateTime) - new Date(b.endDateTime));
+    const alumni = exams
+      .filter((exam) => isAlumniExam(exam) && exam.status === 'published')
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    return { scheduled, active, alumni };
   }, [exams]);
 
-  const groupedOpenExams = useMemo(() => {
+  const groupExamsByDepartment = (examList) => {
     const departmentMap = new Map();
 
-    openPublishedExams.forEach((exam) => {
+    examList.forEach((exam) => {
       const programDetails = resolveExamProgram(exam);
       const departmentDetails = resolveExamDepartment(exam, programDetails);
       const departmentKey = String(departmentDetails?._id || exam.department || 'unknown-department');
@@ -524,13 +610,82 @@ const LandingPage = ({ onNavigate }) => {
       ...department,
       programs: Array.from(department.programs.values()),
     }));
-  }, [openPublishedExams, programs, departments]);
+  };
+
+  const publicExamCategories = useMemo(() => {
+    const scheduledCount = examCategories.scheduled.length;
+    const activeCount = examCategories.active.length;
+    const alumniCount = examCategories.alumni.length;
+
+    return [
+      {
+        key: 'active',
+        label: 'Active',
+        kicker: 'Available Now',
+        title: 'Ongoing Exams',
+        copy: activeCount === 1
+          ? '1 ongoing exam is currently open for submission. Complete your exam before the scheduled closing time.'
+          : `${activeCount} ongoing exams are currently open for submission. Complete your exam before the scheduled closing time.`,
+        count: activeCount,
+        exams: examCategories.active,
+        groups: groupExamsByDepartment(examCategories.active),
+      },
+      {
+        key: 'scheduled',
+        label: 'Scheduled',
+        kicker: 'Scheduled for Students',
+        title: 'Upcoming Board Exams',
+        copy: scheduledCount === 1
+          ? '1 upcoming board exam is published and will become available at its scheduled start time.'
+          : `${scheduledCount} upcoming board exams are published and will become available at their scheduled start time.`,
+        count: scheduledCount,
+        exams: examCategories.scheduled,
+        groups: groupExamsByDepartment(examCategories.scheduled),
+      },
+      {
+        key: 'alumni',
+        label: 'Alumni',
+        kicker: 'Board Review Materials',
+        title: 'Practice Reviewer',
+        copy: alumniCount === 1
+          ? '1 practice reviewer exam is available anytime for alumni to support board examination preparation. Multiple attempts are allowed.'
+          : `${alumniCount} practice reviewer exams are available anytime for alumni to support board examination preparation. Multiple attempts are allowed.`,
+        count: alumniCount,
+        exams: examCategories.alumni,
+        groups: groupExamsByDepartment(examCategories.alumni),
+      },
+    ].filter((category) => category.count > 0);
+  }, [examCategories, programs, departments]);
+
+  const landingExamSections = useMemo(() => ([
+    {
+      key: 'active',
+      label: 'Available Now',
+      title: 'Ongoing Exams',
+      description: 'Exams currently open for submission. Complete your exam before the scheduled closing time.',
+      exams: examCategories.active.slice(0, 5),
+    },
+    {
+      key: 'scheduled',
+      label: 'Scheduled for Students',
+      title: 'Upcoming Board Exams',
+      description: 'Published exams that will become available at their scheduled start time.',
+      exams: examCategories.scheduled.slice(0, 5),
+    },
+    {
+      key: 'alumni',
+      label: 'Board Review Materials',
+      title: 'Practice Reviewer',
+      description: 'Practice exams for alumni designed to support board examination preparation. Multiple attempts are allowed.',
+      exams: examCategories.alumni.slice(0, 5),
+    },
+  ]).filter((section) => section.exams.length > 0), [examCategories]);
 
   useEffect(() => {
-    if (!loading && groupedOpenExams.length > 0) {
+    if (!loading && publicExamCategories.length > 0) {
       setIsExamModalOpen(true);
     }
-  }, [groupedOpenExams.length, loading]);
+  }, [publicExamCategories.length, loading]);
 
   const closePublishedExamsModal = useCallback(() => {
     setIsExamModalOpen(false);
@@ -567,10 +722,9 @@ const LandingPage = ({ onNavigate }) => {
   return (
     <div className="landing-wrapper">
       <PublishedExamsWelcomeModal
-        open={isExamModalOpen && groupedOpenExams.length > 0}
+        open={isExamModalOpen && publicExamCategories.length > 0}
         onClose={closePublishedExamsModal}
-        groups={groupedOpenExams}
-        examCount={openPublishedExams.length}
+        categories={publicExamCategories}
         onLogin={handleExamModalLogin}
       />
 
@@ -785,50 +939,67 @@ const LandingPage = ({ onNavigate }) => {
                 We&apos;re pulling the latest published mock board exams right now.
               </p>
             </div>
-          ) : featuredExams.length > 0 ? (
-            <div className="exams-list reveal" ref={revealRef}>
-              {featuredExams.map((exam) => {
-                const programDetails = resolveExamProgram(exam);
-                const schoolLabel = programDetails?.department?.code
-                  ? String(programDetails.department.code).toUpperCase()
-                  : programDetails?.department?.name || '';
-                const programLabel =
-                  exam.program?.name ||
-                  programDetails?.name ||
-                  exam.program?.code ||
-                  programDetails?.code ||
-                  'Program';
+          ) : landingExamSections.length > 0 ? (
+            <div className="exams-category-stack reveal" ref={revealRef}>
+              {landingExamSections.map((section) => (
+                <section className={`exams-category-block exams-category-block--${section.key}`} key={section.key}>
+                  <div className="exams-category-header">
+                    <div>
+                      <span className="exams-category-label">{section.label}</span>
+                      <h3>{section.title}</h3>
+                      <p>{section.description}</p>
+                    </div>
+                    <span className="exams-category-count">{section.exams.length}</span>
+                  </div>
 
-                return (
-                  <article key={exam._id} className="exam-row">
-                    <div className="exam-row-left">
-                      <h4 className="exam-row-title">{exam.name}</h4>
-                      <div className="exam-row-info-meta">
-                        <span className="exam-row-program">{programLabel}</span>
-                        <span className="exam-row-meta-divider">&middot;</span>
-                        <span className="exam-row-meta-item">
-                          Started {formatDateTime(exam.startDateTime)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="exam-row-right">
-                      <div className="exam-deadline-badge">
-                        <span className="deadline-dot"></span>
-                        <span>Closes {formatDateTime(exam.endDateTime)}</span>
-                      </div>
-                      {schoolLabel && (
-                        <span className="exam-school-pill">{schoolLabel}</span>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                  <div className="exams-list">
+                    {section.exams.map((exam) => {
+                      const programDetails = resolveExamProgram(exam);
+                      const departmentDetails = resolveExamDepartment(exam, programDetails);
+                      const schoolLabel = departmentDetails?.code
+                        ? String(departmentDetails.code).toUpperCase()
+                        : departmentDetails?.name || '';
+                      const programLabel =
+                        exam.program?.name ||
+                        programDetails?.name ||
+                        exam.program?.code ||
+                        programDetails?.code ||
+                        'Program';
+                      const timing = getExamTiming(exam);
+
+                      return (
+                        <article key={exam._id} className={`exam-row exam-row--${timing.tone}`}>
+                          <div className="exam-row-left">
+                            <h4 className="exam-row-title">{exam.name}</h4>
+                            <div className="exam-row-info-meta">
+                              <span className="exam-row-program">{programLabel}</span>
+                              <span className="exam-row-meta-divider">&middot;</span>
+                              <span className="exam-row-meta-item">
+                                {timing.meta}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="exam-row-right">
+                            <div className={`exam-deadline-badge is-${timing.tone}`}>
+                              <span className="deadline-dot"></span>
+                              <span>{timing.badge}</span>
+                            </div>
+                            {schoolLabel && (
+                              <span className="exam-school-pill">{schoolLabel}</span>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
             </div>
           ) : (
             <div className="exams-placeholder-card">
-              <p className="exams-placeholder-title">No active exams at the moment.</p>
+              <p className="exams-placeholder-title">No public exams at the moment.</p>
               <p className="exams-placeholder-copy">
-                Check back once new board exam sets are published for students.
+                Check back once new student schedules or alumni practice exams are published.
               </p>
             </div>
           )}

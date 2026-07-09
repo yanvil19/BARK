@@ -175,6 +175,62 @@
   grid-column: 1 / -1;
 }
 
+.mbe-textarea-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.mbe-alumni-settings {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #d5daf0;
+  border-radius: 8px;
+  background: #f8f9fd;
+}
+
+.mbe-alumni-settings h3 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary-bg);
+}
+
+.mbe-alumni-settings p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #7f88a8;
+}
+
+.mbe-check-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px !important;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.mbe-check-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary-bg);
+}
+
+.mbe-timer-field {
+  max-width: 360px;
+}
+
+.mbe-availability-note {
+  padding: 10px 12px;
+  border: 1px solid #e2e7f5;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
 .mbe-input {
   width: 100%;
   border: 1px solid #d5daf0;
@@ -886,6 +942,10 @@
 
   .mbe-field--full {
     grid-column: auto;
+  }
+
+  .mbe-textarea-grid {
+    grid-template-columns: 1fr;
   }
 
   .mbe-section-heading {
