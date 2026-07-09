@@ -35,6 +35,7 @@ import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
 import Credits from './pages/Credits.jsx';
 import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
+import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function App() {
@@ -391,6 +392,8 @@ export default function App() {
           </button>
         </div>
       </Modal>
+
+      <SystemUpdateWarning me={me} />
     </div>
   );
 }

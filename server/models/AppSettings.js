@@ -20,6 +20,12 @@ const appSettingsSchema = new mongoose.Schema(
       min: 0,
       max: 365,
     },
+    maxUploadImages: {
+      type: Number,
+      default: 5,
+      min: 1,
+      max: 50,
+    },
   },
   { timestamps: true }
 );

@@ -24,6 +24,7 @@ export default function QuestionForm({
   importedQuestions = [],
   isImportDraft = false,
   onFeedback,
+  maxImages = 5,
 }) {
   const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   const useBubbleNav = !readOnly && (isImportMode || !initialData);
@@ -214,8 +215,8 @@ export default function QuestionForm({
     let targetQ = questionsData.find(q => q.id === qId);
     if (!targetQ) return;
 
-    if (targetQ.imagePreviews.length + files.length > 5) {
-      updateQuestion(qId, q => ({ ...q, error: 'Maximum of 5 images allowed per question.' }));
+    if (targetQ.imagePreviews.length + files.length > maxImages) {
+      updateQuestion(qId, q => ({ ...q, error: `Maximum of ${maxImages} images allowed per question.` }));
       e.target.value = '';
       return;
     }
@@ -679,7 +680,7 @@ export default function QuestionForm({
                 <div className="qf-section-heading">
                   <div>
                     <h3>Images</h3>
-                    <p>{readOnly ? 'Images attached to this question.' : 'Optional, maximum of 5 images.'}</p>
+                    <p>{readOnly ? 'Images attached to this question.' : `Optional, maximum of ${maxImages} images.`}</p>
                   </div>
                 </div>
 
@@ -697,7 +698,7 @@ export default function QuestionForm({
                       Choose Files
                     </button>
                     <span className="qf-upload-note">
-                      {q.uploading ? 'Uploading images...' : 'JPG, PNG, or WEBP (Max 5MB each, 5 total)'}
+                      {q.uploading ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
                     </span>
                   </div>
                 )}
