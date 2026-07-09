@@ -5,6 +5,7 @@ import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import QuestionFilters from '../../components/QuestionFilters.jsx';
 import '../../styles/QuestionsPage.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -78,13 +79,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }, [currentPage, programId]);
 
   const fetchTags = useCallback(async () => {
-    if (!programId && role === 'dean') {
-      setTags([]);
-      return;
-    }
-
     try {
-      const url = role === 'dean' ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
+      const url = (role === 'dean' && programId) ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
       const data = await apiAuth(url);
       setTags(data.tags || []);
     } catch (err) {
@@ -464,53 +460,26 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         ))}
       </div>
 
-      <div className="qp-filters">
-        <input
-          className="qp-search"
-          type="text"
-          placeholder="Search question"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-
-        {role === 'dean' && (
-          <select
-            className="qp-filter-select qp-filter-select--program"
-            value={programId || ''}
-            onChange={(e) => onProgramChange(e.target.value)}
-          >
-            <option value="">Filter: Program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
-        )}
-
-        <select
-          className="qp-filter-select qp-filter-select--subject"
-          value={subjectFilter}
-          onChange={(e) => setSubjectFilter(e.target.value)}
-        >
-          <option value="">Filter: All Subjects</option>
-          {subjectOptions.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="qp-filter-select qp-sort"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-        >
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Sort: Oldest</option>
-          <option value="title">Sort: Title A-Z</option>
-        </select>
-      </div>
+      <QuestionFilters
+        className="qp-filters-wrapper"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search question"
+        role={role}
+        subjectFilter={subjectFilter}
+        onSubjectChange={setSubjectFilter}
+        subjectOptions={subjectOptions}
+        programFilter={programId}
+        onProgramChange={onProgramChange}
+        programOptions={programs}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={[
+          { value: 'newest', label: 'Sort: Newest' },
+          { value: 'oldest', label: 'Sort: Oldest' },
+          { value: 'title', label: 'Sort: Title A-Z' }
+        ]}
+      />
 
       {!canCreateQuestion && role === 'dean' ? (
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
