@@ -732,7 +732,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           </button>
                         )}
 
-                        {exam.status === 'finished' && (
+                        {(exam.status === 'finished' || ((exam.targetAudience || 'student') === 'alumni' && exam.status === 'published')) && (
                           <button
                             type="button"
                             className="ambe-btn archive"

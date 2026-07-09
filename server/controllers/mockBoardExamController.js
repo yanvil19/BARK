@@ -579,8 +579,9 @@ async function archiveExam(req, res) {
     const accessible = await ensureDeanProgramAccess(req.user, exam.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
 
-    if (exam.status !== 'finished') {
-      return res.status(400).json({ message: 'Only finished exams can be archived' });
+    const isAlumniPublished = (exam.targetAudience || 'student') === 'alumni' && exam.status === 'published';
+    if (exam.status !== 'finished' && !isAlumniPublished) {
+      return res.status(400).json({ message: 'Only finished exams (or published alumni exams) can be archived' });
     }
 
     exam.status = 'archived';
