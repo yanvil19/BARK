@@ -122,55 +122,8 @@
 }
 
 /* ── Filters & Search ────────────────────────────────────– */
-.ca-filters {
-  display: flex;
-  gap: 12px;
+.ca-filters-wrapper {
   padding: 0 32px 16px;
-  flex-wrap: wrap;
-}
-
-.ca-search {
-  flex: 1;
-  padding: 9px 14px;
-  border: 1.5px solid rgba(53, 64, 142, 0.25);
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: #333;
-  background-color: #f9faff;
-  min-width: 200px;
-  transition: border-color 0.2s;
-}
-
-.ca-search:focus {
-  outline: none;
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  background: #fff;
-}
-
-.ca-search::placeholder {
-  color: #9aa0b4;
-}
-
-.ca-filter-select {
-  padding: 9px 14px;
-  border: 1.5px solid rgba(53, 64, 142, 0.25);
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: #5a63a8;
-  background-color: #f9faff;
-  min-width: 200px;
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.ca-filter-select:focus {
-  outline: none;
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  background: #fff;
 }
 
 /* ── Main Layout ────────────────────────────────────────── */

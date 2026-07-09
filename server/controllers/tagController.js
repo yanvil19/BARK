@@ -49,7 +49,7 @@ const listTags = async (req, res) => {
         return res.status(403).json({ message: 'Access denied to this program' });
       }
       programId = req.query.program;
-    } else if (req.user.role === 'professor' || req.user.role === 'program_chair') {
+    } else if (req.user.role === 'professor' || req.user.role === 'program_chair' || req.user.role === 'dean') {
       programId = req.user.program?.toString();
     } else {
       return res.status(400).json({ message: 'Dean must specify a ?program= query parameter' });
