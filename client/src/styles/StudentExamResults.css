@@ -425,6 +425,136 @@
   margin-top: auto;
 }
 
+.ae-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 1em 0 1em;
+  color: var(--text-light);
+  background: #35408e;
+}
+
+.ae-card-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.ae-card-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  margin: 16px 0;
+  padding: 0 3em 0 3em;
+}
+
+.ae-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.ae-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #8b96c8;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ae-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #35408e;
+  text-align: center;
+}
+
+.ae-stat-value-small {
+  font-size: 14px;
+  font-weight: 600;
+  color: #35408e;
+  text-align: center;
+}
+
+.ae-view-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-self: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 5px;
+  background: #f0c118;
+  color: #35408e;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  width: 95%;
+  margin-bottom: 1em;
+}
+
+.ae-attempt-history {
+  margin-top: 16px;
+  border-top: 1px solid #e8ebf5;
+  padding-top: 12px;
+  text-align: center;
+}
+
+.ae-attempt-row {
+  display: grid;
+  grid-template-columns: 2fr 80px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.ae-attempt-row:nth-child(odd) {
+  background: rgba(53, 64, 142, 0.05);
+}
+
+.ae-attempt-name {
+  font-weight: 700;
+  color: #35408e;
+}
+
+.ae-attempt-date {
+  font-size: 12px;
+  color: #8b96c8;
+}
+
+.ae-attempt-center {
+  font-weight: 800;
+  color: #35408e;
+  text-align: center;
+}
+
+.ae-attempt-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ae-status-chip {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.ae-detail-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #35408e;
+  background: white;
+  color: #35408e;
+  cursor: pointer;
+}
+
+.ae-detail-btn:hover {
+  background: #35408e;
+  color: white;
+}
+
 @media (max-width: 1024px) {
   .ser-page-content-wrapper {
     padding: 0 20px 32px;

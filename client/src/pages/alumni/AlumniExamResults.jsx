@@ -94,6 +94,7 @@ export default function AlumniExamResults({ examId }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [expandedExam, setExpandedExam] = useState(null);
 
   useEffect(() => {
     async function fetchAttempts() {
@@ -142,6 +143,26 @@ export default function AlumniExamResults({ examId }) {
       String(attempt?.examName || '').toLowerCase().includes(q)
     );
   }, [attempts, search]);
+
+  const groupedResults = useMemo(() => {
+    const groups = {};
+
+    filteredAttempts.forEach((attempt) => {
+      const key = attempt.examId;
+
+      if (!groups[key]) {
+        groups[key] = {
+          examId: attempt.examId,
+          examName: attempt.examName,
+          attempts: [],
+        };
+      }
+
+      groups[key].attempts.push(attempt);
+    });
+
+    return Object.values(groups);
+  }, [filteredAttempts]);
 
   const hasResults = filteredAttempts.length > 0;
   const selectedPercentage = getAttemptPercentage(selectedAttempt);
@@ -275,60 +296,147 @@ export default function AlumniExamResults({ examId }) {
 
             {!loading && hasResults && (
               <section className="ae-grid" aria-label="Alumni exam attempts">
-                {filteredAttempts.map((attempt) => {
-                  const statusMeta = getStatusMeta(attempt.status);
-                  const duration = formatDuration(attempt.durationMinutes);
-                  const percentage = getAttemptPercentage(attempt);
+                {groupedResults.map((exam) => {
+
+                  const latestAttempt = exam.attempts[0];
+
+                  const bestAttempt = exam.attempts.reduce(
+                    (best, current) => {
+                      const currentPct =
+                        (current.rawScore / current.totalScore) * 100;
+
+                      const bestPct =
+                        (best.rawScore / best.totalScore) * 100;
+
+                      return currentPct > bestPct
+                        ? current
+                        : best;
+                    },
+                    exam.attempts[0]
+                  );
 
                   return (
-                    <article key={attempt.id} className="ae-card ae-card--normal ser-result-card">
-                      <div className="ae-card-body ser-result-card-body">
-                        <div className="ser-result-card-top">
-                          <div className="ser-result-heading">
-                            <h3 className="ae-title ser-result-title">{attempt.examName}</h3>
-                            <div className="ae-subtitle ser-result-date">
-                              Attempt {attempt.attemptNumber} - {formatDate(attempt.submittedAt || attempt.date)}
-                            </div>
-                          </div>
+                    <div
+                      key={exam.examId}
+                      className="ae-card">
+                      <div className="ae-card-header">
+                        <h3 className="ae-card-title">
+                          {exam.examName}
+                        </h3>
 
-                          {statusMeta && (
-                            <span
-                              className="ser-result-status"
-                              style={{
-                                background: statusMeta.bg,
-                                color: statusMeta.color,
-                                border: `1px solid ${statusMeta.border}`,
-                              }}
-                            >
-                              {statusMeta.label}
-                            </span>
-                          )}
+                        <div className="ae-card-meta">
+                          <span className="ae-meta-pill">
+                            {exam.attempts.length} Attempts
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="ae-card-stats">
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Best Score
+                          </span>
+
+                          <span className="ae-stat-value">
+                            {Math.round(
+                              (bestAttempt.rawScore / bestAttempt.totalScore) * 100
+                            )}
+                            %
+                          </span>
                         </div>
 
-                        <div className="ser-result-stats">
-                          <div className="ser-result-stat">
-                            <span className="ser-result-stat-label">Score</span>
-                            <span className="ser-result-stat-value">{attempt.rawScore}/{attempt.totalScore}</span>
-                          </div>
-                          <div className="ser-result-stat">
-                            <span className="ser-result-stat-label">Accuracy</span>
-                            <span className="ser-result-stat-value">{percentage}%</span>
-                          </div>
-                          <div className="ser-result-stat">
-                            <span className="ser-result-stat-label">Duration</span>
-                            <span className="ser-result-stat-value">{duration || '--'}</span>
-                          </div>
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Latest Attempt
+                          </span>
+
+                          <span className="ae-stat-value">
+                            #{latestAttempt.attemptNumber}
+                          </span>
+                        </div>
+
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Last Taken
+                          </span>
+
+                          <span className="ae-stat-value-small">
+                            {formatDate(
+                              latestAttempt.submittedAt || latestAttempt.date
+                            )}
+                          </span>
                         </div>
                       </div>
 
                       <button
-                        type="button"
-                        className="ae-btn ae-btn--normal ser-result-btn"
-                        onClick={() => setSelectedAttempt(attempt)}
+                        className="ae-view-btn"
+                        onClick={() =>
+                          setExpandedExam(
+                            expandedExam === exam.examId
+                              ? null
+                              : exam.examId
+                          )
+                        }
                       >
-                        View Result Details
+                        {expandedExam === exam.examId
+                          ? "Hide Attempts"
+                          : "View Attempts"}
                       </button>
-                    </article>
+
+                      {expandedExam === exam.examId && (
+                        <div className="ae-attempt-history">
+                          {exam.attempts.map((attempt) => {
+                            const percentage = getAttemptPercentage(attempt);
+                            const statusMeta = getStatusMeta(attempt.status);
+
+                            return (
+                              <div
+                                key={attempt.id}
+                                className="ae-attempt-row"
+                              >
+                                <div className="ae-attempt-left">
+                                  <div className="ae-attempt-name">
+                                    Attempt #{attempt.attemptNumber}
+                                  </div>
+
+                                  <div className="ae-attempt-date">
+                                    {formatDate(
+                                      attempt.submittedAt || attempt.date
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="ae-attempt-center">
+                                  {percentage}%
+                                </div>
+
+                                <div className="ae-attempt-right">
+                                  {statusMeta && (
+                                    <span
+                                      className="ae-status-chip"
+                                      style={{
+                                        color: statusMeta.color,
+                                        background: statusMeta.bg,
+                                        border: `1px solid ${statusMeta.border}`,
+                                      }}
+                                    >
+                                      {statusMeta.label}
+                                    </span>
+                                  )}
+
+                                  <button
+                                    className="ae-detail-btn"
+                                    onClick={() => setSelectedAttempt(attempt)}
+                                  >
+                                    View Details
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </section>
