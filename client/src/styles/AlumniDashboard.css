@@ -161,6 +161,7 @@
 }
 
 .sd-card-chrono .sd-card-body {
+    flex-direction: column;
     align-items: stretch;
     gap: 12px;
 }
@@ -550,9 +551,14 @@
 
 .sd-pagination {
     display: flex;
+    align-items: center;
     justify-content: center;
     gap: 16px;
-    margin-top: 20px;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 0;
+    padding-top: 12px;
+    border-top: 1px solid #eef0f6;
     line-height: 2em;
 }
 
@@ -588,8 +594,8 @@
     overflow-x: hidden !important;
     overflow-y: auto !important;
     margin-left: -20px;
-    margin-right: -40px;
-    width: 100%;
+    margin-right: -20px;
+    width: calc(100% + 40px);
 }
 
 /* ================================
@@ -735,8 +741,8 @@
 
     .sd-timeline-wrapper {
         margin-left: -20px !important;
-        margin-right: -40px !important;
-        width: 100% !important;
+        margin-right: -20px !important;
+        width: calc(100% + 40px) !important;
     }
 
     .sd-timeline {

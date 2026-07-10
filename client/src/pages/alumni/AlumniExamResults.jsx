@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import '../../styles/AvailableExams.css';
 import '../../styles/StudentExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -177,12 +178,12 @@ export default function AlumniExamResults({ examId }) {
       />
 
       <div className="ca-filters ae-filters">
-        <input
+        <SearchBar
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           className="ca-search"
           placeholder="Search exam results..."
-          aria-label="Search exam results"
+          ariaLabel="Search exam results"
         />
       </div>
 

@@ -1,6 +1,6 @@
 import '../styles/SearchBar.css';
 
-export default function SearchBar({ value, onChange, placeholder = 'Search...', className = '' }) {
+export default function SearchBar({ value, onChange, placeholder = 'Search...', className = '', ariaLabel }) {
   return (
     <div className={`search-bar-wrapper ${className}`}>
       <svg
@@ -20,6 +20,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
         type="text"
         className="search-bar-input"
         placeholder={placeholder}
+        aria-label={ariaLabel || placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

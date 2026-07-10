@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/AvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
 import '../../styles/QuestionApprovals.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -170,12 +171,12 @@ export default function AvailableExams({ onTakeExam }) {
       </div>
 
       <div className="ca-filters ae-filters">
-        <input
+        <SearchBar
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           className="ca-search"
           placeholder="Search exams..."
-          aria-label="Search exams"
+          ariaLabel="Search exams"
         />
       </div>
 

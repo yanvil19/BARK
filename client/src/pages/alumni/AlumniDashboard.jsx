@@ -33,6 +33,7 @@ const BASE = import.meta.env.VITE_API_URL;
 function isReleased(attempt) {
     if (attempt?.resultsReleased === true) return true;
     if (attempt?.resultsReleased === false) return false;
+    if (attempt?.rawScore != null && attempt?.totalScore != null) return true;
     if (!attempt?.resultReleasedAt) return false;
     return new Date() >= new Date(attempt.resultReleasedAt);
 }
