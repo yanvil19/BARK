@@ -1,4 +1,5 @@
 import React from 'react';
+import DropdownSelect from './DropdownSelect.jsx';
 import '../styles/QuestionFilters.css';
 
 export default function QuestionFilters({
@@ -30,43 +31,33 @@ export default function QuestionFilters({
         onChange={(e) => onSearchChange(e.target.value)}
       />
 
-      <select
-        className="qf-filter-select qf-filter-select--subject"
+      <DropdownSelect
+        className="qf-filter-select--subject"
         value={subjectFilter}
         onChange={(e) => onSubjectChange(e.target.value)}
-      >
-        <option value="">Filter: All Subjects</option>
-        {subjectOptions.map((tag) => (
-          <option key={tag.id} value={tag.id}>
-            {tag.name}
-          </option>
-        ))}
-      </select>
+        placeholder="Filter: All Subjects"
+        options={subjectOptions.map((tag) => ({ value: tag.id, label: tag.name }))}
+      />
 
       {role === 'dean' && (
-        <select
-          className="qf-filter-select qf-filter-select--program"
+        <DropdownSelect
+          className="qf-filter-select--program"
           value={programFilter || ''}
           onChange={(e) => onProgramChange(e.target.value)}
-        >
-          <option value="">Filter: All Programs</option>
-          {programOptions.map((p) => (
-            <option key={p.id || p._id} value={p.id || p._id}>
-              {p.name} {p.code ? `(${p.code})` : ''}
-            </option>
-          ))}
-        </select>
+          placeholder="Filter: All Programs"
+          options={programOptions.map((p) => ({
+            value: p.id || p._id,
+            label: `${p.name}${p.code ? ` (${p.code})` : ''}`,
+          }))}
+        />
       )}
 
-      <select
-        className="qf-filter-select qf-sort"
+      <DropdownSelect
+        className="qf-sort"
         value={sortBy}
         onChange={(e) => onSortChange(e.target.value)}
-      >
-        {sortOptions.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
+        options={sortOptions}
+      />
     </div>
   );
 }

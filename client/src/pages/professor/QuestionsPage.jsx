@@ -6,6 +6,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import '../../styles/QuestionsPage.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -835,18 +836,16 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <div style={{ display: 'grid', gap: '12px' }}>
-          <select
-            className="qp-filter-select"
+          <DropdownSelect
+            className="dd-full-width"
             value={pendingProgramId}
             onChange={(e) => setPendingProgramId(e.target.value)}
-          >
-            <option value="">Select a program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
+            placeholder="Select a program"
+            options={programs.map((program) => ({
+              value: program._id,
+              label: `${program.name}${program.code ? ` (${program.code})` : ''}`,
+            }))}
+          />
 
           <div className="modal-actions qp-modal-actions">
             <button
