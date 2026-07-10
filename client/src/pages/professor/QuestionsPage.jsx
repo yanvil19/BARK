@@ -5,6 +5,8 @@ import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import QuestionFilters from '../../components/QuestionFilters.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import '../../styles/QuestionsPage.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -30,7 +32,7 @@ function truncateText(text, max = 100) {
   return `${text.slice(0, max)}...`;
 }
 
-export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange }) {
+export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange, me }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -58,6 +60,9 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [hasImportDraft, setHasImportDraft] = useState(false);
+  const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
+  const [maxImages, setMaxImages] = useState(5);
   const itemsPerPage = 10;
 
   const fetchQuestions = useCallback(async () => {
@@ -76,13 +81,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }, [currentPage, programId]);
 
   const fetchTags = useCallback(async () => {
-    if (!programId && role === 'dean') {
-      setTags([]);
-      return;
-    }
-
     try {
-      const url = role === 'dean' ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
+      const url = (role === 'dean' && programId) ? `${BASE}/api/tags?program=${programId}` : `${BASE}/api/tags`;
       const data = await apiAuth(url);
       setTags(data.tags || []);
     } catch (err) {
@@ -95,13 +95,37 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   }, [fetchQuestions]);
 
   useEffect(() => {
+    apiAuth('/api/admin/settings/public')
+      .then(res => setMaxImages(Number(res?.maxUploadImages ?? 5)))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     fetchTags();
   }, [fetchTags]);
-
 
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, searchQuery, subjectFilter, sortBy, programId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const importDraftKey = `question_draft_import_${me?._id || 'guest'}`;
+      const item = window.localStorage.getItem(importDraftKey);
+      if (item) {
+        try {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setHasImportDraft(true);
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      setHasImportDraft(false);
+    }
+  }, [showImportModal, me?._id]);
 
   const baseQuestions = useMemo(() => {
     return questions.filter((q) => {
@@ -196,6 +220,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setShowForm(false);
     setEditQuestion(null);
     setImportedQuestions([]);
+    setIsRestoringImportDraft(false);
   }
 
   function closeViewModal() {
@@ -375,7 +400,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         throw new Error('No questions could be extracted from this file. Please check the format and try again.');
       }
 
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(`question_draft_import_${me?._id || 'guest'}`);
+      }
+
       setImportedQuestions(preFilledQuestions);
+      setIsRestoringImportDraft(false);
       setShowImportModal(false);
       setEditQuestion(null);
       setShowForm(true);
@@ -438,53 +468,26 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         ))}
       </div>
 
-      <div className="qp-filters">
-        <input
-          className="qp-search"
-          type="text"
-          placeholder="Search question"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-
-        {role === 'dean' && (
-          <select
-            className="qp-filter-select qp-filter-select--program"
-            value={programId || ''}
-            onChange={(e) => onProgramChange(e.target.value)}
-          >
-            <option value="">Filter: Program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
-        )}
-
-        <select
-          className="qp-filter-select qp-filter-select--subject"
-          value={subjectFilter}
-          onChange={(e) => setSubjectFilter(e.target.value)}
-        >
-          <option value="">Filter: All Subjects</option>
-          {subjectOptions.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="qp-filter-select qp-sort"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-        >
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Sort: Oldest</option>
-          <option value="title">Sort: Title A-Z</option>
-        </select>
-      </div>
+      <QuestionFilters
+        className="qp-filters-wrapper"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search question"
+        role={role}
+        subjectFilter={subjectFilter}
+        onSubjectChange={setSubjectFilter}
+        subjectOptions={subjectOptions}
+        programFilter={programId}
+        onProgramChange={onProgramChange}
+        programOptions={programs}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={[
+          { value: 'newest', label: 'Sort: Newest' },
+          { value: 'oldest', label: 'Sort: Oldest' },
+          { value: 'title', label: 'Sort: Title A-Z' }
+        ]}
+      />
 
       {!canCreateQuestion && role === 'dean' ? (
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
@@ -651,10 +654,13 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <QuestionForm
+          me={me}
           tags={tags}
           programId={programId}
           initialData={editQuestion}
+          maxImages={maxImages}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
+          isImportDraft={isRestoringImportDraft}
           onFeedback={setFeedbackModal}
           onSaved={(savedData, isEdit) => {
             handleSaved(savedData, isEdit);
@@ -791,6 +797,22 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <div className="modal-actions qp-modal-actions">
+          {hasImportDraft && (
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={() => {
+                setImportedQuestions([]);
+                setIsRestoringImportDraft(true);
+                setShowImportModal(false);
+                setEditQuestion(null);
+                setShowForm(true);
+              }}
+              disabled={importLoading}
+            >
+              Restore Previous Session
+            </button>
+          )}
           <button
             type="button"
             className="modal-btn-cancel"
@@ -814,18 +836,16 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         </div>
 
         <div style={{ display: 'grid', gap: '12px' }}>
-          <select
-            className="qp-filter-select"
+          <DropdownSelect
+            className="dd-full-width"
             value={pendingProgramId}
             onChange={(e) => setPendingProgramId(e.target.value)}
-          >
-            <option value="">Select a program</option>
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
+            placeholder="Select a program"
+            options={programs.map((program) => ({
+              value: program._id,
+              label: `${program.name}${program.code ? ` (${program.code})` : ''}`,
+            }))}
+          />
 
           <div className="modal-actions qp-modal-actions">
             <button

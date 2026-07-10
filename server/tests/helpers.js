@@ -32,7 +32,9 @@ async function createUserAndToken(overrides = {}) {
     { expiresIn: '1h' }
   );
 
-  return { user, token };
+  const cookieHeader = `nu_board_token=${token}`;
+
+  return { user, token, cookieHeader };
 }
 
 module.exports = { createUserAndToken };

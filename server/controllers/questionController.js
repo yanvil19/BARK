@@ -3,6 +3,7 @@ const Tag = require('../models/Tag');
 const User = require('../models/User');
 const Program = require('../models/Program');
 const { logAudit } = require('../utils/auditLogger');
+const AppSettings = require('../models/AppSettings');
 
 // Helper: resolve program IDs accessible to the requesting user
 async function getAccessibleProgramIds(user) {
@@ -157,8 +158,10 @@ const createQuestion = async (req, res) => {
         // We allow no correct answer in drafts, but if they provide answers, we just log a warning or let it pass
       }
     }
-    if (Array.isArray(images) && images.length > 5)
-      return res.status(400).json({ message: 'Maximum of 5 images allowed' });
+    const settings = await AppSettings.getSingleton();
+    const maxAllowed = settings.maxUploadImages ?? 5;
+    if (Array.isArray(images) && images.length > maxAllowed)
+      return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed` });
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
     let resolvedProgramId;
@@ -225,8 +228,10 @@ const updateQuestion = async (req, res) => {
     if (title) question.title = title.trim();
     if (description) question.description = description.trim();
     if (images !== undefined) {
-      if (Array.isArray(images) && images.length > 5)
-        return res.status(400).json({ message: 'Maximum of 5 images allowed' });
+      const settings = await AppSettings.getSingleton();
+      const maxAllowed = settings.maxUploadImages ?? 5;
+      if (Array.isArray(images) && images.length > maxAllowed)
+        return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed` });
       question.images = images;
     }
     if (answers) {

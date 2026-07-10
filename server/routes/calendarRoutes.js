@@ -30,7 +30,30 @@ router.get('/dean', protect, authorizeRoles('dean'), async (req, res) => {
   }
 });
 
-router.get('/student', protect, authorizeRoles('student', 'professor', 'program_chair'), async (req, res) => {
+router.get('/chair', protect, authorizeRoles('program_chair'), async (req, res) => {
+  try {
+    const exams = await getDeanCalendarExams({
+      departmentId: req.user.department,
+      programId: req.user.program,
+      startRange: req.query.startRange,
+      endRange: req.query.endRange,
+    });
+
+    res.json({ exams });
+  } catch (err) {
+    if (err.message === 'Invalid startRange date' || err.message === 'Invalid endRange date') {
+      return res.status(400).json({ message: err.message });
+    }
+    if (err.statusCode === 403) {
+      return res.status(403).json({ message: err.message });
+    }
+
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+});
+
+router.get('/student', protect, authorizeRoles('student', 'professor'), async (req, res) => {
   try {
     const exams = await getStudentCalendarExams({
       programId: req.user.program,

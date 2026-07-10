@@ -6,6 +6,8 @@ import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import ExamCalendar from '../../components/examCalendar/ExamCalendar.jsx';
+import Pagination from '../../components/Pagination.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
 import '../../styles/AvailableMockBoardExam.css';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -22,8 +24,14 @@ function formatDateTime(value) {
 }
 
 function formatDuration(minutes) {
+  if (minutes === null || minutes === undefined || minutes === '') return '-';
   const total = Number(minutes) || 0;
   return `${total} minute${total === 1 ? '' : 's'}`;
+}
+
+function formatExamDuration(exam) {
+  if ((exam?.targetAudience || 'student') === 'alumni' && !exam?.isTimed) return 'Untimed';
+  return formatDuration(exam?.durationMinutes);
 }
 
 function formatCount(value, singular, plural = `${singular}s`) {
@@ -32,6 +40,7 @@ function formatCount(value, singular, plural = `${singular}s`) {
 }
 
 function canScheduleResultsRelease(exam) {
+  if ((exam.targetAudience || 'student') === 'alumni') return false;
   if (exam.status !== 'finished') return false;
   // Release time passed — students can see results; no more changes
   if (exam.resultsReleased === true) return false;
@@ -90,6 +99,14 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [confirmationModal, setConfirmationModal] = useState(null);
   const [feedbackModal, setFeedbackModal] = useState(null);
   const [modalBusy, setModalBusy] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedAudience, setSelectedAudience] = useState('');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedProgramId, selectedStatus, selectedAudience]);
 
   useEffect(() => {
     async function fetchExams() {
@@ -109,7 +126,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   useEffect(() => {
     async function fetchPrograms() {
-      if (me?.role !== 'dean' || !me?.department) return;
+      if ((me?.role !== 'dean' && me?.role !== 'program_chair') || !me?.department) return;
 
       try {
         const data = await apiAuth(`${BASE}/api/catalog/programs`);
@@ -120,12 +137,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         });
 
         setPrograms(deptPrograms);
-        setSelectedProgramId((prev) => {
-          if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
-          return deptPrograms[0]?._id || '';
-        });
+        if (me?.role === 'program_chair') {
+          const chairProgramId = me?.program?._id || me?.program;
+          setSelectedProgramId(chairProgramId ? String(chairProgramId) : '');
+        } else {
+          setSelectedProgramId((prev) => {
+            if (prev && deptPrograms.some((program) => String(program._id) === String(prev))) return prev;
+            return deptPrograms[0]?._id || '';
+          });
+        }
       } catch (err) {
-        console.error('Failed to load dean programs:', err);
+        console.error('Failed to load programs:', err);
       }
     }
 
@@ -212,11 +234,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     });
   }
 
-  function handleReuse(exam) {
+  function handleCopy(exam) {
     setConfirmationModal({
-      type: 'reuse',
+      type: 'copy',
       exam,
-      title: 'Reuse Archived Exam',
+      title: 'Create Copy of Exam',
       message: (
         <p style={{ margin: 0 }}>
           Create a new draft copy of <strong>{exam.name}</strong>?
@@ -227,9 +249,9 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     });
   }
 
-  async function confirmReuse(exam) {
+  async function confirmCopy(exam) {
     try {
-      const data = await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/reuse`, { method: 'POST' });
+      const data = await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/copy`, { method: 'POST' });
       if (data.exam) setExams((prev) => [data.exam, ...prev]);
       setFeedbackModal({
         title: 'Draft Copy Created',
@@ -242,9 +264,55 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       });
     } catch (err) {
       setFeedbackModal({
-        title: 'Reuse Failed',
+        title: 'Copy Failed',
         tone: 'danger',
         message: err.message || 'Failed to create a draft copy.',
+      });
+    }
+  }
+
+  async function handleEndEarly(exam) {
+    try {
+      const stats = await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/end-early-stats`);
+      setConfirmationModal({
+        type: 'endEarly',
+        exam,
+        title: 'End Exam Early',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{stats.completed}/{stats.total}</strong> {stats.programCode} students have answered this exam. End exam early?
+          </p>
+        ),
+        confirmLabel: 'End Exam Now',
+        confirmVariant: 'danger',
+      });
+    } catch (err) {
+      setFeedbackModal({
+        title: 'Failed to fetch stats',
+        tone: 'danger',
+        message: err.message || 'Could not fetch exam progress.',
+      });
+    }
+  }
+
+  async function confirmEndEarly(exam) {
+    try {
+      await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}/end-early`, { method: 'POST' });
+      updateExamStatus(exam._id, 'finished');
+      setFeedbackModal({
+        title: 'Exam Ended',
+        tone: 'success',
+        message: (
+          <p style={{ margin: 0 }}>
+            <strong>{exam.name}</strong> has been ended successfully. Any in-progress attempts have been auto-submitted.
+          </p>
+        ),
+      });
+    } catch (err) {
+      setFeedbackModal({
+        title: 'Action Failed',
+        tone: 'danger',
+        message: err.message || 'Failed to end exam early.',
       });
     }
   }
@@ -272,13 +340,14 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }
 
   function handlePublish(exam) {
+    const audienceLabel = exam.targetAudience === 'alumni' ? 'alumni' : 'students';
     setConfirmationModal({
       type: 'publish',
       exam,
       title: 'Publish Draft Exam',
       message: (
         <p style={{ margin: 0 }}>
-          Publish <strong>{exam.name}</strong>? This will make it available to students.
+          Publish <strong>{exam.name}</strong>? This will make it available to {audienceLabel}.
         </p>
       ),
       confirmLabel: 'Publish Exam',
@@ -298,7 +367,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         tone: 'success',
         message: (
           <p style={{ margin: 0 }}>
-            <strong>{exam.name}</strong> is now live for students.
+            <strong>{exam.name}</strong> is now live for {exam.targetAudience === 'alumni' ? 'alumni' : 'students'}.
           </p>
         ),
       });
@@ -388,8 +457,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         await confirmArchive(exam);
       } else if (type === 'publish') {
         await confirmPublish(exam);
-      } else if (type === 'reuse') {
-        await confirmReuse(exam);
+      } else if (type === 'copy') {
+        await confirmCopy(exam);
+      } else if (type === 'endEarly') {
+        await confirmEndEarly(exam);
       }
     } finally {
       setModalBusy(false);
@@ -417,14 +488,34 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const selectedExamQuestions = selectedExam?.questions || [];
   const selectedExamSubjects = selectedExam?.subjectTags || [];
   const visibleExams = useMemo(() => {
-    if (me?.role !== 'dean' || !selectedProgramId) return exams;
-    return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
-  }, [exams, me?.role, selectedProgramId]);
+    let filtered = exams;
+    if ((me?.role === 'dean' || me?.role === 'program_chair') && selectedProgramId) {
+      filtered = filtered.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((exam) => exam.name?.toLowerCase().includes(q));
+    }
+    if (selectedStatus) {
+      filtered = filtered.filter((exam) => exam.status === selectedStatus);
+    }
+    if (selectedAudience) {
+      filtered = filtered.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
+    }
+    return filtered;
+  }, [exams, me?.role, selectedProgramId, searchQuery, selectedStatus, selectedAudience]);
+
+  const paginatedExams = useMemo(() => {
+    const start = (currentPage - 1) * 10;
+    return visibleExams.slice(start, start + 10);
+  }, [visibleExams, currentPage]);
+
   const selectedExamStats = selectedExam ? [
     { label: 'Exam Start', value: formatDateTime(selectedExam.startDateTime) },
     { label: 'Exam End', value: formatDateTime(selectedExam.endDateTime) },
-    { label: 'Duration', value: formatDuration(selectedExam.durationMinutes) },
+    { label: 'Duration', value: formatExamDuration(selectedExam) },
     { label: 'Passing Threshold', value: `${selectedExam.passingThreshold || 0}%` },
+    { label: 'Audience', value: selectedExam.targetAudience === 'alumni' ? 'Alumni' : 'Students' },
     { label: 'Total Items', value: formatCount(selectedExamQuestions.length, 'item') },
     { label: 'Subjects', value: formatCount(selectedExamSubjects.length, 'subject') },
   ] : [];
@@ -437,8 +528,57 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />
 
-      {me?.role === 'dean' && (
+      {(me?.role === 'dean' || me?.role === 'program_chair') && (
         <section className="ambe-view-controls" aria-label="Board exam view controls">
+          <div className="ambe-controls-left">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search exams by name..."
+              className="ambe-search-bar"
+            />
+
+            <select
+              className="ambe-filter-select"
+              value={selectedProgramId}
+              onChange={(event) => setSelectedProgramId(event.target.value)}
+              aria-label="Filter exams by program"
+              disabled={me?.role === 'program_chair'}
+            >
+              {programs.length === 0 ? <option value="">No programs found</option> : null}
+              {programs.map((program) => (
+                <option key={program._id} value={program._id}>
+                  {program.name} {program.code ? `(${program.code})` : ''}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="ambe-filter-select"
+              value={selectedStatus}
+              onChange={(event) => setSelectedStatus(event.target.value)}
+              aria-label="Filter exams by status"
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="finished">Finished</option>
+              <option value="archived">Archived</option>
+            </select>
+
+            <select
+              className="ambe-filter-select"
+              value={selectedAudience}
+              onChange={(event) => setSelectedAudience(event.target.value)}
+              aria-label="Filter exams by audience"
+            >
+              <option value="">All Audiences</option>
+              <option value="student">Student Exams</option>
+              <option value="alumni">Alumni Exams</option>
+            </select>
+          </div>
+
           <div className="ambe-view-toggle">
             <button
               type="button"
@@ -455,20 +595,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               Calendar View
             </button>
           </div>
-
-          <select
-            className="ambe-program-select"
-            value={selectedProgramId}
-            onChange={(event) => setSelectedProgramId(event.target.value)}
-            aria-label="Filter exams by program"
-          >
-            {programs.length === 0 ? <option value="">No programs found</option> : null}
-            {programs.map((program) => (
-              <option key={program._id} value={program._id}>
-                {program.name} {program.code ? `(${program.code})` : ''}
-              </option>
-            ))}
-          </select>
         </section>
       )}
 
@@ -486,10 +612,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       {loading && <p className="ambe-loading">Loading mock board exams...</p>}
 
       {!loading && visibleExams.length === 0 && (
-        <p className="ambe-empty">No mock board exams found.</p>
+        <p className="ambe-empty">No mock board exams found matching your criteria.</p>
       )}
 
       {!loading && visibleExams.length > 0 && (
+        <>
         <div className="ambe-table-card">
           <div className="ambe-scroll-x">
             <table className="ambe-table">
@@ -499,14 +626,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                   <th>Program</th>
                   <th>Subjects</th>
                   <th>Exam Start</th>
+                  <th>Exam End</th>
                   <th>Duration</th>
                   <th>Questions</th>
+                  <th>Submissions</th>
+                  <th>Audience</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleExams.map((exam) => (
+                {paginatedExams.map((exam) => (
                   <tr key={exam._id}>
                     <td>{exam.name}</td>
                     <td>
@@ -528,8 +658,19 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                       )}
                     </td>
                     <td className="ambe-muted">{formatDateTime(exam.startDateTime)}</td>
-                    <td className="ambe-muted">{formatDuration(exam.durationMinutes)}</td>
+                    <td className="ambe-muted">{formatDateTime(exam.endDateTime)}</td>
+                    <td className="ambe-muted">{formatExamDuration(exam)}</td>
                     <td>{exam.questions?.length || 0}</td>
+                    <td>
+                      {(exam.targetAudience || 'student') === 'alumni'
+                        ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
+                        : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`}
+                    </td>
+                    <td>
+                      <span className="ambe-pill program">
+                        {(exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students'}
+                      </span>
+                    </td>
                     <td>
                       <span className={`ambe-status ${exam.status}`}>
                         {exam.status}
@@ -591,7 +732,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           </button>
                         )}
 
-                        {exam.status === 'finished' && (
+                        {(exam.status === 'finished' || ((exam.targetAudience || 'student') === 'alumni' && exam.status === 'published')) && (
                           <button
                             type="button"
                             className="ambe-btn archive"
@@ -601,23 +742,39 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           </button>
                         )}
 
-                        {exam.status === 'archived' && (
-                          <button
-                            type="button"
-                            className="ambe-btn publish"
-                            onClick={() => handleReuse(exam)}
-                          >
-                            Reuse
-                          </button>
-                        )}
-
-                        {exam.status === 'archived' && (
+                        {exam.status === 'ongoing' && (
                           <button
                             type="button"
                             className="ambe-btn delete"
-                            onClick={() => handleDelete(exam)}
+                            onClick={() => handleEndEarly(exam)}
                           >
-                            Delete
+                            End Exam Early
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          className="ambe-btn publish"
+                          onClick={() => handleCopy(exam)}
+                        >
+                          Create Copy
+                        </button>
+
+                        {(exam.status === 'archived' || exam.status === 'draft') && (
+                          <button
+                            type="button"
+                            className="ambe-btn delete ambe-btn-icon"
+                            onClick={() => handleDelete(exam)}
+                            title="Delete exam"
+                            aria-label="Delete exam"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                              <path d="M10 11v6"></path>
+                              <path d="M14 11v6"></path>
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -628,6 +785,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             </table>
           </div>
         </div>
+        <div className="ambe-pagination-footer">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={visibleExams.length}
+            pageSize={10}
+            onPageChange={setCurrentPage}
+            itemLabel="exams"
+          />
+        </div>
+        </>
       )}
       </div>
 

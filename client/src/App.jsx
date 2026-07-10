@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard/index.jsx';
 import LandingPage from './pages/LandingPage.jsx';
@@ -27,8 +28,14 @@ import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
 import StudentExamResults from './pages/student/StudentExamResults.jsx';
-import { apiAuth, getToken, setToken } from './lib/api.js';
+import AlumniAvailableExams from './pages/alumni/AlumniAvailableExams.jsx';
+import AlumniExamRunner from './pages/alumni/AlumniExamRunner.jsx';
+import AlumniExamResult from './pages/alumni/AlumniExamResult.jsx';
+import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
+import Credits from './pages/Credits.jsx';
+import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
+import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function App() {
@@ -39,32 +46,73 @@ export default function App() {
   const [examRunnerId, setExamRunnerId] = useState('');
   const [examRunnerMode, setExamRunnerMode] = useState('details');
   const [studentExamId, setStudentExamId] = useState('');
+  const [alumniExamId, setAlumniExamId] = useState('');
+  const [alumniResultExamId, setAlumniResultExamId] = useState('');
+  const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
 
   async function refreshMe() {
-    const token = getToken();
-    if (!token) {
-      setMe(null);
-      return;
-    }
     try {
-      const data = await apiAuth('/api/auth/me');
-      setMe(data);
+      const data = await api('/api/auth/me');
+      setMe((prev) => {
+        if (prev && JSON.stringify(prev) === JSON.stringify(data)) {
+          return prev;
+        }
+        return data;
+      });
     } catch (err) {
+      if (err.status === 401) {
+        const isDeactivated = Boolean(err.message && err.message.toLowerCase().includes('deactivated'));
+        if (isDeactivated) {
+          setMe((prev) => {
+            if (prev) window.dispatchEvent(new CustomEvent('account-deactivated'));
+            return null;
+          });
+          return;
+        }
+      }
       setMe(null);
     }
   }
 
   useEffect(() => {
+    window.localStorage.removeItem('nu_board_token');
     refreshMe();
   }, []);
+
+  // [SESSION POLL - Deactivation detection]
+  // Polls /api/auth/me every 10 seconds while logged in so that if an admin
+  // deactivates the account, the user is automatically kicked out.
+  useEffect(() => {
+    const POLL_INTERVAL_MS = 10_000;
+    const id = setInterval(() => {
+      refreshMe();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // [DEACTIVATION MODAL - Listen for account-deactivated event from api.js]
+  useEffect(() => {
+    const onDeactivated = () => setShowDeactivatedModal(true);
+    window.addEventListener('account-deactivated', onDeactivated);
+    return () => window.removeEventListener('account-deactivated', onDeactivated);
+  }, []);
+
+  function handleDeactivatedAcknowledge() {
+    setShowDeactivatedModal(false);
+    api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    setMe(null);
+    // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
+    window.history.replaceState({}, '', '/login?session=deactivated');
+    setRoute('login');
+  }
 
   // [FIX - SESSION EXPIRED MESSAGE]
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
-    if (params.get('session') === 'expired') {
-      setToken('');
+    const sessionVal = params.get('session');
+    if (sessionVal === 'expired' || sessionVal === 'deactivated') {
       setMe(null);
       setRoute('login');
       params.delete('session');
@@ -77,8 +125,7 @@ export default function App() {
     }
   }, []);
 
-  function handleLogin(token) {
-    setToken(token);
+  function handleLogin() {
     refreshMe();
     setRoute('Dashboard');
   }
@@ -99,9 +146,29 @@ export default function App() {
       'studentExamRunner',
       'studentExamResult',
       'studentExamResults',
+      'alumniAvailableExams',
+      'alumniExamRunner',
+      'alumniExamResult',
+      'alumniExamResults',
     ]);
 
     if (route && learnerRoutes.has(route) && !isLearner) {
+      setRoute('Dashboard');
+    }
+  }, [me, route]);
+
+  useEffect(() => {
+    if (me?.role === 'alumni') {
+      const studentToAlumniRoute = {
+        studentAvailableExams: 'alumniAvailableExams',
+        studentExamRunner: 'alumniExamRunner',
+        studentExamResult: 'alumniExamResult',
+        studentExamResults: 'alumniExamResults',
+      };
+      if (studentToAlumniRoute[route]) setRoute(studentToAlumniRoute[route]);
+    }
+
+    if (me?.role === 'student' && route?.startsWith('alumni')) {
       setRoute('Dashboard');
     }
   }, [me, route]);
@@ -119,8 +186,12 @@ export default function App() {
     }
   }, [examRunnerId, route]);
 
-  function handleLogout() {
-    setToken('');
+  async function handleLogout() {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Clear client state even if logout request fails
+    }
     setMe(null);
     setRoute('Dashboard');
   }
@@ -128,22 +199,23 @@ export default function App() {
   let page = null;
   if (route === 'Dashboard') {
     page = me ? (
-      <Dashboard 
-        me={me} 
-        onNavigate={setRoute} 
-        onRoute={setRoute} 
+      <Dashboard
+        me={me}
+        onNavigate={setRoute}
+        onRoute={setRoute}
       />
     ) : (
       <LandingPage onNavigate={setRoute} />
     );
   }
+  if (route === 'landing') page = <LandingPage onNavigate={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
   if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'studentManager') page = <StudentManager onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
-  if (route === 'examResults') page = <ExamResults />;
+  if (route === 'examResults') page = <ExamResults me={me} />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers me={me} />;
   if (route === 'adminSettings') page = me?.role === 'super_admin' ? <AdminSettings /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
@@ -242,6 +314,41 @@ export default function App() {
     );
   if (route === 'studentExamResults')
     page = <StudentExamResults />;
+  if (route === 'alumniAvailableExams')
+    page = (
+      <AlumniAvailableExams
+        onTakeExam={(id) => {
+          setAlumniExamId(id);
+          setAlumniResultExamId(id);
+          setRoute('alumniExamRunner');
+        }}
+        onViewResults={(id) => {
+          setAlumniResultExamId(id);
+          setRoute('alumniExamResults');
+        }}
+      />
+    );
+  if (route === 'alumniExamRunner')
+    page = (
+      <AlumniExamRunner
+        examId={alumniExamId}
+        onFinish={() => {
+          setAlumniResultExamId(alumniExamId);
+          setRoute('alumniExamResult');
+        }}
+        me={me}
+      />
+    );
+  if (route === 'alumniExamResult')
+    page = (
+      <AlumniExamResult
+        onReturn={() => setRoute('alumniAvailableExams')}
+        onViewResults={() => setRoute('alumniExamResults')}
+      />
+    );
+  if (route === 'alumniExamResults')
+    page = <AlumniExamResults examId={alumniResultExamId} />;
+  if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
   return (
     <div className="app-container">
@@ -252,7 +359,41 @@ export default function App() {
         {page}
       </main>
 
-      <Footer />
+      <Footer
+        onNavigate={setRoute}
+        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing'}
+        landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
+      />
+
+      {/* [DEACTIVATION MODAL] */}
+      <Modal
+        open={showDeactivatedModal}
+        onClose={() => { }}
+        title="Account Deactivated"
+        size="compact"
+        bodyClassName="custom-modal-body--compact"
+      >
+        <div className="modal-confirmation">
+          <div className="modal-confirmation-message">
+            Your account has been <strong>deactivated</strong> by an administrator.
+          </div>
+          <div className="modal-confirmation-extra">
+            You have been signed out. If you believe this is a mistake or need your account
+            restored, please reach out to the admins for assistance.
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="modal-btn-primary"
+            onClick={handleDeactivatedAcknowledge}
+          >
+            OK, Got It
+          </button>
+        </div>
+      </Modal>
+
+      <SystemUpdateWarning me={me} />
     </div>
   );
 }

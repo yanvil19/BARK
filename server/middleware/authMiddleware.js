@@ -4,11 +4,7 @@ const User = require('../models/User');
 // Verify JWT token and attach user to request
 const protect = async (req, res, next) => {
   try {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
+    const token = req.cookies?.nu_board_token;
 
     if (!token) {
       return res.status(401).json({ message: 'Not authorized, no token provided' });
@@ -22,6 +18,10 @@ const protect = async (req, res, next) => {
 
     if (!req.user) {
       return res.status(401).json({ message: 'Not authorized, user no longer exists' });
+    }
+
+    if (!req.user.isActive) {
+      return res.status(401).json({ message: 'Account is deactivated. Contact the admins for assistance.' });
     }
 
     next();

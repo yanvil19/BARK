@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const {
   registerUser,
   loginUser,
+  logoutUser,
   getMe,
   updateCredentials,
   listUsers,
@@ -58,6 +59,10 @@ router.post(
   loginRateLimiter,
   loginUser
 );
+
+// @route   POST /api/auth/logout
+// @access  Public
+router.post('/logout', logoutUser);
 
 // @route   POST /api/auth/forgot-password
 // @access  Public
@@ -166,15 +171,15 @@ router.post('/registration-status', rateLimit({ windowMs: 60_000, max: 30 }), ch
 
 // @route   GET /api/auth/registrations
 // @access  Private - Dean only
-router.get('/registrations', protect, authorizeRoles('dean'), listRegistrationRequests);
+router.get('/registrations', protect, authorizeRoles('dean', 'program_chair'), listRegistrationRequests);
 
 // @route   PATCH /api/auth/registrations/:id/approve
 // @access  Private - Dean only
-router.patch('/registrations/:id/approve', protect, authorizeRoles('dean'), approveRegistrationRequest);
+router.patch('/registrations/:id/approve', protect, authorizeRoles('dean', 'program_chair'), approveRegistrationRequest);
 
 // @route   PATCH /api/auth/registrations/:id/reject
 // @access  Private - Dean only
-router.patch('/registrations/:id/reject', protect, authorizeRoles('dean'), rejectRegistrationRequest);
+router.patch('/registrations/:id/reject', protect, authorizeRoles('dean', 'program_chair'), rejectRegistrationRequest);
 
 // @route   GET /api/auth/users
 // @access  Private - Super Admin only

@@ -23,7 +23,7 @@ describe('Admin route protection', () => {
     for (const route of adminRoutes) {
       const res = await request(app)
         [route.method](route.path)
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', `nu_board_token=${token}`);
 
       expect(res.status).toBe(403);
     }
@@ -35,7 +35,7 @@ describe('Admin route protection', () => {
     for (const route of adminRoutes) {
       const res = await request(app)
         [route.method](route.path)
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', `nu_board_token=${token}`);
 
       expect(res.status).toBe(403);
     }

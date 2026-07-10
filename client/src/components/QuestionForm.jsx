@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
@@ -13,6 +14,7 @@ function generateId() {
 }
 
 export default function QuestionForm({
+  me,
   tags,
   programId,
   initialData,
@@ -20,14 +22,28 @@ export default function QuestionForm({
   onClose,
   readOnly = false,
   importedQuestions = [],
+  isImportDraft = false,
   onFeedback,
+  maxImages = 5,
 }) {
-  const isImportMode = importedQuestions && importedQuestions.length > 0;
+  const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   const useBubbleNav = !readOnly && (isImportMode || !initialData);
 
   const { notify } = useToast();
 
-  const [questionsData, setQuestionsData] = useState(() => {
+  const isEditing = !!initialData;
+  const userId = me?._id || 'guest';
+  
+  let draftKey = null;
+  if (!readOnly && !isEditing) {
+    if (isImportMode) {
+      draftKey = `question_draft_import_${userId}`;
+    } else {
+      draftKey = `question_draft_new_${userId}`;
+    }
+  }
+
+  const [questionsData, setQuestionsData, clearQuestionsData] = useLocalStorage(draftKey, () => {
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
@@ -199,8 +215,8 @@ export default function QuestionForm({
     let targetQ = questionsData.find(q => q.id === qId);
     if (!targetQ) return;
 
-    if (targetQ.imagePreviews.length + files.length > 5) {
-      updateQuestion(qId, q => ({ ...q, error: 'Maximum of 5 images allowed per question.' }));
+    if (targetQ.imagePreviews.length + files.length > maxImages) {
+      updateQuestion(qId, q => ({ ...q, error: `Maximum of ${maxImages} images allowed per question.` }));
       e.target.value = '';
       return;
     }
@@ -439,6 +455,9 @@ export default function QuestionForm({
         }
       }
 
+      if (clearQuestionsData) {
+        clearQuestionsData();
+      }
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
       showFeedback({
@@ -489,6 +508,9 @@ export default function QuestionForm({
           savedQuestions.push({ ...question, state: 'pending_chair' });
         }
 
+        if (clearQuestionsData) {
+          clearQuestionsData();
+        }
         onSaved(savedQuestions, !!initialData && questionsData.length === 1);
       } catch (err) {
         notify(err.message || 'Failed to save question(s).', { variant: 'error' });
@@ -658,7 +680,7 @@ export default function QuestionForm({
                 <div className="qf-section-heading">
                   <div>
                     <h3>Images</h3>
-                    <p>{readOnly ? 'Images attached to this question.' : 'Optional, maximum of 5 images.'}</p>
+                    <p>{readOnly ? 'Images attached to this question.' : `Optional, maximum of ${maxImages} images.`}</p>
                   </div>
                 </div>
 
@@ -676,7 +698,7 @@ export default function QuestionForm({
                       Choose Files
                     </button>
                     <span className="qf-upload-note">
-                      {q.uploading ? 'Uploading images...' : 'JPG, PNG, or WEBP (Max 5MB each, 5 total)'}
+                      {q.uploading ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
                     </span>
                   </div>
                 )}

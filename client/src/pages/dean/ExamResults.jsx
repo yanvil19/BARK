@@ -3,6 +3,7 @@ import { listExamsWithStatus, getExamResult, computeExamResult } from '../../ser
 import '../../styles/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import IndividualReportView from './IndividualReportView.jsx';
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -40,6 +41,7 @@ const formatShortDate = (dateStr) => {
 
 const getComputationLabel = (exam) => {
   if (exam.computationStatus === 'computed') return 'Ready';
+  if ((exam.targetAudience || 'student') === 'alumni') return 'No attempts';
   if (exam.status === 'finished') return 'Ready to compute';
   return 'Pending';
 };
@@ -50,21 +52,69 @@ const getComputationTone = (exam) => {
   return 'pending';
 };
 
-const QuestionRow = memo(({ question }) => {
+const getAudienceLabel = (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students');
+
+const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
   const tagInfo = getQuestionTagInfo(question.correctRate);
+  const answerCounts = question.answerCounts || [];
+  const totalAnswers = answerCounts.reduce((sum, answer) => sum + (answer.count || 0), 0) + (question.unansweredCount || 0);
 
   return (
     <div className="er-question-item">
-      <div className="er-q-header">
-        <span className="er-q-label">{question.label}</span>
-        <span className="er-q-rate">{question.correctRate}%</span>
-      </div>
-      <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
+      <button type="button" className="er-question-row" onClick={onToggle}>
+        <div className="er-question-main">
+          <span className="er-q-label">{question.label}</span>
+          <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
+        </div>
+
+        <div className="er-question-row-meta">
+          <span className="er-q-rate">{question.correctRate}% correct</span>
+          <span className="er-q-respondents">{totalAnswers} responses</span>
+        </div>
+
+        <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="er-question-details">
+          <div className="er-question-prompt-card">
+            <span className="er-question-detail-label">Question</span>
+            <p>{question.description || question.label}</p>
+          </div>
+
+          <div className="er-answer-breakdown">
+            <span className="er-question-detail-label">Answer choices</span>
+            {answerCounts.length > 0 ? (
+              answerCounts.map((answer) => (
+                <div key={answer.answerId || answer.text} className={`er-answer-row ${answer.isCorrect ? 'correct' : ''}`}>
+                  <div className="er-answer-copy">
+                    <span className="er-answer-text">{answer.text || 'Untitled answer'}</span>
+                    {answer.isCorrect && <span className="er-answer-correct-pill">Correct answer</span>}
+                  </div>
+                  <strong>{answer.count || 0}</strong>
+                </div>
+              ))
+            ) : (
+              <div className="er-answer-empty">No answer choices were stored for this question.</div>
+            )}
+            {(question.unansweredCount || 0) > 0 && (
+              <div className="er-answer-row muted">
+                <span className="er-answer-text">No answer submitted</span>
+                <strong>{question.unansweredCount}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
 
-const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
+const TopicRow = memo(({ subject, isExpanded, onToggle, expandedQuestionKey, onQuestionToggle }) => {
   const status = getStatusClass(subject.averageScore, subject.threshold);
 
   return (
@@ -99,9 +149,14 @@ const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
       </button>
 
       {isExpanded && (
-        <div className="er-questions-grid">
+        <div className="er-questions-list">
           {subject.questions.map((question, idx) => (
-            <QuestionRow key={idx} question={question} />
+            <QuestionRow
+              key={question.questionId || `${subject.name}-${idx}`}
+              question={question}
+              isExpanded={expandedQuestionKey === `${subject.name}-${question.questionId || idx}`}
+              onToggle={() => onQuestionToggle(`${subject.name}-${question.questionId || idx}`)}
+            />
           ))}
         </div>
       )}
@@ -145,6 +200,7 @@ const SidebarExamItem = memo(({ exam, isActive, onSelect }) => {
 
       <div className="er-sidebar-item-bottom">
         <span className="er-side-threshold">Threshold {exam.passingThreshold ?? 70}%</span>
+        <span className="er-side-threshold">{getAudienceLabel(exam)}</span>
       </div>
     </div>
   );
@@ -179,7 +235,26 @@ const CircularProgress = ({ percentage, threshold }) => {
   );
 };
 
-const ExamResults = () => {
+const ReportTabToggle = ({ activeTab, onChange, showIndividual = true }) => (
+  <div className="er-report-tab-toggle">
+    <button 
+      className={`er-tab-btn ${activeTab === 'overall' ? 'active' : ''}`}
+      onClick={() => onChange('overall')}
+    >
+      Overall
+    </button>
+    {showIndividual && (
+      <button
+        className={`er-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
+        onClick={() => onChange('individual')}
+      >
+        Individual
+      </button>
+    )}
+  </div>
+);
+
+const ExamResults = ({ me }) => {
   const { notify } = useToast();
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState(null);
@@ -188,7 +263,15 @@ const ExamResults = () => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
-  const [selectedProgramId, setSelectedProgramId] = useState('all');
+  const [expandedQuestionKey, setExpandedQuestionKey] = useState(null);
+  
+  const isProgramChair = me?.role === 'program_chair';
+  const userProgramId = me?.program?._id || me?.program;
+  const initialProgramId = isProgramChair && userProgramId ? String(userProgramId) : 'all';
+  
+  const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
+  const [selectedAudience, setSelectedAudience] = useState('student');
+  const [activeTab, setActiveTab] = useState('overall');
 
   const fetchExams = useCallback(async () => {
     try {
@@ -214,6 +297,8 @@ const ExamResults = () => {
       const data = await getExamResult(examId);
       setActiveReport(data.result || null);
       setExpandedSubjectName(null);
+      setExpandedQuestionKey(null);
+      setActiveTab('overall');
     } catch (err) {
       setActiveReport(null);
       console.warn('Could not load report:', err.message);
@@ -279,28 +364,34 @@ const ExamResults = () => {
   }, [exams]);
 
   const filteredExams = useMemo(() => {
-    if (selectedProgramId === 'all') return exams;
-    return exams.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
-  }, [exams, selectedProgramId]);
+    let next = exams;
+    if (selectedProgramId !== 'all') {
+      next = next.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
+    }
+    if (selectedAudience !== 'all') {
+      next = next.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
+    }
+    return next;
+  }, [exams, selectedProgramId, selectedAudience]);
 
   const examStats = useMemo(() => {
     const total = filteredExams.length;
-    const ready = filteredExams.filter((exam) => exam.computationStatus === 'computed').length;
-    const readyToCompute = filteredExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
+    const studentExams = filteredExams.filter((exam) => (exam.targetAudience || 'student') === 'student');
+    const ready = studentExams.filter((exam) => exam.computationStatus === 'computed').length;
+    const readyToCompute = studentExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
     return { total, ready, readyToCompute };
   }, [filteredExams]);
 
   useEffect(() => {
     if (!selectedExamId) return;
-    if (selectedProgramId === 'all') return;
-
     const selectedStillVisible = filteredExams.some((exam) => exam._id === selectedExamId);
     if (!selectedStillVisible) {
       setSelectedExamId(null);
       setActiveReport(null);
       setExpandedSubjectName(null);
+      setExpandedQuestionKey(null);
     }
-  }, [filteredExams, selectedExamId, selectedProgramId]);
+  }, [filteredExams, selectedExamId]);
 
   const enrichedSubjects = useMemo(() => {
     if (!activeReport) return [];
@@ -319,8 +410,9 @@ const ExamResults = () => {
     );
 
     return {
-      overallAvg: avg,
+      overallAvg: activeReport.overallAverageScore ?? avg,
       takers: activeReport.totalTakers,
+      totalAttempts: activeReport.totalAttempts,
       date: formatShortDate(activeReport.dateConducted),
       computedAt: formatDateTime(activeReport.computedAt)
     };
@@ -361,6 +453,7 @@ const ExamResults = () => {
               <select
                 value={selectedProgramId}
                 onChange={(event) => setSelectedProgramId(event.target.value)}
+                disabled={isProgramChair}
               >
                 <option value="all">All programs</option>
                 {programs.map((program) => (
@@ -368,6 +461,18 @@ const ExamResults = () => {
                     {program.name}
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className="er-program-filter">
+              <span>Exam Audience</span>
+              <select
+                value={selectedAudience}
+                onChange={(event) => setSelectedAudience(event.target.value)}
+              >
+                <option value="student">Student Exams</option>
+                <option value="alumni">Alumni Exams</option>
+                <option value="all">All Audiences</option>
               </select>
             </label>
 
@@ -424,7 +529,30 @@ const ExamResults = () => {
             />
           )}
 
-          {selectedExamId && !loading && !activeReport && (
+          {selectedExamId && !loading && selectedExam?.targetAudience === 'alumni' && !activeReport && (
+            <EmptyStatePanel
+              eyebrow="No Attempts"
+              title="No alumni attempts yet"
+              message="Once alumni submit attempts for this exam, this page will show the average of each alumni's highest score."
+            >
+              <div className="er-empty-meta-grid">
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Exam</span>
+                  <strong>{selectedExam?.name || 'Selected exam'}</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Audience</span>
+                  <strong>Alumni</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Threshold</span>
+                  <strong>{threshold}%</strong>
+                </div>
+              </div>
+            </EmptyStatePanel>
+          )}
+
+          {selectedExamId && !loading && selectedExam?.targetAudience !== 'alumni' && !activeReport && (
             <EmptyStatePanel
               eyebrow="Analysis Pending"
               title="This exam does not have computed results yet"
@@ -457,65 +585,106 @@ const ExamResults = () => {
           )}
 
           {activeReport && summary && (
-            <div className="er-report-view">
-              <div className="er-report-header">
-                <div>
-                  <span className="er-report-kicker">Computed Report</span>
-                  <h2 className="er-report-title">{activeReport.examName}</h2>
-                </div>
+            <>
+              <div style={{ display: 'flex' }}>
+                <ReportTabToggle
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  showIndividual
+                />
+              </div>
+              <div className="er-report-view">
+                <div className="er-report-header">
+                  <div className="er-report-title-group">
+                    <span className="er-report-kicker">
+                      {activeReport.targetAudience === 'alumni' ? 'Alumni Highest Score Report' : 'Computed Report'}
+                    </span>
+                    <h2 className="er-report-title">{activeReport.examName}</h2>
+                  </div>
                 <div className="er-report-meta">
                   <span className="er-report-ts">Last computed: {summary.computedAt}</span>
                   <span className="er-divider">|</span>
-                  <div style={{ fontWeight: '600', color: '#35408e', background: '#f0f4ff', padding: '4px 12px', borderRadius: '6px' }}>
+                  <div className="er-threshold-badge">
                     Threshold: {threshold}%
                   </div>
                 </div>
               </div>
 
-              <section className="er-hero-card">
-                <div className="er-hero-topline">
-                  <span className="er-hero-eyebrow">Overall performance snapshot</span>
-                  <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
-                </div>
+              {activeTab === 'overall' ? (
+                <>
+                  <section className="er-hero-card">
+                    <div className="er-hero-topline">
+                      <span className="er-hero-eyebrow">
+                        {activeReport.targetAudience === 'alumni'
+                          ? "Average of each alumni's highest score"
+                          : 'Overall performance snapshot'}
+                      </span>
+                      <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
+                    </div>
 
-                <div className="er-hero-body">
-                  <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
-                </div>
+                    <div className="er-hero-body">
+                      <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
+                    </div>
 
-                <div className="er-hero-metrics">
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.overallAvg}%</span>
-                    <span className="m-label">Average score</span>
-                  </div>
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.takers}</span>
-                    <span className="m-label">Total takers</span>
-                  </div>
-                  <div className="er-metric-item">
-                    <span className="m-value">{summary.date}</span>
-                    <span className="m-label">Date conducted</span>
-                  </div>
-                </div>
-              </section>
+                    <div className="er-hero-metrics">
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.overallAvg}%</span>
+                        <span className="m-label">Average score</span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.takers}</span>
+                        <span className="m-label">
+                          {activeReport.targetAudience === 'alumni' ? 'Alumni counted' : 'Total takers'}
+                        </span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">
+                          {activeReport.targetAudience === 'alumni'
+                            ? (summary.totalAttempts ?? summary.takers)
+                            : summary.date}
+                        </span>
+                        <span className="m-label">
+                          {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Date conducted'}
+                        </span>
+                      </div>
+                    </div>
+                  </section>
 
-              <section className="er-breakdown-card">
-                <div className="er-breakdown-header">
-                  <h2>Score Breakdown by Topic</h2>
-                  <p>Performance across each subject area in this exam. Expand a row to inspect question-level trends.</p>
-                </div>
+                  <section className="er-breakdown-card">
+                    <div className="er-breakdown-header">
+                      <h2>Score Breakdown by Topic</h2>
+                      <p>Performance across each subject area in this exam. Expand a row to inspect question-level trends.</p>
+                    </div>
 
-                <div className="er-topic-list">
-                  {enrichedSubjects.map((subject, idx) => (
-                    <TopicRow
-                      key={idx}
-                      subject={subject}
-                      isExpanded={expandedSubjectName === subject.name}
-                      onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
-                    />
-                  ))}
-                </div>
-              </section>
+                    <div className="er-topic-list">
+                      {enrichedSubjects.map((subject, idx) => (
+                        <TopicRow
+                          key={idx}
+                          subject={subject}
+                          isExpanded={expandedSubjectName === subject.name}
+                          expandedQuestionKey={expandedQuestionKey}
+                          onToggle={() => {
+                            setExpandedSubjectName((prev) => {
+                              const next = prev === subject.name ? null : subject.name;
+                              if (next !== subject.name) setExpandedQuestionKey(null);
+                              return next;
+                            });
+                          }}
+                          onQuestionToggle={(questionKey) => setExpandedQuestionKey((prev) => (prev === questionKey ? null : questionKey))}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                </>
+              ) : (
+                <IndividualReportView
+                  examId={selectedExamId}
+                  threshold={threshold}
+                  audience={activeReport.targetAudience === 'alumni' ? 'alumni' : 'student'}
+                />
+              )}
             </div>
+            </>
           )}
         </main>
       </div>

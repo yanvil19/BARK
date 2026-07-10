@@ -42,6 +42,8 @@ function EventLabel({ event }) {
 export default function ExamCalendar({ role, programId }) {
   const normalizedRole = normalizeRole(role);
   const isDean = normalizedRole === 'dean';
+  const isChair = normalizedRole === 'program_chair';
+  const isManager = isDean || isChair;
   const [view, setView] = useState('month');
   const [date, setDate] = useState(new Date());
   const [exams, setExams] = useState([]);
@@ -55,7 +57,7 @@ export default function ExamCalendar({ role, programId }) {
     let ignore = false;
 
     async function fetchCalendarExams() {
-      if (isDean && !programId) {
+      if (isManager && !programId) {
         setExams([]);
         return;
       }
@@ -66,7 +68,7 @@ export default function ExamCalendar({ role, programId }) {
       try {
         const params = new URLSearchParams();
 
-        if (isDean) {
+        if (isManager) {
           params.set('programId', programId);
           params.set('startRange', visibleRange.start.toISOString());
           params.set('endRange', visibleRange.end.toISOString());
@@ -74,6 +76,8 @@ export default function ExamCalendar({ role, programId }) {
 
         const path = isDean
           ? `/api/calendar/dean?${params.toString()}`
+          : isChair
+          ? `/api/calendar/chair?${params.toString()}`
           : '/api/calendar/student';
         const data = await apiAuth(path);
         if (!ignore) setExams(data.exams || []);
@@ -92,11 +96,11 @@ export default function ExamCalendar({ role, programId }) {
     return () => {
       ignore = true;
     };
-  }, [isDean, programId, visibleRange.end, visibleRange.start]);
+  }, [isManager, isDean, isChair, programId, visibleRange.end, visibleRange.start]);
 
   const calendarExams = useMemo(
-    () => (isDean ? addConflictFlags(exams) : exams),
-    [exams, isDean]
+    () => (isManager ? addConflictFlags(exams) : exams),
+    [exams, isManager]
   );
 
   const events = useMemo(
@@ -134,7 +138,7 @@ export default function ExamCalendar({ role, programId }) {
       <div className="exam-calendar-toolbar">
         <div>
           <h2>Exam Calendar</h2>
-          <p>{isDean ? 'Review exam schedules for the selected program.' : 'View upcoming and active exams.'}</p>
+          <p>{isManager ? 'Review exam schedules for the selected program.' : 'View upcoming and active exams.'}</p>
         </div>
 
         <div className="exam-calendar-actions" />
@@ -184,9 +188,9 @@ export default function ExamCalendar({ role, programId }) {
             </div>
             <div>
               <span>Status</span>
-              <strong>{isDean ? selectedExam.status : getLearnerExamState(selectedExam)}</strong>
+              <strong>{isManager ? selectedExam.status : getLearnerExamState(selectedExam)}</strong>
             </div>
-            {isDean ? (
+            {isManager ? (
               <div>
                 <span>Passing Threshold</span>
                 <strong>{selectedExam.passingThreshold ?? 0}%</strong>

@@ -1,8 +1,17 @@
 const mongoose = require('mongoose');
 
 const questionResultSchema = new mongoose.Schema({
+  questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
   label: { type: String, required: true },
-  correctRate: { type: Number, required: true, min: 0, max: 100 }
+  description: { type: String, default: '' },
+  correctRate: { type: Number, required: true, min: 0, max: 100 },
+  answerCounts: [{
+    answerId: { type: mongoose.Schema.Types.ObjectId },
+    text: { type: String, default: '' },
+    count: { type: Number, default: 0, min: 0 },
+    isCorrect: { type: Boolean, default: false },
+  }],
+  unansweredCount: { type: Number, default: 0, min: 0 }
 });
 
 const subjectResultSchema = new mongoose.Schema({

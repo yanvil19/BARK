@@ -3,16 +3,42 @@ const MockExamResult = require('../models/MockExamResult');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
+const User = require('../models/User');
+const StudentExamAttempt = require('../models/StudentExamAttempt');
+const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
 const { checkExamScheduleConflict } = require('../services/examScheduleConflictService');
 const { logAudit } = require('../utils/auditLogger');
 
-async function getDeanPrograms(user) {
-  if (user.role !== 'dean' || !user.department) return [];
-  const programs = await Program.find({ department: user.department, isActive: true }).select('_id department name code');
-  return programs;
+const EXAM_MANAGER_ROLES = ['dean', 'program_chair'];
+
+function isExamManager(user) {
+  return Boolean(user) && EXAM_MANAGER_ROLES.includes(user.role);
 }
 
+// Returns the programs a user is allowed to manage exams for.
+// Deans get every active program in their department, while Program Chairs
+// are scoped to only the single program they are assigned to.
+async function getDeanPrograms(user) {
+  if (user.role === 'dean') {
+    if (!user.department) return [];
+    const programs = await Program.find({ department: user.department, isActive: true }).select('_id department name code');
+    return programs;
+  }
+
+  if (user.role === 'program_chair') {
+    if (!user.program) return [];
+    const program = await Program.findOne({ _id: user.program, isActive: true }).select('_id department name code');
+    return program ? [program] : [];
+  }
+
+  return [];
+}
+
+// Confirms the given program is one the user is permitted to manage.
+// Because getDeanPrograms already scopes Program Chairs to their single
+// assigned program, this rejects any program a Program Chair does not
+// manage, even if a different programId is passed in the request.
 async function ensureDeanProgramAccess(user, programId) {
   const programs = await getDeanPrograms(user);
   const program = programs.find((item) => item._id.toString() === String(programId));
@@ -96,8 +122,8 @@ async function advanceExamStatuses(query = {}) {
 
 async function listApprovedQuestions(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can access approved questions for exam creation' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can access approved questions for exam creation' });
     }
 
     const { program: programId, states } = req.query;
@@ -145,11 +171,19 @@ async function validateExamPayload(user, body) {
   const status = body.status || 'draft';
   const instructions = body.instructions?.trim() || '';
   const description = body.description?.trim() || '';
+  const targetAudience = body.targetAudience || 'student';
+  const isAlumniExam = targetAudience === 'alumni';
+  const isTimed = isAlumniExam ? Boolean(body.isTimed) : false;
+  const timeLimitMinutes = isTimed ? Number(body.timeLimitMinutes) : null;
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
-  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
+  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
+    errors.push('Time limit must be at least 1 minute');
+  }
   if (subjectTagIds.length === 0) errors.push('At least one subject is required');
   if (questionIds.length === 0) errors.push('At least one approved question is required');
   if (!['draft', 'published'].includes(status)) errors.push('Invalid exam status');
@@ -157,8 +191,8 @@ async function validateExamPayload(user, body) {
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
 
-  const start = body.startDateTime ? new Date(body.startDateTime) : null;
-  const end = body.endDateTime ? new Date(body.endDateTime) : null;
+  const start = !isAlumniExam && body.startDateTime ? new Date(body.startDateTime) : null;
+  const end = !isAlumniExam && body.endDateTime ? new Date(body.endDateTime) : null;
 
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
@@ -205,6 +239,9 @@ async function validateExamPayload(user, body) {
       instructions,
       description,
       status,
+      targetAudience,
+      isTimed,
+      timeLimitMinutes,
       tags,
       questions,
       passingThreshold: body.passingThreshold ?? 70,
@@ -214,17 +251,19 @@ async function validateExamPayload(user, body) {
 
 async function createMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can create mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can create mock board exams' });
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
-    if (payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
+    if (payload.targetAudience !== 'alumni' && payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
       errors.push('Start date must be in the future');
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = await buildScheduleConflictResponse(payload);
+    const scheduleConflict = payload.targetAudience === 'alumni'
+      ? { shouldBlock: false, warnings: [] }
+      : await buildScheduleConflictResponse(payload);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,
@@ -242,6 +281,9 @@ async function createMockBoardExam(req, res) {
       endDateTime: payload.endDateTime,
       instructions: payload.instructions,
       description: payload.description,
+      targetAudience: payload.targetAudience,
+      isTimed: payload.isTimed,
+      timeLimitMinutes: payload.timeLimitMinutes,
       status: payload.status,
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
@@ -256,10 +298,13 @@ async function createMockBoardExam(req, res) {
       name: exam.name,
       programId: exam.program,
       status: exam.status,
+      targetAudience: exam.targetAudience,
+      isTimed: exam.isTimed,
+      timeLimitMinutes: exam.timeLimitMinutes,
       questionCount: exam.questions?.length || 0,
     });
 
-    if (payload.status === 'published') {
+    if (payload.targetAudience !== 'alumni' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });
@@ -276,7 +321,7 @@ async function listMockBoardExams(req, res) {
   try {
     let query = {};
 
-    if (req.user && req.user.role === 'dean') {
+    if (isExamManager(req.user)) {
       const programs = await getDeanPrograms(req.user);
       const programIds = programs.map((program) => program._id);
       
@@ -305,19 +350,47 @@ async function listMockBoardExams(req, res) {
         .map((record) => String(record.examId))
     );
 
+    const submissionCountsAgg = examIds.length > 0 ? await StudentExamAttempt.aggregate([
+      { $match: { exam: { $in: examIds }, status: 'submitted' } },
+      { $group: { _id: '$exam', count: { $sum: 1 } } }
+    ]) : [];
+    const submissionCounts = new Map(submissionCountsAgg.map(item => [String(item._id), item.count]));
+    const alumniSubmissionCountsAgg = examIds.length > 0 ? await AlumniExamAttempt.aggregate([
+      { $match: { exam: { $in: examIds }, status: 'submitted' } },
+      { $group: { _id: '$exam', count: { $sum: 1 } } }
+    ]) : [];
+    const alumniSubmissionCounts = new Map(alumniSubmissionCountsAgg.map(item => [String(item._id), item.count]));
+
+    const programIds = [...new Set(exams.map((exam) => String(exam.program?._id || exam.program)))];
+    const totalStudentsCounts = new Map();
+    for (const pid of programIds) {
+      const count = await User.countDocuments({ role: { $in: ['student'] }, program: pid, isActive: true });
+      totalStudentsCounts.set(pid, count);
+    }
+
     const enrichedExams = exams.map((exam) => {
       const resultsReleaseDate = exam.resultsReleaseDate || null;
       const resultsUploaded = uploadedExamIds.has(String(exam._id));
       const resultsReleased = Boolean(
         resultsReleaseDate && new Date(resultsReleaseDate) <= now
       );
-      const durationMinutes = exam.startDateTime && exam.endDateTime
-        ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
-        : null;
+      const isAlumniExam = (exam.targetAudience || 'student') === 'alumni';
+      const durationMinutes = isAlumniExam && exam.isTimed
+        ? exam.timeLimitMinutes
+        : exam.startDateTime && exam.endDateTime
+          ? Math.round((new Date(exam.endDateTime) - new Date(exam.startDateTime)) / 60000)
+          : null;
+
+      const submissionCount = submissionCounts.get(String(exam._id)) || 0;
+      const alumniSubmissionCount = alumniSubmissionCounts.get(String(exam._id)) || 0;
+      const totalStudents = totalStudentsCounts.get(String(exam.program?._id || exam.program)) || 0;
 
       return {
         ...exam,
         durationMinutes,
+        submissionCount,
+        alumniSubmissionCount,
+        totalStudents,
         resultsReleaseDate,
         computationStatus: resultsUploaded ? 'computed' : 'none',
         resultsUploaded,
@@ -334,8 +407,8 @@ async function listMockBoardExams(req, res) {
 
 async function getMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can view mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can view mock board exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id)
@@ -362,8 +435,8 @@ async function getMockBoardExam(req, res) {
 
 async function updateMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can update mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can update mock board exams' });
     }
 
     const existing = await MockBoardExam.findById(req.params.id);
@@ -388,13 +461,18 @@ async function updateMockBoardExam(req, res) {
       instructions: req.body.instructions ?? current.instructions,
       description: req.body.description ?? current.description,
       status: req.body.status ?? current.status,
+      targetAudience: req.body.targetAudience ?? current.targetAudience ?? 'student',
+      isTimed: req.body.isTimed ?? current.isTimed ?? false,
+      timeLimitMinutes: req.body.timeLimitMinutes ?? current.timeLimitMinutes,
       passingThreshold: req.body.passingThreshold ?? current.passingThreshold,
     };
 
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = await buildScheduleConflictResponse(payload, existing._id);
+    const scheduleConflict = payload.targetAudience === 'alumni'
+      ? { shouldBlock: false, warnings: [] }
+      : await buildScheduleConflictResponse(payload, existing._id);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,
@@ -412,6 +490,9 @@ async function updateMockBoardExam(req, res) {
     current.endDateTime = payload.endDateTime;
     current.instructions = payload.instructions;
     current.description = payload.description;
+    current.targetAudience = payload.targetAudience;
+    current.isTimed = payload.isTimed;
+    current.timeLimitMinutes = payload.timeLimitMinutes;
     current.status = payload.status;
     current.passingThreshold = payload.passingThreshold;
     await current.save();
@@ -426,10 +507,13 @@ async function updateMockBoardExam(req, res) {
       programId: current.program,
       oldStatus,
       newStatus: current.status,
+      targetAudience: current.targetAudience,
+      isTimed: current.isTimed,
+      timeLimitMinutes: current.timeLimitMinutes,
       questionCount: current.questions?.length || 0,
     });
 
-    if (oldStatus !== 'published' && payload.status === 'published') {
+    if (payload.targetAudience !== 'alumni' && oldStatus !== 'published' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });
@@ -444,8 +528,8 @@ async function updateMockBoardExam(req, res) {
 
 async function deleteMockBoardExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can delete mock board exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can delete mock board exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -471,8 +555,9 @@ async function listPublishedExams(req, res) {
   try {
     await advanceExamStatuses();
     const exams = await MockBoardExam.find({ status: { $in: ['published', 'ongoing'] } })
-      .populate('program', 'name code')
-      .select('name program updatedAt')
+      .populate('program', 'name code department')
+      .populate('department', 'name code')
+      .select('name program department startDateTime endDateTime status targetAudience updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({ exams });
@@ -484,8 +569,8 @@ async function listPublishedExams(req, res) {
 
 async function archiveExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can archive exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can archive exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -494,8 +579,9 @@ async function archiveExam(req, res) {
     const accessible = await ensureDeanProgramAccess(req.user, exam.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
 
-    if (exam.status !== 'finished') {
-      return res.status(400).json({ message: 'Only finished exams can be archived' });
+    const isAlumniPublished = (exam.targetAudience || 'student') === 'alumni' && exam.status === 'published';
+    if (exam.status !== 'finished' && !isAlumniPublished) {
+      return res.status(400).json({ message: 'Only finished exams (or published alumni exams) can be archived' });
     }
 
     exam.status = 'archived';
@@ -515,10 +601,10 @@ async function archiveExam(req, res) {
   }
 }
 
-async function reuseArchivedExam(req, res) {
+async function copyExam(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can reuse archived exams' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can create copies of exams' });
     }
 
     const exam = await MockBoardExam.findById(req.params.id);
@@ -526,10 +612,6 @@ async function reuseArchivedExam(req, res) {
 
     const accessible = await ensureDeanProgramAccess(req.user, exam.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
-
-    if (exam.status !== 'archived') {
-      return res.status(400).json({ message: 'Only archived exams can be reused as a new draft' });
-    }
 
     const reused = await MockBoardExam.create({
       name: `${exam.name} (Copy)`,
@@ -542,6 +624,9 @@ async function reuseArchivedExam(req, res) {
       description: exam.description || '',
       instructions: exam.instructions || '',
       status: 'draft',
+      targetAudience: exam.targetAudience || 'student',
+      isTimed: exam.isTimed || false,
+      timeLimitMinutes: exam.timeLimitMinutes || null,
       passingThreshold: exam.passingThreshold,
       resultsReleaseDate: null,
       missedAttemptsProcessedAt: null,
@@ -571,8 +656,8 @@ async function reuseArchivedExam(req, res) {
 
 async function setResultsReleaseDate(req, res) {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can schedule result releases' });
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can schedule result releases' });
     }
 
     const { resultsReleaseDate } = req.body;
@@ -631,6 +716,67 @@ async function setResultsReleaseDate(req, res) {
   }
 }
 
+async function getEndEarlyStats(req, res) {
+  try {
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can view this info' });
+    }
+    const exam = await MockBoardExam.findById(req.params.id).populate('program', 'code name');
+    if (!exam) return res.status(404).json({ message: 'Mock board exam not found' });
+
+    const accessible = await ensureDeanProgramAccess(req.user, exam.program?._id || exam.program);
+    if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
+
+    const total = await User.countDocuments({ role: { $in: ['student'] }, program: exam.program._id, isActive: true });
+    const completed = await StudentExamAttempt.countDocuments({ exam: exam._id, status: 'submitted' });
+
+    res.json({
+      total,
+      completed,
+      programCode: exam.program?.code || exam.program?.name || 'Program'
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
+async function endExamEarly(req, res) {
+  try {
+    if (!isExamManager(req.user)) {
+      return res.status(403).json({ message: 'Only Deans and Program Chairs can end exams early' });
+    }
+    const exam = await MockBoardExam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ message: 'Mock board exam not found' });
+
+    const accessible = await ensureDeanProgramAccess(req.user, exam.program);
+    if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
+
+    if (exam.status !== 'ongoing') {
+      return res.status(400).json({ message: 'Only ongoing exams can be ended early' });
+    }
+
+    exam.status = 'finished';
+    exam.endDateTime = new Date();
+    await exam.save();
+
+    await StudentExamAttempt.updateMany(
+      { exam: exam._id, status: 'in_progress' },
+      { $set: { status: 'submitted', endTime: new Date(), autoSubmitted: true } }
+    );
+
+    await logAudit(req.user._id, 'mock_exam_ended_early', 'MockBoardExam', exam._id, {
+      name: exam.name,
+      programId: exam.program,
+    });
+
+    res.json({ message: 'Exam ended early successfully', exam });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
 module.exports = {
   listApprovedQuestions,
   createMockBoardExam,
@@ -640,6 +786,8 @@ module.exports = {
   deleteMockBoardExam,
   listPublishedExams,
   archiveExam,
-  reuseArchivedExam,
+  copyExam,
   setResultsReleaseDate,
+  getEndEarlyStats,
+  endExamEarly,
 };

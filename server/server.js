@@ -17,7 +17,9 @@ async function start() {
         try {
             await connectDB();
             const { startExamExpiryJob } = require('./services/examExpiryJob');
+            const settingsManager = require('./services/settingsManager');
             startExamExpiryJob();
+            await settingsManager.init();
         } catch (err) {
             console.error(err);
             if (failFast) {

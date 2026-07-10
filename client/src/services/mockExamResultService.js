@@ -22,3 +22,7 @@ export const deleteExamResult = async (examId) => {
     method: 'DELETE'
   });
 };
+
+export const getExamStudentResults = async (examId) => {
+  return await apiAuth(`${BASE}/${examId}/students`);
+};

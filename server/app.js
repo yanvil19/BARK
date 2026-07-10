@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
@@ -11,8 +12,10 @@ const questionRoutes = require('./routes/questionRoutes');
 const mockBoardExamRoutes = require('./routes/mockBoardExamRoutes');
 const importRoutes = require('./routes/importRoutes');
 const studentExamRoutes = require('./routes/studentExamRoutes');
+const alumniExamRoutes = require('./routes/alumniExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
+const sseRoutes = require('./routes/sseRoutes');
 
 const app = express();
 
@@ -28,6 +31,7 @@ app.use(cors({
     credentials: true,
     optionsSuccessStatus: 200,
 }));
+app.use(cookieParser());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
@@ -40,8 +44,10 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/mock-board-exams', mockBoardExamRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/student-exams', studentExamRoutes);
+app.use('/api/alumni-exams', alumniExamRoutes);
 app.use('/api/mock-exam-results', mockExamResultRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/sse', sseRoutes);
 
 app.get('/', (req, res) => {
     res.send('API is running...');

@@ -4,7 +4,7 @@ import '../../styles/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
-
+import QuestionFilters from '../../components/QuestionFilters.jsx';
 const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -124,11 +124,10 @@ export default function QuestionApprovals({ me }) {
     const handleUnload = () => {
       const id = lockedIdRef.current;
       if (!id) return;
-      const token = window.localStorage.getItem('nu_board_token');
-      if (!token) return;
       fetch(`${BASE}/api/questions/${id}/unlock`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
         keepalive: true,
       });
@@ -607,33 +606,20 @@ export default function QuestionApprovals({ me }) {
         ))}
       </div>
 
-      <div className="ca-filters">
-        <input
-          className="ca-search"
-          type="text"
-          placeholder="Search questions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <select className="ca-filter-select" value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}>
-          <option value="">Filter: All Subjects</option>
-          {subjectOptions.map((tag) => (
-            <option key={tag.id} value={tag.id}>{tag.name}</option>
-          ))}
-        </select>
-        {me?.role === 'dean' && (
-          <select className="ca-filter-select" value={programFilter} onChange={(e) => setProgramFilter(e.target.value)}>
-            <option value="">Filter: All Programs</option>
-            {programOptions.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
-        <select className="ca-filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Sort: Oldest</option>
-        </select>
-      </div>
+      <QuestionFilters
+        className="ca-filters-wrapper"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        role={me?.role}
+        subjectFilter={subjectFilter}
+        onSubjectChange={setSubjectFilter}
+        subjectOptions={subjectOptions}
+        programFilter={programFilter}
+        onProgramChange={setProgramFilter}
+        programOptions={programOptions}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+      />
 
       <div className={`ca-layout ${isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
         <div className="ca-list-panel">

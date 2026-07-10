@@ -3,6 +3,7 @@ import SuperAdminDashboard from '../admin/SuperAdminDashboard.jsx';
 import DeanDashboard from '../dean/DeanDashboard.jsx';
 import ProgramChairDashboard from '../chair/ProgramChairDashboard.jsx';
 import StudentDashboard from '../student/StudentDashboard.jsx';
+import AlumniDashboard from '../alumni/AlumniDashboard.jsx';
 import ProfessorDashboard from '../professor/ProfessorDashboard.jsx';
 
 const Dashboard = ({ me, onNavigate, onRoute }) => {
@@ -53,7 +54,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
       return <StudentDashboard me={me} onNavigate={onNavigate || onRoute} />;
 
     case 'alumni':
-      return <StudentDashboard me={me} onNavigate={onNavigate || onRoute} />;
+      return <AlumniDashboard me={me} onNavigate={onNavigate || onRoute} />;
     
     case 'professor':
       return <ProfessorDashboard me={me} />;

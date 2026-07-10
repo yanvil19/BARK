@@ -15,6 +15,7 @@ const {
   unlockQuestion,
 } = require('../controllers/questionController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+const AppSettings = require('../models/AppSettings');
 
 const router = express.Router();
 const FACULTY = ['professor', 'program_chair', 'dean'];
@@ -28,6 +29,7 @@ const r2 = new S3Client({
   },
 });
 
+// Allow up to 50 files at the multer level; real limit enforced dynamically from AppSettings
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
@@ -45,7 +47,7 @@ router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
 router.post('/:id/submit', protect, authorizeRoles(...FACULTY), submitQuestion);
 router.post('/:id/review', protect, authorizeRoles('program_chair', 'dean'), reviewQuestion);
-router.post('/:id/dean-return', protect, authorizeRoles('dean'), deanReturnApprovedQuestion);
+router.post('/:id/dean-return', protect, authorizeRoles('program_chair', 'dean'), deanReturnApprovedQuestion);
 router.patch('/:id/lock', protect, authorizeRoles('program_chair', 'dean'), lockQuestion);
 router.patch('/:id/unlock', protect, authorizeRoles('program_chair', 'dean'), unlockQuestion);
 
@@ -54,9 +56,13 @@ router.post(
   '/upload-image',
   protect,
   authorizeRoles(...FACULTY),
-  upload.array('images', 5),
+  upload.array('images', 50),
   async (req, res) => {
     try {
+      // Dynamically enforce the limit from AppSettings
+      const settings = await AppSettings.getSingleton();
+      const maxAllowed = settings.maxUploadImages ?? 5;
+
       const bucket = process.env.R2_BUCKET_NAME;
       const publicBaseUrl = process.env.R2_PUBLIC_URL;
 
@@ -66,6 +72,10 @@ router.post(
 
       if (!Array.isArray(req.files) || req.files.length === 0) {
         return res.status(400).json({ message: 'No images uploaded' });
+      }
+
+      if (req.files.length > maxAllowed) {
+        return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed per question.` });
       }
 
       const base = publicBaseUrl.replace(/\/$/, '');

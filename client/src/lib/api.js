@@ -1,30 +1,17 @@
 // [FIX 2 - VITE_API_URL WIRING]
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const TOKEN_KEY = 'nu_board_token';
-
-export function getToken() {
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token) {
-  if (!token) window.localStorage.removeItem(TOKEN_KEY);
-  else window.localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function authHeader() {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 // [FIX - SESSION EXPIRY 401 HANDLER]
-function handleSessionExpired() {
-  setToken('');
-  localStorage.removeItem('token');
+function handleSessionExpired(isDeactivated = false) {
+  if (isDeactivated) {
+    // Fire a custom event so App.jsx can show a modal before logging the user out.
+    window.dispatchEvent(new CustomEvent('account-deactivated'));
+    return new Promise(() => {});
+  }
 
   const onLoginPage = window.location.pathname.endsWith('/login');
-  const hasExpiredParam = window.location.search.includes('session=expired');
-  if (!onLoginPage || !hasExpiredParam) {
+  const hasSessionParam = window.location.search.includes('session=');
+  if (!onLoginPage || !hasSessionParam) {
     window.location.href = '/login?session=expired';
   }
 
@@ -38,12 +25,12 @@ async function parseJsonResponse(res) {
   return text ? { message: text } : {};
 }
 
-export async function api(path, { method = 'GET', body, headers } = {}) {
+export async function api(path, { method = 'GET', body, headers, expectAuth = false } = {}) {
   // [FIX 2 - VITE_API_URL WIRING]
   const url = typeof path === 'string' && /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-  // [FIX 2 - VITE_API_URL WIRING]
   const res = await fetch(url, {
     method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(headers || {}),
@@ -54,12 +41,9 @@ export async function api(path, { method = 'GET', body, headers } = {}) {
   const data = await parseJsonResponse(res);
 
   // [FIX - SESSION EXPIRY 401 HANDLER]
-  const sentAuthHeader = Boolean(
-    headers && (headers.Authorization || headers.authorization)
-  );
-
-  if (res.status === 401 && sentAuthHeader) {
-    return handleSessionExpired();
+  if (res.status === 401 && expectAuth) {
+    const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
+    return handleSessionExpired(isDeactivated);
   }
 
   if (!res.ok) {
@@ -73,25 +57,22 @@ export async function api(path, { method = 'GET', body, headers } = {}) {
 }
 
 export async function apiAuth(path, options = {}) {
-  return api(path, { ...options, headers: { ...authHeader(), ...(options.headers || {}) } });
+  return api(path, { ...options, expectAuth: true });
 }
 
 // For FormData uploads — browser sets Content-Type (multipart boundary) automatically
 export async function apiAuthUpload(path, formData) {
-  const token = getToken();
-  // [FIX 2 - VITE_API_URL WIRING]
   const url = typeof path === 'string' && /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-  // [FIX 2 - VITE_API_URL WIRING]
   const res = await fetch(url, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
     body: formData,
   });
   const data = await parseJsonResponse(res);
 
-  // [FIX - SESSION EXPIRY 401 HANDLER]
-  if (res.status === 401 && token) {
-    return handleSessionExpired();
+  if (res.status === 401) {
+    const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
+    return handleSessionExpired(isDeactivated);
   }
 
   if (!res.ok) {
