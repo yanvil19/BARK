@@ -17,6 +17,8 @@ describe('POST /api/auth/login', () => {
     expect(setCookie).toBeDefined();
     expect(setCookie.some((c) => c.startsWith('nu_board_token='))).toBe(true);
     expect(setCookie.some((c) => c.includes('HttpOnly'))).toBe(true);
+    expect(setCookie.some((c) => c.includes('Secure'))).toBe(true);
+    expect(setCookie.some((c) => c.includes('SameSite=None'))).toBe(true);
   });
 
   it('should return 401 with wrong password', async () => {
@@ -75,5 +77,20 @@ describe('GET /api/auth/me', () => {
 
     expect(res.status).toBe(401);
     expect(res.body.message).toContain('deactivated');
+  });
+});
+
+describe('POST /api/auth/logout', () => {
+  it('should clear the auth cookie with matching cross-site cookie options', async () => {
+    const res = await request(app).post('/api/auth/logout');
+
+    expect(res.status).toBe(200);
+    const setCookie = res.headers['set-cookie'];
+    expect(setCookie).toBeDefined();
+    expect(setCookie.some((c) => c.startsWith('nu_board_token='))).toBe(true);
+    expect(setCookie.some((c) => c.includes('Max-Age=0'))).toBe(true);
+    expect(setCookie.some((c) => c.includes('HttpOnly'))).toBe(true);
+    expect(setCookie.some((c) => c.includes('Secure'))).toBe(true);
+    expect(setCookie.some((c) => c.includes('SameSite=None'))).toBe(true);
   });
 });

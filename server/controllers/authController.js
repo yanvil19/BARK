@@ -70,13 +70,14 @@ async function ensureDeptProgramValid({ departmentId, programId }) {
 // Cookie options for the auth token
 // httpOnly: JS cannot read this cookie at all (XSS mitigation)
 // secure: only sent over HTTPS (browsers exempt localhost, so dev works fine)
-// sameSite: 'strict' — cookie is never sent on cross-site requests (CSRF mitigation)
+// sameSite: 'none' allows the Render-hosted frontend and backend on different
+// subdomains to share this secure, httpOnly auth cookie.
 // maxAge: matches the 1d JWT expiry
 const AUTH_COOKIE_NAME = 'nu_board_token';
 const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: true,
-  sameSite: 'strict',
+  sameSite: 'none',
   maxAge: 24 * 60 * 60 * 1000, // 1 day in ms
   path: '/',
 };
