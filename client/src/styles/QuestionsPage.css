@@ -352,6 +352,25 @@
   border-color: var(--primary-bg);
 }
 
+/* Blue badge shown beside "Approved" when the question is in an active exam */
+.qp-badge--in-exam {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 9px;
+}
+
+/* Wrapper that stacks the status label + optional in-exam badge */
+.qp-status-cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
 .qp-none {
   color: #bbb;
   font-size: 13px;
@@ -386,17 +405,112 @@
   color: #d97706;
 }
 
-.qp-status--approved,
-.qp-status--in_use {
+.qp-status--approved {
   color: #22a06b;
-}
-
-.qp-status--retired {
-  color: #667085;
 }
 
 .qp-status--rejected {
   color: #e03a3a;
+}
+
+.qp-status--restored {
+  color: #8b5cf6;
+}
+
+/* ── Exam-use sub-filter pills ─────────────────────────────────── */
+.qp-exam-use-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: -6px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: #f0f4ff;
+  border: 1px solid rgba(59, 69, 139, 0.14);
+  border-radius: 12px;
+  animation: qp-fade-in 0.18s ease;
+}
+
+@keyframes qp-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.qp-exam-use-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b75b8;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.qp-exam-use-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: #5966ac;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qp-exam-use-pill:hover {
+  background: #eef1ff;
+  border-color: rgba(53, 64, 142, 0.35);
+}
+
+.qp-exam-use-pill-count {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(53, 64, 142, 0.12);
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Active: All Approved — use the primary navy colour */
+.qp-exam-use-pill--active-all {
+  background: var(--primary-bg);
+  color: #fff;
+  border-color: var(--primary-bg);
+}
+.qp-exam-use-pill--active-all .qp-exam-use-pill-count {
+  background: rgba(250, 210, 39, 0.9);
+  color: var(--primary-bg);
+}
+
+/* Active: Used in Exam — blue */
+.qp-exam-use-pill--active-used {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+.qp-exam-use-pill--active-used .qp-exam-use-pill-count {
+  background: rgba(219, 234, 254, 0.4);
+  color: #fff;
+}
+
+/* Active: Not Used — slate/grey */
+.qp-exam-use-pill--active-not_used {
+  background: #475569;
+  color: #fff;
+  border-color: #475569;
+}
+.qp-exam-use-pill--active-not_used .qp-exam-use-pill-count {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
 }
 
 .qp-actions-cell {

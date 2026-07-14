@@ -220,9 +220,9 @@ const updateQuestion = async (req, res) => {
     if (!question) return res.status(404).json({ message: 'Question not found' });
     if (question.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ message: 'Not your question' });
-    const editableStates = ['draft', 'returned', 'pending_chair'];
+    const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
     if (!editableStates.includes(question.state))
-      return res.status(400).json({ message: 'Only draft, returned, or pending questions can be edited' });
+      return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
 
     const { title, description, answers, tagId, images } = req.body;
     if (title) question.title = title.trim();
@@ -243,7 +243,7 @@ const updateQuestion = async (req, res) => {
     if (tagId !== undefined) question.tag = tagId || null;
 
     // If a submitted question is edited, pull it back to draft so it can be re-submitted.
-    if (question.state === 'pending_chair') {
+    if (question.state === 'pending_chair' || question.state === 'restored') {
       question.state = 'draft';
       question.currentReviewer = null;
       question.reviewStartedAt = null;
@@ -276,6 +276,8 @@ const deleteQuestion = async (req, res) => {
       return res.status(403).json({ message: 'Not your question' });
     if (question.state !== 'draft')
       return res.status(400).json({ message: 'Only draft questions can be deleted' });
+    if (question.is_used_in_exam)
+      return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
 
     await question.deleteOne();
     await logAudit(req.user._id, 'question_deleted', 'Question', question._id, {
@@ -368,30 +370,36 @@ const reviewQuestion = async (req, res) => {
     if (action === 'reject' && !note?.trim()) {
       return res.status(400).json({ message: 'Rejection reason is required when rejecting' });
     }
-    if (action === 'restore' && !note?.trim()) {
-      return res.status(400).json({ message: 'Feedback is required when restoring for review' });
-    }
+
 
     // Build the atomic filter and update based on action
     const questionId = req.params.id;
     let requiredState, updateSet;
 
     if (action === 'approve') {
-      requiredState = 'pending_chair';
+      requiredState = { $in: ['pending_chair', 'restored'] };
       updateSet = { state: 'approved', currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'return') {
-      requiredState = 'pending_chair';
+      requiredState = { $in: ['pending_chair', 'restored'] };
+      // Guard: cannot return a question that is in an active exam
+      const questionToReturn = await Question.findById(questionId).select('is_used_in_exam');
+      if (questionToReturn?.is_used_in_exam)
+        return res.status(400).json({ message: 'Cannot return a question that is currently used in an exam' });
       updateSet = { state: 'returned', revisionNote: note.trim(), currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'reject') {
-      requiredState = 'pending_chair';
+      requiredState = { $in: ['pending_chair', 'restored'] };
       updateSet = { state: 'rejected', rejectionReason: note.trim(), currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'restore') {
       requiredState = 'rejected';
-      updateSet = { state: 'draft', revisionNote: note.trim(), currentReviewer: null, reviewStartedAt: null };
+      updateSet = { state: 'restored', revisionNote: note?.trim() || null, currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'reuse') {
       return res.status(400).json({ message: 'Questions are reusable once approved and no longer need to be marked for reuse' });
     } else if (action === 'delete') {
       requiredState = 'rejected';
+      // Guard: cannot delete a question that is in an active exam
+      const questionToDelete = await Question.findById(questionId).select('is_used_in_exam');
+      if (questionToDelete?.is_used_in_exam)
+        return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
       // delete is handled separately below
     }
 
@@ -466,14 +474,16 @@ const reviewQuestion = async (req, res) => {
 // POST /api/questions/:id/dean-return
 const deanReturnApprovedQuestion = async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ message: 'Only Deans can return approved questions from exam creation' });
-    }
-
     const { note } = req.body;
     if (!note?.trim()) {
       return res.status(400).json({ message: 'Feedback is required when returning an approved question' });
     }
+
+    // Guard: cannot return a question that is currently in an active exam
+    const questionCheck = await Question.findById(req.params.id).select('is_used_in_exam');
+    if (!questionCheck) return res.status(404).json({ message: 'Question not found' });
+    if (questionCheck.is_used_in_exam)
+      return res.status(400).json({ message: 'Cannot return a question that is currently used in an exam' });
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
 

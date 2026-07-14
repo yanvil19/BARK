@@ -15,7 +15,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
-const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'returned', 'approved', 'rejected'];
+const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
 
 function formatDate(iso) {
   if (!iso) return '-';
@@ -567,29 +567,17 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                     <td>{formatDate(question.updatedAt || question.createdAt)}</td>
 
                     <td className="qp-actions-cell">
-                      {question.state === 'draft' ? (
+                      {question.state === 'draft' || question.state === 'returned' ? (
                         <>
                           <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
-                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>Submit</button>
+                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>
+                            {question.state === 'returned' ? 'Re-submit' : 'Submit'}
+                          </button>
                           <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
                         </>
                       ) : null}
 
-                      {question.state === 'returned' ? (
-                        <>
-                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
-                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>Re-submit</button>
-                        </>
-                      ) : null}
-
-                      {question.state === 'pending_chair' ? (
-                        <>
-                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
-                          <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
-                        </>
-                      ) : null}
-
-                      {question.state !== 'draft' && question.state !== 'returned' && question.state !== 'pending_chair' ? (
+                      {question.state !== 'draft' && question.state !== 'returned' ? (
                         <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
                       ) : null}
                     </td>

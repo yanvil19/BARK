@@ -9,7 +9,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
-const STATE_FILTERS = ['all', 'pending_chair', 'returned', 'approved', 'rejected'];
+const STATE_FILTERS = ['all', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
 
 const LOCK_STALE_MS = 10 * 60 * 1000;
 
@@ -67,6 +67,7 @@ export default function QuestionApprovals({ me }) {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [examUseFilter, setExamUseFilter] = useState('all'); // 'all' | 'used' | 'not_used'
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [programFilter, setProgramFilter] = useState('');
@@ -79,6 +80,10 @@ export default function QuestionApprovals({ me }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [actionTaken, setActionTaken] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [returnModal, setReturnModal] = useState(null);
+  const [returnNote, setReturnNote] = useState('');
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnError, setReturnError] = useState('');
 
   // Bulk select state
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -164,7 +169,7 @@ export default function QuestionApprovals({ me }) {
     // Optimistic UI: switch immediately, do network lock/unlock in background
     setSelectedQuestion(question);
 
-    if (question.state !== 'pending_chair') {
+    if (question.state !== 'pending_chair' && question.state !== 'restored') {
       if (prevLockedId && !actionTakenRef.current) {
         unlockById(prevLockedId).finally(() => {
           if (selectSeqRef.current === seq) setLockedQuestionId(null);
@@ -222,6 +227,29 @@ export default function QuestionApprovals({ me }) {
     setActionTaken(false);
     setLockedQuestionId(null);
     setIsSidebarExpanded(false);
+  }
+
+  async function handleRestore(question) {
+    try {
+      await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'restore', note: '' } });
+      setActionTaken(true);
+      setLockedQuestionId(null);
+      setQuestions((prev) => prev.map((item) => (
+        item._id === question._id ? { ...item, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : item
+      )));
+      setSelectedQuestion((prev) => (
+        prev && prev._id === question._id ? { ...prev, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : prev
+      ));
+      notify('Question restored successfully.', { variant: 'success' });
+    } catch (err) {
+      if (err.status === 409) {
+        notify('This question has already been reviewed by someone else.', { variant: 'error' });
+        fetchApprovals();
+        setSelectedQuestion(null);
+      } else {
+        notify(err.message || 'Failed to restore question.', { variant: 'error' });
+      }
+    }
   }
 
   async function handleApprove(question) {
@@ -333,7 +361,7 @@ export default function QuestionApprovals({ me }) {
         state: newState,
         currentReviewer: null,
         reviewStartedAt: null,
-        ...(newState === 'returned' || newState === 'pending_chair'
+        ...(newState === 'returned' || newState === 'pending_chair' || newState === 'restored'
           ? { revisionNote: note.trim(), rejectionReason: null }
           : { rejectionReason: note.trim() }),
       };
@@ -365,6 +393,39 @@ export default function QuestionApprovals({ me }) {
 
   async function handleDelete(question) {
     setConfirmModal({ action: 'delete', question });
+  }
+
+  function handleReturnToCreator(question) {
+    setReturnModal(question);
+    setReturnNote('');
+    setReturnError('');
+  }
+
+  async function submitReturnToCreator() {
+    if (!returnModal) return;
+    if (!returnNote.trim()) {
+      setReturnError('Feedback is required when returning a question.');
+      return;
+    }
+    setReturnSubmitting(true);
+    setReturnError('');
+    try {
+      await apiAuth(`${BASE}/api/questions/${returnModal._id}/dean-return`, {
+        method: 'POST',
+        body: { note: returnNote.trim() },
+      });
+      setQuestions((prev) => prev.filter((item) => item._id !== returnModal._id));
+      if (selectedQuestion?._id === returnModal._id) {
+        setSelectedQuestion(null);
+      }
+      setReturnModal(null);
+      setReturnNote('');
+      notify('Question returned to creator successfully.', { variant: 'success' });
+    } catch (err) {
+      setReturnError(err.message || 'Failed to return question.');
+    } finally {
+      setReturnSubmitting(false);
+    }
   }
 
   // ── Bulk Actions ──────────────────────────────────────────
@@ -414,6 +475,37 @@ export default function QuestionApprovals({ me }) {
         return next;
       });
     }
+  }
+
+  async function handleBulkRestore() {
+    if (!selectedIds.size) return;
+    setBulkSubmitting(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => apiAuth(`${BASE}/api/questions/${id}/review`, {
+        method: 'POST',
+        body: { action: 'restore', note: '' },
+      }))
+    );
+
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+    setQuestions(prev => prev.map(q =>
+      succeeded.includes(q._id)
+        ? {
+          ...q,
+          state: 'restored',
+          currentReviewer: null,
+          reviewStartedAt: null,
+          rejectionReason: null
+        }
+        : q
+    ));
+    handleClearSelections();
+    setBulkSubmitting(false);
+
+    const failed = ids.length - succeeded.length;
+    if (failed > 0) notify(`${succeeded.length} restored. ${failed} failed.`, { variant: 'warning' });
+    else notify(`${succeeded.length} question(s) restored successfully.`, { variant: 'success' });
   }
 
   async function handleBulkApprove() {
@@ -541,6 +633,10 @@ export default function QuestionApprovals({ me }) {
       if (state === 'all') return;
       result[state] = questions.filter((q) => q.state === state).length;
     });
+    // Counts for exam-use sub-filter
+    const approvedQuestions = questions.filter((q) => q.state === 'approved');
+    result._used = approvedQuestions.filter((q) => q.is_used_in_exam).length;
+    result._not_used = approvedQuestions.filter((q) => !q.is_used_in_exam).length;
     return result;
   }, [questions]);
 
@@ -548,6 +644,13 @@ export default function QuestionApprovals({ me }) {
     const needle = searchQuery.trim().toLowerCase();
     const next = questions.filter((question) => {
       if (filter !== 'all' && question.state !== filter) return false;
+
+      // Exam-use sub-filter — only applies when 'approved' is active
+      if (filter === 'approved') {
+        if (examUseFilter === 'used' && !question.is_used_in_exam) return false;
+        if (examUseFilter === 'not_used' && question.is_used_in_exam) return false;
+      }
+
       if (subjectFilter) {
         const qTag = question.tag?._id || question.tag;
         if (String(qTag) !== String(subjectFilter)) return false;
@@ -566,7 +669,7 @@ export default function QuestionApprovals({ me }) {
       return new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0);
     });
     return next;
-  }, [questions, filter, searchQuery, subjectFilter, programFilter, sortBy]);
+  }, [questions, examUseFilter, filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   const { paginatedQuestions, totalPages } = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -577,7 +680,7 @@ export default function QuestionApprovals({ me }) {
     };
   }, [filteredQuestions, currentPage]);
 
-  useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, searchQuery, subjectFilter, programFilter, sortBy]);
+  useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, examUseFilter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   // Match checks for Select All UI element
   const matchStateOnPage = paginatedQuestions.filter(q => q.state === selectedState);
@@ -597,14 +700,24 @@ export default function QuestionApprovals({ me }) {
           <button
             key={state}
             type="button"
-            className={`ca-state-pill ${filter === state ? 'ca-state-pill--active' : ''}`}
-            onClick={() => setFilter(state)}
+            className={`ca-state-pill ${filter === state && !(filter === 'approved' && examUseFilter === 'used') ? 'ca-state-pill--active' : ''}`}
+            onClick={() => { setFilter(state); setExamUseFilter('all'); }}
           >
             <span className="ca-state-pill-count">{counts[state] || 0}</span>
             <span>{state === 'all' ? 'All' : getStatusLabel(state)}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className={`ca-state-pill ${filter === 'approved' && examUseFilter === 'used' ? 'ca-state-pill--active' : ''}`}
+          onClick={() => { setFilter('approved'); setExamUseFilter('used'); }}
+        >
+          <span className="ca-state-pill-count">{counts._used || 0}</span>
+          <span>Used in Exam</span>
+        </button>
       </div>
+
+
 
       <QuestionFilters
         className="ca-filters-wrapper"
@@ -631,7 +744,7 @@ export default function QuestionApprovals({ me }) {
                 {selectedIds.size} {selectedState ? getStatusLabel(selectedState) : ''} question{selectedIds.size > 1 ? 's' : ''} selected
               </span>
               <div className="ca-bulk-actions">
-                {selectedState === 'pending_chair' && (
+                {(selectedState === 'pending_chair' || selectedState === 'restored') && (
                   <>
                     <button className="ca-bulk-btn ca-bulk-btn--approve" onClick={handleBulkApprove} disabled={bulkSubmitting}>Approve All</button>
                     <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('return'); setNote(''); }} disabled={bulkSubmitting}>Return All</button>
@@ -640,7 +753,7 @@ export default function QuestionApprovals({ me }) {
                 )}
                 {selectedState === 'rejected' && (
                   <>
-                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={() => { setBulkActionModal('restore'); setNote(''); }} disabled={bulkSubmitting}>Restore All</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--return" onClick={handleBulkRestore} disabled={bulkSubmitting}>Restore All</button>
                     <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
                   </>
                 )}
@@ -710,8 +823,13 @@ export default function QuestionApprovals({ me }) {
                         </div>
                         <div className="ca-card-badges">
                           <div className={`ca-state-badge ca-state--${question.state}`}>
-                            {question.state === 'pending_chair' ? 'Pending' : getStatusLabel(question.state)}
+                            {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
                           </div>
+                          {question.state === 'approved' && question.is_used_in_exam && (
+                            <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
+                              Used in Exam
+                            </div>
+                          )}
                           {isBeingEvaluated(question, me?._id) && (
                             <div className="ca-evaluating-badge">
                               <span className="ca-evaluating-dot" />
@@ -869,7 +987,7 @@ export default function QuestionApprovals({ me }) {
             </div>
 
             <div className="ca-sidebar-actions">
-              {selectedQuestion.state === 'pending_chair' ? (
+              {(selectedQuestion.state === 'pending_chair' || selectedQuestion.state === 'restored') ? (
                 <>
                   <button className="ca-btn ca-btn--approve" onClick={() => handleApprove(selectedQuestion)}>Approve</button>
                   <button className="ca-btn ca-btn--return" onClick={() => { setActionModal({ question: selectedQuestion, action: 'return' }); setNote(''); }}>Return for Revision</button>
@@ -877,9 +995,11 @@ export default function QuestionApprovals({ me }) {
                 </>
               ) : (selectedQuestion.state === 'rejected') ? (
                 <>
-                  <button className="ca-btn ca-btn--restore" onClick={() => { setActionModal({ question: selectedQuestion, action: 'restore' }); setNote(''); }}>Restore for Revision</button>
+                  <button className="ca-btn ca-btn--restore" onClick={() => handleRestore(selectedQuestion)}>Restore for Revision</button>
                   <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
                 </>
+              ) : (selectedQuestion.state === 'approved' && !selectedQuestion.is_used_in_exam) ? (
+                <button className="ca-btn ca-btn--return" onClick={() => handleReturnToCreator(selectedQuestion)}>Return to Creator</button>
               ) : (
                 <p className="ca-no-actions">No actions available for this question.</p>
               )}
@@ -1037,6 +1157,42 @@ export default function QuestionApprovals({ me }) {
           </div>
         </div>
       )}
+
+      {/* Return Approved Question to Creator Modal */}
+      <ConfirmationModal
+        open={!!returnModal}
+        onClose={() => {
+          if (returnSubmitting) return;
+          setReturnModal(null);
+          setReturnNote('');
+          setReturnError('');
+        }}
+        onConfirm={submitReturnToCreator}
+        title={`Return "${returnModal?.title || ''}" to Creator?`}
+        confirmLabel={returnSubmitting ? 'Submitting...' : 'Return Question'}
+        confirmVariant="primary"
+        busy={returnSubmitting}
+      >
+        {returnModal && (
+          <div>
+            <div style={{ marginBottom: 8 }}><strong>Question:</strong> {returnModal.title}</div>
+            <div className="ca-form-group">
+              <label className="ca-label">
+                <strong>Feedback for Creator (required)</strong>
+              </label>
+              <textarea
+                className="ca-textarea"
+                rows="5"
+                value={returnNote}
+                onChange={(e) => { setReturnNote(e.target.value); if (returnError) setReturnError(''); }}
+                placeholder="Explain what the creator should revise or improve..."
+                autoFocus
+              />
+            </div>
+            {returnError && <p style={{ color: '#ef4444', fontSize: '13px', margin: '4px 0 0' }}>{returnError}</p>}
+          </div>
+        )}
+      </ConfirmationModal>
     </main>
   );
 }

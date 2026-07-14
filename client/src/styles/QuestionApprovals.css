@@ -121,6 +121,7 @@
   background: rgba(250, 210, 39, 0.95);
 }
 
+
 /* ── Filters & Search ────────────────────────────────────– */
 .ca-filters-wrapper {
   padding: 0 32px 16px;
@@ -150,6 +151,102 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* ── Exam-use sub-filter pills ─────────────────────────────────── */
+.ca-exam-use-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: -6px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: #f0f4ff;
+  border: 1px solid rgba(59, 69, 139, 0.14);
+  border-radius: 12px;
+  animation: ca-fade-in 0.18s ease;
+}
+
+@keyframes ca-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ca-exam-use-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b75b8;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.ca-exam-use-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: #5966ac;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ca-exam-use-pill:hover {
+  background: #eef1ff;
+  border-color: rgba(53, 64, 142, 0.35);
+}
+
+.ca-exam-use-pill-count {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(53, 64, 142, 0.12);
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Active: All Approved — use the primary navy colour */
+.ca-exam-use-pill--active-all {
+  background: var(--primary-bg);
+  color: #fff;
+  border-color: var(--primary-bg);
+}
+.ca-exam-use-pill--active-all .ca-exam-use-pill-count {
+  background: rgba(250, 210, 39, 0.9);
+  color: var(--primary-bg);
+}
+
+/* Active: Used in Exam — blue */
+.ca-exam-use-pill--active-used {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+.ca-exam-use-pill--active-used .ca-exam-use-pill-count {
+  background: rgba(219, 234, 254, 0.4);
+  color: #fff;
+}
+
+/* Active: Not Used — slate/grey */
+.ca-exam-use-pill--active-not_used {
+  background: #475569;
+  color: #fff;
+  border-color: #475569;
+}
+.ca-exam-use-pill--active-not_used .ca-exam-use-pill-count {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
 }
 
 .ca-empty {
@@ -332,6 +429,12 @@
   background: #fff1f2;
   color: #be123c;
   border: 1px solid #fda4af;
+}
+
+.ca-state--restored {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
 }
 
 .ca-state--in_use {

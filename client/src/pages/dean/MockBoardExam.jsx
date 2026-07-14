@@ -745,13 +745,15 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                             >
                               {isSelected ? 'Added' : 'Add'}
                             </button>
-                            <button
-                              className="mbe-btn mbe-btn-ghost mbe-btn-small"
-                              type="button"
-                              onClick={() => handleReturnQuestion(question)}
-                            >
-                              Return
-                            </button>
+                            {!question.is_used_in_exam && (
+                              <button
+                                className="mbe-btn mbe-btn-ghost mbe-btn-small"
+                                type="button"
+                                onClick={() => handleReturnQuestion(question)}
+                              >
+                                Return
+                              </button>
+                            )}
                           </div>
                         </div>
 

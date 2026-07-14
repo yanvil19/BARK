@@ -411,7 +411,10 @@ const ExamResults = ({ me }) => {
 
     return {
       overallAvg: activeReport.overallAverageScore ?? avg,
+      highestScore: activeReport.highestScore ?? 0,
+      lowestScore: activeReport.lowestScore ?? 0,
       takers: activeReport.totalTakers,
+      totalEligible: activeReport.totalEligibleStudents ?? 0,
       totalAttempts: activeReport.totalAttempts,
       date: formatShortDate(activeReport.dateConducted),
       computedAt: formatDateTime(activeReport.computedAt)
@@ -632,20 +635,26 @@ const ExamResults = ({ me }) => {
                         <span className="m-label">Average score</span>
                       </div>
                       <div className="er-metric-item">
-                        <span className="m-value">{summary.takers}</span>
-                        <span className="m-label">
-                          {activeReport.targetAudience === 'alumni' ? 'Alumni counted' : 'Total takers'}
-                        </span>
+                        <span className="m-value">{summary.highestScore}%</span>
+                        <span className="m-label">Highest score</span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.lowestScore}%</span>
+                        <span className="m-label">Lowest score</span>
                       </div>
                       <div className="er-metric-item">
                         <span className="m-value">
-                          {activeReport.targetAudience === 'alumni'
-                            ? (summary.totalAttempts ?? summary.takers)
-                            : summary.date}
+                          {activeReport.targetAudience === 'alumni' 
+                            ? `${summary.totalAttempts} / ${summary.totalEligible}` 
+                            : `${summary.takers} / ${summary.totalEligible}`}
                         </span>
                         <span className="m-label">
-                          {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Date conducted'}
+                          {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Total takers'}
                         </span>
+                      </div>
+                      <div className="er-metric-item">
+                        <span className="m-value">{summary.date}</span>
+                        <span className="m-label">Date conducted</span>
                       </div>
                     </div>
                   </section>

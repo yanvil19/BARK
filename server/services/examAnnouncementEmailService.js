@@ -12,10 +12,18 @@ async function sendExamPublishedAnnouncement({ exam }) {
   const program = await Program.findById(programId).select('name code');
   if (!program) return { success: false, reason: 'Program not found' };
 
+  // Determine target roles based on exam audience
+  const targetRoles = ['professor', 'program_chair', 'dean'];
+  if (exam.targetAudience === 'alumni') {
+    targetRoles.push('alumni');
+  } else {
+    targetRoles.push('student');
+  }
+
   // Query for all users in the program with eligible roles who have email notifications enabled
   const recipients = await User.find({
     program: programId,
-    role: { $in: ['student', 'alumni', 'professor', 'program_chair', 'dean'] },
+    role: { $in: targetRoles },
     isActive: true,
     receiveEmails: true,
   }).select('email name');

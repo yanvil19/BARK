@@ -141,9 +141,7 @@ async function listApprovedQuestions(req, res) {
     if (validTagIds.length === 0) return res.json({ questions: [] });
 
     const queryStates = states ? states.split(',') : ['approved'];
-    const eligibleStates = queryStates.includes('approved')
-      ? [...new Set([...queryStates, 'in_draft', 'in_use', 'retired'])]
-      : queryStates;
+    const eligibleStates = [...new Set(queryStates)];
 
     const questions = await Question.find({
       program: programId,
@@ -218,7 +216,7 @@ async function validateExamPayload(user, body) {
     questions = await Question.find({
       _id: { $in: questionIds },
       program: program._id,
-      state: { $in: ['approved', 'in_use', 'retired', 'in_draft'] },
+      state: 'approved',
       tag: { $in: allowedTagIds },
     }).select('_id title tag program state');
 
@@ -288,6 +286,14 @@ async function createMockBoardExam(req, res) {
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
     });
+
+    // Mark all selected questions as in-use by an exam
+    if (payload.questionIds.length > 0) {
+      await Question.updateMany(
+        { _id: { $in: payload.questionIds } },
+        { $set: { is_used_in_exam: true } }
+      );
+    }
 
     const populated = await MockBoardExam.findById(exam._id)
       .populate('program', 'name code')
@@ -481,6 +487,9 @@ async function updateMockBoardExam(req, res) {
     }
 
     const oldStatus = current.status;
+    const oldQuestionIds = current.questions.map((q) => q.toString());
+    const newQuestionIds = payload.questionIds.map((q) => q.toString());
+
     current.name = payload.name;
     current.program = payload.program._id;
     current.department = payload.program.department;
@@ -493,9 +502,30 @@ async function updateMockBoardExam(req, res) {
     current.targetAudience = payload.targetAudience;
     current.isTimed = payload.isTimed;
     current.timeLimitMinutes = payload.timeLimitMinutes;
-    current.status = payload.status;
+    current.status = oldStatus === 'published' ? 'draft' : payload.status;
     current.passingThreshold = payload.passingThreshold;
     await current.save();
+
+    // Sync is_used_in_exam flag for added/removed questions
+    const addedIds = newQuestionIds.filter((id) => !oldQuestionIds.includes(id));
+    const removedIds = oldQuestionIds.filter((id) => !newQuestionIds.includes(id));
+
+    if (addedIds.length > 0) {
+      await Question.updateMany({ _id: { $in: addedIds } }, { $set: { is_used_in_exam: true } });
+    }
+
+    if (removedIds.length > 0) {
+      // Only clear the flag if no other exam still references the question
+      for (const qId of removedIds) {
+        const stillUsed = await MockBoardExam.exists({
+          _id: { $ne: current._id },
+          questions: qId,
+        });
+        if (!stillUsed) {
+          await Question.findByIdAndUpdate(qId, { $set: { is_used_in_exam: false } });
+        }
+      }
+    }
 
     const populated = await MockBoardExam.findById(current._id)
       .populate('program', 'name code')
@@ -538,7 +568,17 @@ async function deleteMockBoardExam(req, res) {
     const accessible = await ensureDeanProgramAccess(req.user, exam.program);
     if (!accessible) return res.status(403).json({ message: 'Access denied to this exam' });
 
+    const examQuestionIds = exam.questions.map((q) => q.toString());
     await exam.deleteOne();
+
+    // Clear is_used_in_exam for each removed question if no other exam still holds it
+    for (const qId of examQuestionIds) {
+      const stillUsed = await MockBoardExam.exists({ questions: qId });
+      if (!stillUsed) {
+        await Question.findByIdAndUpdate(qId, { $set: { is_used_in_exam: false } });
+      }
+    }
+
     await logAudit(req.user._id, 'mock_exam_deleted', 'MockBoardExam', exam._id, {
       name: exam.name,
       programId: exam.program,

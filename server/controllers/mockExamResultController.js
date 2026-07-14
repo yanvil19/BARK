@@ -5,6 +5,7 @@ const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const Question = require('../models/Question');
 const Tag = require('../models/Tag');
+const User = require('../models/User');
 
 function getTotalItemsFromAttempt(attempt, exam) {
   const totalFromSubjects = (attempt.subjectScores || []).reduce(
@@ -128,11 +129,21 @@ async function buildAlumniHighestScoreReport(exam, user) {
     };
   });
 
-  const totalPercent = bestAttempts.reduce((sum, attempt) => sum + getAttemptPercentage(attempt, exam), 0);
+  const percentages = bestAttempts.map((attempt) => getAttemptPercentage(attempt, exam));
+  const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
+  const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
+  const totalPercent = percentages.reduce((sum, p) => sum + p, 0);
+
   const latestSubmittedAt = bestAttempts.reduce((latest, attempt) => {
     const submittedAt = new Date(attempt.endTime || attempt.updatedAt || attempt.createdAt || 0);
     return submittedAt > latest ? submittedAt : latest;
   }, new Date(0));
+
+  const totalEligibleStudents = await User.countDocuments({
+    program: exam.program,
+    role: 'alumni',
+    isActive: true,
+  });
 
   return {
     examId: exam._id,
@@ -140,6 +151,9 @@ async function buildAlumniHighestScoreReport(exam, user) {
     dateConducted: latestSubmittedAt,
     totalTakers,
     totalAttempts: scopedAttempts.length,
+    highestScore,
+    lowestScore,
+    totalEligibleStudents,
     passingThreshold: exam.passingThreshold ?? 70,
     status: 'computed',
     computedAt: new Date(),
@@ -336,11 +350,24 @@ exports.computeResults = async (req, res) => {
       ? exam.passingThreshold 
       : (passingThreshold !== undefined && passingThreshold !== null ? passingThreshold : 70);
 
+    const percentages = attempts.map((attempt) => getAttemptPercentage(attempt, exam));
+    const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
+    const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
+
+    const totalEligibleStudents = await User.countDocuments({
+      program: exam.program,
+      role: exam.targetAudience === 'alumni' ? 'alumni' : 'student',
+      isActive: true,
+    });
+
     const resultData = {
       examId,
       examName: exam.name,
       dateConducted: exam.startDateTime,
       totalTakers,
+      highestScore,
+      lowestScore,
+      totalEligibleStudents,
       passingThreshold: finalThreshold,
       status: 'computed',
       computedAt: new Date(),

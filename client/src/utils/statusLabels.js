@@ -11,6 +11,7 @@ export const getStatusLabel = (status) => {
     returned_for_revision: 'Returned for Revision',
     returned: 'Returned for Revision',
     rejected: 'Rejected',
+    restored: 'Restored',
   };
   return labels[status] || status;
 };

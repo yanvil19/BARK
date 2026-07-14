@@ -27,7 +27,7 @@ async function getDeanCalendarExams({ departmentId, programId, startRange, endRa
   const query = { department: departmentId };
   const startDateRange = buildStartRangeFilter(startRange, endRange);
 
-  if (programId) {
+  if (programId && programId !== 'all') {
     const program = await Program.findOne({ _id: programId, department: departmentId }).select('_id').lean();
     if (!program) {
       const error = new Error('Access denied to this program');

@@ -44,6 +44,23 @@ const mockExamResultSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+  highestScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
+  lowestScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
+  totalEligibleStudents: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
   passingThreshold: {
     type: Number,
     required: true,

@@ -14,6 +14,7 @@ const QUESTION_STATES = [
   'returned',
   'approved',
   'rejected',
+  'restored',
 ];
 
 const questionSchema = new mongoose.Schema(
@@ -65,6 +66,9 @@ const questionSchema = new mongoose.Schema(
     image_note: { type: String, default: null, trim: true },
     image_url: { type: String, default: null },
     image_flag_removed_by_user: { type: Boolean, default: false },
+    // Tracks whether this question is currently included in at least one exam.
+    // When true, the question cannot be returned or deleted.
+    is_used_in_exam: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
