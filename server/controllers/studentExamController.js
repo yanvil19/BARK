@@ -416,6 +416,7 @@ async function getMyAttempts(req, res) {
 
       const base = {
         id: attempt._id,
+        examId: exam._id,
         examName: exam.name,
         date: attempt.startTime,
         durationMinutes,

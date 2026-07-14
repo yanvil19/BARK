@@ -140,6 +140,12 @@
   outline-offset: 2px;
 }
 
+.ae-btn--submitted {
+  background: #eef2f7;
+  color: #64748b;
+  cursor: default;
+}
+
 .ae-empty {
   width: 100%;
   padding: 60px 18px;

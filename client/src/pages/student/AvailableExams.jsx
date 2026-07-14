@@ -4,6 +4,7 @@ import '../../styles/AvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import '../../styles/QuestionApprovals.css';
+import { useToast } from '../../components/Toast.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -80,19 +81,31 @@ export default function AvailableExams({ onTakeExam }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [submittedExamIds, setSubmittedExamIds] = useState(new Set());
+  const { notify } = useToast();
 
   useEffect(() => {
     let mounted = true;
     async function fetchExams() {
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/student-exams/available`);
+        const [data, attempts] = await Promise.all([
+          apiAuth(`${BASE}/api/student-exams/available`),
+          apiAuth(`${BASE}/api/student-exams/my-attempts`),
+        ]);
+
         if (!mounted) return;
         setExams(Array.isArray(data.exams) ? data.exams : []);
+
+        const taken = new Set(
+          (attempts?.attempts || []).map((a) => String(a.examId || a.id || ''))
+        );
+        setSubmittedExamIds(taken);
       } catch (err) {
         if (!mounted) return;
-        console.error('Failed to load exams:', err);
+        console.error('Failed to load exams or attempts:', err);
         setExams([]);
+        setSubmittedExamIds(new Set());
       } finally {
         if (mounted) setLoading(false);
       }
@@ -212,13 +225,17 @@ export default function AvailableExams({ onTakeExam }) {
               isClosingSoon ? 'ae-card--closing' : 'ae-card--normal',
             ].join(' ');
 
-            const buttonLabel = isUpcoming
-              ? 'Not Yet Open'
-              : isClosingSoon
-                ? 'Closing Soon — Take Exam →'
-                : 'Take Exam →';
+            const isTaken = submittedExamIds.has(String(exam._id));
 
-            const buttonDisabled = isUpcoming;
+            const buttonLabel = isTaken
+              ? 'Already Submitted'
+              : isUpcoming
+                ? 'Not Yet Open'
+                : isClosingSoon
+                  ? 'Closing Soon — Take Exam →'
+                  : 'Take Exam →';
+
+            const buttonDisabled = isUpcoming; // keep upcoming exams truly disabled
 
             return (
               <article key={exam._id} className={cardClass}>
@@ -246,11 +263,18 @@ export default function AvailableExams({ onTakeExam }) {
                   type="button"
                   className={[
                     'ae-btn',
-                    buttonDisabled ? 'ae-btn--disabled' : '',
-                    isClosingSoon && !buttonDisabled ? 'ae-btn--closing' : '',
+                    (buttonDisabled || isTaken) ? 'ae-btn--disabled' : '',
+                    isTaken ? 'ae-btn--submitted' : '',
+                    isClosingSoon && !buttonDisabled && !isTaken ? 'ae-btn--closing' : '',
                   ].join(' ')}
                   disabled={buttonDisabled}
+                  aria-disabled={isTaken ? 'true' : undefined}
+                  title={isTaken ? 'You have already completed this exam' : undefined}
                   onClick={() => {
+                    if (isTaken) {
+                      notify('You have already completed this exam.', { variant: 'error', title: 'Already Submitted' });
+                      return;
+                    }
                     if (!buttonDisabled && typeof onTakeExam === 'function') {
                       onTakeExam(exam._id);
                     }
