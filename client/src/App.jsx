@@ -83,12 +83,13 @@ export default function App() {
   // Polls /api/auth/me every 10 seconds while logged in so that if an admin
   // deactivates the account, the user is automatically kicked out.
   useEffect(() => {
+    if (!me) return;
     const POLL_INTERVAL_MS = 10_000;
     const id = setInterval(() => {
       refreshMe();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [me]);
 
   // [DEACTIVATION MODAL - Listen for account-deactivated event from api.js]
   useEffect(() => {
