@@ -293,11 +293,15 @@ exports.computeResults = async (req, res) => {
       });
     }
 
-    // 3. FETCH ATTEMPTS
-    const attempts = await StudentExamAttempt.find({ 
+    // 3. FETCH ATTEMPTS (students only — exclude alumni accounts)
+    const rawAttempts = await StudentExamAttempt.find({ 
       exam: examId, 
       status: 'submitted' 
-    });
+    }).populate('student', 'role');
+
+    const attempts = rawAttempts.filter(
+      (a) => a.student && a.student.role === 'student'
+    );
 
     if (attempts.length === 0) {
       return res.status(400).json({ 
@@ -515,13 +519,15 @@ exports.getStudentResults = async (req, res) => {
       return res.json({ students: alumniData, audience: 'alumni' });
     }
 
-    // 2. Fetch attempts
-    // We populate the 'student' to get name, email, studentId, program.
+    // 2. Fetch attempts (students only — exclude alumni accounts)
+    // We populate the 'student' to get name, email, studentId, program, and role.
     const attempts = await StudentExamAttempt.find({ exam: examId, status: 'submitted' })
-      .populate('student', 'name email studentId alumniId program')
+      .populate('student', 'name email studentId alumniId program role')
       .populate('subjectScores.tag', 'name');
 
-    let filteredAttempts = attempts.filter(attempt => attempt.student);
+    let filteredAttempts = attempts.filter(
+      (attempt) => attempt.student && attempt.student.role === 'student'
+    );
 
     // Access Control: If program chair, restrict to their program
     if (req.user.role === 'program_chair') {

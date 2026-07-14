@@ -644,9 +644,9 @@ const ExamResults = ({ me }) => {
                       </div>
                       <div className="er-metric-item">
                         <span className="m-value">
-                          {activeReport.targetAudience === 'alumni' 
-                            ? `${summary.totalAttempts} / ${summary.totalEligible}` 
-                            : `${summary.takers} / ${summary.totalEligible}`}
+                          {activeReport.targetAudience === 'alumni'
+                            ? summary.totalAttempts
+                            : summary.takers}
                         </span>
                         <span className="m-label">
                           {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Total takers'}
