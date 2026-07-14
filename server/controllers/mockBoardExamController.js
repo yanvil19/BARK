@@ -358,7 +358,17 @@ async function listMockBoardExams(req, res) {
 
     const submissionCountsAgg = examIds.length > 0 ? await StudentExamAttempt.aggregate([
       { $match: { exam: { $in: examIds }, status: 'submitted' } },
-      { $group: { _id: '$exam', count: { $sum: 1 } } }
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'student',
+          foreignField: '_id',
+          as: 'studentUser',
+        },
+      },
+      { $unwind: '$studentUser' },
+      { $match: { 'studentUser.role': 'student' } },
+      { $group: { _id: '$exam', count: { $sum: 1 } } },
     ]) : [];
     const submissionCounts = new Map(submissionCountsAgg.map(item => [String(item._id), item.count]));
     const alumniSubmissionCountsAgg = examIds.length > 0 ? await AlumniExamAttempt.aggregate([
