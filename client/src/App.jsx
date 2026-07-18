@@ -37,6 +37,12 @@ import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
+import PCStudentManager from './pages/programchair/PCStudentRegister.jsx';
+import PCMockBoardExam from './pages/programchair/PCCreateExams.jsx';
+import PCExamRunner from './pages/programchair/PCExamRunner.jsx';
+import PCMockBoardExamPreview from './pages/programchair/PCBoardExamPreview.jsx';
+import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx';
+import PCExamResults from './pages/programchair/PCExamResults.jsx';
 
 export default function App() {
   const [route, setRoute] = useState('Dashboard');
@@ -290,6 +296,69 @@ export default function App() {
         examId={examRunnerId}
         mode={examRunnerMode}
         onBack={() => setRoute('availableMockBoardExams')}
+      />
+    );
+  if (route === 'pcStudentManager') page = <PCStudentManager onNavigate={setRoute} />;
+  if (route === 'pcExamResults') page = <PCExamResults me={me} />;
+  if (route === 'pcMockBoardExam')
+    page = (
+      <PCMockBoardExam
+        me={me}
+        editingExamId={editingMockBoardExamId}
+        onClearEditing={() => setEditingMockBoardExamId('')}
+        onExamSaved={() => {
+          setMockBoardExamRefreshKey((prev) => prev + 1);
+          setRoute('pcAvailableMockBoardExams');
+        }}
+      />
+    );
+  if (route === 'pcAvailableMockBoardExams')
+    page = (
+      <AvailableMockBoardExams
+        me={me}
+        refreshKey={mockBoardExamRefreshKey}
+        onEditExam={(id, action = 'edit') => {
+          if (action === 'edit') {
+            setEditingMockBoardExamId(id);
+            setRoute('pcMockBoardExam');
+            return;
+          }
+          if (action === 'preview') {
+            setExamRunnerId(id);
+            setRoute('pcMockBoardExamPreview');
+            return;
+          }
+          if (action === 'testRun') {
+            setExamRunnerId(id);
+            setRoute('pcMockBoardExamTestRun');
+            return;
+          }
+          setExamRunnerId(id);
+          setExamRunnerMode(action);
+          setRoute('pcExamRunner');
+        }}
+      />
+    );
+  if (route === 'pcMockBoardExamPreview')
+    page = (
+      <PCMockBoardExamPreview
+        examId={examRunnerId}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
+      />
+    );
+  if (route === 'pcMockBoardExamTestRun')
+    page = (
+      <PCMockBoardExamTestRun
+        examId={examRunnerId}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
+      />
+    );
+  if (route === 'pcExamRunner')
+    page = (
+      <PCExamRunner
+        examId={examRunnerId}
+        mode={examRunnerMode}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
       />
     );
   if (route === 'studentAvailableExams')
