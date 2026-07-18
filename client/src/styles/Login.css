@@ -301,6 +301,17 @@
   box-shadow: 0 0 0 3px rgba(250, 210, 39, 0.14);
 }
 
+/* Custom styling for browser autofill to match the dark navy theme */
+.lp-input:-webkit-autofill,
+.lp-input:-webkit-autofill:hover, 
+.lp-input:-webkit-autofill:focus, 
+.lp-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #222c7a inset !important;
+  -webkit-text-fill-color: #f0f2ff !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: #f0f2ff;
+}
+
 /* OTP numeric fields */
 .lp-input--otp {
   letter-spacing: 0.35em;

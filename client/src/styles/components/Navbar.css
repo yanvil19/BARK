@@ -19,6 +19,24 @@
   justify-self: start;
 }
 
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.header-logo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.logo-container:hover .header-logo {
+  transform: scale(1.08) rotate(-4deg);
+}
+
 #Header strong {
   font-size: 22px;
   letter-spacing: 2px;
@@ -86,7 +104,7 @@
    AVATAR
    ================================================ */
 
-#Header img,
+#Header img.profile-icon,
 .avatar-initials {
   width: 34px;
   height: 34px;
