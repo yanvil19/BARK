@@ -119,7 +119,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
 
         {isDean && (
           <>
-            <button className={cls('studentManager')} onClick={handle('studentManager')}>Bulk Registration</button>
+            <button className={cls('studentManager')} onClick={handle('studentManager')}>Registration</button>
             <button className={cls('deanTags')} onClick={handle('deanTags')}>Manage Subject</button>
             <button className={cls('deanQuestions')} onClick={handle('deanQuestions')}>Create Questions</button>
             <button className={cls('deanQuestionApprovals')} onClick={handle('deanQuestionApprovals')}>Approve Questions</button>
