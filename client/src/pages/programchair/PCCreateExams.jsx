@@ -367,7 +367,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: form.description,
         instructions: form.instructions,
         targetAudience: form.targetAudience || 'student',
-        status: form.status || 'draft',
+        status: editingExamId ? (form.status || 'draft') : 'draft',
         isTimed: isAlumniExam ? Boolean(form.isTimed) : false,
         timeLimitMinutes: isAlumniExam && form.isTimed ? Number(form.timeLimitMinutes) : null,
         passingThreshold: form.passingThreshold,

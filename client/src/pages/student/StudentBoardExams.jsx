@@ -112,7 +112,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     async function fetchExams() {
       setLoading(true);
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams`);
+        const endpoint = (me?.role === 'student' || me?.role === 'alumni')
+          ? '/api/mock-board-exams/public'
+          : '/api/mock-board-exams';
+        const data = await apiAuth(`${BASE}${endpoint}`);
         setExams(data.exams || []);
       } catch (err) {
         console.error('Failed to load mock board exams:', err);
@@ -122,7 +125,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     }
 
     fetchExams();
-  }, [refreshKey]);
+  }, [refreshKey, me?.role]);
 
   useEffect(() => {
     async function fetchPrograms() {
