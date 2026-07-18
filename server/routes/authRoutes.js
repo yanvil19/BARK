@@ -12,17 +12,14 @@ const {
   deactivateUser,
   activateUser,
   deleteUser,
-  registerStudentRequest,
-  checkRegistrationStatus,
-  listRegistrationRequests,
-  approveRegistrationRequest,
-  rejectRegistrationRequest,
+  bulkRegister,
+  getBulkRegisterSummary,
+  subscribeBulkRegisterEvents,
 } = require('../controllers/authController');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/emailService');
 const { passwordResetTemplate } = require('../emails/templates/passwordResetTemplate');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
-const rateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -160,26 +157,17 @@ router.get('/me', protect, getMe);
 // @access  Private
 router.patch('/update-credentials', protect, updateCredentials);
 
-// @route   POST /api/auth/register-student
-// @access  Public
-router.post('/register-student', rateLimit({ windowMs: 60_000, max: 10 }), registerStudentRequest);
+// @route   POST /api/auth/bulk-register
+// @access  Private - Dean and Program Chair
+router.post('/bulk-register', protect, authorizeRoles('dean', 'program_chair'), bulkRegister);
 
-// [UX IMPROVEMENT - Check Status]
-// @route   POST /api/auth/registration-status
-// @access  Public (studentId + email)
-router.post('/registration-status', rateLimit({ windowMs: 60_000, max: 30 }), checkRegistrationStatus);
+// @route   GET /api/auth/bulk-register/:batchId
+// @access  Private - Batch owner
+router.get('/bulk-register/:batchId', protect, authorizeRoles('dean', 'program_chair'), getBulkRegisterSummary);
 
-// @route   GET /api/auth/registrations
-// @access  Private - Dean only
-router.get('/registrations', protect, authorizeRoles('dean', 'program_chair'), listRegistrationRequests);
-
-// @route   PATCH /api/auth/registrations/:id/approve
-// @access  Private - Dean only
-router.patch('/registrations/:id/approve', protect, authorizeRoles('dean', 'program_chair'), approveRegistrationRequest);
-
-// @route   PATCH /api/auth/registrations/:id/reject
-// @access  Private - Dean only
-router.patch('/registrations/:id/reject', protect, authorizeRoles('dean', 'program_chair'), rejectRegistrationRequest);
+// @route   GET /api/auth/bulk-register/:batchId/events
+// @access  Private - Batch owner
+router.get('/bulk-register/:batchId/events', protect, authorizeRoles('dean', 'program_chair'), subscribeBulkRegisterEvents);
 
 // @route   GET /api/auth/users
 // @access  Private - Super Admin only

@@ -63,6 +63,23 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+    credentialsSent: {
+      type: Boolean,
+      default: false,
+    },
+    credentialsSentAt: {
+      type: Date,
+      default: null,
+    },
+    credentialEmailError: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     passwordResetOTP: {
       type: String,
       default: null,

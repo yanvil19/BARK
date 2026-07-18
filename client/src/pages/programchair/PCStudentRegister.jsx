@@ -1,43 +1,18 @@
-import { useState } from 'react';
-import StudentRegister from '../student/StudentRegister.jsx';
-import DeanApprovals from './PCApproveQuestions.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
+import BulkRegister from '../shared/BulkRegister.jsx';
 import '../../styles/programchair/PCStudentRegister.css';
 
-export default function StudentManager({ onNavigate }) {
-  const [tab, setTab] = useState('register');
-
+export default function StudentManager({ me, onNavigate }) {
   return (
     <main className="sm-page">
       <PageHeader
         className="shared-page-header--bleed-lr"
-        title="Student Register"
-        subtitle="Register students and approve registration requests from one dean-only page."
+        title="Student Registration"
+        subtitle="Bulk register students and alumni for your program."
       />
 
-      <div className="sm-tabs">
-        <button
-          type="button"
-          className={`sm-tab ${tab === 'approvals' ? 'is-active' : ''}`}
-          onClick={() => setTab('approvals')}
-        >
-          Pending User Approval
-        </button>
-        <button
-          type="button"
-          className={`sm-tab ${tab === 'register' ? 'is-active' : ''}`}
-          onClick={() => setTab('register')}
-        >
-          Register Student
-        </button>
-      </div>
-
       <div className="sm-content">
-        {tab === 'register' ? (
-          <StudentRegister onNavigate={onNavigate} embedded={true} />
-        ) : (
-          <DeanApprovals embedded={true} />
-        )}
+        <BulkRegister user={me} />
       </div>
     </main>
   );

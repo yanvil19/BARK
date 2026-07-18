@@ -1013,9 +1013,9 @@ const LandingPage = ({ onNavigate }) => {
                 Join hundreds of NU Laguna students and review smarter — not harder.
               </p>
               <div className="exam-cta-actions">
-                <button type="button" className="exam-cta-primary" onClick={() => navigate('Register')}>
-                  Create An Account
-                </button>
+                <div className="exam-cta-notice">
+                  <strong>Note:</strong> Check your email for your login credentials.
+                </div>
                 <button
                   type="button"
                   className="exam-cta-secondary"

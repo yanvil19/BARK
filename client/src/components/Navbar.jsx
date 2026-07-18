@@ -113,13 +113,13 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
 
         {/* {me && !isLearner && !isDean && (
           <button className={cls('student')} onClick={handle('student')}>
-            Student Register
+            Bulk Registration
           </button>
         )} */}
 
         {isDean && (
           <>
-            <button className={cls('studentManager')} onClick={handle('studentManager')}>Student Register</button>
+            <button className={cls('studentManager')} onClick={handle('studentManager')}>Bulk Registration</button>
             <button className={cls('deanTags')} onClick={handle('deanTags')}>Manage Subject</button>
             <button className={cls('deanQuestions')} onClick={handle('deanQuestions')}>Create Questions</button>
             <button className={cls('deanQuestionApprovals')} onClick={handle('deanQuestionApprovals')}>Approve Questions</button>
@@ -131,7 +131,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
 
         {isChair && (
           <>
-            <button className={cls('pcStudentManager')} onClick={handle('pcStudentManager')}>Student Register</button>
+            <button className={cls('pcStudentManager')} onClick={handle('pcStudentManager')}>Registration</button>
             <button className={cls('chairTags')} onClick={handle('chairTags')}>Manage Subjects</button>
             <button className={cls('chairQuestions')} onClick={handle('chairQuestions')}>My Questions</button>
             <button className={cls('chairQuestionApprovals')} onClick={handle('chairQuestionApprovals')}>Approve Questions</button>
@@ -195,12 +195,6 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
               onClick={() => { scrollToSection('mock-exams'); if (isMobile) setMobileMenuOpen(false); }}
             >
               Mock Exams
-            </button>
-            <button
-              className={isMobile ? `mobile-nav-item${route === 'Register' ? ' active' : ''}` : route === 'Register' ? 'active' : ''}
-              onClick={() => { onRoute('Register'); if (isMobile) setMobileMenuOpen(false); }}
-            >
-              Register
             </button>
           </>
         )}

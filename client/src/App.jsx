@@ -4,7 +4,6 @@ import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import Login from './pages/Login.jsx';
-import StudentRegister from './pages/student/StudentRegister.jsx';
 import DeanApprovals from './pages/dean/DeanApproveQuestions.jsx';
 import StudentManager from './pages/dean/DeanStudentRegister.jsx';
 import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
@@ -217,10 +216,8 @@ export default function App() {
   }
   if (route === 'landing') page = <LandingPage onNavigate={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
-  if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
-  if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
-  if (route === 'studentManager') page = <StudentManager onNavigate={setRoute} />;
+  if (route === 'studentManager') page = <StudentManager me={me} onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'examResults') page = <ExamResults me={me} />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
@@ -298,7 +295,7 @@ export default function App() {
         onBack={() => setRoute('availableMockBoardExams')}
       />
     );
-  if (route === 'pcStudentManager') page = <PCStudentManager onNavigate={setRoute} />;
+  if (route === 'pcStudentManager') page = <PCStudentManager me={me} onNavigate={setRoute} />;
   if (route === 'pcExamResults') page = <PCExamResults me={me} />;
   if (route === 'pcMockBoardExam')
     page = (
