@@ -170,8 +170,8 @@ router.get('/bulk-register/:batchId', protect, authorizeRoles('dean', 'program_c
 router.get('/bulk-register/:batchId/events', protect, authorizeRoles('dean', 'program_chair'), subscribeBulkRegisterEvents);
 
 // @route   GET /api/auth/users
-// @access  Private - Super Admin only
-router.get('/users', protect, authorizeRoles('super_admin'), listUsers);
+// @access  Private - Super Admin, Dean, Program Chair
+router.get('/users', protect, authorizeRoles('super_admin', 'dean', 'program_chair'), listUsers);
 
 // @route   PATCH /api/auth/users/:id
 // @access  Private - Super Admin only

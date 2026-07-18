@@ -1,5 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api';
+import { Modal } from '../../components/Modal';
+import SearchBar from '../../components/SearchBar';
+import DropdownSelect from '../../components/DropdownSelect';
+import Pagination from '../../components/Pagination';
 import PageHeader from '../../components/PageHeader';
 import '../../styles/shared/BulkRegister.css';
 
@@ -21,6 +25,17 @@ export default function BulkRegister({ user }) {
 
   // Result state
   const [batchResult, setBatchResult] = useState(null); // null | { status, counts, registered, skippedDuplicates, emailFailures, insertFailures }
+  const [showResultModal, setShowResultModal] = useState(false);
+
+  // View toggle state
+  const [activeView, setActiveView] = useState('form'); // 'form' or 'list'
+  const [registeredAccounts, setRegisteredAccounts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState(''); // 'student', 'alumni', or ''
+  const [listFilterProgram, setListFilterProgram] = useState(''); // For dean to filter by program in list view
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
 
   const pollRef = useRef(null);
 
@@ -43,6 +58,16 @@ export default function BulkRegister({ user }) {
       setPrograms([]);
     }
   }, [departmentId, user.role]);
+
+  // Fetch programs for dean's department on mount (for list view filter)
+  useEffect(() => {
+    if (user.role === 'dean' && user.department) {
+      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+      apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(deptId)}`)
+        .then((data) => setPrograms(data.programs || []))
+        .catch((err) => console.error('Failed to fetch programs for list view', err));
+    }
+  }, [user.role, user.department]);
 
   // Cleanup poll on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
@@ -72,6 +97,7 @@ export default function BulkRegister({ user }) {
         if (res.status === 'complete' || res.status === 'failed') {
           clearInterval(pollRef.current);
           setBatchResult(res);
+          setShowResultModal(true);
           setIsSubmitting(false);
         }
       } catch {
@@ -124,6 +150,7 @@ export default function BulkRegister({ user }) {
       } else {
         // Completed instantly (e.g., all duplicates)
         setBatchResult(res.summary || res);
+        setShowResultModal(true);
         setIsSubmitting(false);
       }
     } catch (err) {
@@ -135,10 +162,130 @@ export default function BulkRegister({ user }) {
   const resetForm = () => {
     setEntries([{ name: '', email: '', studentId: '', alumniId: '' }]);
     setBatchResult(null);
+    setShowResultModal(false);
     setError(null);
   };
 
-  // ── Result screen ──────────────────────────────────────────────────────────
+  // Handle switching to list view and load registered accounts
+  const handleViewChange = (view) => {
+    setActiveView(view);
+    setCurrentPage(1);
+    if (view === 'list') {
+      // Fetch programs for dean to filter in list view
+      if (user.role === 'dean' && user.department) {
+        const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+        apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(deptId)}`)
+          .then((data) => {
+            setPrograms(data.programs || []);
+          })
+          .catch((err) => {
+            console.error('Failed to fetch programs for list view', err);
+            setPrograms([]);
+          });
+      }
+      
+      // Fetch all registered students/alumni based on user role
+      const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
+      if (user.role === 'dean' && user.department) {
+        const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+        params.append('department', deptId);
+        if (listFilterProgram) {
+          params.append('program', listFilterProgram);
+        }
+      } else if (user.role === 'program_chair' && user.program) {
+        const progId = typeof user.program === 'object' ? user.program._id : user.program;
+        params.append('program', progId);
+      }
+      apiAuth(`/api/auth/users?${params}`)
+        .then((data) => {
+          setRegisteredAccounts(data.users || []);
+          setTotalItems(data.total || 0);
+        })
+        .catch((err) => console.error('Failed to fetch registered accounts', err));
+    }
+  };
+
+  // Handle search query change (for list view)
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+    const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
+    if (user.role === 'dean' && user.department) {
+      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+      params.append('department', deptId);
+      if (listFilterProgram) {
+        params.append('program', listFilterProgram);
+      }
+    } else if (user.role === 'program_chair' && user.program) {
+      const progId = typeof user.program === 'object' ? user.program._id : user.program;
+      params.append('program', progId);
+    }
+    if (value) {
+      params.append('search', value);
+    }
+    apiAuth(`/api/auth/users?${params}`)
+      .then((data) => {
+        setRegisteredAccounts(data.users || []);
+        setTotalItems(data.total || 0);
+      })
+      .catch((err) => console.error('Failed to fetch registered accounts', err));
+  };
+
+  // Handle list view program filter change (for deans)
+  const handleListFilterProgramChange = (programId) => {
+    setListFilterProgram(programId);
+    setCurrentPage(1);
+    const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
+    if (user.role === 'dean' && user.department) {
+      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+      params.append('department', deptId);
+      if (programId) {
+        params.append('program', programId);
+      }
+    }
+    if (searchQuery) {
+      params.append('search', searchQuery);
+    }
+    apiAuth(`/api/auth/users?${params}`)
+      .then((data) => {
+        setRegisteredAccounts(data.users || []);
+        setTotalItems(data.total || 0);
+      })
+      .catch((err) => console.error('Failed to fetch registered accounts', err));
+  };
+
+  // Handle pagination page changes
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    const params = new URLSearchParams({ role: 'student,alumni', page: String(page), limit: String(pageSize) });
+    if (user.role === 'dean' && user.department) {
+      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
+      params.append('department', deptId);
+      if (listFilterProgram) {
+        params.append('program', listFilterProgram);
+      }
+    } else if (user.role === 'program_chair' && user.program) {
+      const progId = typeof user.program === 'object' ? user.program._id : user.program;
+      params.append('program', progId);
+    }
+    if (searchQuery) {
+      params.append('search', searchQuery);
+    }
+    apiAuth(`/api/auth/users?${params}`)
+      .then((data) => {
+        setRegisteredAccounts(data.users || []);
+        setTotalItems(data.total || 0);
+      })
+      .catch((err) => console.error('Failed to fetch registered accounts', err));
+  };
+
+  // Filter registered accounts based on search and type filter
+  const filteredAccounts = registeredAccounts.filter((account) => {
+    const matchesType = !filterType || account.role === filterType;
+    return matchesType;
+  });
+
+  // ── Result screen (modal) ──────────────────────────────────────────────────────────
   if (isSubmitting) {
     return (
       <div className="bulk-register-progress">
@@ -148,100 +295,49 @@ export default function BulkRegister({ user }) {
     );
   }
 
-  if (batchResult) {
-    const counts  = batchResult.counts  || {};
+  // Prepare result data for modal
+  const resultContent = batchResult ? (() => {
+    const counts = batchResult.counts || {};
     const details = {
-      registered:       batchResult.registered       || [],
+      registered: batchResult.registered || [],
       skippedDuplicates: batchResult.skippedDuplicates || [],
-      emailFailures:    batchResult.emailFailures     || [],
-      insertFailures:   batchResult.insertFailures    || [],
+      emailFailures: batchResult.emailFailures || [],
+      insertFailures: batchResult.insertFailures || [],
     };
-
     const allOk = counts.registered > 0 && counts.emailFailures === 0 && counts.insertFailures === 0;
 
-    return (
-      <div className="bulk-register-progress">
-        <div className={`br-result-icon ${allOk ? 'success' : 'partial'}`}>
-          {allOk ? '✓' : '!'}
-        </div>
-        <h3 className={`br-result-title ${allOk ? 'success' : 'partial'}`}>
-          {allOk ? 'Registration Complete' : 'Registration Finished with Issues'}
-        </h3>
-
-        <div className="summary-stats">
-          <div className="stat-card success">
-            <span className="stat-num">{counts.registered ?? 0}</span>
-            <span className="stat-label">Registered</span>
-          </div>
-          {(counts.skippedDuplicates ?? 0) > 0 && (
-            <div className="stat-card warning">
-              <span className="stat-num">{counts.skippedDuplicates}</span>
-              <span className="stat-label">Skipped (Duplicates)</span>
-            </div>
-          )}
-          {(counts.emailFailures ?? 0) > 0 && (
-            <div className="stat-card error">
-              <span className="stat-num">{counts.emailFailures}</span>
-              <span className="stat-label">Email Failures</span>
-            </div>
-          )}
-          {(counts.insertFailures ?? 0) > 0 && (
-            <div className="stat-card error">
-              <span className="stat-num">{counts.insertFailures}</span>
-              <span className="stat-label">Insert Failures</span>
-            </div>
-          )}
-        </div>
-
-        {details.skippedDuplicates.length > 0 && (
-          <details className="br-details">
-            <summary>Skipped Duplicates ({details.skippedDuplicates.length})</summary>
-            <ul>
-              {details.skippedDuplicates.map((d, i) => (
-                <li key={i}>{d.email} — {d.reason}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-
-        {details.emailFailures.length > 0 && (
-          <details className="br-details">
-            <summary>Email Failures ({details.emailFailures.length})</summary>
-            <ul>
-              {details.emailFailures.map((d, i) => (
-                <li key={i}>{d.email} — {d.error}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-
-        {details.insertFailures.length > 0 && (
-          <details className="br-details">
-            <summary>Insert Failures ({details.insertFailures.length})</summary>
-            <ul>
-              {details.insertFailures.map((d, i) => (
-                <li key={i}>{d.email} — {d.reason}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-
-        <button className="br-btn br-btn-primary" onClick={resetForm}>
-          Register Another Batch
-        </button>
-      </div>
-    );
-  }
+    return {
+      counts,
+      details,
+      allOk,
+    };
+  })() : null;
 
   // ── Form ───────────────────────────────────────────────────────────────────
   return (
     <div className="bulk-register-container">
-      <div className="br-header-info">
-        <p>Register multiple students or alumni at once. Temporary passwords will be generated and emailed to them automatically.</p>
+      {/* View Toggle Header */}
+      <div className="br-view-header">
+        <div className="br-view-toggle">
+          <button
+            className={`br-toggle-btn ${activeView === 'form' ? 'active' : ''}`}
+            onClick={() => handleViewChange('form')}
+          >
+            Registration Form
+          </button>
+          <button
+            className={`br-toggle-btn ${activeView === 'list' ? 'active' : ''}`}
+            onClick={() => handleViewChange('list')}
+          >
+            Registered Accounts
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-alert">{error}</div>}
 
+      {/* Form View */}
+      {activeView === 'form' && (
       <form onSubmit={handleSubmit} className="bulk-register-form">
         <div className="br-controls">
           <div className="form-group">
@@ -364,6 +460,192 @@ export default function BulkRegister({ user }) {
           </button>
         </div>
       </form>
+      )}
+
+      {/* List View */}
+      {activeView === 'list' && (
+      <div className="br-list-view">
+        <div className="br-list-header">
+          <SearchBar
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Search by name, email, or ID..."
+            className="br-search"
+          />
+          {user.role === 'dean' && (
+            <DropdownSelect
+              value={listFilterProgram}
+              onChange={(e) => handleListFilterProgramChange(e.target.value)}
+              placeholder="All Programs"
+              options={programs.map((p) => ({ value: p._id, label: `${p.code} - ${p.name}` }))}
+              className="br-filter"
+            />
+          )}
+          <DropdownSelect
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            placeholder="All Types"
+            options={[
+              { value: 'student', label: 'Students' },
+              { value: 'alumni', label: 'Alumni' },
+            ]}
+            className="br-filter"
+          />
+        </div>
+
+        <div className="br-table-wrapper">
+          <table className="br-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>School ID</th>
+                <th>Department</th>
+                <th>Program</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAccounts.length > 0 ? (
+                filteredAccounts.map((account) => (
+                  <tr key={account._id}>
+                    <td>{account.name}</td>
+                    <td>{account.email}</td>
+                    <td>{account.studentId || account.alumniId || '—'}</td>
+                    <td>{account.department?.name || '—'}</td>
+                    <td>{account.program?.name || '—'}</td>
+                    <td>
+                      <span className={`br-type-badge br-type-${account.role}`}>
+                        {account.role === 'student' ? 'Student' : 'Alumni'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="br-table-empty">
+                    No registered accounts found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="br-list-footer">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            itemLabel="accounts"
+            classPrefix="br"
+          />
+        </div>
+      </div>
+      )}
+
+      {/* Result Modal */}
+      <Modal
+        open={showResultModal}
+        onClose={resetForm}
+        title={resultContent?.allOk ? 'Registration Complete' : 'Registration Finished with Issues'}
+        size="large"
+        bodyClassName="br-modal-body"
+      >
+        <div className="br-modal-content">
+          <div className="br-modal-header">
+            <div className={`br-result-icon ${resultContent?.allOk ? 'success' : 'partial'}`}>
+              {resultContent?.allOk ? '✓' : '!'}
+            </div>
+          </div>
+
+          {resultContent && (
+            <>
+              <div className="summary-stats">
+                <div className="stat-card success">
+                  <span className="stat-num">{resultContent.counts.registered ?? 0}</span>
+                  <span className="stat-label">Registered</span>
+                </div>
+                {(resultContent.counts.skippedDuplicates ?? 0) > 0 && (
+                  <div className="stat-card warning">
+                    <span className="stat-num">{resultContent.counts.skippedDuplicates}</span>
+                    <span className="stat-label">Skipped (Duplicates)</span>
+                  </div>
+                )}
+                {(resultContent.counts.emailFailures ?? 0) > 0 && (
+                  <div className="stat-card error">
+                    <span className="stat-num">{resultContent.counts.emailFailures}</span>
+                    <span className="stat-label">Email Failures</span>
+                  </div>
+                )}
+                {(resultContent.counts.insertFailures ?? 0) > 0 && (
+                  <div className="stat-card error">
+                    <span className="stat-num">{resultContent.counts.insertFailures}</span>
+                    <span className="stat-label">Insert Failures</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Successfully Registered */}
+              {resultContent.details.registered.length > 0 && (
+                <details className="br-details" open>
+                  <summary>Successfully Registered ({resultContent.details.registered.length})</summary>
+                  <ul>
+                    {resultContent.details.registered.map((d, i) => (
+                      <li key={i}>
+                        <strong>{d.name}</strong> ({d.email})
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {/* Skipped Duplicates */}
+              {resultContent.details.skippedDuplicates.length > 0 && (
+                <details className="br-details">
+                  <summary>Skipped Duplicates ({resultContent.details.skippedDuplicates.length})</summary>
+                  <ul>
+                    {resultContent.details.skippedDuplicates.map((d, i) => (
+                      <li key={i}>{d.email} — {d.reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {/* Email Failures */}
+              {resultContent.details.emailFailures.length > 0 && (
+                <details className="br-details">
+                  <summary>Email Failures ({resultContent.details.emailFailures.length})</summary>
+                  <ul>
+                    {resultContent.details.emailFailures.map((d, i) => (
+                      <li key={i}>{d.email} — {d.error}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              {/* Insert Failures */}
+              {resultContent.details.insertFailures.length > 0 && (
+                <details className="br-details">
+                  <summary>Insert Failures ({resultContent.details.insertFailures.length})</summary>
+                  <ul>
+                    {resultContent.details.insertFailures.map((d, i) => (
+                      <li key={i}>{d.email} — {d.reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
+              <div className="br-modal-actions">
+                <button className="br-btn br-btn-primary" onClick={resetForm}>
+                  Register Another Batch
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

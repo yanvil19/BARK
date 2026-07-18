@@ -530,7 +530,26 @@ const listUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.role) filter.role = req.query.role;
+    
+    // Authorization: Restrict data access by role
+    if (req.user.role === 'dean' && req.user.department) {
+      filter.department = req.user.department;
+    } else if (req.user.role === 'program_chair' && req.user.program) {
+      filter.program = req.user.program;
+    } else if (req.user.role !== 'super_admin') {
+      // Only super_admin, dean, and program_chair can view user lists
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+    
+    // Handle comma-separated roles (e.g., "student,alumni")
+    if (req.query.role) {
+      const roles = req.query.role.split(',').map((r) => r.trim()).filter((r) => r);
+      if (roles.length === 1) {
+        filter.role = roles[0];
+      } else if (roles.length > 1) {
+        filter.role = { $in: roles };
+      }
+    }
     if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
     if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
     if (req.query.isActive === 'true') filter.isActive = true;
