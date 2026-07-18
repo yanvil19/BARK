@@ -8,7 +8,7 @@ import {
   getStudentIdErrorMessage,
   getAlumniIdErrorMessage,
 } from '../../lib/idFormats.js';
-import '../../styles/StudentRegister.css';
+import '../../styles/student/StudentRegister.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 const REG_KEY = 'nu_board_registration';

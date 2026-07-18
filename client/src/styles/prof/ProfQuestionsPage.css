@@ -711,7 +711,7 @@
     justify-content: center;
   }
   .qp-filters-wrapper {
-    padding: 0 16px;
+    padding: 16px 0px;
     box-sizing: border-box;
   }
 

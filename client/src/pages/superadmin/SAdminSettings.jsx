@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/AdminSettings.css';
-import '../../styles/Modal.css';
-import '../../styles/Modal.css';
+import '../../styles/superadmin/SAdminSettings.css';
+import '../../styles/components/Modal.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { Modal } from '../../components/Modal.jsx';
 

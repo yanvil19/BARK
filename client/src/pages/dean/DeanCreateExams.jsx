@@ -7,7 +7,7 @@ import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import '../../styles/MockBoardExam.css';
+import '../../styles/dean/DeanCreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;

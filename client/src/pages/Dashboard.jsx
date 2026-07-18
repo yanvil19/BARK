@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import SuperAdminDashboard from '../admin/SuperAdminDashboard.jsx';
-import DeanDashboard from '../dean/DeanDashboard.jsx';
-import ProgramChairDashboard from '../chair/ProgramChairDashboard.jsx';
-import StudentDashboard from '../student/StudentDashboard.jsx';
-import AlumniDashboard from '../alumni/AlumniDashboard.jsx';
-import ProfessorDashboard from '../professor/ProfessorDashboard.jsx';
+import SuperAdminDashboard from './superadmin/SAdminDashboard.jsx';
+import DeanDashboard from './dean/DeanDashboard.jsx';
+import ProgramChairDashboard from './programchair/PCDashboard.jsx';
+import StudentDashboard from './student/StudentDashboard.jsx';
+import AlumniDashboard from './alumni/AlumniDashboard.jsx';
+import ProfessorDashboard from './prof/ProfDashboard.jsx';
 
 const Dashboard = ({ me, onNavigate, onRoute }) => {
   const [stats, setStats] = useState(null);

@@ -1,4 +1,4 @@
-import '../styles/ImportReviewBubbles.css';
+import '../styles/components/ImportReviewBubbles.css';
 
 // [IMPORT REVIEW - BUBBLE NAVIGATION]
 // Bubble navigation system for import review - matches StudentExamRunner styling

@@ -5,10 +5,10 @@ import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
-import ExamCalendar from '../../components/examCalendar/ExamCalendar.jsx';
+import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
-import '../../styles/AvailableMockBoardExam.css';
+import '../../styles/student/StudentBoardExams.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 

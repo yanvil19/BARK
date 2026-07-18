@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
-import '../../styles/ExamResults.css';
+import '../../styles/dean/DeanExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import IndividualReportView from './IndividualReportView.jsx';
+import IndividualReportView from "./DeanIndividualReportView.jsx";
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';

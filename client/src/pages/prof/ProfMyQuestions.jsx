@@ -1,11 +1,11 @@
-import QuestionsPage from '../professor/QuestionsPage.jsx';
+import QuestionsPage from './ProfQuestionsPage.jsx';
 
-export default function ChairQuestions({ me }) {
+export default function ProfessorQuestions({ me }) {
   const programLabel = me?.program?.name || 'Your Program';
   return (
     <QuestionsPage
       me={me}
-      role="program_chair"
+      role="professor"
       programId={me?.program?._id || me?.program}
       programLabel={programLabel}
     />

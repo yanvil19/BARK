@@ -1,4 +1,4 @@
-import '../styles/ProfileModal.css';
+import '../styles/components/ProfileModal.css';
 
 export default function ProfileModal({ me, onLogout, onOpenChangeCredentials }) {
   return (

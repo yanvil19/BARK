@@ -1,5 +1,5 @@
-import '../styles/Navbar.css';
-import '../styles/ProfileModal.css';
+import '../styles/components/Navbar.css';
+import '../styles/components/ProfileModal.css';
 import { useEffect, useRef, useState } from 'react';
 import ProfileModal from './ProfileModal.jsx';
 import ChangeCredentialsModal from './ChangeCredentialsModal.jsx';

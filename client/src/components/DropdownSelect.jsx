@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/DropdownSelect.css';
+import '../styles/components/DropdownSelect.css';
 
 /**
  * DropdownSelect — a reusable styled select dropdown.

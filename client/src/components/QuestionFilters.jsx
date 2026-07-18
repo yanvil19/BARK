@@ -1,6 +1,6 @@
 import React from 'react';
 import DropdownSelect from './DropdownSelect.jsx';
-import '../styles/QuestionFilters.css';
+import '../styles/components/QuestionFilters.css';
 
 export default function QuestionFilters({
   className = "",

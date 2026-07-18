@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import '../styles/Modal.css';
+import '../styles/components/Modal.css';
 
 export function Modal({ open, onClose, title, children, size = 'default', bodyClassName = '' }) {
   const modalRef = useRef(null);

@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, getDay, parse, startOfWeek } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import { apiAuth } from '../../lib/api.js';
-import { Modal } from '../Modal.jsx';
+import { apiAuth } from '../lib/api.js';
+import { Modal } from './Modal.jsx';
 import {
   addConflictFlags,
   formatExamDateTime,
   getCalendarRange,
   getExamEventColor,
   getLearnerExamState,
-} from './calendarUtils.js';
+} from '../utils/calendarUtils.js';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import './ExamCalendar.css';
+import '../styles/components/ExamCalendar.css';
 
 const localizer = dateFnsLocalizer({
   format,

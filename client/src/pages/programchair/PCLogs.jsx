@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import Pagination from '../../components/Pagination.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import '../../styles/ChairCheatingLogs.css';
+import '../../styles/programchair/PCLogs.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 const POLL_MS = 25000;

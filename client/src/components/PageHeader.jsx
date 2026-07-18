@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/PageHeader.css';
+import '../styles/components/PageHeader.css';
 
 export default function PageHeader({ title, subtitle, children, className = '' }) {
   return (
