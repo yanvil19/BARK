@@ -96,6 +96,27 @@ export default function AlumniExamResults({ examId }) {
   const [search, setSearch] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [expandedExam, setExpandedExam] = useState(null);
+  const [attemptDetails, setAttemptDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const handleSelectAttempt = async (attempt) => {
+    setSelectedAttempt(attempt);
+    setLoadingDetails(true);
+    setAttemptDetails(null);
+    try {
+      const data = await apiAuth(`${BASE}/api/alumni-exams/attempt/${attempt.id}`);
+      setAttemptDetails(data);
+    } catch (err) {
+      console.error('Failed to load attempt details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleBackToAttempts = () => {
+    setSelectedAttempt(null);
+    setAttemptDetails(null);
+  };
 
   useEffect(() => {
     async function fetchAttempts() {
@@ -191,7 +212,7 @@ export default function AlumniExamResults({ examId }) {
         {selectedAttempt ? (
           <div className="ser-detail-view">
             <div className="ser-detail-toolbar">
-              <button className="ser-back-btn" onClick={() => setSelectedAttempt(null)}>
+              <button className="ser-back-btn" onClick={handleBackToAttempts}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="19" y1="12" x2="5" y2="12" />
                   <polyline points="12 19 5 12 12 5" />
@@ -265,6 +286,125 @@ export default function AlumniExamResults({ examId }) {
 
                         <div className="ser-topic-bar-bg">
                           <div className={`ser-topic-bar-fill bg-${status}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {loadingDetails && (
+              <div style={{ marginTop: '2rem', textAlign: 'center' }}>Loading questions...</div>
+            )}
+
+            {attemptDetails && attemptDetails.questions && (
+              <section className="ser-breakdown-card" style={{ marginTop: '2rem' }}>
+                <div className="ser-breakdown-header">
+                  <h2>Exam Questions & Answers</h2>
+                  <p>Review the questions and the answers you submitted</p>
+                </div>
+                
+                <div className="ser-questions-list">
+                  {attemptDetails.questions.map((q, idx) => {
+                    const isCorrect = q.userAnswer === q.correctAnswer;
+                    
+                    return (
+                      <div key={q._id} className="ser-question-item" style={{ 
+                        background: '#fff', 
+                        border: '1px solid #e5e7eb', 
+                        borderRadius: '0.5rem', 
+                        padding: '1.5rem',
+                        marginBottom: '1rem'
+                      }}>
+                        <div className="ser-question-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
+                            {idx + 1}. {q.title}
+                          </h3>
+                          <span style={{ 
+                            padding: '0.25rem 0.75rem', 
+                            borderRadius: '9999px', 
+                            fontSize: '0.875rem', 
+                            fontWeight: '500',
+                            backgroundColor: isCorrect ? '#dcfce7' : '#fee2e2',
+                            color: isCorrect ? '#166534' : '#991b1b'
+                          }}>
+                            {isCorrect ? 'Correct' : 'Incorrect'}
+                          </span>
+                        </div>
+                        
+                        {q.description && (
+                          <p style={{ color: '#4b5563', marginBottom: '1rem' }}>{q.description}</p>
+                        )}
+                        
+                        {q.images && q.images.length > 0 && (
+                          <div style={{ marginBottom: '1rem' }}>
+                            {q.images.map((img, i) => (
+                              <img key={i} src={img} alt="Question figure" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem' }} />
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="ser-answers-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {q.answers.map(ans => {
+                            const isUserSelection = ans._id === q.userAnswer;
+                            const isActualCorrect = ans._id === q.correctAnswer;
+                            
+                            let bg = '#f9fafb';
+                            let border = '1px solid #e5e7eb';
+                            
+                            if (isActualCorrect) {
+                              bg = '#ecfdf5';
+                              border = '1px solid #34d399';
+                            } else if (isUserSelection && !isActualCorrect) {
+                              bg = '#fef2f2';
+                              border = '1px solid #f87171';
+                            }
+
+                            return (
+                              <div key={ans._id} style={{
+                                padding: '1rem',
+                                borderRadius: '0.375rem',
+                                background: bg,
+                                border: border,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem'
+                              }}>
+                                <div style={{
+                                  width: '1.25rem',
+                                  height: '1.25rem',
+                                  borderRadius: '50%',
+                                  border: '1px solid',
+                                  borderColor: isUserSelection ? (isCorrect ? '#10b981' : '#ef4444') : '#d1d5db',
+                                  background: isUserSelection ? (isCorrect ? '#10b981' : '#ef4444') : 'transparent',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  {isUserSelection && (
+                                    <div style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', background: '#fff' }} />
+                                  )}
+                                </div>
+                                <span style={{ 
+                                  color: '#374151',
+                                  fontWeight: isActualCorrect ? '600' : '400' 
+                                }}>
+                                  {ans.text}
+                                </span>
+                                {isActualCorrect && (
+                                  <span style={{ marginLeft: 'auto', fontSize: '0.875rem', color: '#10b981', fontWeight: '600' }}>
+                                    ✓ Correct Answer
+                                  </span>
+                                )}
+                                {isUserSelection && !isActualCorrect && (
+                                  <span style={{ marginLeft: 'auto', fontSize: '0.875rem', color: '#ef4444', fontWeight: '600' }}>
+                                    ✗ Your Answer
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -427,7 +567,7 @@ export default function AlumniExamResults({ examId }) {
 
                                   <button
                                     className="ae-detail-btn"
-                                    onClick={() => setSelectedAttempt(attempt)}
+                                    onClick={() => handleSelectAttempt(attempt)}
                                   >
                                     View Details
                                   </button>
