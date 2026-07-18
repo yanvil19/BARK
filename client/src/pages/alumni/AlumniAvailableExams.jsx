@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/AvailableExams.css';
+import '../../styles/shared/AvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
-import '../../styles/QuestionApprovals.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 

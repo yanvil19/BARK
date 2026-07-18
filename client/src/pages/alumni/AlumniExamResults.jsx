@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/AvailableExams.css';
-import '../../styles/StudentExamResults.css';
+import '../../styles/shared/AvailableExams.css';
+import '../../styles/shared/StudentExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 

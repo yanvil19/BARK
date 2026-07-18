@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
-import '../../styles/MockBoardExamPreview.css';
+import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/Dashboard.css';
+import '../../styles/shared/AdminFacultyDashboard.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 const SuperAdminDashboard = ({ onNavigate, stats }) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/QuestionApprovals.css';
+import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
-import '../../styles/MockBoardExamPreview.css';
+import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;

@@ -3,7 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
-import '../../styles/SubjectTags.css';
+import '../../styles/shared/SubjectTags.css';
 import '../../styles/global.css';
 import PageHeader from '../../components/PageHeader.jsx';
 

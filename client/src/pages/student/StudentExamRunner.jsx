@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
-import '../../styles/MockBoardExamPreview.css';
+import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]

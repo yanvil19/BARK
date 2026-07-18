@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../styles/StudentExamResult.css';
+import '../../styles/shared/StudentExamResult.css';
 
 function SuccessSeal() {
   return (

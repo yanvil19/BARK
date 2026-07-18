@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
-import '../../styles/MockBoardExamPreview.css'; // Reusing the established premium style
+import '../../styles/shared/MockBoardExamPreview.css'; // Reusing the established premium style
 import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
