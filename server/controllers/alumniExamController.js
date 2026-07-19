@@ -390,7 +390,8 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'title description images answers',
+        select: 'title description images answers tag',
+        populate: { path: 'tag', select: 'name' },
       });
 
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
@@ -425,6 +426,7 @@ async function getAttemptDetails(req, res) {
           answers: mappedAnswers,
           userAnswer: userAnswer || null,
           correctAnswer: correctAnswer || null,
+          subjectName: fullQ.tag?.name || null,
         });
       });
     }

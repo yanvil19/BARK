@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
 
-const QuestionBreakdownRow = memo(({ question, audience }) => {
+const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
   const isAlumni = audience === 'alumni';
   
   if (!isAlumni) {
@@ -44,9 +44,15 @@ const QuestionBreakdownRow = memo(({ question, audience }) => {
       )}
       
       {question.images && question.images.length > 0 && (
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {question.images.map((img, i) => (
-            <img key={i} src={img} alt="Question figure" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem' }} />
+            <img
+              key={i}
+              src={img}
+              alt="Question figure"
+              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem', cursor: 'zoom-in' }}
+              onClick={() => onZoom && onZoom(img)}
+            />
           ))}
         </div>
       )}
@@ -116,7 +122,7 @@ const QuestionBreakdownRow = memo(({ question, audience }) => {
   );
 });
 
-const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience }) => {
+const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience, onZoom }) => {
   const statusClass = subject.percentage >= 70 ? 'green' : (subject.percentage >= 50 ? 'orange' : 'red');
 
   return (
@@ -144,14 +150,14 @@ const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience }) =
       {isExpanded && (
         <div className="er-ind-q-list">
           <div className="er-ind-q-list-title">Questions</div>
-          {subject.questions.map(q => <QuestionBreakdownRow key={q.questionId} question={q} audience={audience} />)}
+          {subject.questions.map(q => <QuestionBreakdownRow key={q.questionId} question={q} audience={audience} onZoom={onZoom} />)}
         </div>
       )}
     </div>
   );
 });
 
-const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expandedSubjects, onToggleSubject }) => {
+const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expandedSubjects, onToggleSubject, onZoom }) => {
   return (
     <div className="er-ind-sub-wrapper" style={{ marginTop: '0.5rem' }}>
       <button 
@@ -186,6 +192,7 @@ const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expand
               isExpanded={expandedSubjects.has(subject.subjectId)}
               onToggle={() => onToggleSubject(subject.subjectId)}
               audience={audience}
+              onZoom={onZoom}
             />
           ))}
         </div>
@@ -194,7 +201,7 @@ const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expand
   );
 });
 
-const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard, audience, expandedAttempts, onToggleAttempt }) => {
+const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard, audience, expandedAttempts, onToggleAttempt, onZoom }) => {
   const { student, overallPercentage, passed, subjectBreakdowns, attempts } = studentData;
   const isAlumni = audience === 'alumni';
   return (
@@ -235,6 +242,7 @@ const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject
               isExpanded={expandedSubjects.has(subject.subjectId)}
               onToggle={() => onToggleSubject(subject.subjectId)}
               audience={audience}
+              onZoom={onZoom}
             />
           ))}
           {isAlumni && attempts && attempts.map(attempt => (
@@ -246,6 +254,7 @@ const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject
               onToggle={() => onToggleAttempt(attempt.attemptId)}
               expandedSubjects={expandedSubjects[attempt.attemptId] || new Set()}
               onToggleSubject={(subId) => onToggleSubject(attempt.attemptId, subId)}
+              onZoom={onZoom}
             />
           ))}
         </div>
@@ -263,6 +272,13 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [expandedAttempts, setExpandedAttempts] = useState(new Set());
   const [expandedSubjectsByCard, setExpandedSubjectsByCard] = useState({});
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') setZoomedImage(null); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const fetchResults = async () => {
     setLoading(true);
@@ -376,8 +392,6 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
                 onToggleCard={() => toggleCard(cardId)}
                 expandedAttempts={expandedAttempts}
                 onToggleAttempt={toggleAttempt}
-                // For students, expandedSubjectsByCard uses cardId. 
-                // For alumni, expandedSubjects uses attemptId (passed as the whole map, and the card extracts it).
                 expandedSubjects={audience === 'alumni' ? expandedSubjectsByCard : (expandedSubjectsByCard[cardId] || new Set())}
                 onToggleSubject={(subIdOrAttemptId, maybeSubId) => {
                   if (audience === 'alumni') {
@@ -386,11 +400,44 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
                     toggleSubject(cardId, subIdOrAttemptId);
                   }
                 }}
+                onZoom={setZoomedImage}
               />
             );
           })
         )}
       </div>
+
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+          }}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setZoomedImage(null); }}
+            style={{
+              position: 'absolute', top: '20px', left: '20px', zIndex: 4000,
+              background: '#1e2d6b', color: '#f5c842', border: 'none',
+              fontSize: '22px', fontWeight: 'bold', width: '40px', height: '40px',
+              borderRadius: '50%', cursor: 'pointer',
+            }}
+          >
+            ✕
+          </button>
+          <img
+            src={zoomedImage}
+            alt="Zoomed"
+            draggable={false}
+            style={{
+              maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',
+              borderRadius: '10px', boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

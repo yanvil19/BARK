@@ -98,6 +98,13 @@ export default function AlumniExamResults({ examId }) {
   const [expandedExam, setExpandedExam] = useState(null);
   const [attemptDetails, setAttemptDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') setZoomedImage(null); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const handleSelectAttempt = async (attempt) => {
     setSelectedAttempt(attempt);
@@ -317,7 +324,7 @@ export default function AlumniExamResults({ examId }) {
                         padding: '1.5rem',
                         marginBottom: '1rem'
                       }}>
-                        <div className="ser-question-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div className="ser-question-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                           <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
                             {idx + 1}. {q.title}
                           </h3>
@@ -327,20 +334,45 @@ export default function AlumniExamResults({ examId }) {
                             fontSize: '0.875rem', 
                             fontWeight: '500',
                             backgroundColor: isCorrect ? '#dcfce7' : '#fee2e2',
-                            color: isCorrect ? '#166534' : '#991b1b'
+                            color: isCorrect ? '#166534' : '#991b1b',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
                           }}>
                             {isCorrect ? 'Correct' : 'Incorrect'}
                           </span>
                         </div>
+
+                        {q.subjectName && (
+                          <div style={{ marginBottom: '1rem' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '0.2rem 0.65rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              background: '#eef2ff',
+                              color: 'var(--er-navy-soft, #35408e)',
+                              letterSpacing: '0.02em',
+                            }}>
+                              {q.subjectName}
+                            </span>
+                          </div>
+                        )}
                         
                         {q.description && (
                           <p style={{ color: '#4b5563', marginBottom: '1rem' }}>{q.description}</p>
                         )}
                         
                         {q.images && q.images.length > 0 && (
-                          <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                             {q.images.map((img, i) => (
-                              <img key={i} src={img} alt="Question figure" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem' }} />
+                              <img
+                                key={i}
+                                src={img}
+                                alt="Question figure"
+                                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem', cursor: 'zoom-in' }}
+                                onClick={() => setZoomedImage(img)}
+                              />
                             ))}
                           </div>
                         )}
@@ -411,6 +443,39 @@ export default function AlumniExamResults({ examId }) {
                   })}
                 </div>
               </section>
+            )}
+
+            {/* Zoomable image overlay */}
+            {zoomedImage && (
+              <div
+                onClick={() => setZoomedImage(null)}
+                style={{
+                  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                  backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+                }}
+              >
+                <button
+                  onClick={(e) => { e.stopPropagation(); setZoomedImage(null); }}
+                  style={{
+                    position: 'absolute', top: '20px', left: '20px', zIndex: 4000,
+                    background: '#1e2d6b', color: '#f5c842', border: 'none',
+                    fontSize: '22px', fontWeight: 'bold', width: '40px', height: '40px',
+                    borderRadius: '50%', cursor: 'pointer',
+                  }}
+                >
+                  ✕
+                </button>
+                <img
+                  src={zoomedImage}
+                  alt="Zoomed"
+                  draggable={false}
+                  style={{
+                    maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',
+                    borderRadius: '10px', boxShadow: '0 0 25px rgba(255,255,255,0.2)',
+                  }}
+                />
+              </div>
             )}
           </div>
         ) : (
