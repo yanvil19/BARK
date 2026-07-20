@@ -1,5 +1,6 @@
 import '../styles/components/Navbar.css';
 import '../styles/components/ProfileModal.css';
+import logo from '../assets/barklogo.png';
 import { useEffect, useRef, useState } from 'react';
 import ProfileModal from './ProfileModal.jsx';
 import ChangeCredentialsModal from './ChangeCredentialsModal.jsx';
@@ -206,7 +207,10 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh }) {
     <header id="Header">
       {/* LEFT — BARK Logo */}
       <div className="nav-left">
-        <strong onClick={() => onRoute('Dashboard')}>BARK</strong>
+        <div className="logo-container" onClick={() => onRoute('Dashboard')}>
+          <img src={logo} alt="BARK Logo" className="header-logo" />
+          <strong>BARK</strong>
+        </div>
       </div>
 
       {/* CENTER — Desktop nav links */}

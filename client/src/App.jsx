@@ -428,7 +428,7 @@ export default function App() {
 
       <Footer
         onNavigate={setRoute}
-        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing'}
+        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing' || route === 'login'}
         landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
       />
 
