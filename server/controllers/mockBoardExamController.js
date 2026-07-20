@@ -177,8 +177,8 @@ async function validateExamPayload(user, body) {
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
   if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
-  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
     errors.push('Time limit must be at least 1 minute');
   }
@@ -189,8 +189,8 @@ async function validateExamPayload(user, body) {
   const program = programId ? await ensureDeanProgramAccess(user, programId) : null;
   if (programId && !program) errors.push('Access denied to this program');
 
-  const start = !isAlumniExam && body.startDateTime ? new Date(body.startDateTime) : null;
-  const end = !isAlumniExam && body.endDateTime ? new Date(body.endDateTime) : null;
+  const start = body.startDateTime ? new Date(body.startDateTime) : null;
+  const end = body.endDateTime ? new Date(body.endDateTime) : null;
 
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
@@ -254,7 +254,7 @@ async function createMockBoardExam(req, res) {
     }
 
     const { errors, payload } = await validateExamPayload(req.user, req.body);
-    if (payload.targetAudience !== 'alumni' && payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
+    if (payload.status === 'published' && payload.startDateTime && payload.startDateTime <= new Date()) {
       errors.push('Start date must be in the future');
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
@@ -310,7 +310,7 @@ async function createMockBoardExam(req, res) {
       questionCount: exam.questions?.length || 0,
     });
 
-    if (payload.targetAudience !== 'alumni' && payload.status === 'published') {
+    if (payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });
@@ -553,7 +553,7 @@ async function updateMockBoardExam(req, res) {
       questionCount: current.questions?.length || 0,
     });
 
-    if (payload.targetAudience !== 'alumni' && oldStatus !== 'published' && payload.status === 'published') {
+    if (oldStatus !== 'published' && payload.status === 'published') {
       sendExamPublishedAnnouncement({ exam: populated }).catch((err) => {
         console.error('Exam announcement email error:', err);
       });

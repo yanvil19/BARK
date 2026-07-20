@@ -152,7 +152,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         setProgramId(exam.program?._id || exam.program || '');
         setSelectedTagIds(nextTagIds);
         setSelectedQuestions(nextQuestions);
-      setForm({
+        setForm({
           name: exam.name || '',
           startDateTime: toLocalDateTimeInput(exam.startDateTime),
           endDateTime: toLocalDateTimeInput(exam.endDateTime),
@@ -362,8 +362,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         programId,
         subjectTagIds: selectedTagIds,
         questionIds: selectedQuestions.map((question) => question._id),
-        startDateTime: isAlumniExam ? '' : ensureISOString(form.startDateTime),
-        endDateTime: isAlumniExam ? '' : ensureISOString(form.endDateTime),
+        startDateTime: ensureISOString(form.startDateTime),
+        endDateTime: ensureISOString(form.endDateTime),
         description: form.description,
         instructions: form.instructions,
         targetAudience: form.targetAudience || 'student',
@@ -442,7 +442,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               <h2>{editingExamId ? 'Edit Mock Board Exam' : 'Create Mock Board Exam'}</h2>
               <p>
                 {isAlumniExam
-                  ? 'Create a reusable alumni practice exam and decide if each attempt should be timed.'
+                  ? 'Create a reusable alumni practice exam with a scheduled opening and closing time and decide if each attempt should be timed.'
                   : 'Create a student exam with a scheduled opening and closing time.'}
               </p>
             </div>
@@ -476,8 +476,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     setForm((prev) => ({
                       ...prev,
                       targetAudience,
-                      startDateTime: targetAudience === 'alumni' ? '' : prev.startDateTime,
-                      endDateTime: targetAudience === 'alumni' ? '' : prev.endDateTime,
                       isTimed: targetAudience === 'alumni' ? prev.isTimed : false,
                       timeLimitMinutes: prev.timeLimitMinutes || 180,
                     }));
@@ -514,37 +512,35 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               </label>
             </div>
 
-            {!isAlumniExam ? (
-              <>
-                <div className="mbe-field">
-                  <div className="mbe-field-heading">
-                    <label>Exam Start</label>
-                  </div>
-                  <DateTimePicker
-                    value={form.startDateTime}
-                    onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
-                  />
-                </div>
+            <div className="mbe-field">
+              <div className="mbe-field-heading">
+                <label>Exam Start</label>
+              </div>
+              <DateTimePicker
+                value={form.startDateTime}
+                onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
+              />
+            </div>
 
-                <div className="mbe-field">
-                  <div className="mbe-field-heading">
-                    <label>Exam End</label>
-                    <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
-                      {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
-                    </span>
-                  </div>
-                  <DateTimePicker
-                    value={form.endDateTime}
-                    onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
-                  />
-                </div>
-              </>
-            ) : (
+            <div className="mbe-field">
+              <div className="mbe-field-heading">
+                <label>Exam End</label>
+                <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
+                  {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
+                </span>
+              </div>
+              <DateTimePicker
+                value={form.endDateTime}
+                onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+              />
+            </div>
+
+            {isAlumniExam && (
               <div className="mbe-field mbe-field--full">
                 <div className="mbe-alumni-settings">
                   <div>
                     <h3>Alumni Attempt Timer</h3>
-                    <p>This alumni exam becomes available when published and stays open until it is archived or unpublished.</p>
+                    <p>This alumni exam becomes available when published and its schedule starts, and stays open until it ends, is archived or unpublished.</p>
                   </div>
 
                   <label className="mbe-check-row">
@@ -758,47 +754,47 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                         </div>
 
                         {isExpanded ? (
-                        <div className="mbe-question-details">
-                          <section className="mbe-question-panel">
-                            <p className="mbe-panel-label">Question</p>
-                            <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
-                          </section>
-
-                          {imageCount > 0 ? (
+                          <div className="mbe-question-details">
                             <section className="mbe-question-panel">
-                              <p className="mbe-panel-label">Images</p>
-                              <div className="mbe-preview-images">
-                                {question.images.map((image, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    className="mbe-preview-image-link"
-                                    onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                  >
-                                    <img
-                                      className="mbe-preview-image"
-                                      src={resolveImageUrl(image)}
-                                      alt={`${question.title} image ${index + 1}`}
-                                    />
-                                  </button>
-                                ))}
-                              </div>
+                              <p className="mbe-panel-label">Question</p>
+                              <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
                             </section>
-                          ) : null}
 
-                          <section className="mbe-question-panel">
-                            <p className="mbe-panel-label">Answers</p>
-                            <ul className="mbe-answer-list mbe-answer-list--cards">
-                              {(question.answers || []).map((answer) => (
-                                <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                  <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                  <span>{answer.text}</span>
-                                  {answer.isCorrect ? <strong>Correct</strong> : null}
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        </div>
+                            {imageCount > 0 ? (
+                              <section className="mbe-question-panel">
+                                <p className="mbe-panel-label">Images</p>
+                                <div className="mbe-preview-images">
+                                  {question.images.map((image, index) => (
+                                    <button
+                                      key={index}
+                                      type="button"
+                                      className="mbe-preview-image-link"
+                                      onClick={() => setFullscreenImage(resolveImageUrl(image))}
+                                    >
+                                      <img
+                                        className="mbe-preview-image"
+                                        src={resolveImageUrl(image)}
+                                        alt={`${question.title} image ${index + 1}`}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              </section>
+                            ) : null}
+
+                            <section className="mbe-question-panel">
+                              <p className="mbe-panel-label">Answers</p>
+                              <ul className="mbe-answer-list mbe-answer-list--cards">
+                                {(question.answers || []).map((answer) => (
+                                  <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
+                                    <span className="mbe-answer-label">{answer.optionLabel}</span>
+                                    <span>{answer.text}</span>
+                                    {answer.isCorrect ? <strong>Correct</strong> : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          </div>
                         ) : null}
                       </article>
                     );

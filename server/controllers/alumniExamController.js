@@ -45,12 +45,14 @@ function serializeSubjectScores(subjectScores = []) {
 
 async function getAvailableExams(req, res) {
   try {
+    const now = new Date();
     const exams = await MockBoardExam.find({
       program: req.user.program,
       targetAudience: 'alumni',
-      status: 'published',
+      status: { $in: ['published', 'ongoing'] },
+      endDateTime: { $gt: now },
     })
-      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes')
+      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes startDateTime endDateTime')
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
       .sort({ updatedAt: -1 })
@@ -86,8 +88,15 @@ async function startExam(req, res) {
     if (currentExam.targetAudience !== 'alumni') {
       return res.status(403).json({ message: 'This exam is not available for alumni.' });
     }
-    if (currentExam.status !== 'published') {
-      return res.status(403).json({ message: 'This alumni exam is not published yet.' });
+    const now = new Date();
+    if (currentExam.startDateTime && now < currentExam.startDateTime) {
+      return res.status(403).json({ message: 'This exam has not started yet.' });
+    }
+    if (currentExam.endDateTime && now >= currentExam.endDateTime) {
+      return res.status(403).json({ message: 'This exam window has already closed.' });
+    }
+    if (currentExam.status !== 'published' && currentExam.status !== 'ongoing') {
+      return res.status(403).json({ message: 'This alumni exam is not published or ongoing.' });
     }
     if (String(currentExam.program) !== String(req.user.program)) {
       return res.status(403).json({ message: 'This exam is not available for your program.' });
