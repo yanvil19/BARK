@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/shared/AvailableExams.css';
+import '../../styles/alumni/AlumniAvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 
@@ -51,6 +51,14 @@ function formatStartDateTime(value) {
     : 'TBA';
 }
 
+function getExamStatus(exam) {
+  return exam.status === 'ongoing' ? 'ongoing' : 'published';
+}
+
+function getStatusLabel(status) {
+  return status === 'ongoing' ? 'On-going' : 'Published';
+}
+
 function formatDuration(minutes) {
   const total = Number(minutes);
   if (!Number.isFinite(total) || total <= 0) return 'Untimed';
@@ -63,23 +71,24 @@ function formatDuration(minutes) {
 
 function SkeletonCard({ keyId }) {
   return (
-    <div key={keyId} className="ae-card ae-card--skeleton" aria-hidden="true">
-      <div className="ae-skel-title ae-pulse" />
-      <div className="ae-skel-subtitle ae-pulse" />
-      <div className="ae-skel-row">
-        <div className="ae-skel-pill ae-pulse" />
-        <div className="ae-skel-pill ae-pulse" />
-        <div className="ae-skel-pill ae-pulse" />
+    <div key={keyId} className="aae-card aae-card--skeleton" aria-hidden="true">
+      <div className="aae-skel-title aae-pulse" />
+      <div className="aae-skel-subtitle aae-pulse" />
+      <div className="aae-skel-row">
+        <div className="aae-skel-pill aae-pulse" />
+        <div className="aae-skel-pill aae-pulse" />
+        <div className="aae-skel-pill aae-pulse" />
       </div>
-      <div className="ae-skel-btn ae-pulse" />
+      <div className="aae-skel-btn aae-pulse" />
     </div>
   );
 }
 
-export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
+export default function AlumniAvailableExams({ onTakeExam }) {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     let mounted = true;
@@ -105,39 +114,59 @@ export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
 
   const filteredExams = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return exams.filter((exam) => String(exam?.name || '').toLowerCase().includes(q));
-  }, [exams, search]);
+    return exams.filter((exam) => {
+      const matchesSearch = String(exam?.name || '').toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || getExamStatus(exam) === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [exams, search, statusFilter]);
+
+  const statusCounts = useMemo(() => ({
+    all: exams.length,
+    published: exams.filter((exam) => getExamStatus(exam) === 'published').length,
+    ongoing: exams.filter((exam) => getExamStatus(exam) === 'ongoing').length,
+  }), [exams]);
 
   const hasAnyExams = exams.length > 0;
   const hasResults = filteredExams.length > 0;
 
   return (
-    <main className="sae-page-container">
+    <main className="aae-page">
       <PageHeader
         className="shared-page-header--bleed-lr"
         title="Available Exams"
-        subtitle="Browse and retake available alumni mock board exams for your program"
+        subtitle="Browse alumni mock board exams for your program. Published exams are visible, while only on-going exams can be answered."
       />
 
-      <div className="ca-state-pills ae-state-pills" role="tablist" aria-label="Exam status filters">
-        <button type="button" className="ca-state-pill ca-state-pill--active">
-          <span className="ca-state-pill-count">{exams.length}</span>
-          <span>Available</span>
-        </button>
-      </div>
-
-      <div className="ca-filters ae-filters">
+      <section className="aae-toolbar">
+        <div className="aae-status-tabs" role="tablist" aria-label="Exam status filters">
+          {[
+            ['all', 'All'],
+            ['published', 'Published'],
+            ['ongoing', 'On-going'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`aae-status-tab ${statusFilter === key ? 'active' : ''}`}
+              onClick={() => setStatusFilter(key)}
+            >
+              <span>{label}</span>
+              <strong>{statusCounts[key]}</strong>
+            </button>
+          ))}
+        </div>
         <SearchBar
           value={search}
           onChange={setSearch}
-          className="ca-search"
+          className="aae-search"
           placeholder="Search exams..."
           ariaLabel="Search exams"
         />
-      </div>
+      </section>
 
       {loading && (
-        <section className="ae-grid" aria-label="Loading exams">
+        <section className="aae-grid" aria-label="Loading exams">
           {[0, 1, 2].map((i) => (
             <SkeletonCard key={i} keyId={`skel-${i}`} />
           ))}
@@ -145,41 +174,49 @@ export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
       )}
 
       {!loading && !hasAnyExams && (
-        <div className="ae-empty" role="status">
+        <div className="aae-empty" role="status">
           No alumni exams are currently available.
         </div>
       )}
 
       {!loading && hasAnyExams && !hasResults && (
-        <div className="ae-empty" role="status">
+        <div className="aae-empty" role="status">
           No exams found matching your search.
         </div>
       )}
 
       {!loading && hasResults && (
-        <section className="ae-grid" aria-label="Available alumni exams">
-          {filteredExams.map((exam) => (
-            <article key={exam._id} className="ae-card ae-card--normal">
-              <div className="ae-card-body">
-                <h3 className="ae-title">{exam.name}</h3>
-                <div className="ae-subtitle">{exam.program?.name || '-'}</div>
+        <section className="aae-grid" aria-label="Available alumni exams">
+          {filteredExams.map((exam) => {
+            const status = getExamStatus(exam);
+            const canTakeExam = status === 'ongoing';
+            return (
+            <article key={exam._id} className={`aae-card aae-card--${status}`}>
+              <div className="aae-card-body">
+                <div className="aae-card-heading">
+                  <div>
+                    <h3 className="aae-title">{exam.name}</h3>
+                    <div className="aae-subtitle">{exam.program?.name || '-'}</div>
+                  </div>
+                  <span className={`aae-status-badge status-${status}`}>{getStatusLabel(status)}</span>
+                </div>
 
-                <div className="ae-pills">
-                  <div className="ae-pill" title="Duration">
-                    <IconClock className="ae-pill-icon" />
+                <div className="aae-pills">
+                  <div className="aae-pill" title="Duration">
+                    <IconClock className="aae-pill-icon" />
                     <span>{exam.isTimed ? formatDuration(exam.timeLimitMinutes) : 'Untimed'}</span>
                   </div>
-                  <div className="ae-pill" title="Number of items">
-                    <IconList className="ae-pill-icon" />
+                  <div className="aae-pill" title="Number of items">
+                    <IconList className="aae-pill-icon" />
                     <span>{`${exam.questionCount ?? 0} items`}</span>
                   </div>
-                  <div className="ae-pill" title="Exam start date">
-                    <IconCalendar className="ae-pill-icon" />
+                  <div className="aae-pill" title="Exam start date">
+                    <IconCalendar className="aae-pill-icon" />
                     <span>{formatStartDateTime(exam.startDateTime)}</span>
                   </div>
                   {exam.endDateTime && (
-                    <div className="ae-pill" title="Exam end date">
-                      <IconCalendar className="ae-pill-icon" />
+                    <div className="aae-pill" title="Exam end date">
+                      <IconCalendar className="aae-pill-icon" />
                       <span>Until {formatStartDateTime(exam.endDateTime)}</span>
                     </div>
                   )}
@@ -188,29 +225,20 @@ export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
 
               <button
                 type="button"
-                className="ae-btn"
+                className="aae-btn"
+                disabled={!canTakeExam}
+                aria-disabled={!canTakeExam}
                 onClick={() => {
-                  if (typeof onTakeExam === 'function') {
+                  if (canTakeExam && typeof onTakeExam === 'function') {
                     onTakeExam(exam._id);
                   }
                 }}
               >
-                Take Exam
-              </button>
-
-              <button
-                type="button"
-                className="ae-btn ae-btn--normal"
-                onClick={() => {
-                  if (typeof onViewResults === 'function') {
-                    onViewResults(exam._id);
-                  }
-                }}
-              >
-                View Attempts
+                {canTakeExam ? 'Take Exam' : 'Not Yet Available'}
               </button>
             </article>
-          ))}
+          );
+          })}
         </section>
       )}
     </main>

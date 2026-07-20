@@ -55,6 +55,13 @@ export default function App() {
   const [alumniResultExamId, setAlumniResultExamId] = useState('');
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
 
+  function handleRoute(nextRoute) {
+    if (nextRoute === 'alumniExamResults') {
+      setAlumniResultExamId('');
+    }
+    setRoute(nextRoute);
+  }
+
   async function refreshMe() {
     try {
       const data = await api('/api/auth/me');
@@ -180,7 +187,8 @@ export default function App() {
   }, [me, route]);
 
   useEffect(() => {
-    if (route !== 'mockBoardExam' && editingMockBoardExamId) {
+    const examEditorRoutes = new Set(['mockBoardExam', 'pcMockBoardExam']);
+    if (!examEditorRoutes.has(route) && editingMockBoardExamId) {
       setEditingMockBoardExamId('');
     }
   }, [editingMockBoardExamId, route]);
@@ -420,7 +428,7 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <Navbar me={me} route={route} onRoute={setRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
+      <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
 
       <main className="page-content">
         {/* [FIX - REMOVE INVALID TOKEN TEXT] */}

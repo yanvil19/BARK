@@ -65,6 +65,12 @@ const isAlumniExam = (exam) => (exam.targetAudience || 'student') === 'alumni';
 
 const isStudentExam = (exam) => !isAlumniExam(exam);
 
+const isPublicExamStatus = (exam) => ['published', 'ongoing'].includes(exam.status);
+
+const isPublishedExam = (exam) => exam.status === 'published';
+
+const isOngoingExam = (exam) => exam.status === 'ongoing';
+
 const isStudentExamScheduled = (exam, now = new Date()) => {
   const start = getValidDate(exam.startDateTime);
   return Boolean(isStudentExam(exam) && exam.status === 'published' && start && start > now);
@@ -73,8 +79,7 @@ const isStudentExamScheduled = (exam, now = new Date()) => {
 const isStudentExamActive = (exam, now = new Date()) => {
   const start = getValidDate(exam.startDateTime);
   const end = getValidDate(exam.endDateTime);
-  const isPublishedStatus = ['published', 'ongoing'].includes(exam.status);
-  return Boolean(isStudentExam(exam) && isPublishedStatus && start && end && start <= now && now < end);
+  return Boolean(isStudentExam(exam) && isPublicExamStatus(exam) && start && end && start <= now && now < end);
 };
 
 const formatDateTime = (value) => {
@@ -83,19 +88,19 @@ const formatDateTime = (value) => {
 };
 
 const getExamTiming = (exam, now = new Date()) => {
-  if (isAlumniExam(exam)) {
-    return {
-      meta: 'Available anytime',
-      badge: 'Reviewer',
-      tone: 'alumni',
-    };
-  }
-
-  if (isStudentExamActive(exam, now)) {
+  if (isOngoingExam(exam) || isStudentExamActive(exam, now)) {
     return {
       meta: `Started ${formatDateTime(exam.startDateTime)}`,
       badge: `Closes ${formatDateTime(exam.endDateTime)}`,
       tone: 'active',
+    };
+  }
+
+  if (isPublishedExam(exam)) {
+    return {
+      meta: `Starts ${formatDateTime(exam.startDateTime)}`,
+      badge: `Opens ${formatDateTime(exam.startDateTime)}`,
+      tone: isAlumniExam(exam) ? 'alumni' : 'scheduled',
     };
   }
 
@@ -125,6 +130,7 @@ function PublishedExamsWelcomeModal({ open, onClose, categories, onLogin }) {
   const [shouldRender, setShouldRender] = useState(open);
   const [isClosing, setIsClosing] = useState(false);
   const [activeCategoryKey, setActiveCategoryKey] = useState('');
+  const [activeAudienceKey, setActiveAudienceKey] = useState('all');
   const [activeDeptKey, setActiveDeptKey] = useState('');
   const [displayDeptKey, setDisplayDeptKey] = useState('');
   const [isChangingDept, setIsChangingDept] = useState(false);
@@ -202,7 +208,15 @@ function PublishedExamsWelcomeModal({ open, onClose, categories, onLogin }) {
   }, [activeCategoryKey, categories, open]);
 
   const activeCategory = categories.find((category) => category.key === activeCategoryKey) || categories[0];
-  const activeGroups = activeCategory?.groups || [];
+  const audienceOptions = activeCategory?.audiences || [];
+  const activeAudience = audienceOptions.find((audience) => audience.key === activeAudienceKey) || audienceOptions[0];
+  const activeGroups = activeAudience?.groups || [];
+
+  useEffect(() => {
+    if (open && audienceOptions.length > 0 && !audienceOptions.some((audience) => audience.key === activeAudienceKey)) {
+      setActiveAudienceKey(audienceOptions[0].key);
+    }
+  }, [activeAudienceKey, audienceOptions, open]);
 
   useEffect(() => {
     if (open && activeGroups.length > 0) {
@@ -211,7 +225,7 @@ function PublishedExamsWelcomeModal({ open, onClose, categories, onLogin }) {
         setDisplayDeptKey(activeGroups[0].key);
       }
     }
-  }, [activeCategoryKey, activeDeptKey, activeGroups, open]);
+  }, [activeAudienceKey, activeCategoryKey, activeDeptKey, activeGroups, open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -303,39 +317,64 @@ function PublishedExamsWelcomeModal({ open, onClose, categories, onLogin }) {
           </button>
         </header>
 
-        {categories.length > 1 && (
-          <div
-            ref={categoryTabsRef}
-            className="published-exams-modal-category-tabs"
-            role="tablist"
-            aria-label="Exam categories"
-            onMouseDown={(event) => handleMouseDown(event, categoryTabsRef)}
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
-            onMouseMove={(event) => handleMouseMove(event, categoryTabsRef)}
-          >
-            {categories.map((category) => {
-              const isActive = category.key === activeCategory.key;
-              return (
-                <button
-                  key={category.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  className={`published-exams-modal-category-tab${isActive ? ' active' : ''}`}
-                  onClick={(event) => {
-                    if (dragDistance.current > 5) {
-                      event.preventDefault();
-                      return;
-                    }
-                    setActiveCategoryKey(category.key);
-                  }}
-                >
-                  <span>{category.label}</span>
-                  <strong>{category.count}</strong>
-                </button>
-              );
-            })}
+        {(categories.length > 1 || audienceOptions.length > 1) && (
+          <div className="published-exams-modal-filterbar">
+            {categories.length > 1 && (
+              <div
+                ref={categoryTabsRef}
+                className="published-exams-modal-category-tabs"
+                role="tablist"
+                aria-label="Exam status"
+                onMouseDown={(event) => handleMouseDown(event, categoryTabsRef)}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={(event) => handleMouseMove(event, categoryTabsRef)}
+              >
+                {categories.map((category) => {
+                  const isActive = category.key === activeCategory.key;
+                  return (
+                    <button
+                      key={category.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`published-exams-modal-category-tab${isActive ? ' active' : ''}`}
+                      onClick={(event) => {
+                        if (dragDistance.current > 5) {
+                          event.preventDefault();
+                          return;
+                        }
+                        setActiveCategoryKey(category.key);
+                      }}
+                    >
+                      <span>{category.label}</span>
+                      <strong>{category.count}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {audienceOptions.length > 1 && (
+              <div className="published-exams-modal-audience-tabs" role="tablist" aria-label="Audience filter">
+                {audienceOptions.map((audience) => {
+                  const isActive = audience.key === activeAudience.key;
+                  return (
+                    <button
+                      key={audience.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`published-exams-modal-audience-tab${isActive ? ' active' : ''}`}
+                      onClick={() => setActiveAudienceKey(audience.key)}
+                    >
+                      <span>{audience.label}</span>
+                      <strong>{audience.count}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -569,10 +608,16 @@ const LandingPage = ({ onNavigate }) => {
       .filter((exam) => isStudentExamActive(exam, now))
       .sort((a, b) => new Date(a.endDateTime) - new Date(b.endDateTime));
     const alumni = exams
-      .filter((exam) => isAlumniExam(exam) && exam.status === 'published')
+      .filter((exam) => isAlumniExam(exam) && isPublicExamStatus(exam))
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const published = exams
+      .filter((exam) => isPublishedExam(exam))
+      .sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+    const ongoing = exams
+      .filter((exam) => isOngoingExam(exam))
+      .sort((a, b) => new Date(a.endDateTime) - new Date(b.endDateTime));
 
-    return { scheduled, active, alumni };
+    return { scheduled, active, alumni, published, ongoing };
   }, [exams]);
 
   const groupExamsByDepartment = (examList) => {
@@ -613,46 +658,59 @@ const LandingPage = ({ onNavigate }) => {
   };
 
   const publicExamCategories = useMemo(() => {
-    const scheduledCount = examCategories.scheduled.length;
-    const activeCount = examCategories.active.length;
-    const alumniCount = examCategories.alumni.length;
+    const buildAudienceOptions = (examList) => {
+      const studentExams = examList.filter(isStudentExam);
+      const alumniExams = examList.filter(isAlumniExam);
+
+      return [
+        {
+          key: 'all',
+          label: 'All',
+          count: examList.length,
+          groups: groupExamsByDepartment(examList),
+        },
+        {
+          key: 'student',
+          label: 'Student',
+          count: studentExams.length,
+          groups: groupExamsByDepartment(studentExams),
+        },
+        {
+          key: 'alumni',
+          label: 'Alumni',
+          count: alumniExams.length,
+          groups: groupExamsByDepartment(alumniExams),
+        },
+      ].filter((audience) => audience.count > 0 || audience.key === 'all');
+    };
+
+    const publishedCount = examCategories.published.length;
+    const ongoingCount = examCategories.ongoing.length;
 
     return [
       {
-        key: 'active',
-        label: 'Active',
+        key: 'published',
+        label: 'Published',
+        kicker: 'Published Exams',
+        title: 'Published Board Exams',
+        copy: publishedCount === 1
+          ? '1 published exam is scheduled and ready for its opening time.'
+          : `${publishedCount} published exams are scheduled and ready for their opening time.`,
+        count: publishedCount,
+        exams: examCategories.published,
+        audiences: buildAudienceOptions(examCategories.published),
+      },
+      {
+        key: 'ongoing',
+        label: 'On-going',
         kicker: 'Available Now',
-        title: 'Ongoing Exams',
-        copy: activeCount === 1
-          ? '1 ongoing exam is currently open for submission. Complete your exam before the scheduled closing time.'
-          : `${activeCount} ongoing exams are currently open for submission. Complete your exam before the scheduled closing time.`,
-        count: activeCount,
-        exams: examCategories.active,
-        groups: groupExamsByDepartment(examCategories.active),
-      },
-      {
-        key: 'scheduled',
-        label: 'Scheduled',
-        kicker: 'Scheduled for Students',
-        title: 'Upcoming Board Exams',
-        copy: scheduledCount === 1
-          ? '1 upcoming board exam is published and will become available at its scheduled start time.'
-          : `${scheduledCount} upcoming board exams are published and will become available at their scheduled start time.`,
-        count: scheduledCount,
-        exams: examCategories.scheduled,
-        groups: groupExamsByDepartment(examCategories.scheduled),
-      },
-      {
-        key: 'alumni',
-        label: 'Alumni',
-        kicker: 'Board Review Materials',
-        title: 'Practice Reviewer',
-        copy: alumniCount === 1
-          ? '1 practice reviewer exam is available anytime for alumni to support board examination preparation. Multiple attempts are allowed.'
-          : `${alumniCount} practice reviewer exams are available anytime for alumni to support board examination preparation. Multiple attempts are allowed.`,
-        count: alumniCount,
-        exams: examCategories.alumni,
-        groups: groupExamsByDepartment(examCategories.alumni),
+        title: 'On-going Exams',
+        copy: ongoingCount === 1
+          ? '1 on-going exam is currently open for submission. Complete it before the scheduled closing time.'
+          : `${ongoingCount} on-going exams are currently open for submission. Complete them before the scheduled closing time.`,
+        count: ongoingCount,
+        exams: examCategories.ongoing,
+        audiences: buildAudienceOptions(examCategories.ongoing),
       },
     ].filter((category) => category.count > 0);
   }, [examCategories, programs, departments]);
@@ -676,7 +734,7 @@ const LandingPage = ({ onNavigate }) => {
       key: 'alumni',
       label: 'Board Review Materials',
       title: 'Practice Reviewer',
-      description: 'Practice exams for alumni designed to support board examination preparation. Multiple attempts are allowed.',
+      description: 'Published and ongoing practice exams for alumni board examination preparation.',
       exams: examCategories.alumni.slice(0, 5),
     },
   ]).filter((section) => section.exams.length > 0), [examCategories]);
