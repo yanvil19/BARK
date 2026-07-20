@@ -112,8 +112,6 @@ mockBoardExamSchema.virtual('durationMinutes').get(function () {
 
 mockBoardExamSchema.pre('validate', function () {
   if (this.targetAudience === 'alumni') {
-    this.startDateTime = null;
-    this.endDateTime = null;
     if (!this.isTimed) this.timeLimitMinutes = null;
   } else {
     this.isTimed = false;
