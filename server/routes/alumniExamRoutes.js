@@ -5,6 +5,7 @@ const {
   submitExam,
   getMyAttempts,
   getDashboardAttempts,
+  getAttemptDetails,
 } = require('../controllers/alumniExamController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -16,6 +17,7 @@ router.use(authorizeRoles('alumni'));
 router.get('/available', getAvailableExams);
 router.get('/my-attempts', getDashboardAttempts);
 router.get('/:examId/my-attempts', getMyAttempts);
+router.get('/attempt/:attemptId', getAttemptDetails);
 router.post('/:id/start', startExam);
 router.post('/attempt/:attemptId/submit', submitExam);
 
