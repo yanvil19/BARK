@@ -486,7 +486,6 @@
   box-shadow: 0 6px 22px rgba(250, 210, 39, 0.32);
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
               box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  margin-top: 6px;
 }
 
 /* Shimmer sweep effect */
