@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocalStorage } from '../../hooks/useLocalStorage.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -12,6 +11,30 @@ import '../../styles/programchair/PCCreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
+const EXAM_CREATE_DRAFT_KEY = 'draft_exam_create';
+const EMPTY_EXAM_FORM = {
+  name: '',
+  startDateTime: '',
+  endDateTime: '',
+  description: '',
+  instructions: '',
+  targetAudience: 'student',
+  status: 'draft',
+  isTimed: false,
+  timeLimitMinutes: 180,
+  passingThreshold: 70,
+};
+
+function readExamCreateDraft() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(EXAM_CREATE_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('Failed to restore exam creation draft:', err);
+    return null;
+  }
+}
 
 function toLocalDateTimeInput(value) {
   if (!value) return '';
@@ -49,15 +72,18 @@ function formatDurationFromMinutes(value) {
 
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
   const isEditing = !!editingExamId;
-  const userId = me?._id || 'guest';
-  const baseKey = isEditing ? null : `mbe_new_${userId}`;
+  const initialDraftRef = useRef(isEditing ? null : readExamCreateDraft());
 
   const [programs, setPrograms] = useState([]);
-  const [programId, setProgramId, clearProgramId] = useLocalStorage(baseKey ? `${baseKey}_programId` : null, '');
+  const [programId, setProgramId] = useState(() => initialDraftRef.current?.programId || '');
   const [subjectOptions, setSubjectOptions] = useState([]);
-  const [selectedTagIds, setSelectedTagIds, clearTagIds] = useLocalStorage(baseKey ? `${baseKey}_tags` : null, []);
+  const [selectedTagIds, setSelectedTagIds] = useState(() => (
+    Array.isArray(initialDraftRef.current?.selectedTagIds) ? initialDraftRef.current.selectedTagIds : []
+  ));
   const [approvedQuestions, setApprovedQuestions] = useState([]);
-  const [selectedQuestions, setSelectedQuestions, clearQuestions] = useLocalStorage(baseKey ? `${baseKey}_questions` : null, []);
+  const [selectedQuestions, setSelectedQuestions] = useState(() => (
+    Array.isArray(initialDraftRef.current?.selectedQuestions) ? initialDraftRef.current.selectedQuestions : []
+  ));
   const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -82,18 +108,40 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   // Approved questions pagination
   const [questionPage, setQuestionPage] = useState(1);
   const QUESTIONS_PER_PAGE = 15;
-  const [form, setForm, clearForm] = useLocalStorage(baseKey ? `${baseKey}_form` : null, {
-    name: '',
-    startDateTime: '',
-    endDateTime: '',
-    description: '',
-    instructions: '',
-    targetAudience: 'student',
-    status: 'draft',
-    isTimed: false,
-    timeLimitMinutes: 180,
-    passingThreshold: 70,
-  });
+  // TODO: temporary demo pattern - for production, consider autosaving drafts to the backend instead of localStorage, since this content is confidential and shouldn't persist client-side long-term
+  const [form, setForm] = useState(() => (
+    initialDraftRef.current?.form && typeof initialDraftRef.current.form === 'object'
+      ? { ...EMPTY_EXAM_FORM, ...initialDraftRef.current.form }
+      : EMPTY_EXAM_FORM
+  ));
+
+  useEffect(() => {
+    if (isEditing) return;
+    const id = setTimeout(() => {
+      try {
+        const hasDraft =
+          Boolean(programId) ||
+          selectedTagIds.length > 0 ||
+          selectedQuestions.length > 0 ||
+          JSON.stringify(form) !== JSON.stringify(EMPTY_EXAM_FORM);
+
+        if (!hasDraft) {
+          window.localStorage.removeItem(EXAM_CREATE_DRAFT_KEY);
+          return;
+        }
+
+        window.localStorage.setItem(EXAM_CREATE_DRAFT_KEY, JSON.stringify({
+          programId,
+          selectedTagIds,
+          selectedQuestions,
+          form,
+        }));
+      } catch (err) {
+        console.warn('Failed to save exam creation draft:', err);
+      }
+    }, 500);
+    return () => clearTimeout(id);
+  }, [form, isEditing, programId, selectedQuestions, selectedTagIds]);
 
   const isAlumniExam = (form.targetAudience || 'student') === 'alumni';
 
@@ -393,23 +441,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         });
       }
 
-      clearForm();
-      clearTagIds();
-      clearQuestions();
-      clearProgramId();
+      window.localStorage.removeItem(EXAM_CREATE_DRAFT_KEY);
 
-      setForm({
-        name: '',
-        startDateTime: '',
-        endDateTime: '',
-        description: '',
-        instructions: '',
-        targetAudience: 'student',
-        status: 'draft',
-        isTimed: false,
-        timeLimitMinutes: 180,
-        passingThreshold: 70,
-      });
+      setForm(EMPTY_EXAM_FORM);
       setSelectedTagIds([]);
       setApprovedQuestions([]);
       setSelectedQuestions([]);

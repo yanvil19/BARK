@@ -32,7 +32,7 @@ import AlumniExamRunner from './pages/alumni/AlumniExamRunner.jsx';
 import AlumniExamResult from './pages/alumni/AlumniExamResult.jsx';
 import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
 import Credits from './pages/Credits.jsx';
-import { api } from './lib/api.js';
+import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
@@ -80,7 +80,6 @@ export default function App() {
   }
 
   useEffect(() => {
-    window.localStorage.removeItem('nu_board_token');
     refreshMe();
   }, []);
 
@@ -106,6 +105,7 @@ export default function App() {
   function handleDeactivatedAcknowledge() {
     setShowDeactivatedModal(false);
     api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    clearClientSessionStorage();
     setMe(null);
     // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
     window.history.replaceState({}, '', '/login?session=deactivated');
@@ -198,6 +198,7 @@ export default function App() {
     } catch {
       // Clear client state even if logout request fails
     }
+    clearClientSessionStorage();
     setMe(null);
     setRoute('Dashboard');
   }

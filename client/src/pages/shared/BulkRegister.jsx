@@ -7,6 +7,9 @@ import Pagination from '../../components/Pagination';
 import PageHeader from '../../components/PageHeader';
 import '../../styles/shared/BulkRegister.css';
 
+const BULK_REGISTRATION_DRAFT_KEY = 'draft_bulk_registration';
+const EMPTY_ENTRY = { name: '', email: '', studentId: '', alumniId: '' };
+
 export default function BulkRegister({ user }) {
   const [role, setRole] = useState('student');
 
@@ -17,7 +20,7 @@ export default function BulkRegister({ user }) {
   const [programId, setProgramId] = useState('');
 
   // Row entries
-  const [entries, setEntries] = useState([{ name: '', email: '', studentId: '', alumniId: '' }]);
+  const [entries, setEntries] = useState([EMPTY_ENTRY]);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +41,52 @@ export default function BulkRegister({ user }) {
   const [totalItems, setTotalItems] = useState(0);
 
   const pollRef = useRef(null);
+  const hasLoadedDraftRef = useRef(false);
+
+  // TODO: temporary demo pattern - for production, consider autosaving drafts to the backend instead of localStorage, since this content is confidential and shouldn't persist client-side long-term
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(BULK_REGISTRATION_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.role) setRole(draft.role);
+      if (draft.departmentId) setDepartmentId(draft.departmentId);
+      if (draft.programId) setProgramId(draft.programId);
+      if (Array.isArray(draft.entries) && draft.entries.length > 0) setEntries(draft.entries);
+    } catch (err) {
+      console.warn('Failed to restore bulk registration draft:', err);
+    } finally {
+      hasLoadedDraftRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedDraftRef.current) return;
+    const id = setTimeout(() => {
+      try {
+        const hasDraft =
+          role !== 'student' ||
+          Boolean(departmentId) ||
+          Boolean(programId) ||
+          entries.some((entry) => entry.name || entry.email || entry.studentId || entry.alumniId);
+
+        if (!hasDraft) {
+          window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
+          return;
+        }
+
+        window.localStorage.setItem(BULK_REGISTRATION_DRAFT_KEY, JSON.stringify({
+          role,
+          departmentId,
+          programId,
+          entries,
+        }));
+      } catch (err) {
+        console.warn('Failed to save bulk registration draft:', err);
+      }
+    }, 250);
+    return () => clearTimeout(id);
+  }, [departmentId, entries, programId, role]);
 
   // Fetch departments for deans
   useEffect(() => {
@@ -145,9 +194,19 @@ export default function BulkRegister({ user }) {
       const res = await apiAuth('/api/auth/bulk-register', { method: 'POST', body: payload });
 
       if (res.batchId) {
+        window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
+        setEntries([EMPTY_ENTRY]);
+        setDepartmentId('');
+        setProgramId('');
+        setRole('student');
         // Start polling for the final summary
         pollUntilDone(res.batchId);
       } else {
+        window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
+        setEntries([EMPTY_ENTRY]);
+        setDepartmentId('');
+        setProgramId('');
+        setRole('student');
         // Completed instantly (e.g., all duplicates)
         setBatchResult(res.summary || res);
         setShowResultModal(true);
@@ -160,7 +219,7 @@ export default function BulkRegister({ user }) {
   };
 
   const resetForm = () => {
-    setEntries([{ name: '', email: '', studentId: '', alumniId: '' }]);
+    setEntries([EMPTY_ENTRY]);
     setBatchResult(null);
     setShowResultModal(false);
     setError(null);

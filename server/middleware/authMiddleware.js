@@ -4,7 +4,9 @@ const User = require('../models/User');
 // Verify JWT token and attach user to request
 const protect = async (req, res, next) => {
   try {
-    const token = req.cookies?.nu_board_token;
+    const authHeader = req.get('authorization') || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const token = req.cookies?.nu_board_token || bearerToken;
 
     if (!token) {
       return res.status(401).json({ message: 'Not authorized, no token provided' });

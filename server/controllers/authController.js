@@ -351,6 +351,8 @@ const loginUser = async (req, res) => {
       .cookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
       .json({
         message: 'Login successful',
+        // TODO: temporary demo auth - revert to httpOnly cookie flow after demo
+        token,
         user: {
           _id: user._id,
           name: user.name,

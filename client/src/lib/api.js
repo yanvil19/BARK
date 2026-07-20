@@ -1,8 +1,35 @@
 // [FIX 2 - VITE_API_URL WIRING]
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const AUTH_TOKEN_KEY = 'nu_board_token';
+
+export function getStoredAuthToken() {
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearClientSessionStorage() {
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Ignore storage access failures so auth redirects can still proceed.
+  }
+}
+
+export function buildAuthHeaders(headers = {}) {
+  const token = getStoredAuthToken();
+  return {
+    ...(headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
 // [FIX - SESSION EXPIRY 401 HANDLER]
 function handleSessionExpired(isDeactivated = false) {
+  clearClientSessionStorage();
+
   if (isDeactivated) {
     // Fire a custom event so App.jsx can show a modal before logging the user out.
     window.dispatchEvent(new CustomEvent('account-deactivated'));
@@ -33,7 +60,7 @@ export async function api(path, { method = 'GET', body, headers, expectAuth = fa
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(headers || {}),
+      ...buildAuthHeaders(headers),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -41,13 +68,14 @@ export async function api(path, { method = 'GET', body, headers, expectAuth = fa
   const data = await parseJsonResponse(res);
 
   // [FIX - SESSION EXPIRY 401 HANDLER]
-  if (res.status === 401 && expectAuth) {
+  if (res.status === 401) {
     const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
-    return handleSessionExpired(isDeactivated);
+    if (expectAuth) return handleSessionExpired(isDeactivated);
+    clearClientSessionStorage();
   }
 
   if (!res.ok) {
-    const message = data && data.message ? data.message : `Request failed (${res.status})`;
+    const message = data?.message || data?.error || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;
     err.data = data;
@@ -66,6 +94,7 @@ export async function apiAuthUpload(path, formData) {
   const res = await fetch(url, {
     method: 'POST',
     credentials: 'include',
+    headers: buildAuthHeaders(),
     body: formData,
   });
   const data = await parseJsonResponse(res);
@@ -76,7 +105,7 @@ export async function apiAuthUpload(path, formData) {
   }
 
   if (!res.ok) {
-    const message = data?.message || `Request failed (${res.status})`;
+    const message = data?.message || data?.error || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;
     throw err;
