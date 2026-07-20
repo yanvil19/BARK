@@ -105,7 +105,7 @@ export default function App() {
 
   function handleDeactivatedAcknowledge() {
     setShowDeactivatedModal(false);
-    api('/api/auth/logout', { method: 'POST' }).catch(() => { });
+    api('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setMe(null);
     // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
     window.history.replaceState({}, '', '/login?session=deactivated');
@@ -400,6 +400,7 @@ export default function App() {
       <AlumniExamRunner
         examId={alumniExamId}
         onFinish={() => {
+          setAlumniResultExamId(alumniExamId);
           setRoute('alumniExamResult');
         }}
         me={me}
@@ -409,10 +410,7 @@ export default function App() {
     page = (
       <AlumniExamResult
         onReturn={() => setRoute('alumniAvailableExams')}
-        onViewResults={() => {
-          setAlumniResultExamId('');
-          setRoute('alumniExamResults');
-        }}
+        onViewResults={() => setRoute('alumniExamResults')}
       />
     );
   if (route === 'alumniExamResults')

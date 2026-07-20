@@ -95,15 +95,10 @@ export default function AlumniExamResults({ examId }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState(null);
-  const [selectedExam, setSelectedExam] = useState(null);
-  const [showAttempts, setShowAttempts] = useState(true);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [attemptDetails, setAttemptDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [expandedExam, setExpandedExam] = useState(null);
 
   useEffect(() => {
     async function fetchAttempts() {
-      console.log("FETCHING ATTEMPTS");
       setLoading(true);
       try {
         let allAttempts = [];
@@ -122,18 +117,6 @@ export default function AlumniExamResults({ examId }) {
             )
           );
           allAttempts = attemptsByExam.flat();
-          console.log(
-            "ALL ATTEMPTS COUNT:",
-            allAttempts.length
-          );
-
-          console.log(
-            allAttempts.map(a => ({
-              examId: a.examId,
-              examName: a.examName,
-              attemptNumber: a.attemptNumber
-            }))
-          );
         }
 
         const sorted = allAttempts.sort((a, b) => {
@@ -142,9 +125,11 @@ export default function AlumniExamResults({ examId }) {
           return (b.attemptNumber || 0) - (a.attemptNumber || 0);
         });
         setAttempts(sorted);
+        setSelectedAttempt(null);
       } catch (err) {
         console.error('Failed to load alumni attempts:', err);
         setAttempts([]);
+        setSelectedAttempt(null);
       } finally {
         setLoading(false);
       }
@@ -189,13 +174,6 @@ export default function AlumniExamResults({ examId }) {
     const groups = {};
 
     filteredAttempts.forEach((attempt) => {
-
-      console.log(
-        "GROUP:",
-        attempt.examId,
-        attempt.examName
-      );
-
       const key = attempt.examId;
 
       if (!groups[key]) {
@@ -223,24 +201,6 @@ export default function AlumniExamResults({ examId }) {
     return result;
   }, [filteredAttempts]);
 
-  useEffect(() => {
-    if (
-      groupedResults.length > 0 &&
-      !selectedExam
-    ) {
-      setSelectedExam(groupedResults[0]);
-      setSelectedAttempt(groupedResults[0].attempts[0]);
-    }
-  }, [groupedResults]);
-
-  useEffect(() => {
-    if (selectedAttempt) {
-      loadAttemptDetails(selectedAttempt);
-    }
-  }, [selectedAttempt]);
-
-  console.log("ATTEMPT DETAILS", attemptDetails);
-
   const hasResults = filteredAttempts.length > 0;
   const selectedPercentage = getAttemptPercentage(selectedAttempt);
   const selectedThreshold = selectedAttempt?.passingThreshold || 70;
@@ -264,423 +224,263 @@ export default function AlumniExamResults({ examId }) {
       </div>
 
       <div className="ser-page-content-wrapper">
-        <>
-          {loading && (
-            <section className="ae-grid" aria-label="Loading attempts">
-              {[0, 1, 2].map((i) => (
-                <SkeletonCard key={i} />
-              ))}
+        {selectedAttempt ? (
+          <div className="ser-detail-view">
+            <div className="ser-detail-toolbar">
+              <button className="ser-back-btn" onClick={() => setSelectedAttempt(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
+                Back to Attempts
+              </button>
+            </div>
+
+            <div className="ser-report-header">
+              <div className="ser-report-title-wrap">
+                <h2 className="ser-report-title">{selectedAttempt.examName}</h2>
+              </div>
+
+              <div className="ser-report-meta">
+                <span className="ser-report-date">Attempt {selectedAttempt.attemptNumber}</span>
+                <span className="ser-report-separator">|</span>
+                <span className="ser-report-date">Submitted: {formatDate(selectedAttempt.submittedAt || selectedAttempt.date)}</span>
+                <span className="ser-report-separator">|</span>
+                <span className="ser-meta-chip ser-meta-chip--threshold ser-meta-chip--compact">
+                  Threshold: {selectedThreshold}%
+                </span>
+              </div>
+            </div>
+
+            <section className="ser-hero-card">
+              <CircularProgress percentage={selectedPercentage} threshold={selectedThreshold} />
+
+              <div className="ser-hero-metrics">
+                <div className="ser-metric-item">
+                  <span className="m-value">{selectedPercentage}%</span>
+                  <span className="m-label">Avg Score</span>
+                </div>
+                <div className="ser-metric-item">
+                  <span className="m-value">{selectedAttempt.rawScore} / {selectedAttempt.totalScore}</span>
+                  <span className="m-label">Raw Score</span>
+                </div>
+                <div className="ser-metric-item">
+                  <span className="m-value">
+                    {new Date(selectedAttempt.submittedAt || selectedAttempt.date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                  <span className="m-label">Date Submitted</span>
+                </div>
+              </div>
             </section>
-          )}
 
-          {!loading && attempts.length === 0 && (
-            <div className="ae-empty" role="status">
-              No alumni exam attempts available yet.
-            </div>
-          )}
-
-          {!loading && attempts.length > 0 && !hasResults && (
-            <div className="ae-empty" role="status">
-              No results found matching your search.
-            </div>
-          )}
-
-          {!loading && hasResults && (
-            <div className="ser-layout">
-
-              {/* LEFT SIDEBAR */}
-              <aside className="ser-sidebar">
-
-                <div className="ser-sidebar-header">
-                  <h3>Exams</h3>
-                  <span>{groupedResults.length}</span>
+            {selectedAttempt.subjectScores && selectedAttempt.subjectScores.length > 0 && (
+              <section className="ser-breakdown-card">
+                <div className="ser-breakdown-header">
+                  <h2>Score Breakdown by Topic</h2>
+                  <p>Performance across each subject area in this attempt</p>
                 </div>
 
-                <div className="ser-exam-list">
-                  {groupedResults.map((exam) => {
-
-                    console.log(
-                      "RENDERING EXAM:",
-                      exam.examName,
-                      exam.examId
-                    );
-
-                    const latestAttempt = exam.attempts[0];
-
-                    const bestAttempt = exam.attempts.reduce(
-                      (best, current) => {
-                        const currentPct =
-                          (current.rawScore / current.totalScore) * 100;
-
-                        const bestPct =
-                          (best.rawScore / best.totalScore) * 100;
-
-                        return currentPct > bestPct
-                          ? current
-                          : best;
-                      },
-                      exam.attempts[0]
-                    );
+                <div className="ser-topic-list">
+                  {selectedAttempt.subjectScores.map((subject, idx) => {
+                    const pct = subject.total > 0 ? Math.round((subject.correct / subject.total) * 100) : 0;
+                    const status = getStatusClass(pct, selectedThreshold);
 
                     return (
-                      <div
-                        key={exam.examId}
-                        className={`ser-exam-card ${selectedExam?.examId === exam.examId
-                          ? 'ser-exam-card--active'
-                          : ''
-                          }`}
-                        onClick={() => {
-                          setSelectedExam(exam);
-                          setSelectedAttempt(exam.attempts[0]);
-                        }}
-                      >
-                        <h4>{exam.examName}</h4>
-
-                        <div className="ser-exam-meta">
-                          <span>{exam.attempts.length} Attempts</span>
+                      <div key={idx} className="ser-topic-row">
+                        <div className="ser-topic-main">
+                          <div className={`ser-topic-name status-${status}`}>{subject.name}</div>
+                          <div className="ser-topic-score-group">
+                            <div className={`ser-topic-pct status-${status}`}>{pct}%</div>
+                            <div className="ser-topic-fraction">{subject.correct}/{subject.total}</div>
+                          </div>
                         </div>
 
-                        <div className="ser-exam-stats">
-                          <div>
-                            Best:
-                            {' '}
-                            {Math.round(
-                              (bestAttempt.rawScore /
-                                bestAttempt.totalScore) *
-                              100
-                            )}
-                            %
-                          </div>
-
-                          <div>
-                            Latest:
-                            {' '}
-                            #{latestAttempt.attemptNumber}
-                          </div>
+                        <div className="ser-topic-bar-bg">
+                          <div className={`ser-topic-bar-fill bg-${status}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </aside>
+              </section>
+            )}
+          </div>
+        ) : (
+          <>
+            {loading && (
+              <section className="ae-grid" aria-label="Loading attempts">
+                {[0, 1, 2].map((i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </section>
+            )}
 
-              {/* RIGHT PANEL */}
-              <section className="ser-detail-panel">
+            {!loading && attempts.length === 0 && (
+              <div className="ae-empty" role="status">
+                No alumni exam attempts available yet.
+              </div>
+            )}
 
-                {!selectedExam && (
-                  <div className="ae-empty">
-                    Select an exam to view details.
-                  </div>
-                )}
+            {!loading && attempts.length > 0 && !hasResults && (
+              <div className="ae-empty" role="status">
+                No results found matching your search.
+              </div>
+            )}
 
-                {selectedExam && (
-                  <>
-                    {/* EXAM HEADER */}
-                    <div className="ser-report-header">
-                      <div className="ser-report-title-wrap">
-                        <h2>{selectedExam.examName}</h2>
+            {!loading && hasResults && (
+              <section className="ae-grid" aria-label="Alumni exam attempts">
+                {groupedResults.map((exam) => {
+
+                  const latestAttempt = exam.attempts[0];
+
+                  const bestAttempt = exam.attempts.reduce(
+                    (best, current) => {
+                      const currentPct =
+                        (current.rawScore / current.totalScore) * 100;
+
+                      const bestPct =
+                        (best.rawScore / best.totalScore) * 100;
+
+                      return currentPct > bestPct
+                        ? current
+                        : best;
+                    },
+                    exam.attempts[0]
+                  );
+
+                  return (
+                    <div
+                      key={exam.examId}
+                      className="ae-card">
+                      <div className="ae-card-header">
+                        <h3 className="ae-card-title">
+                          {exam.examName}
+                        </h3>
+
+                        <div className="ae-card-meta">
+                          <span className="ae-meta-pill">
+                            {exam.attempts.length} Attempts
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="ser-report-meta">
-                        <span>
-                          {selectedExam.attempts.length} Attempts
-                        </span>
-                      </div>
-                    </div>
+                      <div className="ae-card-stats">
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Best Score
+                          </span>
 
-                    <div className="ser-exam-overview">
+                          <span className="ae-stat-value">
+                            {Math.round(
+                              (bestAttempt.rawScore / bestAttempt.totalScore) * 100
+                            )}
+                            %
+                          </span>
+                        </div>
 
-                      <div className="ser-summary-card">
-                        <span>Attempts</span>
-                        <strong>{selectedExam.attempts.length}</strong>
-                      </div>
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Latest Attempt
+                          </span>
 
-                      <div className="ser-summary-card">
-                        <span>Latest Attempt</span>
-                        <strong>
-                          #{selectedExam.attempts[0]?.attemptNumber}
-                        </strong>
-                      </div>
+                          <span className="ae-stat-value">
+                            #{latestAttempt.attemptNumber}
+                          </span>
+                        </div>
 
-                      <div className="ser-summary-card">
-                        <span>Best Score</span>
-                        <strong>
-                          {Math.max(
-                            ...selectedExam.attempts.map(a =>
-                              getAttemptPercentage(a)
-                            )
-                          )}%
-                        </strong>
-                      </div>
+                        <div className="ae-stat">
+                          <span className="ae-stat-label">
+                            Last Taken
+                          </span>
 
-                    </div>
-
-                    {/* ATTEMPT HISTORY */}
-                    <section className="ser-attempt-history-card">
-
-                      <div className="ser-attempt-history-header">
-                        <h3>Attempt History</h3>
-
-                        <button
-                          className="ser-toggle-attempts-btn"
-                          onClick={() => setShowAttempts(!showAttempts)}
-                        >
-                          {showAttempts ? 'Hide' : 'Show Attempts'}
-                        </button>
+                          <span className="ae-stat-value-small">
+                            {formatDate(
+                              latestAttempt.submittedAt || latestAttempt.date
+                            )}
+                          </span>
+                        </div>
                       </div>
 
-                      {showAttempts && (
+                      <button
+                        className="ae-view-btn"
+                        onClick={() =>
+                          setExpandedExam(
+                            expandedExam === exam.examId
+                              ? null
+                              : exam.examId
+                          )
+                        }
+                      >
+                        {expandedExam === exam.examId
+                          ? "Hide Attempts"
+                          : "View Attempts"}
+                      </button>
+
+                      {expandedExam === exam.examId && (
                         <div className="ae-attempt-history">
-                          {selectedExam.attempts.map((attempt) => {
-
-                            const percentage =
-                              getAttemptPercentage(attempt);
-
-                            const threshold =
-                              attempt.passingThreshold;
-
-                            const statusClass =
-                              percentage >= threshold
-                                ? 'status-green'
-                                : 'status-red';
+                          {exam.attempts.map((attempt) => {
+                            const percentage = getAttemptPercentage(attempt);
+                            const statusMeta = getStatusMeta(attempt.status);
 
                             return (
                               <div
-                                key={attempt._id || attempt.id}
-                                className={`ae-attempt-row ${selectedAttempt?.attemptNumber === attempt.attemptNumber
-                                  ? 'ae-attempt-row--active'
-                                  : ''
-                                  }`}
-                                onClick={() =>
-                                  setSelectedAttempt(attempt)
-                                }
+                                key={attempt.id}
+                                className="ae-attempt-row"
                               >
-                                <div>
-                                  Attempt #{attempt.attemptNumber}
+                                <div className="ae-attempt-left">
+                                  <div className="ae-attempt-name">
+                                    Attempt #{attempt.attemptNumber}
+                                  </div>
+
+                                  <div className="ae-attempt-date">
+                                    {formatDate(
+                                      attempt.submittedAt || attempt.date
+                                    )}
+                                  </div>
                                 </div>
 
-                                <div
-                                  className={`ae-attempt-center ${statusClass}`}
-                                >
+                                <div className="ae-attempt-center">
                                   {percentage}%
                                 </div>
 
-                                <div>
-                                  {formatDate(
-                                    attempt.submittedAt ||
-                                    attempt.date
+                                <div className="ae-attempt-right">
+                                  {statusMeta && (
+                                    <span
+                                      className="ae-status-chip"
+                                      style={{
+                                        color: statusMeta.color,
+                                        background: statusMeta.bg,
+                                        border: `1px solid ${statusMeta.border}`,
+                                      }}
+                                    >
+                                      {statusMeta.label}
+                                    </span>
                                   )}
+
+                                  <button
+                                    className="ae-detail-btn"
+                                    onClick={() => setSelectedAttempt(attempt)}
+                                  >
+                                    View Details
+                                  </button>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
                       )}
-                    </section>
-
-                    {/* ATTEMPT DETAILS */}
-                    {selectedAttempt && (
-                      <>
-                        <section className="ser-hero-card">
-                          <CircularProgress
-                            percentage={selectedPercentage}
-                            threshold={selectedThreshold}
-                          />
-
-                          <div className="ser-hero-metrics">
-
-                            <div className="ser-metric-item">
-                              <span className="m-value">
-                                {selectedPercentage}%
-                              </span>
-                              <span className="m-label">
-                                Average Score
-                              </span>
-                            </div>
-
-                            <div className="ser-metric-item">
-                              <span className="m-value">
-                                {selectedAttempt.rawScore} /
-                                {selectedAttempt.totalScore}
-                              </span>
-
-                              <span className="m-label">
-                                Raw Score
-                              </span>
-                            </div>
-
-                            <div className="ser-metric-item">
-                              <span className="m-value">
-                                Attempt #
-                                {selectedAttempt.attemptNumber}
-                              </span>
-
-                              <span className="m-label">
-                                Attempt Number
-                              </span>
-                            </div>
-
-                          </div>
-                        </section>
-
-                        {selectedAttempt.subjectScores?.length > 0 && (
-                          <section className="ser-breakdown-card">
-
-                            <div className="ser-breakdown-header">
-                              <h2>
-                                Score Breakdown by Topic
-                              </h2>
-
-                              <p>
-                                Performance across each
-                                subject area
-                              </p>
-                            </div>
-
-                            <div className="ser-topic-list">
-                              {selectedAttempt.subjectScores.map(
-                                (subject, idx) => {
-
-                                  const pct =
-                                    subject.total > 0
-                                      ? Math.round(
-                                        (subject.correct /
-                                          subject.total) * 100
-                                      )
-                                      : 0;
-
-                                  const status =
-                                    getStatusClass(
-                                      pct,
-                                      selectedThreshold
-                                    );
-
-                                  return (
-                                    <div key={idx}>
-
-                                      <div
-                                        className={`ser-topic-row ${selectedSubject === subject.name
-                                          ? 'ser-topic-row--active'
-                                          : ''
-                                          }`}
-                                        onClick={() =>
-                                          setSelectedSubject(
-                                            selectedSubject === subject.name
-                                              ? null
-                                              : subject.name
-                                          )
-                                        }
-                                      >
-
-                                        <div className="ser-topic-main">
-                                          <div
-                                            className={`ser-topic-name status-${status}`}
-                                          >
-                                            {subject.name}
-                                          </div>
-
-                                          <div className="ser-topic-score-group">
-                                            <div
-                                              className={`ser-topic-pct status-${status}`}
-                                            >
-                                              {pct}%
-                                            </div>
-
-                                            <div className="ser-topic-fraction">
-                                              {subject.correct}/
-                                              {subject.total}
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <div className="ser-topic-bar-bg">
-                                          <div
-                                            className={`ser-topic-bar-fill bg-${status}`}
-                                            style={{
-                                              width: `${pct}%`
-                                            }}
-                                          />
-                                        </div>
-
-                                      </div>
-                                      {selectedSubject === subject.name &&
-                                        attemptDetails?.questions && (
-                                          <div className="ser-subject-questions">
-
-                                            {attemptDetails.questions
-                                              .filter(
-                                                q => q.subjectName === subject.name
-                                              )
-                                              .map((q, qIndex) => (
-
-                                                <div
-                                                  key={q._id}
-                                                  className="ser-question-card"
-                                                >
-                                                  <h4>
-                                                    {qIndex + 1}. {q.title}
-                                                  </h4>
-
-                                                  {q.description && (
-                                                    <p>{q.description}</p>
-                                                  )}
-
-                                                  <div className="ser-answer-list">
-                                                    {q.answers.map((answer) => {
-
-                                                      const isCorrect =
-                                                        String(answer._id) ===
-                                                        String(q.correctAnswer);
-
-                                                      const isUser =
-                                                        String(answer._id) ===
-                                                        String(q.userAnswer);
-
-                                                      return (
-                                                        <div
-                                                          key={answer._id}
-                                                          className={`ser-answer-option
-                          ${isCorrect ? 'answer-correct' : ''}
-                          ${isUser && !isCorrect
-                                                              ? 'answer-wrong'
-                                                              : ''
-                                                            }
-                        `}
-                                                        >
-                                                          {answer.text}
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
-
-                                                </div>
-
-                                              ))}
-                                          </div>
-                                        )}
-
-                                    </div>
-                                  );
-                                }
-                              )}
-                            </div>
-
-                          </section>
-                        )}
-
-
-                      </>
-                    )}
-                  </>
-                )}
-
+                    </div>
+                  );
+                })}
               </section>
-
-            </div>
-          )}
-        </>
+            )}
+          </>
+        )}
       </div>
-
-    </main >
+    </main>
   );
 }
