@@ -96,6 +96,9 @@ export default function Login({ onLogin, onNavigate }) {
         method: 'POST',
         body: { email, password },
       });
+      if (data?.token) {
+        window.localStorage.setItem('nu_board_token', data.token);
+      }
       clearSessionExpiredFromUrl();
       setShowSessionExpired(false);
       onLogin();

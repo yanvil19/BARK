@@ -3,7 +3,7 @@ const app = require('../app');
 const { createUserAndToken } = require('./helpers');
 
 describe('POST /api/auth/login', () => {
-  it('should return 200 and set an httpOnly cookie with valid credentials', async () => {
+  it('should return 200, return a temporary demo token, and set an httpOnly cookie with valid credentials', async () => {
     const { user } = await createUserAndToken({ email: 'login@example.com', password: 'TestPassword123!' });
 
     const res = await request(app)
@@ -12,7 +12,7 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('user');
-    expect(res.body).not.toHaveProperty('token');
+    expect(res.body).toHaveProperty('token');
     const setCookie = res.headers['set-cookie'];
     expect(setCookie).toBeDefined();
     expect(setCookie.some((c) => c.startsWith('nu_board_token='))).toBe(true);
@@ -61,6 +61,17 @@ describe('GET /api/auth/me', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('email', 'me@example.com');
+  });
+
+  it('should return current user when authenticated with a temporary demo bearer token', async () => {
+    const { token } = await createUserAndToken({ email: 'me-bearer@example.com' });
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('email', 'me-bearer@example.com');
   });
 
   it('should return 401 when no token is provided', async () => {
