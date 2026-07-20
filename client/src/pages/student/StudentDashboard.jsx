@@ -21,7 +21,7 @@ ChartJS.register(
 
 import React, { useState, useEffect } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/StudentDashboard.css';
+import '../../styles/student/StudentDashboard.css';
 import '../../styles/global.css';
 import PageHeader from '../../components/PageHeader.jsx';
 

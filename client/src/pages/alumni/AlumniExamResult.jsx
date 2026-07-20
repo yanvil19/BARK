@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../styles/StudentExamResult.css';
+import '../../styles/shared/StudentExamResult.css';
 
 function SuccessSeal() {
   return (
@@ -54,7 +54,7 @@ export default function AlumniExamResult({ onReturn, onViewResults }) {
           <button type="button" onClick={onViewResults} className="serc-primary-btn">
             View Attempt History
           </button>
-          <button type="button" onClick={onReturn} className="serc-primary-btn">
+          <button type="button" onClick={onReturn} className="serc-secondary-btn">
             Return to Available Exams
           </button>
         </div>

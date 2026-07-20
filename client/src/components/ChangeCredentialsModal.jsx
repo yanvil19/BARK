@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
-import '../styles/ChangeCredentialsModal.css';
+import '../styles/components/ChangeCredentialsModal.css';
 
 function formatDateTime(value) {
   if (!value) return '';

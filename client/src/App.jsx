@@ -1,29 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
-import Dashboard from './pages/Dashboard/index.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
-import Login from './pages/auth/Login.jsx';
-import StudentRegister from './pages/student/StudentRegister.jsx';
-import DeanApprovals from './pages/dean/DeanApprovals.jsx';
-import StudentManager from './pages/dean/StudentManager.jsx';
-import SchoolsPrograms from './pages/admin/SchoolsPrograms.jsx';
-import AdminUsers from './pages/admin/AdminUsers.jsx';
-import AdminSettings from './pages/admin/AdminSettings.jsx';
-import UserAccount from './pages/auth/UserAccount.jsx';
-import ChairTags from './pages/chair/ChairTags.jsx';
-import QuestionApprovals from './pages/chair/QuestionApprovals.jsx';
-import ChairCheatingLogs from './pages/chair/ChairCheatingLogs.jsx';
-import ProfessorQuestions from './pages/professor/ProfessorQuestions.jsx';
-import ChairQuestions from './pages/chair/ChairQuestions.jsx';
-import DeanQuestions from './pages/dean/DeanQuestions.jsx';
-import DeanTags from './pages/dean/DeanTags.jsx';
-import MockBoardExam from './pages/dean/MockBoardExam.jsx';
-import AvailableMockBoardExams from './pages/student/AvailableMockBoardExams.jsx';
+import Login from './pages/Login.jsx';
+import DeanApprovals from './pages/dean/DeanApproveQuestions.jsx';
+import StudentManager from './pages/dean/DeanStudentRegister.jsx';
+import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
+import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
+import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
+import UserAccount from './pages/UserAccount.jsx';
+import ChairTags from './pages/programchair/PCManageSubjects.jsx';
+import QuestionApprovals from './pages/programchair/PCApproveQuestions.jsx';
+import ChairCheatingLogs from './pages/programchair/PCLogs.jsx';
+import ProfessorQuestions from './pages/prof/ProfMyQuestions.jsx';
+import ChairQuestions from './pages/programchair/PCMyQuestions.jsx';
+import DeanQuestions from './pages/dean/DeanMyQuestions.jsx';
+import DeanTags from './pages/dean/DeanManageSubjects.jsx';
+import MockBoardExam from './pages/dean/DeanCreateExams.jsx';
+import AvailableMockBoardExams from './pages/student/StudentBoardExams.jsx';
 import DeanExamRunner from './pages/dean/DeanExamRunner.jsx';
-import MockBoardExamPreview from './pages/dean/MockBoardExamPreview.jsx';
-import MockBoardExamTestRun from './pages/dean/MockBoardExamTestRun.jsx';
-import ExamResults from './pages/dean/ExamResults.jsx';
+import MockBoardExamPreview from './pages/dean/DeanBoardExamPreview.jsx';
+import MockBoardExamTestRun from './pages/dean/DeanBoardExamTestRun.jsx';
+import ExamResults from './pages/dean/DeanExamResults.jsx';
 import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
@@ -37,6 +36,12 @@ import { api } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
+import PCStudentManager from './pages/programchair/PCStudentRegister.jsx';
+import PCMockBoardExam from './pages/programchair/PCCreateExams.jsx';
+import PCExamRunner from './pages/programchair/PCExamRunner.jsx';
+import PCMockBoardExamPreview from './pages/programchair/PCBoardExamPreview.jsx';
+import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx';
+import PCExamResults from './pages/programchair/PCExamResults.jsx';
 
 export default function App() {
   const [route, setRoute] = useState('Dashboard');
@@ -211,10 +216,8 @@ export default function App() {
   }
   if (route === 'landing') page = <LandingPage onNavigate={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
-  if (route === 'Register') page = <StudentRegister onNavigate={setRoute} />;
   if (route === 'account') page = <UserAccount me={me} />;
-  if (route === 'student') page = <StudentRegister onNavigate={setRoute} />;
-  if (route === 'studentManager') page = <StudentManager onNavigate={setRoute} />;
+  if (route === 'studentManager') page = <StudentManager me={me} onNavigate={setRoute} />;
   if (route === 'dean') page = <DeanApprovals />;
   if (route === 'examResults') page = <ExamResults me={me} />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
@@ -292,6 +295,69 @@ export default function App() {
         onBack={() => setRoute('availableMockBoardExams')}
       />
     );
+  if (route === 'pcStudentManager') page = <PCStudentManager me={me} onNavigate={setRoute} />;
+  if (route === 'pcExamResults') page = <PCExamResults me={me} />;
+  if (route === 'pcMockBoardExam')
+    page = (
+      <PCMockBoardExam
+        me={me}
+        editingExamId={editingMockBoardExamId}
+        onClearEditing={() => setEditingMockBoardExamId('')}
+        onExamSaved={() => {
+          setMockBoardExamRefreshKey((prev) => prev + 1);
+          setRoute('pcAvailableMockBoardExams');
+        }}
+      />
+    );
+  if (route === 'pcAvailableMockBoardExams')
+    page = (
+      <AvailableMockBoardExams
+        me={me}
+        refreshKey={mockBoardExamRefreshKey}
+        onEditExam={(id, action = 'edit') => {
+          if (action === 'edit') {
+            setEditingMockBoardExamId(id);
+            setRoute('pcMockBoardExam');
+            return;
+          }
+          if (action === 'preview') {
+            setExamRunnerId(id);
+            setRoute('pcMockBoardExamPreview');
+            return;
+          }
+          if (action === 'testRun') {
+            setExamRunnerId(id);
+            setRoute('pcMockBoardExamTestRun');
+            return;
+          }
+          setExamRunnerId(id);
+          setExamRunnerMode(action);
+          setRoute('pcExamRunner');
+        }}
+      />
+    );
+  if (route === 'pcMockBoardExamPreview')
+    page = (
+      <PCMockBoardExamPreview
+        examId={examRunnerId}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
+      />
+    );
+  if (route === 'pcMockBoardExamTestRun')
+    page = (
+      <PCMockBoardExamTestRun
+        examId={examRunnerId}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
+      />
+    );
+  if (route === 'pcExamRunner')
+    page = (
+      <PCExamRunner
+        examId={examRunnerId}
+        mode={examRunnerMode}
+        onBack={() => setRoute('pcAvailableMockBoardExams')}
+      />
+    );
   if (route === 'studentAvailableExams')
     page = (
       <StudentAvailableExams
@@ -364,7 +430,7 @@ export default function App() {
 
       <Footer
         onNavigate={setRoute}
-        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing'}
+        isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing' || route === 'login'}
         landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
       />
 

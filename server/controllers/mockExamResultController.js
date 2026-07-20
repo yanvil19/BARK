@@ -449,70 +449,106 @@ exports.getStudentResults = async (req, res) => {
         );
       }
 
-      const bestAttempts = pickHighestAttemptByAlumni(filteredAttempts, exam);
-      const attemptCountsByAlumni = filteredAttempts.reduce((counts, attempt) => {
-        const alumniId = String(attempt.alumni?._id || attempt.alumni);
-        counts.set(alumniId, (counts.get(alumniId) || 0) + 1);
-        return counts;
-      }, new Map());
+      // Group attempts by alumni
+      const attemptsByAlumni = new Map();
+      filteredAttempts.forEach(attempt => {
+        const alumniId = String(attempt.alumni._id);
+        if (!attemptsByAlumni.has(alumniId)) {
+          attemptsByAlumni.set(alumniId, {
+            student: {
+              _id: attempt.alumni._id,
+              name: attempt.alumni.name,
+              email: attempt.alumni.email,
+              studentId: attempt.alumni.alumniId,
+            },
+            attempts: []
+          });
+        }
+        attemptsByAlumni.get(alumniId).attempts.push(attempt);
+      });
+
       const passingThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null)
         ? exam.passingThreshold
         : 70;
 
-      const alumniData = bestAttempts.map(attempt => {
-        let totalCorrect = 0;
-        let totalItems = 0;
+      const alumniData = Array.from(attemptsByAlumni.values()).map(alumniRecord => {
+        // Sort attempts descending by attemptNumber or endTime
+        const sortedAttempts = alumniRecord.attempts.sort((a, b) => {
+          return new Date(b.endTime || 0) - new Date(a.endTime || 0);
+        });
 
-        const subjectBreakdowns = attempt.subjectScores.map(ss => {
-          totalCorrect += ss.correct;
-          totalItems += ss.total;
+        const formattedAttempts = sortedAttempts.map(attempt => {
+          let totalCorrect = 0;
+          let totalItems = 0;
 
-          const tagIdStr = String(ss.tag._id || ss.tag);
-          const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+          const subjectBreakdowns = attempt.subjectScores.map(ss => {
+            totalCorrect += ss.correct;
+            totalItems += ss.total;
 
-          const questionBreakdowns = subjectQuestions.map(q => {
-            const qId = String(q._id);
-            const alumniAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
-            const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
-            const isCorrect = String(alumniAnswerId) === correctOptionId;
+            const tagIdStr = String(ss.tag._id || ss.tag);
+            const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+
+            const questionBreakdowns = subjectQuestions.map(q => {
+              const qId = String(q._id);
+              const alumniAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
+              const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
+              const isCorrect = String(alumniAnswerId) === correctOptionId;
+
+              const mappedAnswers = q.answers.map(a => ({
+                _id: a._id,
+                text: a.text,
+                isCorrect: a.isCorrect
+              }));
+
+              return {
+                questionId: qId,
+                label: q.title || q.description || 'Question',
+                description: q.description || '',
+                images: q.images || [],
+                answers: mappedAnswers,
+                userAnswer: alumniAnswerId || null,
+                correctAnswer: correctOptionId || null,
+                isCorrect,
+                points: isCorrect ? 1 : 0,
+              };
+            });
+
+            const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
 
             return {
-              questionId: qId,
-              label: q.title || q.description || 'Question',
-              isCorrect,
-              points: isCorrect ? 1 : 0,
+              subjectId: tagIdStr,
+              subjectName: ss.tag.name || 'Unknown Subject',
+              correct: ss.correct,
+              total: ss.total,
+              percentage,
+              questions: questionBreakdowns,
             };
           });
 
-          const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
+          const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+          const passed = overallPercentage >= passingThreshold;
 
           return {
-            subjectId: tagIdStr,
-            subjectName: ss.tag.name || 'Unknown Subject',
-            correct: ss.correct,
-            total: ss.total,
-            percentage,
-            questions: questionBreakdowns,
+            attemptId: attempt._id,
+            attemptNumber: attempt.attemptNumber,
+            submittedAt: attempt.endTime,
+            overallPercentage,
+            passed,
+            subjectBreakdowns,
           };
         });
 
-        const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
-        const passed = overallPercentage >= passingThreshold;
+        const bestAttempt = formattedAttempts.reduce(
+          (best, a) => a.overallPercentage > best.overallPercentage ? a : best,
+          formattedAttempts[0]
+        );
 
         return {
-          attemptId: attempt._id,
-          attemptNumber: attempt.attemptNumber,
-          attemptCount: attemptCountsByAlumni.get(String(attempt.alumni._id)) || 1,
-          submittedAt: attempt.endTime,
-          student: {
-            _id: attempt.alumni._id,
-            name: attempt.alumni.name,
-            email: attempt.alumni.email,
-            studentId: attempt.alumni.alumniId,
-          },
-          overallPercentage,
-          passed,
-          subjectBreakdowns,
+          student: alumniRecord.student,
+          attemptCount: formattedAttempts.length,
+          attempts: formattedAttempts,
+          overallPercentage: bestAttempt ? bestAttempt.overallPercentage : 0,
+          passed: bestAttempt ? bestAttempt.passed : false,
         };
       });
 

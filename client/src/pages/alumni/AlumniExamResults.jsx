@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/AvailableExams.css';
-import '../../styles/StudentExamResults.css';
+import '../../styles/shared/AvailableExams.css';
+import '../../styles/shared/StudentExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 
@@ -97,6 +97,9 @@ export default function AlumniExamResults({ examId }) {
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [selectedExam, setSelectedExam] = useState(null);
   const [showAttempts, setShowAttempts] = useState(true);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [attemptDetails, setAttemptDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     async function fetchAttempts() {
@@ -152,10 +155,35 @@ export default function AlumniExamResults({ examId }) {
 
   const filteredAttempts = useMemo(() => {
     const q = search.trim().toLowerCase();
+
     return attempts.filter((attempt) =>
-      String(attempt?.examName || '').toLowerCase().includes(q)
+      String(attempt?.examName || '')
+        .toLowerCase()
+        .includes(q)
     );
   }, [attempts, search]);
+
+  const loadAttemptDetails = async (attempt) => {
+    console.log("SELECTED ATTEMPT", attempt);
+    console.log(
+      "DETAIL URL",
+      `${BASE}/api/alumni-exams/attempt/${attempt._id || attempt.id}`
+    );
+    try {
+      setLoadingDetails(true);
+
+      const data = await apiAuth(
+        `${BASE}/api/alumni-exams/attempt/${attempt._id || attempt.id}`
+      );
+
+      setAttemptDetails(data);
+    } catch (err) {
+      console.error('Failed to load attempt details:', err);
+      setAttemptDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   const groupedResults = useMemo(() => {
     const groups = {};
@@ -181,7 +209,18 @@ export default function AlumniExamResults({ examId }) {
       groups[key].attempts.push(attempt);
     });
 
-    return Object.values(groups);
+    const result = Object.values(groups);
+
+    console.log(
+      "GROUPED RESULTS:",
+      result.map(g => ({
+        examId: g.examId,
+        examName: g.examName,
+        attempts: g.attempts.length
+      }))
+    );
+
+    return result;
   }, [filteredAttempts]);
 
   useEffect(() => {
@@ -193,6 +232,14 @@ export default function AlumniExamResults({ examId }) {
       setSelectedAttempt(groupedResults[0].attempts[0]);
     }
   }, [groupedResults]);
+
+  useEffect(() => {
+    if (selectedAttempt) {
+      loadAttemptDetails(selectedAttempt);
+    }
+  }, [selectedAttempt]);
+
+  console.log("ATTEMPT DETAILS", attemptDetails);
 
   const hasResults = filteredAttempts.length > 0;
   const selectedPercentage = getAttemptPercentage(selectedAttempt);
@@ -251,6 +298,12 @@ export default function AlumniExamResults({ examId }) {
 
                 <div className="ser-exam-list">
                   {groupedResults.map((exam) => {
+
+                    console.log(
+                      "RENDERING EXAM:",
+                      exam.examName,
+                      exam.examId
+                    );
 
                     const latestAttempt = exam.attempts[0];
 
@@ -503,40 +556,108 @@ export default function AlumniExamResults({ examId }) {
                                     );
 
                                   return (
-                                    <div
-                                      key={idx}
-                                      className="ser-topic-row"
-                                    >
+                                    <div key={idx}>
 
-                                      <div className="ser-topic-main">
-                                        <div
-                                          className={`ser-topic-name status-${status}`}
-                                        >
-                                          {subject.name}
-                                        </div>
+                                      <div
+                                        className={`ser-topic-row ${selectedSubject === subject.name
+                                          ? 'ser-topic-row--active'
+                                          : ''
+                                          }`}
+                                        onClick={() =>
+                                          setSelectedSubject(
+                                            selectedSubject === subject.name
+                                              ? null
+                                              : subject.name
+                                          )
+                                        }
+                                      >
 
-                                        <div className="ser-topic-score-group">
+                                        <div className="ser-topic-main">
                                           <div
-                                            className={`ser-topic-pct status-${status}`}
+                                            className={`ser-topic-name status-${status}`}
                                           >
-                                            {pct}%
+                                            {subject.name}
                                           </div>
 
-                                          <div className="ser-topic-fraction">
-                                            {subject.correct}/
-                                            {subject.total}
+                                          <div className="ser-topic-score-group">
+                                            <div
+                                              className={`ser-topic-pct status-${status}`}
+                                            >
+                                              {pct}%
+                                            </div>
+
+                                            <div className="ser-topic-fraction">
+                                              {subject.correct}/
+                                              {subject.total}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
 
-                                      <div className="ser-topic-bar-bg">
-                                        <div
-                                          className={`ser-topic-bar-fill bg-${status}`}
-                                          style={{
-                                            width: `${pct}%`
-                                          }}
-                                        />
+                                        <div className="ser-topic-bar-bg">
+                                          <div
+                                            className={`ser-topic-bar-fill bg-${status}`}
+                                            style={{
+                                              width: `${pct}%`
+                                            }}
+                                          />
+                                        </div>
+
                                       </div>
+                                      {selectedSubject === subject.name &&
+                                        attemptDetails?.questions && (
+                                          <div className="ser-subject-questions">
+
+                                            {attemptDetails.questions
+                                              .filter(
+                                                q => q.subjectName === subject.name
+                                              )
+                                              .map((q, qIndex) => (
+
+                                                <div
+                                                  key={q._id}
+                                                  className="ser-question-card"
+                                                >
+                                                  <h4>
+                                                    {qIndex + 1}. {q.title}
+                                                  </h4>
+
+                                                  {q.description && (
+                                                    <p>{q.description}</p>
+                                                  )}
+
+                                                  <div className="ser-answer-list">
+                                                    {q.answers.map((answer) => {
+
+                                                      const isCorrect =
+                                                        String(answer._id) ===
+                                                        String(q.correctAnswer);
+
+                                                      const isUser =
+                                                        String(answer._id) ===
+                                                        String(q.userAnswer);
+
+                                                      return (
+                                                        <div
+                                                          key={answer._id}
+                                                          className={`ser-answer-option
+                          ${isCorrect ? 'answer-correct' : ''}
+                          ${isUser && !isCorrect
+                                                              ? 'answer-wrong'
+                                                              : ''
+                                                            }
+                        `}
+                                                        >
+                                                          {answer.text}
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+
+                                                </div>
+
+                                              ))}
+                                          </div>
+                                        )}
 
                                     </div>
                                   );
@@ -546,6 +667,8 @@ export default function AlumniExamResults({ examId }) {
 
                           </section>
                         )}
+
+
                       </>
                     )}
                   </>

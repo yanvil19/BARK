@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const RegistrationRequest = require('../models/RegistrationRequest');
 const AppSettings = require('../models/AppSettings');
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
@@ -9,6 +8,11 @@ const Department = require('../models/Department');
 const Program = require('../models/Program');
 const { validateStudentId, validateAlumniId } = require('../utils/idFormats');
 const { logAudit } = require('../utils/auditLogger');
+const { sendEmail } = require('../utils/emailService');
+const { welcomeCredentialsHtml } = require('../emails/templates/welcomeCredentialsTemplate');
+
+const BULK_REGISTER_MAX_ENTRIES = 500;
+const bulkRegistrationBatches = new Map();
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -65,6 +69,150 @@ async function ensureDeptProgramValid({ departmentId, programId }) {
   }
 
   return { ok: true, dept, program };
+}
+
+function createBulkBatch(actorId, total) {
+  const batchId = crypto.randomUUID();
+  const batch = {
+    id: batchId,
+    actorId: String(actorId),
+    total,
+    status: 'pending',
+    events: [],
+    clients: new Set(),
+    summary: {
+      registered: [],
+      skippedDuplicates: [],
+      emailFailures: [],
+      insertFailures: [],
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  bulkRegistrationBatches.set(batchId, batch);
+  return batch;
+}
+
+function compactUserForSummary(user) {
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    studentId: user.studentId || null,
+    alumniId: user.alumniId || null,
+  };
+}
+
+function emitBulkEvent(batch, type, payload) {
+  const event = {
+    id: batch.events.length + 1,
+    type,
+    payload,
+    createdAt: new Date().toISOString(),
+  };
+  batch.events.push(event);
+  batch.updatedAt = new Date();
+  const wire = `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;
+  for (const client of batch.clients) {
+    client.write(wire);
+  }
+}
+
+function closeBulkBatch(batch) {
+  batch.status = 'complete';
+  batch.updatedAt = new Date();
+  emitBulkEvent(batch, 'complete', buildBulkSummary(batch));
+  for (const client of batch.clients) {
+    client.end();
+  }
+  batch.clients.clear();
+
+  setTimeout(() => {
+    const current = bulkRegistrationBatches.get(batch.id);
+    if (current && current.status === 'complete') {
+      bulkRegistrationBatches.delete(batch.id);
+    }
+  }, 30 * 60 * 1000);
+}
+
+function buildBulkSummary(batch) {
+  return {
+    batchId: batch.id,
+    status: batch.status,
+    total: batch.total,
+    counts: {
+      registered: batch.summary.registered.length,
+      skippedDuplicates: batch.summary.skippedDuplicates.length,
+      emailFailures: batch.summary.emailFailures.length,
+      insertFailures: batch.summary.insertFailures.length,
+    },
+    registered: batch.summary.registered,
+    skippedDuplicates: batch.summary.skippedDuplicates,
+    emailFailures: batch.summary.emailFailures,
+    insertFailures: batch.summary.insertFailures,
+  };
+}
+
+function loginUrlFromRequest(req) {
+  return process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+
+
+async function resolveBulkRegistrationScope(req, payload) {
+  if (req.user.role === 'program_chair') {
+    if (!req.user.program) {
+      return { ok: false, status: 400, message: 'Program Chair has no assigned program' };
+    }
+
+    const program = await Program.findById(req.user.program).populate('department', 'name code isActive');
+    if (!program || !program.isActive) {
+      return { ok: false, status: 400, message: 'Assigned program is unavailable' };
+    }
+    if (!program.department || !program.department.isActive) {
+      return { ok: false, status: 400, message: 'Assigned department is unavailable' };
+    }
+
+    return {
+      ok: true,
+      departmentId: String(program.department._id),
+      programId: String(program._id),
+      department: program.department,
+      program,
+    };
+  }
+
+  if (!req.user.department) {
+    return { ok: false, status: 400, message: 'Dean department is not set' };
+  }
+
+  const programId = payload?.programId;
+  if (!programId || !isObjectId(programId)) {
+    return { ok: false, status: 400, message: 'Please provide a valid programId' };
+  }
+
+  const department = await Department.findById(req.user.department);
+  if (!department || !department.isActive) {
+    return { ok: false, status: 400, message: 'Dean department is unavailable' };
+  }
+
+  const program = await Program.findOne({
+    _id: programId,
+    department: req.user.department,
+    isActive: true,
+  });
+  if (!program) {
+    return { ok: false, status: 403, message: 'You can only register users into programs in your department' };
+  }
+
+  return {
+    ok: true,
+    departmentId: String(department._id),
+    programId: String(program._id),
+    department,
+    program,
+  };
 }
 
 // Cookie options for the auth token
@@ -382,7 +530,26 @@ const listUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (req.query.role) filter.role = req.query.role;
+    
+    // Authorization: Restrict data access by role
+    if (req.user.role === 'dean' && req.user.department) {
+      filter.department = req.user.department;
+    } else if (req.user.role === 'program_chair' && req.user.program) {
+      filter.program = req.user.program;
+    } else if (req.user.role !== 'super_admin') {
+      // Only super_admin, dean, and program_chair can view user lists
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+    
+    // Handle comma-separated roles (e.g., "student,alumni")
+    if (req.query.role) {
+      const roles = req.query.role.split(',').map((r) => r.trim()).filter((r) => r);
+      if (roles.length === 1) {
+        filter.role = roles[0];
+      } else if (roles.length > 1) {
+        filter.role = { $in: roles };
+      }
+    }
     if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
     if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
     if (req.query.isActive === 'true') filter.isActive = true;
@@ -996,6 +1163,318 @@ const rejectRegistrationRequest = async (req, res) => {
   }
 };
 
+async function sendBulkCredentialEmails({ batch, users, passwordByEmail, loginUrl }) {
+  for (const user of users) {
+    const tempPassword = passwordByEmail.get(user.email);
+    emitBulkEvent(batch, 'email_started', {
+      email: user.email,
+      name: user.name,
+      userId: user._id,
+    });
+
+    const emailResult = await sendEmail({
+      to: user.email,
+      subject: 'Welcome to NU-BOARD - Your Login Credentials',
+      html: welcomeCredentialsHtml({
+        name: user.name,
+        email: user.email,
+        tempPassword,
+        loginUrl,
+      }),
+      user,
+    });
+
+    if (emailResult.success) {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          credentialsSent: true,
+          credentialsSentAt: new Date(),
+          credentialEmailError: null,
+        }
+      );
+      const summaryUser = compactUserForSummary(user);
+      batch.summary.registered.push(summaryUser);
+      emitBulkEvent(batch, 'email_success', summaryUser);
+      continue;
+    }
+
+    const errorMessage = emailResult.reason || emailResult.error?.message || 'Welcome email failed to send';
+    await User.updateOne(
+      { _id: user._id },
+      {
+        credentialsSent: false,
+        credentialEmailError: errorMessage,
+      }
+    );
+    const failure = {
+      ...compactUserForSummary(user),
+      error: errorMessage,
+    };
+    batch.summary.emailFailures.push(failure);
+    emitBulkEvent(batch, 'email_failure', failure);
+  }
+
+  closeBulkBatch(batch);
+}
+
+// @desc    Bulk register students/alumni and send generated credentials
+// @route   POST /api/auth/bulk-register
+// @access  Private (Dean and Program Chair)
+const bulkRegister = async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const role = payload.role;
+    const entries = Array.isArray(payload.entries) ? payload.entries : [];
+
+    if (role !== 'student' && role !== 'alumni') {
+      return res.status(400).json({ message: 'role must be either "student" or "alumni"' });
+    }
+
+    if (entries.length === 0) {
+      return res.status(400).json({ message: 'Please provide at least one registration entry' });
+    }
+
+    if (entries.length > BULK_REGISTER_MAX_ENTRIES) {
+      return res.status(400).json({ message: `Bulk registration is limited to ${BULK_REGISTER_MAX_ENTRIES} entries` });
+    }
+
+    const scope = await resolveBulkRegistrationScope(req, payload);
+    if (!scope.ok) {
+      return res.status(scope.status || 400).json({ message: scope.message });
+    }
+
+    const validationErrors = [];
+    const normalizedEntries = [];
+    const seenEmails = new Set();
+    const seenIds = new Set();
+    const skippedDuplicates = [];
+
+    entries.forEach((entry, index) => {
+      const name = String(entry?.fullName || entry?.name || '').trim();
+      const email = String(entry?.email || '').toLowerCase().trim();
+      const studentId = String(entry?.studentId || '').trim();
+      const alumniId = String(entry?.alumniId || '').trim();
+
+      if (!name) validationErrors.push({ index, email, message: 'Full name is required' });
+      if (!email || !isValidEmail(email)) validationErrors.push({ index, email, message: 'A valid email is required' });
+      if (role === 'student' && !studentId) {
+        validationErrors.push({ index, email, message: 'Student ID is required for student accounts' });
+      }
+      if (role === 'student' && studentId && !validateStudentId(studentId)) {
+        validationErrors.push({ index, email, message: 'Student ID must be in format YYYY-XXXXXX (e.g., 2026-123456)' });
+      }
+      if (role === 'alumni' && !alumniId) {
+        validationErrors.push({ index, email, message: 'Alumni ID is required for alumni accounts' });
+      }
+      if (role === 'alumni' && alumniId && !validateAlumniId(alumniId)) {
+        validationErrors.push({ index, email, message: 'Alumni ID must be in format YYYY-XXXXXX (e.g., 2022-123456)' });
+      }
+
+      if (!email || !isValidEmail(email)) return;
+      if (seenEmails.has(email)) {
+        skippedDuplicates.push({ index, email, reason: 'Duplicate email in request' });
+        return;
+      }
+      seenEmails.add(email);
+
+      if (role === 'student' && studentId) {
+        if (seenIds.has(studentId)) {
+          skippedDuplicates.push({ index, email, studentId, reason: 'Duplicate Student ID in request' });
+          return;
+        }
+        seenIds.add(studentId);
+      }
+
+      if (role === 'alumni' && alumniId) {
+        if (seenIds.has(alumniId)) {
+          skippedDuplicates.push({ index, email, alumniId, reason: 'Duplicate Alumni ID in request' });
+          return;
+        }
+        seenIds.add(alumniId);
+      }
+
+      normalizedEntries.push({ index, name, email, studentId, alumniId });
+    });
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ message: 'Please fix the highlighted entries', errors: validationErrors });
+    }
+
+    const emails = normalizedEntries.map((entry) => entry.email);
+    const studentIds = role === 'student'
+      ? normalizedEntries.map((entry) => entry.studentId).filter(Boolean)
+      : [];
+    const alumniIds = role === 'alumni'
+      ? normalizedEntries.map((entry) => entry.alumniId).filter(Boolean)
+      : [];
+
+    const [existingUsersByEmail, existingUsersByStudentId, existingAlumniWithStudentId, existingUsersByAlumniId] = await Promise.all([
+      User.find({ email: { $in: emails } }).select('email studentId alumniId'),
+      studentIds.length > 0 ? User.find({ studentId: { $in: studentIds } }).select('email studentId') : [],
+      studentIds.length > 0 ? User.find({ alumniId: { $in: studentIds } }).select('email alumniId') : [],
+      alumniIds.length > 0 ? User.find({ alumniId: { $in: alumniIds } }).select('email alumniId') : [],
+    ]);
+
+    const existingEmailSet = new Set(existingUsersByEmail.map((user) => user.email));
+    const existingStudentIdSet = new Set(existingUsersByStudentId.map((user) => user.studentId).filter(Boolean));
+    const existingAlumniIdSet = new Set([
+      ...existingAlumniWithStudentId.map((user) => user.alumniId).filter(Boolean),
+      ...existingUsersByAlumniId.map((user) => user.alumniId).filter(Boolean),
+    ]);
+    const passwordByEmail = new Map();
+    const docs = [];
+
+    for (const entry of normalizedEntries) {
+      if (existingEmailSet.has(entry.email)) {
+        skippedDuplicates.push({ index: entry.index, email: entry.email, reason: 'Email already exists' });
+        continue;
+      }
+      if (role === 'student' && existingStudentIdSet.has(entry.studentId)) {
+        skippedDuplicates.push({ index: entry.index, email: entry.email, studentId: entry.studentId, reason: 'Student ID already exists' });
+        continue;
+      }
+      if (role === 'student' && existingAlumniIdSet.has(entry.studentId)) {
+        skippedDuplicates.push({ index: entry.index, email: entry.email, studentId: entry.studentId, reason: 'This ID is already in use by an alumni' });
+        continue;
+      }
+      if (role === 'alumni' && existingAlumniIdSet.has(entry.alumniId)) {
+        skippedDuplicates.push({ index: entry.index, email: entry.email, alumniId: entry.alumniId, reason: 'Alumni ID already exists' });
+        continue;
+      }
+
+      const tempPassword = crypto.randomBytes(12).toString('base64url');
+      passwordByEmail.set(entry.email, tempPassword);
+      docs.push({
+        name: entry.name,
+        email: entry.email,
+        password: await bcrypt.hash(tempPassword, 10),
+        role,
+        userType: role,
+        studentId: role === 'student' ? entry.studentId : null,
+        alumniId: role === 'alumni' ? entry.alumniId : null,
+        department: scope.departmentId,
+        program: scope.programId,
+        isActive: true,
+        mustChangePassword: true,
+        credentialsSent: false,
+      });
+    }
+
+    const batch = createBulkBatch(req.user._id, entries.length);
+    batch.summary.skippedDuplicates.push(...skippedDuplicates);
+
+    if (docs.length === 0) {
+      closeBulkBatch(batch);
+      return res.status(200).json({
+        message: 'No new users were created',
+        batchId: batch.id,
+        summary: buildBulkSummary(batch),
+      });
+    }
+
+    const createdUsers = [];
+    try {
+      const inserted = await User.insertMany(docs, { ordered: false });
+      createdUsers.push(...inserted);
+    } catch (error) {
+      if (Array.isArray(error?.insertedDocs)) {
+        createdUsers.push(...error.insertedDocs);
+      }
+      const writeErrors = error?.writeErrors || error?.result?.result?.writeErrors || [];
+      writeErrors.forEach((writeError) => {
+        const failedDoc = docs[writeError.index] || {};
+        const failure = {
+          email: failedDoc.email,
+          studentId: failedDoc.studentId || null,
+          reason: writeError.errmsg || writeError.message || 'Insert failed',
+        };
+        batch.summary.insertFailures.push(failure);
+        emitBulkEvent(batch, 'insert_failure', failure);
+      });
+      if (createdUsers.length === 0 && writeErrors.length === 0) throw error;
+    }
+
+    createdUsers.forEach((user) => {
+      emitBulkEvent(batch, 'user_created', compactUserForSummary(user));
+    });
+
+    await logAudit(req.user._id, 'bulk_registration_created', 'User', req.user._id, {
+      role,
+      departmentId: scope.departmentId,
+      programId: scope.programId,
+      requested: entries.length,
+      created: createdUsers.length,
+      skipped: batch.summary.skippedDuplicates.length,
+    });
+
+    setImmediate(() => {
+      sendBulkCredentialEmails({
+        batch,
+        users: createdUsers,
+        passwordByEmail,
+        loginUrl: loginUrlFromRequest(req),
+      }).catch((error) => {
+        console.error('bulk registration email job error:', error);
+        batch.status = 'failed';
+        emitBulkEvent(batch, 'batch_failure', { message: error.message || 'Bulk registration failed' });
+        closeBulkBatch(batch);
+      });
+    });
+
+    return res.status(202).json({
+      message: 'Bulk registration started',
+      batchId: batch.id,
+      summary: buildBulkSummary(batch),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+const getBulkRegisterSummary = (req, res) => {
+  const batch = bulkRegistrationBatches.get(req.params.batchId);
+  if (!batch || String(batch.actorId) !== String(req.user._id)) {
+    return res.status(404).json({ message: 'Bulk registration batch not found' });
+  }
+
+  return res.status(200).json(buildBulkSummary(batch));
+};
+
+const subscribeBulkRegisterEvents = (req, res) => {
+  try {
+    const batch = bulkRegistrationBatches.get(req.params.batchId);
+    if (!batch || String(batch.actorId) !== String(req.user._id)) {
+      return res.status(404).json({ message: 'Bulk registration batch not found' });
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.write('\n');
+
+    batch.clients.add(res);
+    batch.events.forEach((event) => {
+      res.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`);
+    });
+
+    if (batch.status === 'complete' || batch.status === 'failed') {
+      res.end();
+    } else {
+      req.on('close', () => {
+        batch.clients.delete(res);
+      });
+    }
+  } catch (err) {
+    console.error('SSE Error in subscribeBulkRegisterEvents:', err);
+    if (!res.headersSent) res.status(500).json({ message: 'Internal server error in SSE' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1007,9 +1486,7 @@ module.exports = {
   deactivateUser,
   activateUser,
   deleteUser,
-  registerStudentRequest,
-  checkRegistrationStatus,
-  listRegistrationRequests,
-  approveRegistrationRequest,
-  rejectRegistrationRequest,
+  bulkRegister,
+  getBulkRegisterSummary,
+  subscribeBulkRegisterEvents,
 };

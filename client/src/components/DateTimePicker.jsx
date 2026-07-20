@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../styles/DateTimePicker.css';
+import '../styles/components/DateTimePicker.css';
 
 export default function DateTimePicker({ value, onChange, onCancel, autoOpen = false }) {
   const [isOpen, setIsOpen] = useState(autoOpen);

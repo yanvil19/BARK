@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import '../../styles/AvailableExams.css';
+import '../../styles/shared/AvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
-import '../../styles/QuestionApprovals.css';
 
 const BASE = import.meta.env.VITE_API_URL;
+
+function IconClock(props) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 7v6l4 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function IconList(props) {
   return (
@@ -14,6 +22,33 @@ function IconList(props) {
       <path d="M3 6h.01M3 12h.01M3 18h.01" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
     </svg>
   );
+}
+
+function IconCalendar(props) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        d="M7 3v3M17 3v3M4 8h16M6 6h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function formatStartDateTime(value) {
+  return value
+    ? new Date(value).toLocaleDateString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : 'TBA';
 }
 
 function formatDuration(minutes) {
@@ -130,16 +165,24 @@ export default function AlumniAvailableExams({ onTakeExam, onViewResults }) {
                 <div className="ae-subtitle">{exam.program?.name || '-'}</div>
 
                 <div className="ae-pills">
+                  <div className="ae-pill" title="Duration">
+                    <IconClock className="ae-pill-icon" />
+                    <span>{exam.isTimed ? formatDuration(exam.timeLimitMinutes) : 'Untimed'}</span>
+                  </div>
                   <div className="ae-pill" title="Number of items">
                     <IconList className="ae-pill-icon" />
                     <span>{`${exam.questionCount ?? 0} items`}</span>
                   </div>
-                  <div className="ae-pill" title="Availability">
-                    <span>Available now</span>
+                  <div className="ae-pill" title="Exam start date">
+                    <IconCalendar className="ae-pill-icon" />
+                    <span>{formatStartDateTime(exam.startDateTime)}</span>
                   </div>
-                  <div className="ae-pill" title="Attempt timer">
-                    <span>{exam.isTimed ? `Timed: ${formatDuration(exam.timeLimitMinutes)}` : 'Untimed'}</span>
-                  </div>
+                  {exam.endDateTime && (
+                    <div className="ae-pill" title="Exam end date">
+                      <IconCalendar className="ae-pill-icon" />
+                      <span>Until {formatStartDateTime(exam.endDateTime)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

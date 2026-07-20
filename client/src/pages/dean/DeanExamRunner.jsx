@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
-import '../../styles/MockBoardExamPreview.css';
+import '../../styles/shared/MockBoardExamPreview.css';
 import { useToast } from '../../components/Toast.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]

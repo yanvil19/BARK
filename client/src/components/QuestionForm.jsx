@@ -4,7 +4,7 @@ import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
 import { useToast } from './Toast.jsx';
-import '../styles/QuestionForm.css';
+import '../styles/components/QuestionForm.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;

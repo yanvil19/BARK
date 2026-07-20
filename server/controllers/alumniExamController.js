@@ -45,12 +45,14 @@ function serializeSubjectScores(subjectScores = []) {
 
 async function getAvailableExams(req, res) {
   try {
+    const now = new Date();
     const exams = await MockBoardExam.find({
       program: req.user.program,
       targetAudience: 'alumni',
-      status: 'published',
+      status: { $in: ['published', 'ongoing'] },
+      endDateTime: { $gt: now },
     })
-      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes')
+      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes startDateTime endDateTime')
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
       .sort({ updatedAt: -1 })
@@ -86,8 +88,15 @@ async function startExam(req, res) {
     if (currentExam.targetAudience !== 'alumni') {
       return res.status(403).json({ message: 'This exam is not available for alumni.' });
     }
-    if (currentExam.status !== 'published') {
-      return res.status(403).json({ message: 'This alumni exam is not published yet.' });
+    const now = new Date();
+    if (currentExam.startDateTime && now < currentExam.startDateTime) {
+      return res.status(403).json({ message: 'This exam has not started yet.' });
+    }
+    if (currentExam.endDateTime && now >= currentExam.endDateTime) {
+      return res.status(403).json({ message: 'This exam window has already closed.' });
+    }
+    if (currentExam.status !== 'published' && currentExam.status !== 'ongoing') {
+      return res.status(403).json({ message: 'This alumni exam is not published or ongoing.' });
     }
     if (String(currentExam.program) !== String(req.user.program)) {
       return res.status(403).json({ message: 'This exam is not available for your program.' });
@@ -382,10 +391,96 @@ async function getDashboardAttempts(req, res) {
   }
 }
 
+async function getAttemptDetails(req, res) {
+  try {
+    const attemptId = req.params.attemptId;
+    const attempt = await AlumniExamAttempt.findById(attemptId)
+      .populate('exam', 'name questions passingThreshold isTimed timeLimitMinutes')
+      .populate('subjectScores.tag', 'name')
+      .populate({
+        path: 'randomizedQuestions.question',
+        select: 'title description images answers tag',
+        populate: { path: 'tag', select: 'name' },
+      });
+
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+    if (attempt.alumni.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const exam = attempt.exam;
+    if (!exam) return res.status(404).json({ message: 'Exam not found' });
+
+    const questions = [];
+    if (attempt.status === 'submitted') {
+      attempt.randomizedQuestions.forEach((rq) => {
+        const fullQ = rq.question;
+        if (!fullQ) return;
+
+        const mappedAnswers = rq.answers
+          .map((ansId) => {
+            const fullAns = fullQ.answers.find((a) => String(a._id) === String(ansId));
+            return fullAns ? { _id: fullAns._id, text: fullAns.text, isCorrect: fullAns.isCorrect } : null;
+          })
+          .filter(Boolean);
+
+        const userAnswer = attempt.answers.get(String(fullQ._id));
+        const correctAnswer = mappedAnswers.find(a => a.isCorrect)?._id;
+
+        questions.push({
+          _id: fullQ._id,
+          title: fullQ.title,
+          description: fullQ.description,
+          images: fullQ.images,
+          answers: mappedAnswers,
+          userAnswer: userAnswer || null,
+          correctAnswer: correctAnswer || null,
+          subjectName: fullQ.tag?.name || null,
+        });
+      });
+    }
+
+    const totalFromExam = exam.questions?.length || 0;
+    const totalFromSubjects = (attempt.subjectScores || []).reduce(
+      (sum, ss) => sum + (ss.total || 0),
+      0
+    );
+    const totalItems = totalFromExam || totalFromSubjects || 0;
+    const threshold = exam.passingThreshold ?? 70;
+    const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+    const durationMinutes = attempt.endTime && attempt.startTime
+      ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
+      : null;
+
+    res.json({
+      attempt: {
+        id: attempt._id,
+        examId: exam._id,
+        examName: exam.name,
+        date: attempt.startTime,
+        submittedAt: attempt.endTime,
+        durationMinutes,
+        totalItems,
+        rawScore: attempt.score,
+        totalScore: totalItems,
+        passed: pct >= threshold,
+        status: pct >= threshold ? 'passed' : 'failed',
+        passingThreshold: threshold,
+        subjectScores: serializeSubjectScores(attempt.subjectScores || []),
+      },
+      questions,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
 module.exports = {
   getAvailableExams,
   startExam,
   submitExam,
   getMyAttempts,
   getDashboardAttempts,
+  getAttemptDetails,
 };

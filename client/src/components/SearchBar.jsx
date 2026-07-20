@@ -1,4 +1,4 @@
-import '../styles/SearchBar.css';
+import '../styles/components/SearchBar.css';
 
 export default function SearchBar({ value, onChange, placeholder = 'Search...', className = '', ariaLabel }) {
   return (
