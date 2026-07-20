@@ -7,6 +7,7 @@ import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
+import Pagination from '../../components/Pagination.jsx';
 import '../../styles/dean/DeanCreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -74,6 +75,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnError, setReturnError] = useState('');
   const [feedbackModal, setFeedbackModal] = useState(null);
+  // Subject search + pagination
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [subjectPage, setSubjectPage] = useState(1);
+  const SUBJECTS_PER_PAGE = 8;
+  // Approved questions pagination
+  const [questionPage, setQuestionPage] = useState(1);
+  const QUESTIONS_PER_PAGE = 15;
   const [form, setForm, clearForm] = useLocalStorage(baseKey ? `${baseKey}_form` : null, {
     name: '',
     startDateTime: '',
@@ -631,20 +639,51 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           {!programId ? <p className="mbe-empty-message">Select a program first before choosing subjects.</p> : null}
           {programId && loadingSubjects ? <p className="mbe-empty-message">Loading subjects...</p> : null}
           {programId && !loadingSubjects && subjectOptions.length === 0 ? <p className="mbe-empty-message">No subjects found for this program.</p> : null}
-          {programId && !loadingSubjects && subjectOptions.length > 0 ? (
-            <div className="mbe-tag-grid">
-              {subjectOptions.map((tag) => (
-                <label key={tag._id} className="mbe-tag-option">
+          {programId && !loadingSubjects && subjectOptions.length > 0 ? (() => {
+            const filteredBySearch = subjectOptions.filter((tag) =>
+              !subjectSearch.trim() || tag.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
+            );
+            const totalSubjectPages = Math.max(1, Math.ceil(filteredBySearch.length / SUBJECTS_PER_PAGE));
+            const safeSubjectPage = Math.min(subjectPage, totalSubjectPages);
+            const pagedSubjects = filteredBySearch.slice((safeSubjectPage - 1) * SUBJECTS_PER_PAGE, safeSubjectPage * SUBJECTS_PER_PAGE);
+            return (
+              <>
+                <div className="mbe-subject-search-row">
                   <input
-                    type="checkbox"
-                    checked={selectedTagIds.includes(String(tag._id))}
-                    onChange={() => handleTagChange(String(tag._id))}
+                    className="mbe-input mbe-subject-search"
+                    type="text"
+                    placeholder="Search subjects..."
+                    value={subjectSearch}
+                    onChange={(e) => { setSubjectSearch(e.target.value); setSubjectPage(1); }}
                   />
-                  <span>{tag.name}</span>
-                </label>
-              ))}
-            </div>
-          ) : null}
+                </div>
+                {filteredBySearch.length === 0 ? (
+                  <p className="mbe-empty-message">No subjects match your search.</p>
+                ) : (
+                  <div className="mbe-tag-grid">
+                    {pagedSubjects.map((tag) => (
+                      <label key={tag._id} className="mbe-tag-option">
+                        <input
+                          type="checkbox"
+                          checked={selectedTagIds.includes(String(tag._id))}
+                          onChange={() => handleTagChange(String(tag._id))}
+                        />
+                        <span>{tag.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <Pagination
+                  currentPage={safeSubjectPage}
+                  totalItems={filteredBySearch.length}
+                  pageSize={SUBJECTS_PER_PAGE}
+                  onPageChange={setSubjectPage}
+                  itemLabel="subjects"
+                  classPrefix="el"
+                />
+              </>
+            );
+          })() : null}
         </section>
 
         <section className="mbe-card mbe-table-card">
@@ -697,9 +736,14 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
               {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
-              {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (
+              {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
+                const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
+                const safeQPage = Math.min(questionPage, totalQPages);
+                const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
+                return (
+                <>
                 <div className="mbe-approved-stack">
-                  {filteredApprovedQuestions.map((question) => {
+                  {pagedQuestions.map((question) => {
                     const isSelected = selectedQuestionIds.has(String(question._id));
                     const imageCount = question.images?.length || 0;
                     const answerCount = question.answers?.length || 0;
@@ -800,7 +844,17 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     );
                   })}
                 </div>
-              ) : null}
+                <Pagination
+                  currentPage={safeQPage}
+                  totalItems={filteredApprovedQuestions.length}
+                  pageSize={QUESTIONS_PER_PAGE}
+                  onPageChange={setQuestionPage}
+                  itemLabel="questions"
+                  classPrefix="el"
+                />
+                </>
+                );
+              })() : null}
             </>
           ) : null}
         </section>

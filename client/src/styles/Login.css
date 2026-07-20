@@ -671,12 +671,13 @@
   }
 
   .lp-btn-row {
-    flex-direction: column-reverse;
+    flex-direction: column;
     gap: 8px;
   }
 
   .lp-cancel-btn,
   .lp-submit-btn--flex {
     width: 100%;
+    flex: none;
   }
 }

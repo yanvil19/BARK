@@ -1014,7 +1014,6 @@ const LandingPage = ({ onNavigate }) => {
               </p>
               <div className="exam-cta-actions">
                 <div className="exam-cta-notice">
-                  <strong>Note:</strong> Check your email for your login credentials.
                 </div>
                 <button
                   type="button"
