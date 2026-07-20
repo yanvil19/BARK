@@ -46,7 +46,7 @@ body {
 /* HEADINGS */
 strong {
   font-family: var(--font-title);
-  color: var(--accent-yellow);
+  /* color: var(--accent-yellow); */
 }
 
 .app-container {

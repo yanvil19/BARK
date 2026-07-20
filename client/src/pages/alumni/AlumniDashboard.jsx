@@ -1,719 +1,397 @@
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    ArcElement,
-    Tooltip,
-    Legend
-} from 'chart.js';
-
-import { Bar, Doughnut } from 'react-chartjs-2';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    ArcElement,
-    Tooltip,
-    Legend
-);
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/alumni/AlumniDashboard.css';
 import '../../styles/global.css';
-import PageHeader from '../../components/PageHeader.jsx';
 
-// [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function formatDate(value) {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
 
-function isReleased(attempt) {
-    if (attempt?.resultsReleased === true) return true;
-    if (attempt?.resultsReleased === false) return false;
-    if (attempt?.rawScore != null && attempt?.totalScore != null) return true;
-    if (!attempt?.resultReleasedAt) return false;
-    return new Date() >= new Date(attempt.resultReleasedAt);
+  return date.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
-function formatDate(date) {
-    return new Date(date).toLocaleString('en-PH', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+function getScorePercent(attempt) {
+  const total = Number(attempt?.totalScore || attempt?.totalItems || 0);
+  const raw = Number(attempt?.rawScore || 0);
+  return total > 0 ? Math.round((raw / total) * 100) : 0;
 }
 
-function formatReleaseDate(date) {
-    if (!date) return 'TBA';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return 'TBA';
-
-    return d.toLocaleString('en-PH', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
+function getScoreText(attempt) {
+  if (!attempt || attempt.rawScore == null) return 'No score';
+  const total = attempt.totalScore || attempt.totalItems || 0;
+  return `${attempt.rawScore}/${total}`;
 }
 
-function formatDuration(minutes) {
-    if (!minutes) return null;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+function getAttemptStatus(attempt) {
+  if (attempt?.status === 'passed' || attempt?.passed === true) return 'Passed';
+  if (attempt?.status === 'near_pass') return 'Near pass';
+  if (attempt?.status === 'failed' || attempt?.passed === false) return 'Needs review';
+  return 'Completed';
 }
 
-function getStatusMeta(status) {
-    switch (status) {
-        case 'passed': return { label: 'Passed', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', padding: '4px 8px' };
-        case 'near_pass': return { label: 'Near pass', color: '#d97706', bg: '#fffbeb', border: '#fde68a', padding: '4px 8px' };
-        case 'failed': return { label: 'Failed', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', padding: '3px 10px', borderRadius: '9999px', marginTop: '0.5em' };
-        default: return null;
-    }
+function normalizeSubjectScore(subject) {
+  const correct = Number(subject?.correct || 0);
+  const total = Number(subject?.total || 0);
+
+  return {
+    name: subject?.name || 'Untitled subject',
+    correct,
+    total,
+    percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+  };
 }
 
-function getBarColor(pct) {
-    if (pct >= 75) return '#16a34a';
-    if (pct >= 50) return '#d97706';
-    return '#dc2626';
+function StatCard({ label, value, detail }) {
+  return (
+    <article className="ad-stat-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {detail && <p>{detail}</p>}
+    </article>
+  );
 }
 
-// ─── COUNTDOWN HOOK ───────────────────────────────────────────────────────────
-
-function useCountdown(targetDate) {
-    const [timeLeft, setTimeLeft] = useState('');
-
-    useEffect(() => {
-        if (!targetDate) {
-            setTimeLeft('TBA');
-            return;
-        }
-
-        function compute() {
-            const diff = new Date(targetDate) - new Date();
-            if (diff <= 0) { setTimeLeft(''); return; }
-            const days = Math.floor(diff / 86400000);
-            const hours = Math.floor((diff % 86400000) / 3600000);
-            const mins = Math.floor((diff % 3600000) / 60000);
-            const secs = Math.floor((diff % 60000) / 1000);
-            if (days > 0) setTimeLeft(`${days}d ${hours}h ${mins}m`);
-            else if (hours > 0) setTimeLeft(`${hours}h ${mins}m ${secs}s`);
-            else setTimeLeft(`${mins}m ${secs}s`);
-        }
-        compute();
-        const id = setInterval(compute, 1000);
-        return () => clearInterval(id);
-    }, [targetDate]);
-
-    return timeLeft;
+function SubjectRow({ subject }) {
+  return (
+    <div className="ad-subject-row">
+      <div className="ad-subject-top">
+        <strong>{subject.name}</strong>
+        <span>{subject.correct}/{subject.total}</span>
+      </div>
+      <div className="ad-progress-track" aria-hidden="true">
+        <div className="ad-progress-fill" style={{ width: `${subject.percentage}%` }} />
+      </div>
+      <small>{subject.percentage}% mastery</small>
+    </div>
+  );
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+function AttemptCard({ attempt, active, onSelect }) {
+  const percent = getScorePercent(attempt);
+  const status = getAttemptStatus(attempt);
 
-function StatCard({ accentColor, bigLabel, subLabel, subtitle, className = "", subtitleClass = "" }) {
-    return (
-        <div className={`sd-stat-card ${className}`} style={{ '--sd-accent': accentColor }}>
-            <div className="sd-stat-top-bar" />
-            <div className="sd-stat-body">
-                <div className="sd-stat-big">{bigLabel}</div>
-                <div className="sd-stat-label">{subLabel}</div>
-                {subtitle && <div className="sd-stat-subtitle">{subtitle}</div>}
-            </div>
-        </div>
-    );
+  return (
+    <button
+      type="button"
+      className={`ad-attempt-card${active ? ' active' : ''}`}
+      onClick={onSelect}
+    >
+      <div>
+        <strong>{attempt.examName}</strong>
+        <span>{formatDate(attempt.date || attempt.submittedAt)}</span>
+      </div>
+      <div className="ad-attempt-score">
+        <span>{getScoreText(attempt)}</span>
+        <small>{percent}%</small>
+      </div>
+      <span className={`ad-status-pill ${status.toLowerCase().replace(/\s+/g, '-')}`}>
+        {status}
+      </span>
+    </button>
+  );
 }
 
-function AttemptRow({ attempt, isSelected, onClick }) {
-    const released = isReleased(attempt);
-    const statusMeta = released ? getStatusMeta(attempt.status) : null;
-    const countdown = useCountdown(attempt.resultReleasedAt);
-    const duration = formatDuration(attempt.durationMinutes);
-    const isClickable = released;
-
-    return (
-        <div
-            className={[
-                'sd-attempt-row',
-                !released ? 'sd-attempt-row--pending' : '',
-                isSelected ? 'sd-attempt-row--selected' : '',
-                isClickable ? 'sd-attempt-row--clickable' : '',
-            ].filter(Boolean).join(' ')}
-            onClick={isClickable ? onClick : undefined}
-            role={isClickable ? 'button' : undefined}
-            tabIndex={isClickable ? 0 : undefined}
-            onKeyDown={isClickable ? (e => e.key === 'Enter' && onClick?.()) : undefined}
-        >
-            {/* Timeline dot */}
-            <div className="sd-attempt-dot-col">
-                <span className={`sd-dot${!released ? ' sd-dot--muted' : ''}${isSelected ? ' sd-dot--active' : ''}`} />
-            </div>
-
-            {/* Left: date + exam info */}
-            <div className="sd-attempt-left">
-                <div className="sd-attempt-name">
-                    {attempt.examName}
-                </div>
-
-                <div className="sd-attempt-date">
-                    {formatDate(attempt.date)}
-                </div>
-
-                <div className="sd-attempt-meta">
-                    {attempt.totalItems} items
-                    {duration && ` · ${duration}`}
-                </div>
-
-                {!released && (
-                    <div className="sd-attempt-status">
-                        <span className="sd-pending-badge">
-                            Pending release
-                        </span>
-                    </div>
-                )}
-
-            </div>
-
-
-            {/* Right: score or countdown */}
-            <div className="sd-attempt-right">
-                {released ? (
-                    <>
-                        <div className="sd-score">
-                            {attempt.rawScore}
-                            <span className="sd-score-denom">/{attempt.totalScore}</span>
-                        </div>
-                        {statusMeta && (
-                            <span
-                                className="sd-status-badge"
-                                style={{
-                                    color: statusMeta.color,
-                                    background: statusMeta.bg,
-                                    border: `1px solid ${statusMeta.border}`,
-                                    padding: statusMeta.padding,
-                                    borderRadius: statusMeta.borderRadius || '9999px',
-                                    marginTop: statusMeta.marginTop || '0',
-                                }}
-                            >
-                                {statusMeta.label}
-                            </span>
-                        )}
-                    </>
-                ) : (
-
-                    <div className="sd-release-teaser">
-                        <div className="sd-release-label">Results release in:</div>
-
-                        {attempt.resultReleasedAt ? (
-                            <>
-                                <div className="sd-release-countdown">
-                                    {countdown || '—'}
-                                </div>
-                                <div className="sd-release-on">
-                                    {formatReleaseDate(attempt.resultReleasedAt)}
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="sd-release-countdown">Countdown: TBA</div>
-                                <div className="sd-release-on">Date and Time: TBA</div>
-                            </>
-                        )}
-                    </div>
-
-                )}
-            </div>
-        </div>
-    );
+function EmptyState({ title, detail }) {
+  return (
+    <div className="ad-empty-state">
+      <strong>{title}</strong>
+      <p>{detail}</p>
+    </div>
+  );
 }
-
-function SubjectBar({ subject }) {
-    const pct = Math.round((subject.correct / subject.total) * 100);
-    const color = getBarColor(pct);
-
-    return (
-        <div className="sd-subject-row">
-            <div className="sd-subject-name">{subject.name}</div>
-            <div className="sd-subject-bar-track">
-                <div
-                    className="sd-subject-bar-fill"
-                    style={{ width: `${pct}%`, background: color }}
-                />
-            </div>
-            <div className="sd-subject-pct" style={{ color }}>{pct}%</div>
-            <div className="sd-subject-fraction">{subject.correct}/{subject.total}</div>
-        </div>
-    );
-}
-
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 const AlumniDashboard = ({ me, onNavigate }) => {
-    const [attempts, setAttempts] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [selectedAttempt, setSelectedAttempt] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 5;
+  const [attempts, setAttempts] = useState([]);
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
-    useEffect(() => {
-        async function fetchAttempts() {
-            setLoading(true);
-            try {
-                const data = await apiAuth(`${BASE}/api/alumni-exams/my-attempts`);
-                const sorted = (data.attempts || [])
-                    .filter((attempt) => attempt.examName && attempt.examName !== 'Unknown Exam')
-                    .sort((a, b) => new Date(b.date) - new Date(a.date));
-                setAttempts(sorted);
+  useEffect(() => {
+    let alive = true;
 
-                // Default selection: latest with subject scores
-                const released = sorted.filter(isReleased);
-                const defaultSelected = released.find(a => a.subjectScores?.length > 0) ?? null;
-                setSelectedAttempt(defaultSelected);
-            } catch (err) {
-                console.error('Failed to load attempts:', err);
-                setError(err.message || 'Failed to load dashboard data.');
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchAttempts();
-    }, []);
+    async function fetchAttempts() {
+      setLoading(true);
+      setError('');
 
-    const releasedAttempts = attempts;
-    const totalTaken = attempts.length;
-    const passed = releasedAttempts.filter(a => a.status === 'passed').length;
-    const toImprove = releasedAttempts.filter(a => a.status !== 'passed').length;
+      try {
+        const data = await apiAuth(`${BASE}/api/alumni-exams/my-attempts`);
+        const sorted = (data.attempts || [])
+          .filter((attempt) => attempt.examName && attempt.examName !== 'Unknown Exam')
+          .sort((a, b) => new Date(b.date || b.submittedAt || 0) - new Date(a.date || a.submittedAt || 0));
 
-    const scoredAttempts = releasedAttempts.filter(
-        a => a.rawScore != null && a.totalScore && a.totalScore > 0
-    );
+        if (!alive) return;
+        setAttempts(sorted);
+        setSelectedAttempt(sorted[0] || null);
+      } catch (err) {
+        if (!alive) return;
+        console.error('Failed to load alumni dashboard:', err);
+        setError(err.message || 'Failed to load dashboard data.');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
 
-    const totalEarned = scoredAttempts.reduce(
-        (sum, a) => sum + a.rawScore,
-        0
-    );
+    fetchAttempts();
 
-    const totalPossible = scoredAttempts.reduce(
-        (sum, a) => sum + a.totalScore,
-        0
-    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-    const overallScore =
-        totalPossible > 0 ? `${totalEarned}/${totalPossible}` : '—';
+  const summary = useMemo(() => {
+    const scored = attempts.filter((attempt) => Number(attempt.totalScore || attempt.totalItems || 0) > 0 && attempt.rawScore != null);
+    const best = scored.length
+      ? scored.reduce((bestAttempt, attempt) => (
+        getScorePercent(attempt) > getScorePercent(bestAttempt) ? attempt : bestAttempt
+      ))
+      : null;
 
-    const highestAttempt = scoredAttempts.length
-        ? scoredAttempts.reduce((prev, curr) =>
-            (curr.rawScore / curr.totalScore) >
-                (prev.rawScore / prev.totalScore)
-                ? curr
-                : prev
-        )
-        : null;
+    const latest = attempts[0] || null;
+    const totalPercent = scored.reduce((sum, attempt) => sum + getScorePercent(attempt), 0);
+    const average = scored.length ? Math.round(totalPercent / scored.length) : 0;
+    const passed = attempts.filter((attempt) => getAttemptStatus(attempt) === 'Passed').length;
 
-    const lowestAttempt = scoredAttempts.length
-        ? scoredAttempts.reduce((prev, curr) =>
-            (curr.rawScore / curr.totalScore) <
-                (prev.rawScore / prev.totalScore)
-                ? curr
-                : prev
-        )
-        : null;
-
-    // SUBJECT MASTERY
-    const subjectTotals = {};
-
-    releasedAttempts.forEach(attempt => {
-        (attempt.subjectScores || []).forEach(subject => {
-            if (!subjectTotals[subject.name]) {
-                subjectTotals[subject.name] = {
-                    name: subject.name,
-                    correct: 0,
-                    total: 0,
-                };
-            }
-
-            subjectTotals[subject.name].correct += subject.correct;
-            subjectTotals[subject.name].total += subject.total;
-        });
+    const subjects = new Map();
+    attempts.forEach((attempt) => {
+      (attempt.subjectScores || []).forEach((item) => {
+        const subject = normalizeSubjectScore(item);
+        const current = subjects.get(subject.name) || { name: subject.name, correct: 0, total: 0 };
+        current.correct += subject.correct;
+        current.total += subject.total;
+        subjects.set(subject.name, current);
+      });
     });
 
-    const masterySubjects = Object.values(subjectTotals)
-        .map(subject => ({
-            ...subject,
-            percentage:
-                subject.total > 0
-                    ? Math.round((subject.correct / subject.total) * 100)
-                    : 0,
-        }))
-        .sort((a, b) => b.percentage - a.percentage);
+    const subjectScores = Array.from(subjects.values())
+      .map(normalizeSubjectScore)
+      .filter((subject) => subject.total > 0)
+      .sort((a, b) => b.percentage - a.percentage);
 
-    const topSubjects = masterySubjects.slice(0, 5);
-
-    const masteryChartData = {
-        labels: topSubjects.map(subject => subject.name),
-        datasets: [
-            {
-                label: 'Mastery %',
-                data: topSubjects.map(subject => subject.percentage),
-                backgroundColor: topSubjects.map(subject => {
-                    if (subject.percentage >= 80) return '#16a34a';
-                    if (subject.percentage >= 70) return '#d97706';
-                    return '#dc2626';
-                }),
-                borderRadius: 8,
-                barThickness: 18,
-            },
-        ],
+    return {
+      totalAttempts: attempts.length,
+      best,
+      latest,
+      average,
+      passed,
+      subjectScores,
     };
+  }, [attempts]);
 
-    const bestSubject =
-        masterySubjects.length > 0 ? masterySubjects[0] : null;
+  const selectedSubjects = (selectedAttempt?.subjectScores || [])
+    .map(normalizeSubjectScore)
+    .filter((subject) => subject.total > 0)
+    .sort((a, b) => b.percentage - a.percentage);
 
-    const weakestSubject =
-        masterySubjects.length > 0
-            ? masterySubjects[masterySubjects.length - 1]
-            : null;
+  const firstName = me?.firstName || me?.name?.split(' ')[0] || 'Alumni';
+  const programName = me?.program?.name || 'Program not assigned';
+  const departmentName = me?.department?.name || 'Department';
 
-    const highestScorePct = highestAttempt
-        ? Math.round(
-            (highestAttempt.rawScore / highestAttempt.totalScore) * 100
-        )
-        : 0;
-
-    const lowestScorePct = lowestAttempt
-        ? Math.round(
-            (lowestAttempt.rawScore / lowestAttempt.totalScore) * 100
-        )
-        : 0;
-
-    // Pagination logic
-    const totalPages = Math.ceil(attempts.length / pageSize);
-    const paginatedAttempts = attempts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-    const firstName = me?.firstName || me?.name?.split(' ')[0] || 'Student';
-
-    if (loading) return <div className="sd-loading">Loading dashboard...</div>;
-    if (error) return <div className="sd-error">{error}</div>;
-
-    const chartData = {
-        labels: ['Total Exams', 'Passed', 'To Improve'],
-        datasets: [
-            {
-                label: 'Statistics',
-                data: [
-                    totalTaken,
-                    passed,
-                    toImprove,
-                ],
-                backgroundColor: [
-                    '#35408E', // total
-                    '#16a34a', // passed
-                    '#dc2626', // improve
-                ],
-                borderRadius: 6,
-            },
-        ],
-    };
-
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: (context) => {
-                        if (context.dataIndex === 3) {
-                            return `Score: ${totalEarned}/${totalPossible}`;
-                        }
-                        return `Value: ${context.raw}`;
-                    }
-                }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-            },
-        },
-    };
-
-    const donutData = {
-        labels: ['Correct', 'Incorrect'],
-        datasets: [
-            {
-                data: [totalEarned, totalPossible - totalEarned],
-                backgroundColor: ['#16a34a', '#d97706'],
-                borderWidth: 0
-            },
-        ],
-    };
-
-    const donutOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '55%',
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: (context) => {
-                        const label = context.label || '';
-                        const value = context.raw;
-                        return `${label}: ${value}/${totalPossible}`;
-                    },
-                },
-            },
-        },
-    };
-
-    const masteryChartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-
-        plugins: {
-            legend: {
-                display: false,
-            },
-            tooltip: {
-                callbacks: {
-                    label: (context) =>
-                        `${context.raw}% Mastery`,
-                },
-            },
-        },
-
-        scales: {
-            x: {
-                beginAtZero: true,
-                max: 100,
-                ticks: {
-                    callback: value => `${value}%`,
-                },
-            },
-
-            y: {
-                ticks: {
-                    color: '#35408e',
-                    font: {
-                        size: 11,
-                        weight: '600',
-                    },
-                },
-            },
-        },
-    };
-
-    // Center text plugin
-    const centerTextPlugin = {
-        id: 'centerText',
-        beforeDraw(chart) {
-            const { ctx, chartArea } = chart;
-            if (!chartArea) return;
-            const centerX = (chartArea.left + chartArea.right) / 2;
-            const centerY = (chartArea.top + chartArea.bottom) / 2;
-            const pct = totalPossible > 0
-                ? Math.round((totalEarned / totalPossible) * 100)
-                : 0;
-
-            ctx.save();
-            ctx.font = `bold 22px var(--font-title)`;
-            ctx.fillStyle = '#2b3980';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`${pct}%`, centerX, centerY - 8);
-
-            ctx.font = `12px var(--font-body)`;
-            ctx.fillStyle = '#8b96c8';
-            ctx.fillText('Overall', centerX, centerY + 14);
-            ctx.restore();
-        },
-    };
-
-
-
+  if (loading) {
     return (
-        <main className="s-dashboard-container">
-
-            {/* ── HEADER ─────────────────────────────────────────────── */}
-            <PageHeader
-                className="shared-page-header--bleed-lr"
-                title={`${greeting}, ${me?.firstName || 'Alumni'}`}
-                subtitle={`${me?.program?.name || 'Program not assigned'} • ${me?.department?.name || 'Department'}`}
-            />
-
-            <div className="sd-body">
-
-                <div className="sd-grid">
-
-                    {/* 0 — Personal Thresholds */}
-                    <div className="sd-grid-item sd-grid-item-0">
-                        <div className="sd-card">
-                            <div className="sd-card-header">
-                                <span className="sd-card-title">
-                                    Personal Thresholds
-                                </span>
-                            </div>
-
-                            <div className="alumni-thresholds">
-
-                                <div className="threshold-item">
-                                    <span className="threshold-label positive">
-                                        <strong>Highest Overall Score:</strong>
-                                    </span>
-                                    <span>{highestScorePct}%</span>
-                                </div>
-
-                                <div className="threshold-item">
-                                    <span className="threshold-label negative">
-                                        <strong style={{ color: "inherit", fontWeight: 600 }}>Lowest Overall Score:</strong>
-                                    </span>
-                                    <span>{lowestScorePct}%</span>
-                                </div>
-
-                                <div className="threshold-item">
-                                    {/* Add more threshold items here if needed; for space */}
-                                </div>
-
-                                <div className="threshold-item">
-                                    <span className="threshold-label">
-                                        <strong>Best Subject:</strong>
-                                    </span>
-                                    <span>
-                                        {bestSubject
-                                            ? `${bestSubject.name} (${bestSubject.percentage}%)`
-                                            : "N/A"}
-                                    </span>
-                                </div>
-
-                                <div className="threshold-item">
-                                    <span className="threshold-label">
-                                        <strong>Weakest Subject:</strong>
-                                    </span>
-                                    <span className="threshold-value">
-                                        {weakestSubject
-                                            ? `${weakestSubject.name} (${weakestSubject.percentage}%)`
-                                            : "N/A"}
-                                    </span>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 1 — Statistics Chart */}
-                    <div className="sd-grid-item sd-grid-item-1-4">
-                        <div className="sd-card">
-                            <div className="sd-card-header">
-                                <span className="sd-card-title">Performance Overview</span>
-                            </div>
-
-                            <div className="sd-card-body chart-container">
-                                <Bar data={chartData} options={chartOptions} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Subject Mastery */}
-                    <div className="sd-grid-item sd-grid-item-2">
-                        <div className="sd-card">
-
-                            <div className="sd-card-header">
-                                <span className="sd-card-title">
-                                    Subject Mastery
-                                </span>
-                            </div>
-
-                            <div className="mastery-chart-container">
-
-  {masterySubjects.length === 0 ? (
-    <div className="sd-empty-state">
-      <p className="sd-empty-text">
-        No subject data yet.
-      </p>
-    </div>
-  ) : (
-    <Bar
-      data={masteryChartData}
-      options={masteryChartOptions}
-    />
-  )}
-
-</div>
-                        </div>
-                    </div>
-
-                    {/* 5 — Chronological Log */}
-                    <div className="sd-grid-item sd-grid-item-5">
-                        <div className="sd-card sd-card-chrono">
-                            <div className="sd-card-header chrono-header">
-                                <span className="sd-card-title chrono-title">
-                                    Chronological log of all attempts
-                                </span>
-                            </div>
-
-                            <div className="sd-card-body sd-timeline-chrono">
-                                {attempts.length === 0 ? (
-                                    <p className="sd-empty">No attempts yet.</p>
-                                ) : (
-                                    <>
-                                        <div className="sd-timeline-wrapper">
-                                            <div className="sd-timeline">
-                                                {paginatedAttempts.map(a => (
-                                                    <AttemptRow
-                                                        key={a.id}
-                                                        attempt={a}
-                                                        isSelected={selectedAttempt?.id === a.id}
-                                                        onClick={() => setSelectedAttempt(a)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {totalPages > 1 && (
-                                            <div className="sd-pagination">
-                                                <button
-                                                    className="sd-pag-btn"
-                                                    disabled={currentPage === 1}
-                                                    onClick={() => setCurrentPage(p => p - 1)}
-                                                >
-                                                    Previous
-                                                </button>
-
-                                                <span className="sd-pag-info">
-                                                    Page {currentPage} of {totalPages}
-                                                </span>
-
-                                                <button
-                                                    className="sd-pag-btn"
-                                                    disabled={currentPage === totalPages}
-                                                    onClick={() => setCurrentPage(p => p + 1)}
-                                                >
-                                                    Next
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </main>
+      <main className="ad-page">
+        <PageHeader
+          className="shared-page-header--bleed-lr"
+          title={`${greeting}, ${firstName}`}
+          subtitle={`${programName} - ${departmentName}`}
+        />
+        <div className="ad-loading">Loading dashboard...</div>
+      </main>
     );
+  }
+
+  if (error) {
+    return (
+      <main className="ad-page">
+        <PageHeader
+          className="shared-page-header--bleed-lr"
+          title={`${greeting}, ${firstName}`}
+          subtitle={`${programName} - ${departmentName}`}
+        />
+        <div className="ad-error">{error}</div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="ad-page">
+      <PageHeader
+        className="shared-page-header--bleed-lr"
+        title={`${greeting}, ${firstName}`}
+        subtitle={`${programName} - ${departmentName}`}
+      />
+
+      <section className="ad-shell">
+        <div className="ad-hero-card">
+          <div>
+            <span className="ad-eyebrow">Alumni board exam dashboard</span>
+            <h2>Your exam activity at a glance</h2>
+            <p>
+              Review your latest alumni exam attempts, strongest subjects, and score progress from released exam data.
+            </p>
+          </div>
+          <div className="ad-hero-actions">
+            <button type="button" onClick={() => onNavigate?.('alumniAvailableExams')}>
+              Available Exams
+            </button>
+            <button type="button" onClick={() => onNavigate?.('alumniExamResults')}>
+              Exam Results
+            </button>
+          </div>
+        </div>
+
+        <div className="ad-stats-grid">
+          <StatCard
+            label="Attempts"
+            value={summary.totalAttempts}
+            detail="Completed alumni exam attempts"
+          />
+          <StatCard
+            label="Latest Score"
+            value={summary.latest ? getScoreText(summary.latest) : 'No score'}
+            detail={summary.latest ? summary.latest.examName : 'No attempt yet'}
+          />
+          <StatCard
+            label="Highest Score"
+            value={summary.best ? getScoreText(summary.best) : 'No score'}
+            detail={summary.best ? summary.best.examName : 'No scored attempt'}
+          />
+          <StatCard
+            label="Average"
+            value={`${summary.average}%`}
+            detail={`${summary.passed} passed attempt${summary.passed === 1 ? '' : 's'}`}
+          />
+        </div>
+
+        <div className="ad-main-grid">
+          <section className="ad-card ad-focus-card">
+            <div className="ad-card-header">
+              <div>
+                <span className="ad-eyebrow">Selected attempt</span>
+                <h3>{selectedAttempt?.examName || 'No attempt selected'}</h3>
+              </div>
+              {selectedAttempt && (
+                <span className={`ad-status-pill ${getAttemptStatus(selectedAttempt).toLowerCase().replace(/\s+/g, '-')}`}>
+                  {getAttemptStatus(selectedAttempt)}
+                </span>
+              )}
+            </div>
+
+            {selectedAttempt ? (
+              <>
+                <div className="ad-score-panel">
+                  <div className="ad-score-ring" style={{ '--ad-score': `${getScorePercent(selectedAttempt)}%` }}>
+                    <strong>{getScorePercent(selectedAttempt)}%</strong>
+                    <span>{getScoreText(selectedAttempt)}</span>
+                  </div>
+                  <div className="ad-score-details">
+                    <div>
+                      <span>Date answered</span>
+                      <strong>{formatDate(selectedAttempt.date || selectedAttempt.submittedAt)}</strong>
+                    </div>
+                    <div>
+                      <span>Total items</span>
+                      <strong>{selectedAttempt.totalScore || selectedAttempt.totalItems || 0}</strong>
+                    </div>
+                    <div>
+                      <span>Passing mark</span>
+                      <strong>{selectedAttempt.passingThreshold ? `${selectedAttempt.passingThreshold}%` : 'Not set'}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="ad-section-head">
+                  <h4>Subject breakdown</h4>
+                  <span>{selectedSubjects.length} subject{selectedSubjects.length === 1 ? '' : 's'}</span>
+                </div>
+                {selectedSubjects.length ? (
+                  <div className="ad-subject-list">
+                    {selectedSubjects.map((subject) => (
+                      <SubjectRow key={subject.name} subject={subject} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No subject data"
+                    detail="This attempt does not include a subject-level breakdown."
+                  />
+                )}
+              </>
+            ) : (
+              <EmptyState
+                title="No attempts yet"
+                detail="Once you answer an ongoing alumni exam, your dashboard will show your activity here."
+              />
+            )}
+          </section>
+
+          <aside className="ad-card ad-overview-card">
+            <div className="ad-card-header">
+              <div>
+                <span className="ad-eyebrow">Overall subjects</span>
+                <h3>Where you stand</h3>
+              </div>
+            </div>
+
+            {summary.subjectScores.length ? (
+              <div className="ad-subject-list compact">
+                {summary.subjectScores.slice(0, 6).map((subject) => (
+                  <SubjectRow key={subject.name} subject={subject} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="No overall breakdown"
+                detail="Subject performance will appear after attempts with breakdown data are recorded."
+              />
+            )}
+          </aside>
+        </div>
+
+        <section className="ad-card">
+          <div className="ad-card-header">
+            <div>
+              <span className="ad-eyebrow">Recent attempts</span>
+              <h3>Exam history</h3>
+            </div>
+            <button type="button" className="ad-text-button" onClick={() => onNavigate?.('alumniExamResults')}>
+              View results
+            </button>
+          </div>
+
+          {attempts.length ? (
+            <div className="ad-attempt-grid">
+              {attempts.slice(0, 8).map((attempt) => (
+                <AttemptCard
+                  key={attempt.id}
+                  attempt={attempt}
+                  active={selectedAttempt?.id === attempt.id}
+                  onSelect={() => setSelectedAttempt(attempt)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No exam history"
+              detail="Published exams can be viewed any time, while only on-going exams can be answered."
+            />
+          )}
+        </section>
+      </section>
+    </main>
+  );
 };
 
 export default AlumniDashboard;
