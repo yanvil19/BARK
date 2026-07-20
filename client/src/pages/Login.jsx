@@ -355,7 +355,7 @@ export default function Login({ onLogin, onNavigate }) {
                 <button type="button" className="lp-cancel-btn" onClick={cancelForgotPassword} disabled={busy}>
                   Back
                 </button>
-                <button type="submit" className="lp-submit-btn lp-submit-btn--flex" disabled={busy}>
+                <button type="submit" className="lp-submit-btn lp-submit-btn--flex" disabled={busy || !resetEmail.trim()}>
                   <span className="lp-btn-shimmer" aria-hidden="true" />
                   {busy ? 'Sending…' : 'Send Code'}
                 </button>

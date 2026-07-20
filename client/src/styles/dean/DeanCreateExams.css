@@ -265,10 +265,31 @@
   min-height: 110px;
 }
 
+.mbe-subject-search-row {
+  margin-bottom: 14px;
+}
+
+.mbe-subject-search {
+  max-width: 340px;
+}
+
 .mbe-tag-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .mbe-tag-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .mbe-tag-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .mbe-tag-option {
