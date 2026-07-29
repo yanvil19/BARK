@@ -315,14 +315,17 @@ html.landing-theme::-webkit-scrollbar-thumb:hover {
 .hero-scroll-cue {
   position: absolute;
   bottom: 36px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   opacity: 0;
+  pointer-events: none;
   animation: heroFadeUp 0.7s ease 1.1s forwards;
 }
 
@@ -330,9 +333,11 @@ html.landing-theme::-webkit-scrollbar-thumb:hover {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.18em;
+  margin-right: -0.18em;
   text-transform: uppercase;
   color: rgba(250, 210, 39, 0.7);
   font-family: 'Poppins', sans-serif;
+  text-align: center;
 }
 
 .hero-scroll-line {
@@ -2187,8 +2192,17 @@ button {
   }
 
   .hero-main {
-    padding: 0 6%;
-    min-height: 80vh;
+    padding: 60px 6% 120px;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .hero-scroll-cue {
+    bottom: 20px;
+  }
+
+  .hero-scroll-line {
+    height: 36px;
   }
 
   .hero-stats-bar {
@@ -2324,5 +2338,7 @@ button {
 
   .hero-buttons {
     flex-direction: column;
+    width: 100%;
+    margin-bottom: 12px;
   }
 }
