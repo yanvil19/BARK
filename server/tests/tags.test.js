@@ -99,7 +99,7 @@ describe('DELETE /api/tags/:id', () => {
   it('should return 400 if tag has questions', async () => {
     const tag = await Tag.create({ name: 'Algebra', program: prog._id, createdBy: chairUser._id });
     await Question.create({
-      title: 'What is 1+1?',
+      description: 'What is 1+1?',
       answers: [{ text: '2', isCorrect: true }, { text: '3', isCorrect: false }],
       tag: tag._id,
       program: prog._id,

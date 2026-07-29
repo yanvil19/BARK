@@ -81,7 +81,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'title description images answers tag',
+      select: 'description images answers tag',
     });
 
     if (!currentExam) return res.status(404).json({ message: 'Exam not found' });
@@ -174,7 +174,6 @@ async function startExam(req, res) {
 
       responseQuestions.push({
         _id: fullQ._id,
-        title: fullQ.title,
         description: fullQ.description,
         images: fullQ.images,
         answers: mappedAnswers,
@@ -356,10 +355,10 @@ async function getDashboardAttempts(req, res) {
       const durationMinutes =
         attempt.endTime && attempt.startTime
           ? Math.round(
-              (new Date(attempt.endTime) -
-                new Date(attempt.startTime)) /
-                60000
-            )
+            (new Date(attempt.endTime) -
+              new Date(attempt.startTime)) /
+            60000
+          )
           : null;
 
       return {
@@ -399,7 +398,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'title description images answers tag',
+        select: 'description images answers tag',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -429,7 +428,6 @@ async function getAttemptDetails(req, res) {
 
         questions.push({
           _id: fullQ._id,
-          title: fullQ.title,
           description: fullQ.description,
           images: fullQ.images,
           answers: mappedAnswers,

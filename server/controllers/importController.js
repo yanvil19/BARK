@@ -227,7 +227,7 @@ const submitQuestions = async (req, res) => {
                 // [IMPORT REVIEW - BUBBLE NAVIGATION]
                 // Save image_required and image_note from Gemini extraction
                 const newQuestion = new Question({
-                    title: geminiQ.question_text?.substring(0, 100) || 'Imported Question',
+                    // title: geminiQ.question_text?.substring(0, 100) || 'Imported Question',
                     description: geminiQ.question_text,
                     answers,
                     tag: geminiQ.selected_tag || null,
@@ -243,7 +243,8 @@ const submitQuestions = async (req, res) => {
                 savedQuestions.push({
                     _id: saved._id,
                     question_number: geminiQ.question_number,
-                    title: saved.title
+                    // title: saved.title
+                    description: saved.description
                 });
 
             } catch (error) {
