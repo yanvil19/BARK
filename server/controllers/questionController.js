@@ -148,10 +148,14 @@ const listApprovals = async (req, res) => {
 // POST /api/questions
 const createQuestion = async (req, res) => {
   try {
-    const { title, description, answers, tagId, programId, images } = req.body;
+    const { description, answers, tagId, programId, images } = req.body;
 
-    if (!title?.trim()) return res.status(400).json({ message: 'Question title is required to save a draft' });
-    
+    if (!description?.trim()) {
+      return res.status(400).json({
+        message: 'Question text is required'
+      });
+    }
+
     // Other fields are optional for drafts, but we still do basic structure checks if provided
     if (Array.isArray(answers) && answers.length > 0) {
       if (!answers.some((a) => a.isCorrect)) {
@@ -186,7 +190,6 @@ const createQuestion = async (req, res) => {
     }
 
     const question = await Question.create({
-      title: title.trim(),
       description: description.trim(),
       images: images || [],
       answers,
@@ -201,7 +204,6 @@ const createQuestion = async (req, res) => {
       { path: 'program', select: 'name code' },
     ]);
     await logAudit(req.user._id, 'question_created', 'Question', question._id, {
-      title: question.title,
       programId: question.program,
       tagId: question.tag || null,
       state: question.state,
@@ -224,8 +226,7 @@ const updateQuestion = async (req, res) => {
     if (!editableStates.includes(question.state))
       return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
 
-    const { title, description, answers, tagId, images } = req.body;
-    if (title) question.title = title.trim();
+    const { description, answers, tagId, images } = req.body;
     if (description) question.description = description.trim();
     if (images !== undefined) {
       const settings = await AppSettings.getSingleton();
@@ -255,7 +256,6 @@ const updateQuestion = async (req, res) => {
       { path: 'program', select: 'name code' },
     ]);
     await logAudit(req.user._id, 'question_updated', 'Question', question._id, {
-      title: question.title,
       programId: question.program,
       tagId: question.tag || null,
       state: question.state,
@@ -281,7 +281,6 @@ const deleteQuestion = async (req, res) => {
 
     await question.deleteOne();
     await logAudit(req.user._id, 'question_deleted', 'Question', question._id, {
-      title: question.title,
       programId: question.program,
       tagId: question.tag || null,
     });
@@ -303,13 +302,12 @@ const submitQuestion = async (req, res) => {
       return res.status(400).json({ message: 'Only draft or returned questions can be submitted' });
 
     // --- STRICT SUBMISSION VALIDATION ---
-    if (!question.title?.trim()) return res.status(400).json({ message: 'Title is required for submission' });
     if (!question.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
     if (!question.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
 
     const answers = question.answers || [];
     const filledOptions = answers.filter(a => a.text?.trim() !== '').length;
-    
+
     if (filledOptions < 4 || filledOptions > 5) {
       return res.status(400).json({ message: 'Questions must have exactly 4 or 5 filled options for board exams' });
     }
@@ -339,7 +337,6 @@ const submitQuestion = async (req, res) => {
       { path: 'program', select: 'name code' },
     ]);
     await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
-      title: question.title,
       programId: question.program,
       tagId: question.tag || null,
       state: question.state,
@@ -425,7 +422,6 @@ const reviewQuestion = async (req, res) => {
       await logAudit(req.user._id, 'question_reviewed', 'Question', question._id, {
         reviewAction: action,
         role: req.user.role,
-        title: question.title,
         programId: question.program,
       });
       return res.json({ message: 'Question deleted' });
@@ -459,7 +455,6 @@ const reviewQuestion = async (req, res) => {
     await logAudit(req.user._id, 'question_reviewed', 'Question', updated._id, {
       reviewAction: action,
       role: req.user.role,
-      title: updated.title,
       programId: updated.program,
       note: note?.trim() || null,
       newState: updated.state,
@@ -520,7 +515,6 @@ const deanReturnApprovedQuestion = async (req, res) => {
       { path: 'createdBy', select: 'name' },
     ]);
     await logAudit(req.user._id, 'question_dean_returned', 'Question', updated._id, {
-      title: updated.title,
       programId: updated.program,
       note: note.trim(),
       newState: updated.state,

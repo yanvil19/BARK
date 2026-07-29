@@ -19,11 +19,6 @@ const QUESTION_STATES = [
 
 const questionSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: [true, 'Question title is required'],
-      trim: true,
-    },
     description: {
       type: String,
       trim: true,
