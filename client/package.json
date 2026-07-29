@@ -15,7 +15,8 @@
     "react-big-calendar": "^1.20.0",
     "react-chartjs-2": "^5.3.1",
     "react-datepicker": "^9.1.0",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

@@ -17,27 +17,28 @@ function formatDateTime(value) {
 }
 
 export default function ChangeCredentialsModal({ open, onClose, me, onUpdated }) {
-  const [newEmail, setNewEmail] = useState('');
-  const [confirmNewEmail, setConfirmNewEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpRequested, setOtpRequested] = useState(false);
   const [status, setStatus] = useState({ kind: '', message: '' }); // kind: success|error
-  const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
 
-  const [serverEmailNextAt, setServerEmailNextAt] = useState(null);
   const [serverPasswordNextAt, setServerPasswordNextAt] = useState(null);
-  const [serverEmailCooldownDays, setServerEmailCooldownDays] = useState(null);
   const [serverPasswordCooldownDays, setServerPasswordCooldownDays] = useState(null);
 
   useEffect(() => {
     if (!open) return;
     setStatus({ kind: '', message: '' });
-    setServerEmailNextAt(null);
     setServerPasswordNextAt(null);
-    setServerEmailCooldownDays(null);
     setServerPasswordCooldownDays(null);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setOtp('');
+    setOtpRequested(false);
   }, [open]);
 
   useEffect(() => {
@@ -47,11 +48,7 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
       try {
         const meRes = await apiAuth('/api/auth/me');
         if (cancelled) return;
-        const emailDays = meRes?.emailCooldownDays;
         const passDays = meRes?.passwordCooldownDays;
-        if (emailDays !== undefined && emailDays !== null && emailDays !== '') {
-          setServerEmailCooldownDays(Number(emailDays));
-        }
         if (passDays !== undefined && passDays !== null && passDays !== '') {
           setServerPasswordCooldownDays(Number(passDays));
         }
@@ -63,12 +60,6 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
       cancelled = true;
     };
   }, [open]);
-
-  const emailCooldownDays = useMemo(() => {
-    const raw = serverEmailCooldownDays ?? me?.emailCooldownDays;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  }, [me?.emailCooldownDays, serverEmailCooldownDays]);
 
   const passwordCooldownDays = useMemo(() => {
     const raw = serverPasswordCooldownDays ?? me?.passwordCooldownDays;
@@ -83,13 +74,6 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
     return `${n} ${label}`;
   }
 
-  const emailNextAt = useMemo(() => {
-    const raw = serverEmailNextAt || me?.nextEmailChangeAllowedAt;
-    if (!raw) return null;
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [me?.nextEmailChangeAllowedAt, serverEmailNextAt]);
-
   const passwordNextAt = useMemo(() => {
     const raw = serverPasswordNextAt || me?.nextPasswordChangeAllowedAt;
     if (!raw) return null;
@@ -98,50 +82,46 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
   }, [me?.nextPasswordChangeAllowedAt, serverPasswordNextAt]);
 
   const now = Date.now();
-  const emailCooldownActive = !!(emailNextAt && now < emailNextAt.getTime());
   const passwordCooldownActive = !!(passwordNextAt && now < passwordNextAt.getTime());
 
-  const emailSectionDisabled = emailCooldownActive;
   const passwordSectionDisabled = passwordCooldownActive;
 
-  async function handleSaveEmail() {
+  async function handleRequestOtp() {
     setStatus({ kind: '', message: '' });
-    setServerEmailNextAt(null);
-
-    if (emailSectionDisabled) {
-      setStatus({ kind: 'error', message: 'Email changes are currently on cooldown.' });
+    
+    if (passwordSectionDisabled) {
+      setStatus({ kind: 'error', message: 'Password changes are currently on cooldown.' });
       return;
     }
 
-    const email = newEmail.trim().toLowerCase();
-    const email2 = confirmNewEmail.trim().toLowerCase();
-    if (!email || !email2) {
-      setStatus({ kind: 'error', message: 'Please fill out both new email fields.' });
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setStatus({ kind: 'error', message: 'Please fill out all password fields first.' });
       return;
     }
-    if (email !== email2) {
-      setStatus({ kind: 'error', message: 'New email and confirmation do not match.' });
+    if (newPassword !== confirmNewPassword) {
+      setStatus({ kind: 'error', message: 'New password and confirmation do not match.' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setStatus({ kind: 'error', message: 'Password must be at least 8 characters.' });
       return;
     }
 
-    setSavingEmail(true);
+    setRequestingOtp(true);
     try {
-      const res = await apiAuth('/api/auth/update-credentials', { method: 'PATCH', body: { newEmail: email } });
-      setStatus({ kind: 'success', message: res?.message || 'Email updated.' });
-      setNewEmail('');
-      setConfirmNewEmail('');
-      await onUpdated?.();
+      const res = await apiAuth('/api/auth/request-password-change-otp', {
+        method: 'POST',
+      });
+      setStatus({ kind: 'success', message: res?.message || 'OTP sent to your email.' });
+      setOtpRequested(true);
     } catch (err) {
-      const nextEmail = err?.data?.nextEmailChangeAt || err?.data?.emailNextAt;
-      if (nextEmail) setServerEmailNextAt(nextEmail);
-
       const message =
         err?.data?.message ||
         err?.message ||
-        'Failed to update email.';
+        'Failed to request OTP.';
       setStatus({ kind: 'error', message });
     } finally {
-      setSavingEmail(false);
+      setRequestingOtp(false);
     }
   }
 
@@ -154,12 +134,8 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
       return;
     }
 
-    if (!currentPassword || !newPassword || !confirmNewPassword) {
-      setStatus({ kind: 'error', message: 'Please fill out all password fields.' });
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setStatus({ kind: 'error', message: 'New password and confirmation do not match.' });
+    if (!otp) {
+      setStatus({ kind: 'error', message: 'Please enter the OTP sent to your email.' });
       return;
     }
 
@@ -167,12 +143,14 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
     try {
       const res = await apiAuth('/api/auth/update-credentials', {
         method: 'PATCH',
-        body: { currentPassword, newPassword },
+        body: { currentPassword, newPassword, otp },
       });
       setStatus({ kind: 'success', message: res?.message || 'Password updated.' });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
+      setOtp('');
+      setOtpRequested(false);
       await onUpdated?.();
     } catch (err) {
       const nextPass = err?.data?.nextPasswordChangeAt || err?.data?.passwordNextAt;
@@ -188,75 +166,22 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
     }
   }
 
-  const canSaveEmail =
-    !emailSectionDisabled &&
-    !savingEmail &&
-    !!newEmail.trim() &&
-    !!confirmNewEmail.trim();
-
-  const canSavePassword =
+  const canRequestOtp =
     !passwordSectionDisabled &&
-    !savingPassword &&
+    !requestingOtp &&
     !!currentPassword &&
     !!newPassword &&
     !!confirmNewPassword;
 
+  const canSavePassword =
+    !passwordSectionDisabled &&
+    !savingPassword &&
+    otpRequested &&
+    !!otp;
+
   return (
-    <Modal open={open} onClose={onClose} title="Change Email & Password">
+    <Modal open={open} onClose={onClose} title="Change Password">
       <div className="change-credentials-form">
-        <section className="change-credentials-section">
-          <div className="change-credentials-section-header">
-            <h3>Change Email</h3>
-            {emailCooldownDays !== null && (
-              <p className="cooldown-note">Cooldown: {formatDays(emailCooldownDays)}</p>
-            )}
-            {emailCooldownActive && (
-              <p className="cooldown-note">
-                Email changes are on cooldown until {formatDateTime(emailNextAt)}.
-              </p>
-            )}
-          </div>
-
-          <fieldset disabled={emailSectionDisabled} className="change-credentials-fieldset">
-            <div className="modal-form-grid">
-              <div className="modal-form-group">
-                <label htmlFor="newEmail">New email</label>
-                <input
-                  id="newEmail"
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                />
-              </div>
-              <div className="modal-form-group">
-                <label htmlFor="confirmNewEmail">Confirm new email</label>
-                <input
-                  id="confirmNewEmail"
-                  type="email"
-                  value={confirmNewEmail}
-                  onChange={(e) => setConfirmNewEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <div className="change-credentials-section-actions">
-            <button
-              type="button"
-              className="modal-btn-primary"
-              onClick={handleSaveEmail}
-              disabled={!canSaveEmail}
-              aria-disabled={!canSaveEmail}
-            >
-              {savingEmail ? 'Saving...' : 'Save Email'}
-            </button>
-          </div>
-        </section>
-
         <section className="change-credentials-section">
           <div className="change-credentials-section-header">
             <h3>Change Password</h3>
@@ -280,6 +205,7 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   autoComplete="current-password"
+                  disabled={otpRequested}
                 />
               </div>
               <div className="modal-form-group">
@@ -290,6 +216,7 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   autoComplete="new-password"
+                  disabled={otpRequested}
                 />
               </div>
               <div className="modal-form-group">
@@ -300,21 +227,58 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   autoComplete="new-password"
+                  disabled={otpRequested}
                 />
               </div>
+              
+              {otpRequested && (
+                <div className="modal-form-group full-width">
+                  <label htmlFor="otp">Enter 6-digit OTP from Email</label>
+                  <input
+                    id="otp"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                  />
+                </div>
+              )}
             </div>
           </fieldset>
 
           <div className="change-credentials-section-actions">
-            <button
-              type="button"
-              className="modal-btn-primary"
-              onClick={handleSavePassword}
-              disabled={!canSavePassword}
-              aria-disabled={!canSavePassword}
-            >
-              {savingPassword ? 'Saving...' : 'Save Password'}
-            </button>
+            {!otpRequested ? (
+              <button
+                type="button"
+                className="modal-btn-primary"
+                onClick={handleRequestOtp}
+                disabled={!canRequestOtp}
+                aria-disabled={!canRequestOtp}
+              >
+                {requestingOtp ? 'Sending...' : 'Request OTP'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => setOtpRequested(false)}
+                  style={{ marginRight: '8px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="modal-btn-primary"
+                  onClick={handleSavePassword}
+                  disabled={!canSavePassword}
+                  aria-disabled={!canSavePassword}
+                >
+                  {savingPassword ? 'Saving...' : 'Save Password'}
+                </button>
+              </>
+            )}
           </div>
         </section>
 
@@ -331,4 +295,3 @@ export default function ChangeCredentialsModal({ open, onClose, me, onUpdated })
     </Modal>
   );
 }
-

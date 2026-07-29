@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
-import { listExamsWithStatus, getExamResult, computeExamResult } from '../../services/mockExamResultService';
+import * as XLSX from 'xlsx';
+import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
 import '../../styles/dean/DeanExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -272,6 +273,65 @@ const ExamResults = ({ me }) => {
   const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
   const [selectedAudience, setSelectedAudience] = useState('student');
   const [activeTab, setActiveTab] = useState('overall');
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!selectedExamId) return;
+    setExportingExcel(true);
+    try {
+      const res = await getExamStudentResults(selectedExamId);
+      const data = res.students || [];
+      if (data.length === 0) {
+        notify('No alumni results found to export.', { variant: 'info' });
+        return;
+      }
+
+      const maxAttempts = data.reduce((max, item) => Math.max(max, item.attemptCount || 0), 0);
+
+      const exportData = data.map(item => {
+        const row = {
+          'Alumni Name': item.student?.name || 'N/A',
+          'Alumni Email': item.student?.email || 'N/A',
+          'Alumni ID': item.student?.alumniId || item.student?.studentId || 'N/A',
+          'Attempt Count': item.attemptCount || 0,
+          'Highest Score (%)': item.overallPercentage || 0,
+          'Status': item.passed ? 'Passed' : 'Failed',
+        };
+
+        const sortedAttempts = (item.attempts || []).slice().sort((a, b) => {
+          if (a.attemptNumber !== undefined && b.attemptNumber !== undefined) {
+            return a.attemptNumber - b.attemptNumber;
+          }
+          return new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0);
+        });
+
+        for (let i = 0; i < maxAttempts; i++) {
+          const attempt = sortedAttempts[i];
+          if (attempt) {
+            row[`Attempt ${i + 1} Score (%)`] = attempt.overallPercentage;
+            row[`Attempt ${i + 1} Status`] = attempt.passed ? 'Passed' : 'Failed';
+          } else {
+            row[`Attempt ${i + 1} Score (%)`] = '';
+            row[`Attempt ${i + 1} Status`] = '';
+          }
+        }
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Alumni Results");
+      
+      const examNameSafe = (activeReport?.examName || 'Exam').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      XLSX.writeFile(wb, `${examNameSafe}_alumni_results.xlsx`);
+      notify('Exported successfully.', { variant: 'success' });
+    } catch (err) {
+      console.error('Export error:', err);
+      notify('Failed to export to Excel.', { variant: 'error' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   const fetchExams = useCallback(async () => {
     try {
@@ -610,6 +670,19 @@ const ExamResults = ({ me }) => {
                   <div className="er-threshold-badge">
                     Threshold: {threshold}%
                   </div>
+                  {activeReport.targetAudience === 'alumni' && (
+                    <>
+                      <span className="er-divider">|</span>
+                      <button 
+                        className="er-primary-btn" 
+                        onClick={handleExportExcel}
+                        disabled={exportingExcel}
+                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+                      >
+                        {exportingExcel ? 'Exporting...' : 'Export to Excel'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 

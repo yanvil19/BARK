@@ -385,8 +385,11 @@ export default function AdminUsers({ me }) {
         body.studentId = null;
         body.alumniId = null;
       }
-      if (isSelf && selectedUser.role !== 'super_admin') {
+
+      if (selectedUser.role !== 'super_admin' || isSelf) {
         body.email = editForm.email;
+      }
+      if (isSelf && selectedUser.role !== 'super_admin') {
         if (editForm.password) body.password = editForm.password;
       }
 
@@ -855,20 +858,21 @@ export default function AdminUsers({ me }) {
               <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
             </div>
 
+            {(!isEditingSuperAdmin || isEditingSelf) && (
+              <div className="um-form-group">
+                <label>Email Address</label>
+                <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
+              </div>
+            )}
+
             {isEditingSelf && !isEditingSuperAdmin && (
-              <>
-                <div className="um-form-group">
-                  <label>Email Address</label>
-                  <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
+              <div className="um-form-group">
+                <label>New Password (optional)</label>
+                <div className="um-password-input-wrapper">
+                  <input type={showEditPassword ? 'text' : 'password'} value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="Leave blank to keep current" />
+                  <PasswordToggle shown={showEditPassword} onToggle={() => setShowEditPassword(!showEditPassword)} label={showEditPassword ? 'Hide password' : 'Show password'} />
                 </div>
-                <div className="um-form-group">
-                  <label>New Password (optional)</label>
-                  <div className="um-password-input-wrapper">
-                    <input type={showEditPassword ? 'text' : 'password'} value={editForm.password} onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))} placeholder="Leave blank to keep current" />
-                    <PasswordToggle shown={showEditPassword} onToggle={() => setShowEditPassword(!showEditPassword)} label={showEditPassword ? 'Hide password' : 'Show password'} />
-                  </div>
-                </div>
-              </>
+              </div>
             )}
 
             {!isEditingSuperAdmin && (

@@ -74,7 +74,7 @@ export default function ProfileModal({ me, onLogout, onOpenChangeCredentials }) 
       </button>
 
       <button className="change-credentials-btn" type="button" onClick={onOpenChangeCredentials}>
-        Change Email &amp; Password
+        Change Password
       </button>
     </div>
   );

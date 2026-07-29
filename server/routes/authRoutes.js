@@ -15,6 +15,7 @@ const {
   bulkRegister,
   getBulkRegisterSummary,
   subscribeBulkRegisterEvents,
+  requestPasswordChangeOTP,
 } = require('../controllers/authController');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/emailService');
@@ -156,6 +157,10 @@ router.get('/me', protect, getMe);
 // @route   PATCH /api/auth/update-credentials
 // @access  Private
 router.patch('/update-credentials', protect, updateCredentials);
+
+// @route   POST /api/auth/request-password-change-otp
+// @access  Private
+router.post('/request-password-change-otp', protect, requestPasswordChangeOTP);
 
 // @route   POST /api/auth/bulk-register
 // @access  Private - Dean and Program Chair

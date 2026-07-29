@@ -124,6 +124,7 @@ async function getAvailableExams(req, res) {
       program: req.user.program,
       status: { $in: ['published', 'ongoing'] },
       endDateTime: { $gt: now },
+      targetAudience: { $ne: 'alumni' },
     })
       .select('name startDateTime endDateTime status program subjectTags questions')
       .populate('program', 'name code')
@@ -194,6 +195,11 @@ async function startExam(req, res) {
 
     if (currentExam.status !== 'ongoing') {
       return res.status(403).json({ message: 'This exam is not open for answering yet.' });
+    }
+
+    // Block students from accessing alumni-only exams
+    if ((currentExam.targetAudience || 'student') === 'alumni') {
+      return res.status(403).json({ message: 'This exam is for alumni only.' });
     }
 
     let attempt = await StudentExamAttempt.findOne({

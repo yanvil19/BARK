@@ -410,14 +410,19 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateCredentials = async (req, res) => {
   try {
-    const { newEmail, newPassword, currentPassword } = req.body || {};
+    const { newPassword, currentPassword, otp } = req.body || {};
 
-    if (!newEmail && !newPassword) {
-      return res.status(400).json({ message: 'Please provide a new email and/or new password' });
+    if (!newPassword) {
+      return res.status(400).json({ message: 'Please provide a new password' });
+    }
+
+    if (!otp) {
+      return res.status(400).json({ message: 'Please provide the OTP sent to your email' });
     }
 
     const settings = await AppSettings.getSingleton();
-    const emailCooldownDays = Math.max(Number(settings.emailCooldownDays) || 0, 0);
+
+
     const passwordCooldownDays = Math.max(Number(settings.passwordCooldownDays) || 0, 0);
 
     const user = await User.findById(req.user.id);
@@ -427,42 +432,6 @@ const updateCredentials = async (req, res) => {
 
     const now = new Date();
     const nowMs = now.getTime();
-
-    if (newEmail) {
-      const normalizedEmail = String(newEmail).toLowerCase().trim();
-
-      if (!isValidEmail(normalizedEmail)) {
-        return res.status(400).json({ message: 'Please provide a valid email' });
-      }
-
-      if (normalizedEmail === user.email) {
-        return res.status(400).json({ message: 'New email must be different from your current email' });
-      }
-
-      const emailCooldownMs = emailCooldownDays * 24 * 60 * 60 * 1000;
-      const effectiveNextEmailAllowedAt =
-        user.nextEmailChangeAllowedAt ||
-        (user.lastEmailChange && emailCooldownMs
-          ? new Date(new Date(user.lastEmailChange).getTime() + emailCooldownMs)
-          : null);
-
-      if (effectiveNextEmailAllowedAt && nowMs < new Date(effectiveNextEmailAllowedAt).getTime()) {
-        const nextAt = new Date(effectiveNextEmailAllowedAt);
-        return res.status(400).json({
-          message: `Email can only be changed once every ${emailCooldownDays} days. Try again on ${nextAt.toISOString()}.`,
-          nextEmailChangeAt: nextAt.toISOString(),
-        });
-      }
-
-      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
-      if (existing) {
-        return res.status(400).json({ message: 'A user with this email already exists' });
-      }
-
-      user.email = normalizedEmail;
-      user.lastEmailChange = now;
-      user.nextEmailChangeAllowedAt = emailCooldownMs ? new Date(nowMs + emailCooldownMs) : null;
-    }
 
     if (newPassword) {
       if (!currentPassword) {
@@ -493,9 +462,27 @@ const updateCredentials = async (req, res) => {
         return res.status(401).json({ message: 'Current password is incorrect' });
       }
 
+      if ((user.passwordResetOTPAttempts || 0) >= 3) {
+        return res.status(400).json({ message: 'Too many attempts. Please request a new OTP.' });
+      }
+
+      if (!user.passwordResetOTP || user.passwordResetOTP !== String(otp).trim()) {
+        user.passwordResetOTPAttempts = (user.passwordResetOTPAttempts || 0) + 1;
+        await user.save();
+        return res.status(400).json({ message: 'Invalid OTP' });
+      }
+
+      if (!user.passwordResetOTPExpiry || nowMs > new Date(user.passwordResetOTPExpiry).getTime()) {
+        return res.status(400).json({ message: 'OTP has expired. Please request a new code.' });
+      }
+
       user.password = String(newPassword);
       user.lastPasswordChange = now;
       user.nextPasswordChangeAllowedAt = passwordCooldownMs ? new Date(nowMs + passwordCooldownMs) : null;
+      
+      user.passwordResetOTP = null;
+      user.passwordResetOTPExpiry = null;
+      user.passwordResetOTPAttempts = 0;
     }
 
     await user.save();
@@ -518,6 +505,34 @@ const updateCredentials = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// @desc    Request an OTP to change password
+// @route   POST /api/auth/request-password-change-otp
+// @access  Private
+const requestPasswordChangeOTP = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { passwordResetTemplate } = require('../emails/templates/passwordResetTemplate');
+
+    const otp = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+    user.passwordResetOTP = otp;
+    user.passwordResetOTPExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    user.passwordResetOTPAttempts = 0;
+    await user.save();
+
+    const { subject, html } = passwordResetTemplate(otp);
+    await sendEmail({ to: user.email, subject, html, user });
+
+    res.status(200).json({ message: 'OTP sent to your email.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to send OTP.' });
   }
 };
 
@@ -602,9 +617,8 @@ const updateUser = async (req, res) => {
 
     const isSelf = String(req.user._id) === String(req.params.id);
 
-    // Strip email and password from update payload before saving if not self
+    // Strip password from update payload before saving if not self
     if (!isSelf && req.body) {
-      delete req.body.email;
       delete req.body.password;
     }
 
@@ -1491,4 +1505,5 @@ module.exports = {
   bulkRegister,
   getBulkRegisterSummary,
   subscribeBulkRegisterEvents,
+  requestPasswordChangeOTP,
 };
