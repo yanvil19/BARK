@@ -6,13 +6,17 @@ async function checkExamScheduleConflict({
   endDateTime,
   status,
   examId = null,
+  targetAudience = 'student',
 }) {
   if (!programId || !startDateTime || !endDateTime || !['draft', 'published', 'ongoing'].includes(status)) {
     return { hasConflict: false, conflicts: [] };
   }
 
+  const audienceFilter = targetAudience === 'alumni' ? 'alumni' : { $ne: 'alumni' };
+
   const query = {
     program: programId,
+    targetAudience: audienceFilter,
     status: { $in: ['draft', 'published', 'ongoing'] },
     startDateTime: { $lt: endDateTime },
     endDateTime: { $gt: startDateTime },

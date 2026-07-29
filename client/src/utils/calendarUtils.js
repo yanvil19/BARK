@@ -59,12 +59,13 @@ export function addConflictFlags(exams) {
     for (let j = i + 1; j < exams.length; j += 1) {
       const first = exams[i];
       const second = exams[j];
+      const sameAudience = (first.targetAudience || 'student') === (second.targetAudience || 'student');
       const sameProgram = String(first.program?._id || first.program) === String(second.program?._id || second.program);
       const overlaps =
         new Date(first.startDateTime) < new Date(second.endDateTime) &&
         new Date(first.endDateTime) > new Date(second.startDateTime);
 
-      if (sameProgram && overlaps) {
+      if (sameAudience && sameProgram && overlaps) {
         conflictsById.add(String(first._id));
         conflictsById.add(String(second._id));
       }

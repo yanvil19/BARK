@@ -362,7 +362,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     try {
       await apiAuth(`${BASE}/api/mock-board-exams/${exam._id}`, {
         method: 'PATCH',
-        body: { status: 'published' },
+        body: {
+          status: 'published',
+          targetAudience: exam.targetAudience || 'student',
+        },
       });
       updateExamStatus(exam._id, 'published');
       setFeedbackModal({

@@ -78,6 +78,7 @@ async function buildScheduleConflictResponse(payload, examId = null) {
     endDateTime: payload.endDateTime,
     status: payload.status,
     examId,
+    targetAudience: payload.targetAudience,
   });
 
   if (!conflictResult.hasConflict) {
@@ -177,8 +178,8 @@ async function validateExamPayload(user, body) {
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
   if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
-  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
     errors.push('Time limit must be at least 1 minute');
   }
@@ -198,7 +199,7 @@ async function validateExamPayload(user, body) {
   if (start && end && end <= start) errors.push('End date must be later than the start date');
   
   const now = new Date();
-  if (status === 'published' && end && end <= now) {
+  if (!isAlumniExam && status === 'published' && end && end <= now) {
     errors.push('Cannot publish an exam that has already expired. Please adjust the end date and time.');
   }
 
@@ -259,9 +260,7 @@ async function createMockBoardExam(req, res) {
     }
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = payload.targetAudience === 'alumni'
-      ? { shouldBlock: false, warnings: [] }
-      : await buildScheduleConflictResponse(payload);
+    const scheduleConflict = await buildScheduleConflictResponse(payload);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,
@@ -486,9 +485,7 @@ async function updateMockBoardExam(req, res) {
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
     if (errors.length > 0) return res.status(400).json({ message: errors[0], errors });
 
-    const scheduleConflict = payload.targetAudience === 'alumni'
-      ? { shouldBlock: false, warnings: [] }
-      : await buildScheduleConflictResponse(payload, existing._id);
+    const scheduleConflict = await buildScheduleConflictResponse(payload, existing._id);
     if (scheduleConflict.shouldBlock) {
       return res.status(409).json({
         message: scheduleConflict.message,

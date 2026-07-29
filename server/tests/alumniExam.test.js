@@ -349,4 +349,87 @@ describe('mock board alumni exam creation', () => {
     expect(res.body.exam.startDateTime).toBeNull();
     expect(res.body.exam.endDateTime).toBeNull();
   });
+
+  it('allows simultaneous publishing of student and alumni exams at the same time', async () => {
+    if (!question) await createQuestion();
+    const start = futureDate(1);
+    const end = futureDate(2);
+
+    const studentExamRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        name: 'Scheduled Student Exam',
+        programId: prog._id,
+        subjectTagIds: [tag._id],
+        questionIds: [question._id],
+        startDateTime: start,
+        endDateTime: end,
+        status: 'published',
+        targetAudience: 'student',
+      });
+    expect(studentExamRes.status).toBe(201);
+
+    const alumniExamRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        name: 'Scheduled Alumni Exam',
+        programId: prog._id,
+        subjectTagIds: [tag._id],
+        questionIds: [question._id],
+        startDateTime: start,
+        endDateTime: end,
+        status: 'published',
+        targetAudience: 'alumni',
+      });
+    expect(alumniExamRes.status).toBe(201);
+  });
+
+  it('allows publishing a draft alumni exam when an overlapping student exam is already published', async () => {
+    if (!question) await createQuestion();
+    const start = futureDate(1);
+    const end = futureDate(2);
+
+    const studentExamRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        name: 'Existing Student Exam',
+        programId: prog._id,
+        subjectTagIds: [tag._id],
+        questionIds: [question._id],
+        startDateTime: start,
+        endDateTime: end,
+        status: 'published',
+        targetAudience: 'student',
+      });
+    expect(studentExamRes.status).toBe(201);
+
+    const draftAlumniRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        name: 'Draft Alumni Exam',
+        programId: prog._id,
+        subjectTagIds: [tag._id],
+        questionIds: [question._id],
+        startDateTime: start,
+        endDateTime: end,
+        status: 'draft',
+        targetAudience: 'alumni',
+      });
+    expect(draftAlumniRes.status).toBe(201);
+    const alumniExamId = draftAlumniRes.body.exam._id;
+
+    const publishRes = await request(app)
+      .patch(`/api/mock-board-exams/${alumniExamId}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        status: 'published',
+        targetAudience: 'alumni',
+      });
+    expect(publishRes.status).toBe(200);
+    expect(publishRes.body.exam.status).toBe('published');
+  });
 });
