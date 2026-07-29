@@ -660,7 +660,7 @@ export default function QuestionApprovals({ me }) {
         if (String(qProgram) !== String(programFilter)) return false;
       }
       if (!needle) return true;
-      const content = [question.title, question.description, question.tag?.name, question.createdBy?.name]
+      const content = [question.description, question.tag?.name, question.createdBy?.name]
         .filter(Boolean).join(' ').toLowerCase();
       return content.includes(needle);
     });
@@ -818,7 +818,6 @@ export default function QuestionApprovals({ me }) {
                           </div>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 className="ca-card-title">{question.title}</h3>
                           <p className="ca-card-desc">{truncateText(question.description, 100)}</p>
                         </div>
                         <div className="ca-card-badges">
@@ -912,7 +911,6 @@ export default function QuestionApprovals({ me }) {
             <div className="ca-sidebar-content">
               <section className="ca-section">
                 <h3 className="ca-section-label">Question</h3>
-                <h4 className="ca-question-detail-title">{selectedQuestion.title}</h4>
                 <p className="ca-question-detail-text">{selectedQuestion.description}</p>
               </section>
 
@@ -1019,8 +1017,8 @@ export default function QuestionApprovals({ me }) {
         onConfirm={submitAction}
         title={actionModal ? (
           actionModal.action === 'return' ? 'Return for Revision' :
-          actionModal.action === 'restore' ? 'Restore for Review' :
-          'Reject Question'
+            actionModal.action === 'restore' ? 'Restore for Review' :
+              'Reject Question'
         ) : ''}
         confirmLabel="Submit"
         confirmVariant={actionModal && actionModal.action === 'reject' ? 'danger' : 'primary'}
@@ -1028,13 +1026,13 @@ export default function QuestionApprovals({ me }) {
       >
         {actionModal && (
           <div>
-            <div style={{ marginBottom: 8 }}><strong>Question:</strong> {actionModal.question.title}</div>
+            <div style={{ marginBottom: 8 }}><strong>Selected Question</strong></div>
             <div className="ca-form-group">
               <label className="ca-label">
                 <strong>
                   {actionModal.action === 'return' ? 'Revision Note (required)' :
-                   actionModal.action === 'restore' ? 'Restore Feedback (required)' :
-                   'Rejection Reason (required)'}
+                    actionModal.action === 'restore' ? 'Restore Feedback (required)' :
+                      'Rejection Reason (required)'}
                 </strong>
               </label>
               <textarea
@@ -1044,8 +1042,8 @@ export default function QuestionApprovals({ me }) {
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={
                   actionModal.action === 'return' ? 'Explain what needs to be fixed...' :
-                  actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
-                  'Explain why this question is being rejected...'
+                    actionModal.action === 'restore' ? 'Explain why you are sending this back for review...' :
+                      'Explain why this question is being rejected...'
                 }
                 autoFocus
               />
@@ -1061,8 +1059,8 @@ export default function QuestionApprovals({ me }) {
         onConfirm={handleBulkSubmitAction}
         title={bulkActionModal ? (
           bulkActionModal === 'return' ? `Return ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` :
-          bulkActionModal === 'restore' ? `Restore ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` :
-          `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`
+            bulkActionModal === 'restore' ? `Restore ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''} for Revision` :
+              `Reject ${selectedIds.size} Question${selectedIds.size > 1 ? 's' : ''}`
         ) : ''}
         confirmLabel="Submit"
         confirmVariant={bulkActionModal === 'reject' ? 'danger' : 'primary'}
@@ -1077,8 +1075,8 @@ export default function QuestionApprovals({ me }) {
               <label className="ca-label">
                 <strong>
                   {bulkActionModal === 'return' ? 'Revision Note (required)' :
-                   bulkActionModal === 'restore' ? 'Restore Feedback (required)' :
-                   'Rejection Reason (required)'}
+                    bulkActionModal === 'restore' ? 'Restore Feedback (required)' :
+                      'Rejection Reason (required)'}
                 </strong>
               </label>
               <textarea
@@ -1088,8 +1086,8 @@ export default function QuestionApprovals({ me }) {
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={
                   bulkActionModal === 'return' ? 'Explain what needs to be fixed...' :
-                  bulkActionModal === 'restore' ? 'Explain why you are sending these back for review...' :
-                  'Explain why these questions are being rejected...'
+                    bulkActionModal === 'restore' ? 'Explain why you are sending these back for review...' :
+                      'Explain why these questions are being rejected...'
                 }
                 autoFocus
               />
@@ -1106,9 +1104,9 @@ export default function QuestionApprovals({ me }) {
           onConfirm={performConfirm}
           title={(() => {
             if (!confirmModal) return '';
-            if (confirmModal.action === 'approve') return `Approve "${confirmModal.question?.title || ''}"?`;
-            if (confirmModal.action === 'reuse') return `Mark "${confirmModal.question?.title || ''}" for reuse?`;
-            if (confirmModal.action === 'delete') return `Delete "${confirmModal.question?.title || ''}"?`;
+            if (confirmModal.action === 'approve') return `Approve this question?`;
+            if (confirmModal.action === 'reuse') return `Mark this question for reuse?`;
+            if (confirmModal.action === 'delete') return `Delete this question?`;
             if (confirmModal.action === 'bulkApprove') return `Approve ${selectedIds.size} question${selectedIds.size > 1 ? 's' : ''}?`;
             return '';
           })()}
@@ -1168,14 +1166,14 @@ export default function QuestionApprovals({ me }) {
           setReturnError('');
         }}
         onConfirm={submitReturnToCreator}
-        title={`Return "${returnModal?.title || ''}" to Creator?`}
+        title="Return Question to Creator?"
         confirmLabel={returnSubmitting ? 'Submitting...' : 'Return Question'}
         confirmVariant="primary"
         busy={returnSubmitting}
       >
         {returnModal && (
           <div>
-            <div style={{ marginBottom: 8 }}><strong>Question:</strong> {returnModal.title}</div>
+            <div style={{ marginBottom: 8 }}><strong>Selected Question</strong></div>
             <div className="ca-form-group">
               <label className="ca-label">
                 <strong>Feedback for Creator (required)</strong>

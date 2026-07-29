@@ -26,10 +26,17 @@ function formatDate(iso) {
   });
 }
 
-function truncateText(text, max = 100) {
+function truncateText(text, max = 80) {
   if (!text) return '';
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}...`;
+
+  const clean = text
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return clean.length > max
+    ? `${clean.slice(0, max)}...`
+    : clean;
 }
 
 export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange, me }) {
@@ -97,7 +104,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   useEffect(() => {
     apiAuth('/api/admin/settings/public')
       .then(res => setMaxImages(Number(res?.maxUploadImages ?? 5)))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -180,7 +187,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       if (!needle) return true;
 
       const content = [
-        q.title,
         q.description,
         q.tag?.name,
         q.program?.name,
@@ -198,10 +204,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     next.sort((a, b) => {
       if (sortBy === 'oldest') {
         return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
-      }
-
-      if (sortBy === 'title') {
-        return (a.title || '').localeCompare(b.title || '');
       }
 
       return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
@@ -383,7 +385,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
 
         return {
-          title: q.question_title || q.question_text?.substring(0, 100) || '',
           description: q.question_text || '',
           answers: Object.entries(q.options || {})
             .filter(([, text]) => text !== null)
@@ -485,7 +486,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         sortOptions={[
           { value: 'newest', label: 'Sort: Newest' },
           { value: 'oldest', label: 'Sort: Oldest' },
-          { value: 'title', label: 'Sort: Title A-Z' }
         ]}
       />
 
@@ -521,7 +521,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                 paginatedQuestions.map((question) => (
                   <tr key={question._id}>
                     <td>
-                      <div className="qp-question-title">{question.title}</div>
                       <div className="qp-question-text">{truncateText(question.description, 120)}</div>
 
                       {question.state === 'returned' && question.revisionNote ? (
@@ -689,7 +688,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         title="Delete Question"
         message={(
           <p style={{ margin: 0 }}>
-            Are you sure you want to delete <strong>"{questionToDelete?.title}"</strong>?
+            Are you sure you want to <strong>"delete"</strong> this question?
           </p>
         )}
         confirmLabel="Delete Question"
@@ -710,7 +709,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         title={questionToSubmit?.state === 'returned' ? 'Re-submit Question' : 'Submit Question'}
         message={(
           <p style={{ margin: 0 }}>
-            Submit <strong>"{questionToSubmit?.title}"</strong> for Chair review? You won't be able to edit it after this.
+            Submit this question for Chair review? You won't be able to edit it after this.
           </p>
         )}
         confirmLabel={questionToSubmit?.state === 'returned' ? 'Re-submit' : 'Submit'}

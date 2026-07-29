@@ -299,7 +299,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     return approvedQuestions
       .map((question) => organizeQuestionAnswers(question))
       .filter((question) => {
-        const matchesSearch = !needle || [question.title, question.description, question.tag?.name, question.createdBy?.name]
+        const matchesSearch = !needle || [question.description, question.tag?.name, question.createdBy?.name]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -775,118 +775,112 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                 const safeQPage = Math.min(questionPage, totalQPages);
                 const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
                 return (
-                <>
-                <div className="mbe-approved-stack">
-                  {pagedQuestions.map((question) => {
-                    const isSelected = selectedQuestionIds.has(String(question._id));
-                    const imageCount = question.images?.length || 0;
-                    const answerCount = question.answers?.length || 0;
-                    const isExpanded = !!expandedQuestionIds[question._id];
+                  <>
+                    <div className="mbe-approved-stack">
+                      {pagedQuestions.map((question) => {
+                        const isSelected = selectedQuestionIds.has(String(question._id));
+                        const imageCount = question.images?.length || 0;
+                        const answerCount = question.answers?.length || 0;
+                        const isExpanded = !!expandedQuestionIds[question._id];
 
-                    return (
-                      <article
-                        key={question._id}
-                        className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''}`}
-                      >
-                        <div className="mbe-question-main">
-                          <button
-                            type="button"
-                            className="mbe-question-copy mbe-question-toggle"
-                            onClick={() => toggleQuestionExpanded(question._id)}
-                            aria-expanded={isExpanded}
+                        return (
+                          <article
+                            key={question._id}
+                            className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''}`}
                           >
-                            <div className="mbe-question-meta-row">
-                              <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
-                              <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
-                              {question.createdBy?.name ? (
-                                <span className="mbe-meta-text">By {question.createdBy.name}</span>
-                              ) : null}
-                              <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
-                            </div>
-
-                            <div className="mbe-question-headline mbe-question-headline--compact">
-                              <h3>
-                                {question.title}
-                              </h3>
-                            </div>
-                          </button>
-
-                          <div className="mbe-question-actions">
-                            <button
-                              className={`mbe-select-btn ${isSelected ? 'is-selected' : ''}`}
-                              type="button"
-                              onClick={() => handleQuestionToggle(question)}
-                            >
-                              {isSelected ? 'Added' : 'Add'}
-                            </button>
-                            {!question.is_used_in_exam && (
+                            <div className="mbe-question-main">
                               <button
-                                className="mbe-btn mbe-btn-ghost mbe-btn-small"
                                 type="button"
-                                onClick={() => handleReturnQuestion(question)}
+                                className="mbe-question-copy mbe-question-toggle"
+                                onClick={() => toggleQuestionExpanded(question._id)}
+                                aria-expanded={isExpanded}
                               >
-                                Return
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {isExpanded ? (
-                          <div className="mbe-question-details">
-                            <section className="mbe-question-panel">
-                              <p className="mbe-panel-label">Question</p>
-                              <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
-                            </section>
-
-                            {imageCount > 0 ? (
-                              <section className="mbe-question-panel">
-                                <p className="mbe-panel-label">Images</p>
-                                <div className="mbe-preview-images">
-                                  {question.images.map((image, index) => (
-                                    <button
-                                      key={index}
-                                      type="button"
-                                      className="mbe-preview-image-link"
-                                      onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                    >
-                                      <img
-                                        className="mbe-preview-image"
-                                        src={resolveImageUrl(image)}
-                                        alt={`${question.title} image ${index + 1}`}
-                                      />
-                                    </button>
-                                  ))}
+                                <div className="mbe-question-meta-row">
+                                  <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
+                                  <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
+                                  {question.createdBy?.name ? (
+                                    <span className="mbe-meta-text">By {question.createdBy.name}</span>
+                                  ) : null}
+                                  <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
                                 </div>
-                              </section>
-                            ) : null}
+                              </button>
 
-                            <section className="mbe-question-panel">
-                              <p className="mbe-panel-label">Answers</p>
-                              <ul className="mbe-answer-list mbe-answer-list--cards">
-                                {(question.answers || []).map((answer) => (
-                                  <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                    <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                    <span>{answer.text}</span>
-                                    {answer.isCorrect ? <strong>Correct</strong> : null}
-                                  </li>
-                                ))}
-                              </ul>
-                            </section>
-                          </div>
-                        ) : null}
-                      </article>
-                    );
-                  })}
-                </div>
-                <Pagination
-                  currentPage={safeQPage}
-                  totalItems={filteredApprovedQuestions.length}
-                  pageSize={QUESTIONS_PER_PAGE}
-                  onPageChange={setQuestionPage}
-                  itemLabel="questions"
-                  classPrefix="el"
-                />
-                </>
+                              <div className="mbe-question-actions">
+                                <button
+                                  className={`mbe-select-btn ${isSelected ? 'is-selected' : ''}`}
+                                  type="button"
+                                  onClick={() => handleQuestionToggle(question)}
+                                >
+                                  {isSelected ? 'Added' : 'Add'}
+                                </button>
+                                {!question.is_used_in_exam && (
+                                  <button
+                                    className="mbe-btn mbe-btn-ghost mbe-btn-small"
+                                    type="button"
+                                    onClick={() => handleReturnQuestion(question)}
+                                  >
+                                    Return
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {isExpanded ? (
+                              <div className="mbe-question-details">
+                                <section className="mbe-question-panel">
+                                  <p className="mbe-panel-label">Question</p>
+                                  <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
+                                </section>
+
+                                {imageCount > 0 ? (
+                                  <section className="mbe-question-panel">
+                                    <p className="mbe-panel-label">Images</p>
+                                    <div className="mbe-preview-images">
+                                      {question.images.map((image, index) => (
+                                        <button
+                                          key={index}
+                                          type="button"
+                                          className="mbe-preview-image-link"
+                                          onClick={() => setFullscreenImage(resolveImageUrl(image))}
+                                        >
+                                          <img
+                                            className="mbe-preview-image"
+                                            src={resolveImageUrl(image)}
+                                            alt={`Question image ${index + 1}`}
+                                          />
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </section>
+                                ) : null}
+
+                                <section className="mbe-question-panel">
+                                  <p className="mbe-panel-label">Answers</p>
+                                  <ul className="mbe-answer-list mbe-answer-list--cards">
+                                    {(question.answers || []).map((answer) => (
+                                      <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
+                                        <span className="mbe-answer-label">{answer.optionLabel}</span>
+                                        <span>{answer.text}</span>
+                                        {answer.isCorrect ? <strong>Correct</strong> : null}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </section>
+                              </div>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                    <Pagination
+                      currentPage={safeQPage}
+                      totalItems={filteredApprovedQuestions.length}
+                      pageSize={QUESTIONS_PER_PAGE}
+                      onPageChange={setQuestionPage}
+                      itemLabel="questions"
+                      classPrefix="el"
+                    />
+                  </>
                 );
               })() : null}
             </>
@@ -925,7 +919,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>Question Title</th>
                       <th>Subject</th>
                       <th>Choices</th>
                       <th>Images</th>
@@ -937,7 +930,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                       filteredSelectedQuestions.map((question, index) => (
                         <tr key={question._id}>
                           <td>{index + 1}</td>
-                          <td className="mbe-table-title-cell">{question.title}</td>
                           <td>
                             <span className="mbe-subject-pill">{question.tag?.name || '-'}</span>
                           </td>
@@ -1011,7 +1003,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       >
         <div className="modal-confirmation">
           <div className="modal-confirmation-message">
-            <p><strong>Question:</strong> {returnModal?.title}</p>
+            <p><strong>Selected Question</strong></p>
           </div>
 
           <div className="modal-form-group">

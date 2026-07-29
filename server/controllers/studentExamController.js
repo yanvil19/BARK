@@ -167,7 +167,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const exam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'title description images answers tag',
+      select: 'description images answers tag',
     });
 
     if (!exam) return res.status(404).json({ message: 'Exam not found' });
@@ -177,7 +177,7 @@ async function startExam(req, res) {
     await advanceExamStatuses({ _id: exam._id });
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'title description images answers tag',
+      select: 'description images answers tag',
     });
 
     if (now < currentExam.startDateTime) {
@@ -270,7 +270,6 @@ async function startExam(req, res) {
 
         responseQuestions.push({
           _id: fullQ._id,
-          title: fullQ.title,
           description: fullQ.description,
           images: fullQ.images,
           answers: mappedAnswers
@@ -402,65 +401,65 @@ async function getMyAttempts(req, res) {
     const enrichedAttempts = attempts
       .filter((attempt) => attempt.exam)
       .map((attempt) => {
-      const exam = attempt.exam;
-      const totalFromSubjects = (attempt.subjectScores || []).reduce(
-        (sum, ss) => sum + (ss.total || 0),
-        0
-      );
-      const totalItems = exam?.questions?.length || totalFromSubjects || 0;
-      const resultsReleaseDate = exam?.resultsReleaseDate || null;
-      const resultsReleased = Boolean(
-        resultsReleaseDate && new Date(resultsReleaseDate) <= now
-      );
-      const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null)
-        ? exam.passingThreshold
-        : 70;
+        const exam = attempt.exam;
+        const totalFromSubjects = (attempt.subjectScores || []).reduce(
+          (sum, ss) => sum + (ss.total || 0),
+          0
+        );
+        const totalItems = exam?.questions?.length || totalFromSubjects || 0;
+        const resultsReleaseDate = exam?.resultsReleaseDate || null;
+        const resultsReleased = Boolean(
+          resultsReleaseDate && new Date(resultsReleaseDate) <= now
+        );
+        const threshold = (exam?.passingThreshold !== undefined && exam?.passingThreshold !== null)
+          ? exam.passingThreshold
+          : 70;
 
-      const durationMinutes = attempt.endTime && attempt.startTime
-        ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
-        : null;
+        const durationMinutes = attempt.endTime && attempt.startTime
+          ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
+          : null;
 
-      const base = {
-        id: attempt._id,
-        examId: exam._id,
-        examName: exam.name,
-        date: attempt.startTime,
-        durationMinutes,
-        resultReleasedAt: resultsReleaseDate,
-        resultsReleased,
-      };
+        const base = {
+          id: attempt._id,
+          examId: exam._id,
+          examName: exam.name,
+          date: attempt.startTime,
+          durationMinutes,
+          resultReleasedAt: resultsReleaseDate,
+          resultsReleased,
+        };
 
-      if (!resultsReleased) {
+        if (!resultsReleased) {
+          return {
+            ...base,
+            totalItems: null,
+            rawScore: null,
+            totalScore: null,
+            status: null,
+            passingThreshold: threshold,
+            subjectScores: [],
+          };
+        }
+
+        const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+        let status = 'failed';
+        if (pct >= threshold) status = 'passed';
+        else if (pct >= threshold - 10) status = 'near_pass';
+
         return {
           ...base,
-          totalItems: null,
-          rawScore: null,
-          totalScore: null,
-          status: null,
+          totalItems,
+          rawScore: attempt.score,
+          totalScore: totalItems,
+          status,
           passingThreshold: threshold,
-          subjectScores: [],
+          subjectScores: (attempt.subjectScores || []).map((ss) => ({
+            name: ss.tag?.name || 'Unknown Subject',
+            correct: ss.correct,
+            total: ss.total,
+          })),
         };
-      }
-
-      const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
-      let status = 'failed';
-      if (pct >= threshold) status = 'passed';
-      else if (pct >= threshold - 10) status = 'near_pass';
-
-      return {
-        ...base,
-        totalItems,
-        rawScore: attempt.score,
-        totalScore: totalItems,
-        status,
-        passingThreshold: threshold,
-        subjectScores: (attempt.subjectScores || []).map((ss) => ({
-          name: ss.tag?.name || 'Unknown Subject',
-          correct: ss.correct,
-          total: ss.total,
-        })),
-      };
-    });
+      });
 
     res.json({ attempts: enrichedAttempts });
   } catch (err) {

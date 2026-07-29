@@ -25,7 +25,7 @@ async function createQuestion() {
   });
 
   question = await Question.create({
-    title: 'Q1',
+    description: 'Q1',
     answers: [
       { text: 'Correct', isCorrect: true },
       { text: 'Wrong', isCorrect: false },

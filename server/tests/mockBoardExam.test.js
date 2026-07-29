@@ -97,7 +97,7 @@ describe('GET /api/mock-board-exams/:id', () => {
 describe('POST /api/mock-board-exams', () => {
   it('should create a draft exam', async () => {
     const tag = await require('../models/Tag').create({ name: 'Subject', program: prog._id, createdBy: deanUser._id, isActive: true });
-    const q = await Question.create({ title: 'Q1', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
+    const q = await Question.create({ description: 'Q1', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
     const res = await request(app)
       .post('/api/mock-board-exams')
       .set('Cookie', `nu_board_token=${deanToken}`)
@@ -126,7 +126,7 @@ describe('POST /api/mock-board-exams', () => {
 describe('PATCH /api/mock-board-exams/:id', () => {
   it('should update exam name', async () => {
     const tag = await require('../models/Tag').create({ name: 'Subject 2', program: prog._id, createdBy: deanUser._id, isActive: true });
-    const q = await Question.create({ title: 'Q2', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
+    const q = await Question.create({ description: 'Q2', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
     const exam = await MockBoardExam.create({
       name: 'Old Name', program: prog._id, department: dept._id,
       questions: [q._id], startDateTime: futureDate(1), endDateTime: futureDate(2),
@@ -135,7 +135,7 @@ describe('PATCH /api/mock-board-exams/:id', () => {
     const res = await request(app)
       .patch(`/api/mock-board-exams/${exam._id}`)
       .set('Cookie', `nu_board_token=${deanToken}`)
-      .send({ 
+      .send({
         name: 'New Name',
         programId: prog._id,
         subjectTagIds: [tag._id],

@@ -33,7 +33,7 @@ export default function QuestionForm({
 
   const isEditing = !!initialData;
   const userId = me?._id || 'guest';
-  
+
   let draftKey = null;
   if (!readOnly && !isEditing) {
     if (isImportMode) {
@@ -48,7 +48,6 @@ export default function QuestionForm({
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
         id: generateId(),
-        title: q.question_title || q.title || '',
         description: q.description || '',
         answers: q.answers?.length >= 2 ? q.answers : [
           { text: '', isCorrect: true },
@@ -70,7 +69,6 @@ export default function QuestionForm({
     // Default — single empty form or edit form
     return [{
       id: generateId(),
-      title: initialData?.title || '',
       description: initialData?.description || '',
       answers: initialData?.answers || [
         { text: '', isCorrect: true },
@@ -157,7 +155,7 @@ export default function QuestionForm({
     // Blocker-style flags: subject/tag + answer correctness/completeness
     if (field === 'tag' || field === 'subject') return true;
     if (field === 'correct' || field === 'answers') return true;
-    if (field === 'title' || field === 'description') return true;
+    if (field === 'description') return true;
     if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers') return true;
 
     return msg === 'No subject assigned.' || msg === 'No correct answer selected' || msg === 'Question must have at least 4 answer choices';
@@ -312,9 +310,6 @@ export default function QuestionForm({
     }
 
     // 1. Content Flags
-    if (!q.title.trim()) {
-      flags.push({ severity: 'ERROR', message: 'Question Title cannot be empty', field: 'title' });
-    }
     if (!q.description.trim()) {
       flags.push({ severity: 'ERROR', message: 'Question text cannot be empty', field: 'description' });
     }
@@ -364,11 +359,6 @@ export default function QuestionForm({
       const q = questionsData[i];
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
 
-      // Drafts only require a title
-      if (!q.title.trim()) {
-        return `${prefix}Question title is required to save a draft.`;
-      }
-
       // Submissions always require resolving BLOCKERS (even in import mode)
       if (isSubmit) {
         const allFlags = getQuestionFlags(q);
@@ -395,7 +385,6 @@ export default function QuestionForm({
     const err = validate(submit);
     if (err) {
       showFeedback({
-        title: submit ? 'Cannot Submit Question' : 'Cannot Save Draft',
         message: err,
         tone: 'danger',
       });
@@ -425,7 +414,6 @@ export default function QuestionForm({
     try {
       for (const q of questionsData) {
         const body = {
-          title: q.title.trim(),
           description: q.description.trim(),
           answers: q.answers,
           tagId: q.tagId,
@@ -461,7 +449,6 @@ export default function QuestionForm({
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
       showFeedback({
-        title: 'Save Failed',
         message: err.message || 'Failed to save question(s).',
         tone: 'danger',
       });
@@ -484,7 +471,6 @@ export default function QuestionForm({
       try {
         for (const q of questionsData) {
           const body = {
-            title: q.title.trim(),
             description: q.description.trim(),
             answers: q.answers,
             tagId: q.tagId,
@@ -526,18 +512,17 @@ export default function QuestionForm({
       const next = [
         ...prev,
         {
-        id: generateId(),
-        title: '',
-        description: '',
-        answers: [
-          { text: '', isCorrect: true },
-          { text: '', isCorrect: false },
-        ],
-        tagId: prev[prev.length - 1]?.tagId || '',
-        imagePreviews: [],
-        uploadedUrls: [],
-        uploading: false,
-        error: '',
+          id: generateId(),
+          description: '',
+          answers: [
+            { text: '', isCorrect: true },
+            { text: '', isCorrect: false },
+          ],
+          tagId: prev[prev.length - 1]?.tagId || '',
+          imagePreviews: [],
+          uploadedUrls: [],
+          uploading: false,
+          error: '',
         }
       ];
       setCurrentQuestionIdx(next.length - 1);
@@ -565,16 +550,16 @@ export default function QuestionForm({
   const anyUploading = questionsData.some(q => q.uploading);
 
   return (
-      <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
-       {/* [IMPORT REVIEW - BUBBLE NAVIGATION] */}
-       {useBubbleNav && (
-         <ImportReviewBubbles
-           questions={questionsData}
-           currentIdx={currentQuestionIdx}
-           onSelectQuestion={setCurrentQuestionIdx}
-           getQuestionFlags={getVisibleQuestionFlags}
-         />
-       )}
+    <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
+      {/* [IMPORT REVIEW - BUBBLE NAVIGATION] */}
+      {useBubbleNav && (
+        <ImportReviewBubbles
+          questions={questionsData}
+          currentIdx={currentQuestionIdx}
+          onSelectQuestion={setCurrentQuestionIdx}
+          getQuestionFlags={getVisibleQuestionFlags}
+        />
+      )}
 
       <div className="qf-questions-list">
         {questionsData.map((q, index) => {
@@ -591,18 +576,6 @@ export default function QuestionForm({
               )}
 
               <div className="qf-grid">
-                <div className="qf-field">
-                  <label>Question Title *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Beam Deflection Problem #1"
-                    value={q.title}
-                    onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, title: e.target.value }))}
-                    maxLength={120}
-                    disabled={readOnly}
-                  />
-                </div>
-
                 <div className="qf-field">
                   <label>Subject *</label>
                   <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
@@ -741,52 +714,52 @@ export default function QuestionForm({
                       <span className="qf-flag-message">{sanitizeFlagMessage(flag.message)}</span>
 
                       <div className="qf-flag-right">
-                      {/* [IMPORT REVIEW - FLAG SYSTEM] */}
-                      {/* Image requirement flag actions */}
-                      {flag.type === 'missing_image' && (
-                        <div className="qf-flag-actions">
-                          <button
-                            type="button"
-                            className="qf-flag-action-btn qf-flag-action-upload"
-                            onClick={() => document.getElementById(`file-${q.id}`)?.click()}
-                            disabled={q.uploading}
-                          >
-                            <span className="qf-btn-icon" aria-hidden="true">
-                              <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                              </svg>
-                            </span>
-                            Upload Image
-                          </button>
-                          <button
-                            type="button"
-                            className="qf-flag-action-btn qf-flag-action-remove"
-                            onClick={() => handleRemoveImageFlag(index)}
-                          >
-                            <span className="qf-btn-icon" aria-hidden="true">
-                              <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                              </svg>
-                            </span>
-                            Remove Flag
-                          </button>
-                        </div>
-                      )}
+                        {/* [IMPORT REVIEW - FLAG SYSTEM] */}
+                        {/* Image requirement flag actions */}
+                        {flag.type === 'missing_image' && (
+                          <div className="qf-flag-actions">
+                            <button
+                              type="button"
+                              className="qf-flag-action-btn qf-flag-action-upload"
+                              onClick={() => document.getElementById(`file-${q.id}`)?.click()}
+                              disabled={q.uploading}
+                            >
+                              <span className="qf-btn-icon" aria-hidden="true">
+                                <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                  <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                              </span>
+                              Upload Image
+                            </button>
+                            <button
+                              type="button"
+                              className="qf-flag-action-btn qf-flag-action-remove"
+                              onClick={() => handleRemoveImageFlag(index)}
+                            >
+                              <span className="qf-btn-icon" aria-hidden="true">
+                                <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                  <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                              </span>
+                              Remove Flag
+                            </button>
+                          </div>
+                        )}
 
-                      {!isNonDismissableFlag(flag) && (
-                        <button
-                          type="button"
-                          className="qf-flag-dismiss"
-                          onClick={() => dismissFlag(q.id, flag)}
-                          aria-label="Dismiss flag"
-                          title="Dismiss"
-                        >
-                          {'\u00D7'}
-                        </button>
-                      )}
+                        {!isNonDismissableFlag(flag) && (
+                          <button
+                            type="button"
+                            className="qf-flag-dismiss"
+                            onClick={() => dismissFlag(q.id, flag)}
+                            aria-label="Dismiss flag"
+                            title="Dismiss"
+                          >
+                            {'\u00D7'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -215,7 +215,7 @@ export default function PCExamRunner({ examId, mode = 'details', onBack }) {
               {questions.map((question, index) => (
                 <article key={question._id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #ddd' }}>
                   <h4>
-                    {index + 1}. {question.title}
+                    Question {index + 1}
                   </h4>
                   <p>{question.description}</p>
                   <p>
@@ -282,7 +282,7 @@ export default function PCExamRunner({ examId, mode = 'details', onBack }) {
                   {currentQuestion ? (
                     <article style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #ddd' }}>
                       <h4>
-                        Question {currentQuestionIndex + 1} of {questions.length}: {currentQuestion.title}
+                        Question {currentQuestionIndex + 1} of {questions.length}
                       </h4>
                       <p>{currentQuestion.description}</p>
                       <p>

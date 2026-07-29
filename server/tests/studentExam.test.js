@@ -58,7 +58,7 @@ describe('POST /api/student-exams/:id/start', () => {
   it('should start an exam and create an attempt', async () => {
     const tag = await require('../models/Tag').create({ name: 'Subj', program: prog._id, createdBy: deanUser._id, isActive: true });
     const q = await Question.create({
-      title: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      description: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
       program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id
     });
     const exam = await MockBoardExam.create({
@@ -89,7 +89,7 @@ describe('PATCH /api/student-exams/attempt/:attemptId/progress', () => {
   it('should save progress on a started attempt', async () => {
     const tag = await require('../models/Tag').create({ name: 'Subj', program: prog._id, createdBy: deanUser._id, isActive: true });
     const q = await Question.create({
-      title: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      description: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
       program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id
     });
     const exam = await MockBoardExam.create({
@@ -113,7 +113,7 @@ describe('POST /api/student-exams/attempt/:attemptId/submit', () => {
   it('should submit a started attempt', async () => {
     const tag = await require('../models/Tag').create({ name: 'Subj', program: prog._id, createdBy: deanUser._id, isActive: true });
     const q = await Question.create({
-      title: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      description: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
       program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id
     });
     const exam = await MockBoardExam.create({
