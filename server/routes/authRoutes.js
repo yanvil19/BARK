@@ -16,6 +16,11 @@ const {
   getBulkRegisterSummary,
   subscribeBulkRegisterEvents,
   requestPasswordChangeOTP,
+  registerStudentRequest,
+  checkRegistrationStatus,
+  listRegistrationRequests,
+  approveRegistrationRequest,
+  rejectRegistrationRequest,
 } = require('../controllers/authController');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/emailService');
@@ -173,6 +178,26 @@ router.get('/bulk-register/:batchId', protect, authorizeRoles('dean', 'program_c
 // @route   GET /api/auth/bulk-register/:batchId/events
 // @access  Private - Batch owner
 router.get('/bulk-register/:batchId/events', protect, authorizeRoles('dean', 'program_chair'), subscribeBulkRegisterEvents);
+
+// @route   POST /api/auth/register-student
+// @access  Public
+router.post('/register-student', registerStudentRequest);
+
+// @route   POST /api/auth/registration-status
+// @access  Public
+router.post('/registration-status', checkRegistrationStatus);
+
+// @route   GET /api/auth/registrations
+// @access  Private - Dean and Program Chair
+router.get('/registrations', protect, authorizeRoles('dean', 'program_chair'), listRegistrationRequests);
+
+// @route   PATCH /api/auth/registrations/:id/approve
+// @access  Private - Dean and Program Chair
+router.patch('/registrations/:id/approve', protect, authorizeRoles('dean', 'program_chair'), approveRegistrationRequest);
+
+// @route   PATCH /api/auth/registrations/:id/reject
+// @access  Private - Dean and Program Chair
+router.patch('/registrations/:id/reject', protect, authorizeRoles('dean', 'program_chair'), rejectRegistrationRequest);
 
 // @route   GET /api/auth/users
 // @access  Private - Super Admin, Dean, Program Chair

@@ -72,7 +72,7 @@ function buildQuestionRates(exam, attempts) {
       qId,
       questionId: question._id,
       tagId: String(question.tag),
-      label: question.title,
+      label: question.title || question.description || 'Question',
       description: question.description || '',
       correctRate: totalTakers > 0 ? Math.round((correctCount / totalTakers) * 100) : 0,
       answerCounts,
@@ -546,9 +546,11 @@ exports.getStudentResults = async (req, res) => {
         return {
           student: alumniRecord.student,
           attemptCount: formattedAttempts.length,
+          attemptNumber: bestAttempt ? bestAttempt.attemptNumber : 1,
           attempts: formattedAttempts,
           overallPercentage: bestAttempt ? bestAttempt.overallPercentage : 0,
           passed: bestAttempt ? bestAttempt.passed : false,
+          subjectBreakdowns: bestAttempt ? bestAttempt.subjectBreakdowns : [],
         };
       });
 

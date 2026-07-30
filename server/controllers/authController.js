@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const RegistrationRequest = require('../models/RegistrationRequest');
 const AppSettings = require('../models/AppSettings');
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
@@ -1506,4 +1507,9 @@ module.exports = {
   getBulkRegisterSummary,
   subscribeBulkRegisterEvents,
   requestPasswordChangeOTP,
+  registerStudentRequest,
+  checkRegistrationStatus,
+  listRegistrationRequests,
+  approveRegistrationRequest,
+  rejectRegistrationRequest,
 };

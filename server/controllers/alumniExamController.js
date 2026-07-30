@@ -50,7 +50,10 @@ async function getAvailableExams(req, res) {
       program: req.user.program,
       targetAudience: 'alumni',
       status: { $in: ['published', 'ongoing'] },
-      endDateTime: { $gt: now },
+      $or: [
+        { endDateTime: { $gt: now } },
+        { endDateTime: null }
+      ]
     })
       .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes startDateTime endDateTime')
       .populate('program', 'name code')
