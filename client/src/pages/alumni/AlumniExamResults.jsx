@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
+import '../../styles/shared/QuestionApprovals.css';
 import '../../styles/alumni/AlumniExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
@@ -47,6 +48,12 @@ function getQuestionTitle(question, index) {
 
 function getQuestionPreview(question, index) {
   return question?.title || question?.description || `Question ${index + 1}`;
+}
+
+function resolveImageSrc(image) {
+  const src = image?.url || image?.path || image;
+  if (!src) return '';
+  return String(src).startsWith('/') ? `${BASE}${src}` : String(src);
 }
 
 function EmptyStatePanel({ eyebrow, title, message, children }) {
@@ -180,6 +187,19 @@ function AttemptOverview({ exam, onSelectAttempt }) {
   );
 }
 
+function ImageZoomOverlay({ src, onClose }) {
+  if (!src) return null;
+
+  return (
+    <div className="ca-image-overlay" onClick={onClose}>
+      <div className="ca-image-modal" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="ca-image-close" onClick={onClose}>Close</button>
+        <img src={src} alt="Question preview" className="ca-image-full" />
+      </div>
+    </div>
+  );
+}
+
 function TopicBreakdown({ subjects, threshold }) {
   if (!subjects?.length) return null;
 
@@ -211,7 +231,7 @@ function TopicBreakdown({ subjects, threshold }) {
   );
 }
 
-function QuestionReview({ questions }) {
+function QuestionReview({ questions, onZoomImage }) {
   const [mode, setMode] = useState('all');
   const [expandedQuestions, setExpandedQuestions] = useState(() => new Set());
   const filtered = useMemo(() => {
@@ -296,9 +316,20 @@ function QuestionReview({ questions }) {
 
                   {Array.isArray(question.images) && question.images.length > 0 && (
                     <div className="aer-question-images">
-                      {question.images.map((image, imageIndex) => (
-                        <img key={`${questionKey}-${imageIndex}`} src={image.url || image} alt={`Question ${index + 1}`} />
-                      ))}
+                      {question.images.map((image, imageIndex) => {
+                        const imageSrc = resolveImageSrc(image);
+                        if (!imageSrc) return null;
+
+                        return (
+                          <img
+                            key={`${questionKey}-${imageIndex}`}
+                            src={imageSrc}
+                            alt={`Question ${index + 1}`}
+                            className="ca-image aer-question-image"
+                            onClick={() => onZoomImage(imageSrc)}
+                          />
+                        );
+                      })}
                     </div>
                   )}
 
@@ -339,6 +370,7 @@ export default function AlumniExamResults({ examId }) {
   const [isAttemptDetailOpen, setIsAttemptDetailOpen] = useState(false);
   const [attemptDetails, setAttemptDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   useEffect(() => {
     async function fetchAttempts() {
@@ -366,6 +398,20 @@ export default function AlumniExamResults({ examId }) {
 
     fetchAttempts();
   }, [examId]);
+
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') setZoomedImage(null);
+    }
+
+    if (zoomedImage) {
+      window.addEventListener('keydown', handleEsc);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [zoomedImage]);
 
   const exams = useMemo(() => {
     const grouped = new Map();
@@ -616,7 +662,7 @@ export default function AlumniExamResults({ examId }) {
                   ) : (
                     <>
                       <TopicBreakdown subjects={attemptDetails?.attempt?.subjectScores || selectedAttempt.subjectScores} threshold={selectedThreshold} />
-                      <QuestionReview questions={attemptDetails?.questions || []} />
+                      <QuestionReview questions={attemptDetails?.questions || []} onZoomImage={setZoomedImage} />
                     </>
                   )}
                   </div>
@@ -632,6 +678,8 @@ export default function AlumniExamResults({ examId }) {
           )}
         </main>
       </div>
+
+      <ImageZoomOverlay src={zoomedImage} onClose={() => setZoomedImage(null)} />
     </div>
   );
 }
