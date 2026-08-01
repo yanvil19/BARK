@@ -41,6 +41,14 @@ function getAttemptId(attempt) {
   return attempt?._id || attempt?.id || '';
 }
 
+function getQuestionTitle(question, index) {
+  return question?.title || `Question ${index + 1}`;
+}
+
+function getQuestionPreview(question, index) {
+  return question?.description || question?.title || `Question ${index + 1}`;
+}
+
 function EmptyStatePanel({ eyebrow, title, message, children }) {
   return (
     <section className="aer-empty-state-card">
@@ -102,8 +110,13 @@ function AttemptRow({ attempt, isActive, onSelect }) {
   const status = getStatusClass(percentage, threshold);
 
   return (
-    <button type="button" className={`aer-attempt-row ${isActive ? 'active' : ''}`} onClick={() => onSelect(attempt)}>
-      <div>
+    <button
+      type="button"
+      className={`aer-attempt-row ${isActive ? 'active' : ''}`}
+      onClick={() => onSelect(attempt)}
+      aria-pressed={isActive}
+    >
+      <div className="aer-attempt-main">
         <strong>Attempt #{attempt.displayAttemptNumber || attempt.attemptNumber || '-'}</strong>
         <span>{formatDate(attempt.submittedAt || attempt.date)}</span>
       </div>
@@ -113,6 +126,57 @@ function AttemptRow({ attempt, isActive, onSelect }) {
       </div>
       <span className={`aer-result-chip status-${status}`}>{percentage >= threshold ? 'Passed' : 'Failed'}</span>
     </button>
+  );
+}
+
+function AttemptOverview({ exam, onSelectAttempt }) {
+  const latestAttempt = exam.latestAttempt || exam.attempts[0];
+  const bestAttempt = exam.bestAttempt || latestAttempt;
+
+  return (
+    <section className="aer-attempt-overview">
+      <div className="aer-attempt-overview-hero">
+        <div>
+          <span className="aer-report-kicker">Attempt overview</span>
+          <h2>Choose an attempt</h2>
+          <p>Open one attempt to view its score breakdown, correct answers, and full question review.</p>
+        </div>
+        <div className="aer-attempt-overview-stats">
+          <div>
+            <span>Attempts</span>
+            <strong>{exam.attempts.length}</strong>
+          </div>
+          <div>
+            <span>Best</span>
+            <strong>{getPercentage(bestAttempt)}%</strong>
+          </div>
+          <div>
+            <span>Latest</span>
+            <strong>#{latestAttempt?.displayAttemptNumber || latestAttempt?.attemptNumber || '-'}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="aer-attempt-picker-card">
+        <div className="aer-attempt-picker-header">
+          <div>
+            <h3>All Attempts</h3>
+            <p>Newest attempts appear first.</p>
+          </div>
+          <span>{exam.attempts.length}</span>
+        </div>
+        <div className="aer-attempt-picker-list">
+          {exam.attempts.map((attempt) => (
+            <AttemptRow
+              key={getAttemptId(attempt)}
+              attempt={attempt}
+              isActive={false}
+              onSelect={onSelectAttempt}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -207,7 +271,7 @@ function QuestionReview({ questions }) {
             <article key={questionKey} className={`aer-question-card ${isCorrect ? 'correct' : 'wrong'}`}>
               <button type="button" className="aer-question-dropdown" onClick={() => toggleQuestion(questionKey)}>
                 <span className="aer-question-number">Question {index + 1}</span>
-                <span className="aer-question-dropdown-title">{question.title || question.description || 'Untitled question'}</span>
+                <span className="aer-question-dropdown-title">{getQuestionPreview(question, index)}</span>
                 <span className={`aer-result-chip status-${isCorrect ? 'green' : 'red'}`}>{isCorrect ? 'Correct' : 'Wrong'}</span>
                 <span className={`aer-chevron ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -218,8 +282,10 @@ function QuestionReview({ questions }) {
 
               {isExpanded && (
                 <div className="aer-question-dropdown-body">
-                  <h3>{question.title || 'Untitled question'}</h3>
-                  {question.description && <p className="aer-question-description">{question.description}</p>}
+                  <h3>{getQuestionTitle(question, index)}</h3>
+                  {question.description && question.description !== question.title && (
+                    <p className="aer-question-description">{question.description}</p>
+                  )}
 
                   {Array.isArray(question.images) && question.images.length > 0 && (
                     <div className="aer-question-images">
@@ -263,6 +329,7 @@ export default function AlumniExamResults({ examId }) {
   const [search, setSearch] = useState('');
   const [selectedExamId, setSelectedExamId] = useState(examId || '');
   const [selectedAttemptId, setSelectedAttemptId] = useState('');
+  const [isAttemptDetailOpen, setIsAttemptDetailOpen] = useState(false);
   const [attemptDetails, setAttemptDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
@@ -348,13 +415,24 @@ export default function AlumniExamResults({ examId }) {
   }, [examId, filteredExams, selectedExamId]);
 
   const selectedExam = filteredExams.find((exam) => String(exam.examId) === String(selectedExamId)) || null;
-  const selectedAttempt = selectedExam?.attempts.find((attempt) => getAttemptId(attempt) === selectedAttemptId) || selectedExam?.attempts[0] || null;
-  const latestAttempt = selectedExam?.latestAttempt || selectedAttempt;
+  const selectedAttempt = selectedExam?.attempts.find((attempt) => getAttemptId(attempt) === selectedAttemptId) || null;
   const selectedPercentage = getPercentage(selectedAttempt);
   const selectedThreshold = selectedAttempt?.passingThreshold || 70;
   const selectedStatus = getStatusClass(selectedPercentage, selectedThreshold);
 
   useEffect(() => {
+    setSelectedAttemptId('');
+    setAttemptDetails(null);
+    setIsAttemptDetailOpen(false);
+  }, [selectedExamId]);
+
+  useEffect(() => {
+    if (!isAttemptDetailOpen) {
+      setDetailsLoading(false);
+      setAttemptDetails(null);
+      return;
+    }
+
     const attemptId = getAttemptId(selectedAttempt);
     if (!attemptId) {
       setSelectedAttemptId('');
@@ -382,7 +460,7 @@ export default function AlumniExamResults({ examId }) {
     return () => {
       mounted = false;
     };
-  }, [selectedAttempt]);
+  }, [isAttemptDetailOpen, selectedAttempt]);
 
   return (
     <div className="aer-page">
@@ -455,79 +533,93 @@ export default function AlumniExamResults({ examId }) {
             />
           )}
 
-          {!loading && selectedExam && selectedAttempt && (
+          {!loading && selectedExam && (
             <div className="aer-report-view">
               <div className="aer-report-header">
                 <div>
-                  <span className="aer-report-kicker">Alumni Attempt Report</span>
+                  <span className="aer-report-kicker">Alumni Exam Results</span>
                   <h2 className="aer-report-title">{selectedExam.examName}</h2>
                 </div>
                 <div className="aer-report-meta">
-                  <span>Attempt #{selectedAttempt.displayAttemptNumber || selectedAttempt.attemptNumber || '-'}</span>
+                  <span>{selectedExam.attempts.length} attempts</span>
                   <span className="aer-divider">|</span>
-                  <span>{formatDate(selectedAttempt.submittedAt || selectedAttempt.date)}</span>
-                  <span className={`aer-result-chip status-${selectedStatus}`}>
-                    {selectedPercentage >= selectedThreshold ? 'Passed' : 'Failed'}
-                  </span>
+                  <span>Best {selectedExam.bestPercentage}%</span>
                 </div>
               </div>
 
-              <section className="aer-hero-card">
-                <div className="aer-hero-topline">
-                  <span>Selected attempt performance</span>
-                  <div className="aer-hero-threshold-pill">Threshold {selectedThreshold}%</div>
-                </div>
-
-                <div className="aer-hero-body">
-                  <CircularProgress percentage={selectedPercentage} threshold={selectedThreshold} />
-                </div>
-
-                <div className="aer-hero-metrics">
-                  <div className="aer-metric-item">
-                    <span className="m-value">{latestAttempt?.rawScore ?? 0}/{latestAttempt?.totalScore ?? 0}</span>
-                    <span className="m-label">Latest raw score</span>
-                  </div>
-                  <div className="aer-metric-item">
-                    <span className="m-value">
-                      {selectedExam.bestAttempt?.rawScore ?? 0}/{selectedExam.bestAttempt?.totalScore ?? 0}
-                    </span>
-                    <span className="m-label">Highest score</span>
-                  </div>
-                  <div className="aer-metric-item">
-                    <span className="m-value">{formatShortDate(selectedAttempt.submittedAt || selectedAttempt.date)}</span>
-                    <span className="m-label">Date answered</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="aer-breakdown-card">
-                <div className="aer-breakdown-header">
-                  <h2>Attempt History</h2>
-                  <p>Select an attempt to view its exact score, answers, and question review.</p>
-                </div>
-                <div className="aer-attempt-list">
-                  {selectedExam.attempts.map((attempt) => (
-                    <AttemptRow
-                      key={getAttemptId(attempt)}
-                      attempt={attempt}
-                      isActive={getAttemptId(attempt) === getAttemptId(selectedAttempt)}
-                      onSelect={(nextAttempt) => setSelectedAttemptId(getAttemptId(nextAttempt))}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              {detailsLoading ? (
-                <EmptyStatePanel
-                  eyebrow="Loading"
-                  title="Loading answer review"
-                  message="Preparing the full question and answer breakdown for this attempt."
+              {!isAttemptDetailOpen ? (
+                <AttemptOverview
+                  exam={selectedExam}
+                  onSelectAttempt={(nextAttempt) => {
+                    setSelectedAttemptId(getAttemptId(nextAttempt));
+                    setIsAttemptDetailOpen(true);
+                  }}
                 />
+              ) : selectedAttempt ? (
+                <section className="aer-attempt-workspace" aria-label="Attempt results">
+                  <div className="aer-detail-column">
+                    <div className="aer-detail-toolbar">
+                      <button type="button" className="aer-back-button" onClick={() => setIsAttemptDetailOpen(false)}>
+                        Back to attempts
+                      </button>
+                      <div className="aer-report-meta">
+                        <span>Attempt #{selectedAttempt.displayAttemptNumber || selectedAttempt.attemptNumber || '-'}</span>
+                        <span className="aer-divider">|</span>
+                        <span>{formatDate(selectedAttempt.submittedAt || selectedAttempt.date)}</span>
+                        <span className={`aer-result-chip status-${selectedStatus}`}>
+                          {selectedPercentage >= selectedThreshold ? 'Passed' : 'Failed'}
+                        </span>
+                      </div>
+                    </div>
+
+                  <section className="aer-hero-card">
+                    <div className="aer-hero-topline">
+                      <span>Selected attempt performance</span>
+                      <div className="aer-hero-threshold-pill">Threshold {selectedThreshold}%</div>
+                    </div>
+
+                    <div className="aer-hero-body">
+                      <CircularProgress percentage={selectedPercentage} threshold={selectedThreshold} />
+                    </div>
+
+                    <div className="aer-hero-metrics">
+                      <div className="aer-metric-item">
+                        <span className="m-value">{selectedAttempt?.rawScore ?? 0}/{selectedAttempt?.totalScore ?? 0}</span>
+                        <span className="m-label">Selected score</span>
+                      </div>
+                      <div className="aer-metric-item">
+                        <span className="m-value">
+                          {selectedExam.bestAttempt?.rawScore ?? 0}/{selectedExam.bestAttempt?.totalScore ?? 0}
+                        </span>
+                        <span className="m-label">Highest score</span>
+                      </div>
+                      <div className="aer-metric-item">
+                        <span className="m-value">{formatShortDate(selectedAttempt.submittedAt || selectedAttempt.date)}</span>
+                        <span className="m-label">Date answered</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {detailsLoading ? (
+                    <EmptyStatePanel
+                      eyebrow="Loading"
+                      title="Loading answer review"
+                      message="Preparing the full question and answer breakdown for this attempt."
+                    />
+                  ) : (
+                    <>
+                      <TopicBreakdown subjects={attemptDetails?.attempt?.subjectScores || selectedAttempt.subjectScores} threshold={selectedThreshold} />
+                      <QuestionReview questions={attemptDetails?.questions || []} />
+                    </>
+                  )}
+                  </div>
+                </section>
               ) : (
-                <>
-                  <TopicBreakdown subjects={attemptDetails?.attempt?.subjectScores || selectedAttempt.subjectScores} threshold={selectedThreshold} />
-                  <QuestionReview questions={attemptDetails?.questions || []} />
-                </>
+                <EmptyStatePanel
+                  eyebrow="Choose Attempt"
+                  title="Select an attempt"
+                  message="Pick an attempt from the list to view its full score report."
+                />
               )}
             </div>
           )}
