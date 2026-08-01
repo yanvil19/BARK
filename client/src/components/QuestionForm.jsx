@@ -1,3 +1,4 @@
+import AuthImage from '../components/AuthImage.jsx';
 import { useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
@@ -712,7 +713,7 @@ export default function QuestionForm({
                   <div className="image-previews">
                     {q.imagePreviews.map((img, idx) => (
                       <div key={idx} className="image-thumb">
-                        <img
+                        <AuthImage
                           src={img.url}
                           alt=""
                           onClick={() => setFullscreenImage(img.url)}
@@ -934,7 +935,7 @@ export default function QuestionForm({
             >
               Close
             </button>
-            <img src={fullscreenImage} alt="Fullscreen" className="fullscreen-img" />
+            <AuthImage src={fullscreenImage} alt="Fullscreen" className="fullscreen-img" />
           </div>
         </div>
       ) : null}

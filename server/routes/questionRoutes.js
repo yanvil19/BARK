@@ -51,6 +51,38 @@ router.post('/:id/dean-return', protect, authorizeRoles('program_chair', 'dean')
 router.patch('/:id/lock', protect, authorizeRoles('program_chair', 'dean'), lockQuestion);
 router.patch('/:id/unlock', protect, authorizeRoles('program_chair', 'dean'), unlockQuestion);
 
+const { encryptBuffer, decryptBuffer } = require('../services/encryptionService');
+const { GetObjectCommand } = require('@aws-sdk/client-s3');
+
+// [New] Fetch and decrypt image
+router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULTY), async (req, res) => {
+  try {
+    const bucket = process.env.R2_BUCKET_NAME;
+    if (!bucket) {
+      return res.status(500).json({ message: 'R2 is not configured' });
+    }
+
+    const obj = await r2.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: `question-images/${req.params.key}`,
+      })
+    );
+
+    const chunks = [];
+    for await (const chunk of obj.Body) chunks.push(chunk);
+    const encryptedBlob = Buffer.concat(chunks);
+
+    const decrypted = decryptBuffer(encryptedBlob);
+    
+    // We can use a generic image type or infer it from the key extension
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.send(decrypted);
+  } catch (err) {
+    return res.status(404).json({ message: 'Image not found or failed to load' });
+  }
+});
+
 // Image upload — returns array of URLs
 router.post(
   '/upload-image',
@@ -64,10 +96,9 @@ router.post(
       const maxAllowed = settings.maxUploadImages ?? 5;
 
       const bucket = process.env.R2_BUCKET_NAME;
-      const publicBaseUrl = process.env.R2_PUBLIC_URL;
 
-      if (!bucket || !publicBaseUrl) {
-        return res.status(500).json({ message: 'R2 is not configured (missing R2_BUCKET_NAME or R2_PUBLIC_URL)' });
+      if (!bucket) {
+        return res.status(500).json({ message: 'R2 is not configured' });
       }
 
       if (!Array.isArray(req.files) || req.files.length === 0) {
@@ -78,7 +109,6 @@ router.post(
         return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed per question.` });
       }
 
-      const base = publicBaseUrl.replace(/\/$/, '');
       const urls = await Promise.all(
         req.files.map(async (file) => {
           const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -86,16 +116,19 @@ router.post(
           const filename = `${unique}${ext}`;
           const key = `question-images/${filename}`;
 
+          const encryptedBlob = encryptBuffer(file.buffer);
+
           await r2.send(
             new PutObjectCommand({
               Bucket: bucket,
               Key: key,
-              Body: file.buffer,
-              ContentType: file.mimetype,
+              Body: encryptedBlob,
+              ContentType: 'application/octet-stream', // Store as encrypted binary blob
             })
           );
 
-          return `${base}/${key}`;
+          // Return the API path to the new decryption route, NOT the R2 public URL
+          return `/api/questions/image/${filename}`;
         })
       );
 

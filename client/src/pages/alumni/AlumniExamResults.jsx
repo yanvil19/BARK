@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
@@ -194,7 +195,7 @@ function ImageZoomOverlay({ src, onClose }) {
     <div className="ca-image-overlay" onClick={onClose}>
       <div className="ca-image-modal" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="ca-image-close" onClick={onClose}>Close</button>
-        <img src={src} alt="Question preview" className="ca-image-full" />
+        <AuthImage src={src} alt="Question preview" className="ca-image-full" />
       </div>
     </div>
   );
@@ -321,7 +322,7 @@ function QuestionReview({ questions, onZoomImage }) {
                         if (!imageSrc) return null;
 
                         return (
-                          <img
+                          <AuthImage
                             key={`${questionKey}-${imageIndex}`}
                             src={imageSrc}
                             alt={`Question ${index + 1}`}

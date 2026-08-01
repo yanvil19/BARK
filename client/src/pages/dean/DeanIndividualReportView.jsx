@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
 
@@ -46,7 +47,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
       {question.images && question.images.length > 0 && (
         <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {question.images.map((img, i) => (
-            <img
+            <AuthImage
               key={i}
               src={img}
               alt="Question figure"
@@ -436,7 +437,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
           >
             ✕
           </button>
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             draggable={false}

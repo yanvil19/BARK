@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -843,7 +844,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                           className="mbe-preview-image-link"
                                           onClick={() => setFullscreenImage(resolveImageUrl(image))}
                                         >
-                                          <img
+                                          <AuthImage
                                             className="mbe-preview-image"
                                             src={resolveImageUrl(image)}
                                             alt={`Question image ${index + 1}`}
@@ -971,7 +972,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               >
                 Close
               </button>
-              <img src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
+              <AuthImage src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
             </div>
           </div>
         ) : null}

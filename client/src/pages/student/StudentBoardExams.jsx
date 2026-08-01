@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
@@ -942,7 +943,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                                       className="ambe-question-image-button"
                                       onClick={() => setFullscreenImage(image)}
                                     >
-                                      <img
+                                      <AuthImage
                                         src={image}
                                         alt={`Question ${index + 1} image ${imageIndex + 1}`}
                                         className="ambe-question-thumb"
@@ -1005,7 +1006,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             >
               Close
             </button>
-            <img src={fullscreenImage} alt="Preview" className="ambe-image-full" />
+            <AuthImage src={fullscreenImage} alt="Preview" className="ambe-image-full" />
           </div>
         </div>
       )}

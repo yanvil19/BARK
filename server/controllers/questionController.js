@@ -5,6 +5,7 @@ const Program = require('../models/Program');
 const { logAudit } = require('../utils/auditLogger');
 const AppSettings = require('../models/AppSettings');
 const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { encryptText, decryptQuestion } = require('../services/encryptionService');
 
 const r2 = new S3Client({
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -142,7 +143,7 @@ const listQuestions = async (req, res) => {
 
     const totalPages = Math.max(1, Math.ceil(totalItems / limit));
 
-    res.json({ questions, totalPages, currentPage: page, totalItems });
+    res.json({ questions: questions.map(decryptQuestion), totalPages, currentPage: page, totalItems });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -170,7 +171,7 @@ const listApprovals = async (req, res) => {
       .populate('currentReviewer', 'name role')
       .sort({ submittedAt: 1, updatedAt: 1 });
 
-    res.json({ questions });
+    res.json({ questions: questions.map(decryptQuestion) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -221,16 +222,17 @@ const createQuestion = async (req, res) => {
         return res.status(400).json({ message: 'Tag does not belong to the specified program' });
     }
 
-    const question = await Question.create({
-      description: description.trim(),
+    const questionData = {
+      description: encryptText(description.trim()),
       images: images || [],
-      answers,
-      rationalization: rationalization?.trim() || '',
+      answers: (answers || []).map(a => ({ ...a, text: encryptText(a.text) })),
+      rationalization: encryptText(rationalization?.trim() || ''),
       tag: tagId || null,
       program: resolvedProgramId,
       createdBy: req.user._id,
       state: 'draft',
-    });
+    };
+    const question = await Question.create(questionData);
 
     const populated = await question.populate([
       { path: 'tag', select: 'name' },
@@ -241,7 +243,7 @@ const createQuestion = async (req, res) => {
       tagId: question.tag || null,
       state: question.state,
     });
-    res.status(201).json({ question: populated });
+    res.status(201).json({ question: decryptQuestion(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -260,8 +262,8 @@ const updateQuestion = async (req, res) => {
       return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
 
     const { description, answers, tagId, images, rationalization } = req.body;
-    if (description) question.description = description.trim();
-    if (rationalization !== undefined) question.rationalization = rationalization.trim();
+    if (description) question.description = encryptText(description.trim());
+    if (rationalization !== undefined) question.rationalization = encryptText(rationalization.trim());
     if (images !== undefined) {
       const settings = await AppSettings.getSingleton();
       const maxAllowed = settings.maxUploadImages ?? 5;
@@ -287,7 +289,7 @@ const updateQuestion = async (req, res) => {
       // Basic structure check for updates
       if (!Array.isArray(answers))
         return res.status(400).json({ message: 'Answers must be an array' });
-      question.answers = answers;
+      question.answers = answers.map(a => ({ ...a, text: encryptText(a.text) }));
     }
     if (tagId !== undefined) question.tag = tagId || null;
 
@@ -308,7 +310,7 @@ const updateQuestion = async (req, res) => {
       tagId: question.tag || null,
       state: question.state,
     });
-    res.json({ question: populated });
+    res.json({ question: decryptQuestion(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -351,12 +353,14 @@ const submitQuestion = async (req, res) => {
     if (question.state !== 'draft' && question.state !== 'returned')
       return res.status(400).json({ message: 'Only draft or returned questions can be submitted' });
 
-    // --- STRICT SUBMISSION VALIDATION ---
-    if (!question.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
-    if (!question.rationalization?.trim()) return res.status(400).json({ message: 'Rationalization is required for submission' });
-    if (!question.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
+    const decrypted = decryptQuestion(question);
 
-    const answers = question.answers || [];
+    // --- STRICT SUBMISSION VALIDATION ---
+    if (!decrypted.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
+    if (!decrypted.rationalization?.trim()) return res.status(400).json({ message: 'Rationalization is required for submission' });
+    if (!decrypted.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
+
+    const answers = decrypted.answers || [];
     const filledOptions = answers.filter(a => a.text?.trim() !== '').length;
 
     if (filledOptions < 4 || filledOptions > 5) {
@@ -392,7 +396,7 @@ const submitQuestion = async (req, res) => {
       tagId: question.tag || null,
       state: question.state,
     });
-    res.json({ question: populated });
+    res.json({ question: decryptQuestion(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -512,7 +516,7 @@ const reviewQuestion = async (req, res) => {
       note: note?.trim() || null,
       newState: updated.state,
     });
-    res.json({ question: populated });
+    res.json({ question: decryptQuestion(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -572,7 +576,7 @@ const deanReturnApprovedQuestion = async (req, res) => {
       note: note.trim(),
       newState: updated.state,
     });
-    res.json({ question: populated });
+    res.json({ question: decryptQuestion(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
