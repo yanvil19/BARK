@@ -392,6 +392,9 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
               text,
               isCorrect: key === q.correct_answer,
             })),
+          rationalization: q.rationalization || '',
+          image_required: q.image_required || false,
+          image_note: q.image_note || null,
           flags: q.flags || [],
           tagId: matchedTag?._id || '',
         };
