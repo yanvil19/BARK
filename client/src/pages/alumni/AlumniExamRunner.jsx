@@ -147,20 +147,9 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
           className="shared-page-header--bleed-lr"
           title={examInfo?.name}
           subtitle={attemptNumber ? `Attempt ${attemptNumber}` : examInfo?.description || 'Alumni Exam'}
-        >
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              className="mbep-exit-btn"
-              onClick={() => setShowSubmitConfirm(true)}
-              style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}
-              disabled={submitting || isSubmittingRef.current}
-            >
-              {submitting ? 'Submitting...' : '+ Submit Exam'}
-            </button>
-          </div>
-        </PageHeader>
+        />
 
-        <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: timeRemaining === null ? '1fr' : '1fr auto', gap: '20px' }}>
+        <div className={`mbep-stats mbep-stats-grid${timeRemaining === null ? ' mbep-stats-single' : ''}`}>
           <div className="mbep-progress-card">
             <div className="mbep-progress-info">
               <span>Progress ({answeredCount} answered)</span>
@@ -171,8 +160,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
             </div>
           </div>
           {timeRemaining !== null ? (
-            <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-bg)' }}>
+            <div className="mbep-progress-card mbep-timer-card">
+              <span className="mbep-timer-value">
                 {formatTimer(timeRemaining)}
               </span>
             </div>
@@ -261,8 +250,18 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
               <button className="mbep-btn-nav" onClick={() => setCurrentIdx((p) => Math.max(0, p - 1))} disabled={currentIdx === 0}>
                 Previous
               </button>
-              <button className="mbep-btn-nav" onClick={() => setCurrentIdx((p) => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
-                Next
+              <button
+                className={`mbep-btn-nav ${currentIdx === questions.length - 1 ? 'mbep-btn-submit' : ''}`}
+                onClick={() => {
+                  if (currentIdx === questions.length - 1) {
+                    setShowSubmitConfirm(true);
+                  } else {
+                    setCurrentIdx((p) => Math.min(questions.length - 1, p + 1));
+                  }
+                }}
+                disabled={submitting || isSubmittingRef.current}
+              >
+                {currentIdx === questions.length - 1 ? (submitting ? 'Submitting...' : 'Submit Exam') : 'Next'}
               </button>
             </div>
           </div>

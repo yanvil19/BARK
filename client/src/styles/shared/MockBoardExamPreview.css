@@ -2,12 +2,13 @@
 
 .mbep-page {
   margin: -20px;
-  /* Offset the parent padding like other pages */
   min-height: 100vh;
   background-color: var(--content-bg);
   font-family: var(--font-body);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* ── Header (Matching Project Standard) ──────────────────── */
@@ -68,6 +69,17 @@
   width: 100%;
 }
 
+.mbep-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.mbep-stats-single {
+  grid-template-columns: 1fr;
+}
+
 .mbep-progress-card {
   background: #fff;
   padding: 18px 24px;
@@ -91,6 +103,20 @@
   background: #f0f1f8;
   border-radius: 999px;
   overflow: hidden;
+}
+
+.mbep-timer-card {
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mbep-timer-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--primary-bg);
 }
 
 .mbep-progress-fill {
@@ -269,7 +295,9 @@
 .mbep-nav-actions {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .mbep-btn-nav {
@@ -285,7 +313,9 @@
   transition: 0.2s ease;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  flex: 1 1 140px;
 }
 
 .mbep-btn-nav:hover:not(:disabled) {
@@ -299,24 +329,84 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+.mbep-btn-submit {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  border-color: var(--primary-bg);
+}
 
+.mbep-btn-submit:hover:not(:disabled) {
+  background: #2f3a8f;
+  color: var(--accent-yellow);
+  border-color: #2f3a8f;
+}
+
+@media (max-width: 768px) {
   .mbep-content,
   .mbep-stats {
     box-sizing: border-box;
     width: 100%;
     max-width: 520px;
     margin: 0 auto;
-
     padding-left: 16px;
     padding-right: 16px;
   }
 
-  .mbep-card {
-    margin: 16px;
-    max-width: calc(100% - 32px);
+  .mbep-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
+  .mbep-timer-card {
+    min-width: 0;
+    padding: 14px 16px;
+  }
+
+  .mbep-card {
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .mbep-card-body {
+    padding: 20px 16px 24px;
+  }
+
+  .mbep-question-title {
+    font-size: 15px;
+    margin-bottom: 18px;
+  }
+
+  .mbep-option {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .mbep-option-text {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .mbep-nav-bar {
+    justify-content: center;
+    align-items: center;
+    overflow-x: auto;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mbep-nav-bar > .mbep-nav-circle {
+    flex: 0 0 auto;
+  }
+
+  .mbep-nav-actions {
+    flex-direction: column;
+  }
+
+  .mbep-btn-nav {
+    width: 100%;
+    flex-basis: auto;
+  }
 }
 
 /* ── Security Features ───────────────────────────────────── */
