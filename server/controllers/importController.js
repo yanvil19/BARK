@@ -225,16 +225,15 @@ const submitQuestions = async (req, res) => {
                 }
 
                 // [IMPORT REVIEW - BUBBLE NAVIGATION]
-                // Save image_required and image_note from Gemini extraction
+                // Save image_required, image_note, and rationalization from Gemini extraction
                 const newQuestion = new Question({
-                    // title: geminiQ.question_text?.substring(0, 100) || 'Imported Question',
                     description: geminiQ.question_text,
                     answers,
+                    rationalization: geminiQ.rationalization || '',
                     tag: geminiQ.selected_tag || null,
                     program: req.user.programId || req.body.programId,
                     createdBy: req.user._id,
                     state: 'draft',
-                    import_source: 'ai_import',
                     image_required: geminiQ.image_required || false,
                     image_note: geminiQ.image_note || null,
                 });
@@ -243,8 +242,8 @@ const submitQuestions = async (req, res) => {
                 savedQuestions.push({
                     _id: saved._id,
                     question_number: geminiQ.question_number,
-                    // title: saved.title
-                    description: saved.description
+                    description: saved.description,
+                    rationalization: saved.rationalization,
                 });
 
             } catch (error) {

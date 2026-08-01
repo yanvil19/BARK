@@ -10,10 +10,6 @@ Each question in the array must follow this exact structure:
 {
   "question_number": <integer — the order the question appears in the document>,
   "question_text": <string — the question stem ONLY. Do NOT include the multiple choice options or the correct answer label here>,
-  "question_title": <string — a 3 to 5 word summary of the question's core topic.
-                    Do NOT copy the question verbatim. Write a short, descriptive title
-                    e.g. "Cardiac Output Calculation", "OSI Model Layers", "Contract Law Offer".
-                    Never exceed 5 words>,
   "options": {
     "A": <string — option A text>,
     "B": <string — option B text>,
@@ -25,6 +21,9 @@ Each question in the array must follow this exact structure:
                     If the correct answer is indicated by bold, asterisk,
                     underline, checked box, or any other marker, extract it.
                     If no correct answer can be identified, return null>,
+  "rationalization": <string — a clear, concise explanation of WHY the correct answer is correct.
+                     Reference the question context and eliminate why the other options are wrong if possible.
+                     If no correct answer was identified, return an empty string "">,
   "has_image": <boolean — true if the question references a figure,
                diagram, or image. false if not>,
   "image_reference": <string — the figure label referenced
@@ -59,8 +58,9 @@ Rules you must strictly follow:
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
     If no tag list is provided, suggest freely but set suggested_tag_confidence to "low".
-11. EXCLUSION RULE: The "question_text" field must only contain the question itself. Do NOT include the options (A, B, C, D) or any text indicating the correct answer (e.g., "Answer: A") in this field. Those belong in the "options" and "correct_answer" fields respectively.
-12. IMAGE DETECTION: For "image_required" and "image_note":
+11. EXCLUSION RULE: The "question_text" field must only contain the question stem itself. Do NOT include the options (A, B, C, D) or any text indicating the correct answer (e.g., "Answer: A") in this field. Those belong in the "options" and "correct_answer" fields respectively.
+12. RATIONALIZATION RULE: The "rationalization" field must explain WHY the correct answer is correct in 1–3 sentences. Use clinical, scientific, or domain-specific reasoning appropriate to the question. If no correct answer was identified, set rationalization to an empty string "".
+13. IMAGE DETECTION: For "image_required" and "image_note":
     - Set image_required to true if the question explicitly references: "Figure [X]", "Diagram", "Chart", "Graph", "Image", "Picture", "Illustration", "See above/below", "See attached", or similar visual references that cannot be extracted as text.
     - Set image_required to false if the question does not reference any visual elements.
     - If image_required is true, provide a brief description in image_note of what the image should contain (e.g., "Figure 1: Cardiac cycle diagram", "ECG waveform showing P-QRS-T waves").
