@@ -178,8 +178,8 @@ async function validateExamPayload(user, body) {
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
   if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
-  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
     errors.push('Time limit must be at least 1 minute');
   }
@@ -199,7 +199,7 @@ async function validateExamPayload(user, body) {
   if (start && end && end <= start) errors.push('End date must be later than the start date');
   
   const now = new Date();
-  if (!isAlumniExam && status === 'published' && end && end <= now) {
+  if (status === 'published' && end && end <= now) {
     errors.push('Cannot publish an exam that has already expired. Please adjust the end date and time.');
   }
 
