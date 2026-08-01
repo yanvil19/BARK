@@ -46,7 +46,7 @@ function getQuestionTitle(question, index) {
 }
 
 function getQuestionPreview(question, index) {
-  return question?.description || question?.title || `Question ${index + 1}`;
+  return question?.title || question?.description || `Question ${index + 1}`;
 }
 
 function EmptyStatePanel({ eyebrow, title, message, children }) {
@@ -266,10 +266,17 @@ function QuestionReview({ questions }) {
           const correctId = String(question.correctAnswer || '');
           const isCorrect = selectedId && selectedId === correctId;
           const isExpanded = expandedQuestions.has(questionKey);
+          const titleText = question.title?.trim();
+          const descriptionText = question.description?.trim();
 
           return (
-            <article key={questionKey} className={`aer-question-card ${isCorrect ? 'correct' : 'wrong'}`}>
-              <button type="button" className="aer-question-dropdown" onClick={() => toggleQuestion(questionKey)}>
+            <article key={questionKey} className={`aer-question-card ${isCorrect ? 'correct' : 'wrong'} ${isExpanded ? 'expanded' : ''}`}>
+              <button
+                type="button"
+                className="aer-question-dropdown"
+                onClick={() => toggleQuestion(questionKey)}
+                aria-expanded={isExpanded}
+              >
                 <span className="aer-question-number">Question {index + 1}</span>
                 <span className="aer-question-dropdown-title">{getQuestionPreview(question, index)}</span>
                 <span className={`aer-result-chip status-${isCorrect ? 'green' : 'red'}`}>{isCorrect ? 'Correct' : 'Wrong'}</span>
@@ -282,9 +289,9 @@ function QuestionReview({ questions }) {
 
               {isExpanded && (
                 <div className="aer-question-dropdown-body">
-                  <h3>{getQuestionTitle(question, index)}</h3>
-                  {question.description && question.description !== question.title && (
-                    <p className="aer-question-description">{question.description}</p>
+                  {(titleText || !descriptionText) && <h3>{titleText || getQuestionTitle(question, index)}</h3>}
+                  {titleText && descriptionText && descriptionText !== titleText && (
+                    <p className="aer-question-description">{descriptionText}</p>
                   )}
 
                   {Array.isArray(question.images) && question.images.length > 0 && (

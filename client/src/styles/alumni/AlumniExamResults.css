@@ -716,6 +716,18 @@
   white-space: nowrap;
 }
 
+.aer-question-card.expanded .aer-question-dropdown {
+  align-items: flex-start;
+  background: #f8faff;
+}
+
+.aer-question-card.expanded .aer-question-dropdown-title {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.5;
+}
+
 .aer-question-dropdown-body {
   padding: 0 28px 24px;
   background: #fff;
@@ -1053,7 +1065,23 @@
 
   .aer-question-dropdown-title {
     grid-column: 1 / -1;
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.45;
+  }
+
+  .aer-question-card.expanded .aer-question-dropdown-title {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+  }
+
+  .aer-question-dropdown .aer-result-chip {
+    justify-self: start;
   }
 
   .aer-question-dropdown-body {
