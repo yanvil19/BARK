@@ -8,6 +8,11 @@ async function checkExamScheduleConflict({
   examId = null,
   targetAudience = 'student',
 }) {
+  // Alumni exams are allowed to overlap with other alumni exams
+  if (targetAudience === 'alumni') {
+    return { hasConflict: false, conflicts: [] };
+  }
+
   if (!programId || !startDateTime || !endDateTime || !['draft', 'published', 'ongoing'].includes(status)) {
     return { hasConflict: false, conflicts: [] };
   }
