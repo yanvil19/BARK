@@ -148,7 +148,7 @@ const listApprovals = async (req, res) => {
 // POST /api/questions
 const createQuestion = async (req, res) => {
   try {
-    const { description, answers, tagId, programId, images } = req.body;
+    const { description, answers, tagId, programId, images, rationalization } = req.body;
 
     if (!description?.trim()) {
       return res.status(400).json({
@@ -193,6 +193,7 @@ const createQuestion = async (req, res) => {
       description: description.trim(),
       images: images || [],
       answers,
+      rationalization: rationalization?.trim() || '',
       tag: tagId || null,
       program: resolvedProgramId,
       createdBy: req.user._id,
@@ -226,8 +227,9 @@ const updateQuestion = async (req, res) => {
     if (!editableStates.includes(question.state))
       return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
 
-    const { description, answers, tagId, images } = req.body;
+    const { description, answers, tagId, images, rationalization } = req.body;
     if (description) question.description = description.trim();
+    if (rationalization !== undefined) question.rationalization = rationalization.trim();
     if (images !== undefined) {
       const settings = await AppSettings.getSingleton();
       const maxAllowed = settings.maxUploadImages ?? 5;
@@ -303,6 +305,7 @@ const submitQuestion = async (req, res) => {
 
     // --- STRICT SUBMISSION VALIDATION ---
     if (!question.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
+    if (!question.rationalization?.trim()) return res.status(400).json({ message: 'Rationalization is required for submission' });
     if (!question.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
 
     const answers = question.answers || [];

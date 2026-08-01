@@ -869,6 +869,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                     ))}
                                   </ul>
                                 </section>
+
+                                {question.rationalization && (
+                                  <section className="mbe-question-panel">
+                                    <p className="mbe-panel-label">Rationalization</p>
+                                    <p className="mbe-question-description">{question.rationalization}</p>
+                                  </section>
+                                )}
                               </div>
                             ) : null}
                           </article>

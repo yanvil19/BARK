@@ -118,6 +118,15 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
           );
         })}
       </div>
+
+      {question.rationalization && (
+        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0' }}>
+          <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Rationalization</h4>
+          <p style={{ margin: 0, color: '#475569', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            {question.rationalization}
+          </p>
+        </div>
+      )}
     </div>
   );
 });

@@ -27,6 +27,11 @@ const questionSchema = new mongoose.Schema(
     answers: {
       type: [answerSchema],
     },
+    rationalization: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     tag: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Tag',

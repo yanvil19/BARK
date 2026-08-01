@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
+import PrivacyNotice from './components/PrivacyNotice.jsx';
 import Login from './pages/Login.jsx';
 import DeanApprovals from './pages/dean/DeanApproveQuestions.jsx';
 import StudentManager from './pages/dean/DeanStudentRegister.jsx';
@@ -54,6 +55,9 @@ export default function App() {
   const [alumniExamId, setAlumniExamId] = useState('');
   const [alumniResultExamId, setAlumniResultExamId] = useState('');
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
+  // [PRIVACY NOTICE] - shown once per browser session after login
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
+  const prevMeRef = useRef(null);
 
   function handleRoute(nextRoute) {
     if (nextRoute === 'alumniExamResults') {
@@ -141,6 +145,24 @@ export default function App() {
   function handleLogin() {
     refreshMe();
     setRoute('Dashboard');
+  }
+
+  // [PRIVACY NOTICE] - detect login transition (null → user) and show notice once per session
+  useEffect(() => {
+    const wasLoggedOut = prevMeRef.current === null;
+    const isNowLoggedIn = me !== null;
+    if (wasLoggedOut && isNowLoggedIn) {
+      const accepted = sessionStorage.getItem('bark_privacy_accepted');
+      if (!accepted) {
+        setShowPrivacyNotice(true);
+      }
+    }
+    prevMeRef.current = me;
+  }, [me]);
+
+  function handlePrivacyAccept() {
+    sessionStorage.setItem('bark_privacy_accepted', '1');
+    setShowPrivacyNotice(false);
   }
 
   useEffect(() => {
@@ -428,6 +450,9 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* [PRIVACY NOTICE] - full-screen overlay shown once per session after login */}
+      {showPrivacyNotice && <PrivacyNotice onAccept={handlePrivacyAccept} />}
+
       <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
 
       <main className="page-content">

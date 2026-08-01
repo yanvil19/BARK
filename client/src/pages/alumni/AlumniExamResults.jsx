@@ -245,6 +245,14 @@ function QuestionReview({ questions }) {
                       );
                     })}
                   </div>
+                  {question.rationalization && (
+                    <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#f0f4f8', borderRadius: '8px', border: '1px solid #d9e2ec' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '0.875rem', color: '#102a43', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Rationalization</h4>
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: '#334e68', lineHeight: 1.5 }}>
+                        {question.rationalization}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </article>
