@@ -594,4 +594,5 @@ module.exports = {
   deanReturnApprovedQuestion,
   lockQuestion,
   unlockQuestion,
+  deleteQuestionImagesFromR2,
 };

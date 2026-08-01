@@ -259,13 +259,31 @@ export default function QuestionForm({
     }
   }
 
-  function removeImage(qId, idx) {
+  async function removeImage(qId, idx) {
     if (readOnly) return;
+    
+    const targetQ = questionsData.find(q => q.id === qId);
+    if (!targetQ) return;
+    const urlToRemove = targetQ.uploadedUrls[idx];
+
     updateQuestion(qId, q => ({
       ...q,
       imagePreviews: q.imagePreviews.filter((_, i) => i !== idx),
       uploadedUrls: q.uploadedUrls.filter((_, i) => i !== idx)
     }));
+
+    // Immediately delete the image from storage to prevent orphaned files
+    if (urlToRemove) {
+      try {
+        const parts = urlToRemove.split('/image/');
+        if (parts.length === 2) {
+          const key = parts[1];
+          await apiAuth(`${BASE}/api/questions/image/${key}`, { method: 'DELETE' });
+        }
+      } catch (err) {
+        console.error('Failed to delete image from storage:', err);
+      }
+    }
   }
 
   // [IMPORT REVIEW - FLAG SYSTEM]

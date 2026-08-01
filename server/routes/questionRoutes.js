@@ -13,6 +13,7 @@ const {
   deanReturnApprovedQuestion,
   lockQuestion,
   unlockQuestion,
+  deleteQuestionImagesFromR2,
 } = require('../controllers/questionController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const AppSettings = require('../models/AppSettings');
@@ -80,6 +81,18 @@ router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULT
     res.send(decrypted);
   } catch (err) {
     return res.status(404).json({ message: 'Image not found or failed to load' });
+  }
+});
+
+// [New] Delete image explicitly
+router.delete('/image/:key', protect, authorizeRoles(...FACULTY), async (req, res) => {
+  try {
+    // Reconstruct the URL format expected by deleteQuestionImagesFromR2
+    const fakeUrl = `http://dummy.local/question-images/${req.params.key}`;
+    await deleteQuestionImagesFromR2([fakeUrl]);
+    res.json({ message: 'Image deleted from storage' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete image' });
   }
 });
 
