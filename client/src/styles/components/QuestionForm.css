@@ -705,3 +705,53 @@
   line-height: 1.6;
 }
 
+/* ─── Rationalization Section ───────────────────────────────── */
+.qf-section--rationalization {
+  background: #f7f8fd;
+  border: 1px solid #dbe0f4;
+}
+
+.qf-section--rationalization .qf-section-heading h3 {
+  color: #4a57a2;
+}
+
+.qf-section--rationalization .qf-section-heading p {
+  color: #8b92bc;
+}
+
+.qf-rationalization-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  background: #f3f5fc;
+  color: #5261ab;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.qf-rationalization-textarea::placeholder {
+  color: #a4abcf;
+  font-style: italic;
+}
+
+.qf-rationalization-textarea:focus {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
+  background: #fff;
+}
+
+.qf-shell--readonly .qf-rationalization-textarea:disabled {
+  background: #f8f9fe;
+  color: #4a57a2;
+  border-color: #e2e5f5;
+  cursor: default;
+  opacity: 1;
+}
+

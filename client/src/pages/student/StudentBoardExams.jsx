@@ -975,6 +975,15 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                               ))}
                             </ul>
                           </div>
+
+                          {question.rationalization && (
+                            <div className="ambe-question-answers-panel" style={{ marginTop: '16px' }}>
+                              <span className="ambe-section-label">Rationalization</span>
+                              <p className="ambe-question-text" style={{ padding: '0 16px 16px' }}>
+                                {question.rationalization}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </article>

@@ -401,7 +401,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'description images answers tag',
+        select: 'description images answers tag rationalization',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -437,6 +437,7 @@ async function getAttemptDetails(req, res) {
           userAnswer: userAnswer || null,
           correctAnswer: correctAnswer || null,
           subjectName: fullQ.tag?.name || null,
+          rationalization: fullQ.rationalization || null,
         });
       });
     }

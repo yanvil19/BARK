@@ -953,6 +953,13 @@ export default function QuestionApprovals({ me }) {
                 </div>
               </section>
 
+              {selectedQuestion.rationalization && (
+                <section className="ca-section">
+                  <h3 className="ca-section-label">Rationalization</h3>
+                  <p className="ca-question-detail-text">{selectedQuestion.rationalization}</p>
+                </section>
+              )}
+
               <section className="ca-section">
                 <div className="ca-meta-grid">
                   <div>
