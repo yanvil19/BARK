@@ -4,6 +4,38 @@ const User = require('../models/User');
 const Program = require('../models/Program');
 const { logAudit } = require('../utils/auditLogger');
 const AppSettings = require('../models/AppSettings');
+const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+
+const r2 = new S3Client({
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: 'auto',
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+});
+
+const deleteQuestionImagesFromR2 = async (images = []) => {
+  if (!images.length) return;
+
+  await Promise.all(
+    images.map(async (imageUrl) => {
+      try {
+        const key = new URL(imageUrl).pathname.replace(/^\/+/, '');
+
+        const result = await r2.send(
+          new DeleteObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+          })
+        );
+
+      } catch (err) {
+        console.error('DELETE ERROR:', err);
+      }
+    })
+  );
+};
 
 // Helper: resolve program IDs accessible to the requesting user
 async function getAccessibleProgramIds(user) {
@@ -231,9 +263,23 @@ const updateQuestion = async (req, res) => {
     if (images !== undefined) {
       const settings = await AppSettings.getSingleton();
       const maxAllowed = settings.maxUploadImages ?? 5;
-      if (Array.isArray(images) && images.length > maxAllowed)
-        return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed` });
-      question.images = images;
+
+      if (Array.isArray(images) && images.length > maxAllowed) {
+        return res.status(400).json({
+          message: `Maximum of ${maxAllowed} images allowed`
+        });
+      }
+
+      const oldImages = question.images || [];
+      const newImages = images || [];
+
+      const removedImages = oldImages.filter(
+        (img) => !newImages.includes(img)
+      );
+
+      await deleteQuestionImagesFromR2(removedImages);
+
+      question.images = newImages;
     }
     if (answers) {
       // Basic structure check for updates
@@ -279,7 +325,9 @@ const deleteQuestion = async (req, res) => {
     if (question.is_used_in_exam)
       return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
 
+    await deleteQuestionImagesFromR2(question.images);
     await question.deleteOne();
+
     await logAudit(req.user._id, 'question_deleted', 'Question', question._id, {
       programId: question.program,
       tagId: question.tag || null,
@@ -418,7 +466,9 @@ const reviewQuestion = async (req, res) => {
         if (!exists) return res.status(404).json({ message: 'Question not found' });
         return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
       }
+      await deleteQuestionImagesFromR2(question.images);
       await question.deleteOne();
+
       await logAudit(req.user._id, 'question_reviewed', 'Question', question._id, {
         reviewAction: action,
         role: req.user.role,
