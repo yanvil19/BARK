@@ -1,3 +1,4 @@
+const { decryptExamQuestions } = require('../services/encryptionService');
 const mongoose = require('mongoose');
 const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
@@ -219,7 +220,7 @@ exports.listExamsWithStatus = async (req, res) => {
       };
     });
 
-    res.json({ exams: examsWithStatus });
+    res.json({ exams: examsWithStatus.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

@@ -1,3 +1,4 @@
+const { decryptExamQuestions } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const MockExamResult = require('../models/MockExamResult');
 const Program = require('../models/Program');
@@ -315,7 +316,7 @@ async function createMockBoardExam(req, res) {
       });
     }
 
-    res.status(201).json({ exam: populated, warnings: scheduleConflict.warnings });
+    res.status(201).json({ exam: decryptExamQuestions(populated), warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -413,7 +414,7 @@ async function listMockBoardExams(req, res) {
       };
     });
 
-    res.json({ exams: enrichedExams });
+    res.json({ exams: enrichedExams.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -441,7 +442,7 @@ async function getMockBoardExam(req, res) {
     const program = await ensureDeanProgramAccess(req.user, exam.program?._id || exam.program);
     if (!program) return res.status(403).json({ message: 'Access denied to this exam' });
 
-    res.json({ exam });
+    res.json({ exam: decryptExamQuestions(exam) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -556,7 +557,7 @@ async function updateMockBoardExam(req, res) {
       });
     }
 
-    res.json({ exam: populated, warnings: scheduleConflict.warnings });
+    res.json({ exam: decryptExamQuestions(populated), warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -694,7 +695,7 @@ async function copyExam(req, res) {
       questionCount: reused.questions?.length || 0,
     });
 
-    res.status(201).json({ exam: populated });
+    res.status(201).json({ exam: decryptExamQuestions(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

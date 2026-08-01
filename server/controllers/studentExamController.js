@@ -1,3 +1,4 @@
+const { decryptExamQuestions } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const mongoose = require('mongoose');
@@ -155,7 +156,7 @@ async function getAvailableExams(req, res) {
       return { ...exam, durationMinutes, questionCount, examCardStatus };
     });
 
-    res.json({ exams: enriched });
+    res.json({ exams: enriched.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

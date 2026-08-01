@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // AES-128-GCM for text fields — 16-byte key (32 hex chars)
 const TEXT_ALGO = 'aes-128-gcm';
@@ -97,4 +98,28 @@ function decryptQuestion(q) {
   };
 }
 
-module.exports = { encryptText, decryptText, encryptBuffer, decryptBuffer, decryptQuestion };
+/**
+ * Decrypts all populated questions inside an exam document.
+ * @param {Object} exam - The exam document (Mongoose or plain object)
+ */
+function decryptExamQuestions(exam) {
+  if (!exam) return exam;
+  const e = exam.toObject ? exam.toObject() : { ...exam };
+  if (e.questions && Array.isArray(e.questions)) {
+    e.questions = e.questions.map(q => {
+      // If q is just an ObjectId string, skip
+      if (typeof q === 'string' || q instanceof mongoose.Types.ObjectId) return q;
+      return decryptQuestion(q);
+    });
+  }
+  return e;
+}
+
+module.exports = {
+  encryptText,
+  decryptText,
+  encryptBuffer,
+  decryptBuffer,
+  decryptQuestion,
+  decryptExamQuestions,
+};
