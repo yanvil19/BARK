@@ -1,4 +1,4 @@
-const { decryptExamQuestions } = require('../services/encryptionService');
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const MockExamResult = require('../models/MockExamResult');
 const Program = require('../models/Program');
@@ -155,7 +155,7 @@ async function listApprovedQuestions(req, res) {
       .populate('createdBy', 'name')
       .sort({ updatedAt: -1 });
 
-    res.json({ questions });
+    res.json({ questions: questions.map(decryptQuestion) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
