@@ -1,4 +1,4 @@
-const { decryptExamQuestions } = require('../services/encryptionService');
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { shuffleArray, calculateScore } = require('../utils/examAttemptUtils');
@@ -163,7 +163,8 @@ async function startExam(req, res) {
 
     const responseQuestions = [];
     const qMap = new Map();
-    currentExam.questions.forEach((q) => qMap.set(String(q._id), q));
+    const decryptedExam = decryptExamQuestions(currentExam);
+    decryptedExam.questions.forEach((q) => qMap.set(String(q._id), q));
 
     attempt.randomizedQuestions.forEach((rq) => {
       const fullQ = qMap.get(String(rq.question));
@@ -417,7 +418,7 @@ async function getAttemptDetails(req, res) {
     const questions = [];
     if (attempt.status === 'submitted') {
       attempt.randomizedQuestions.forEach((rq) => {
-        const fullQ = rq.question;
+        const fullQ = decryptQuestion(rq.question);
         if (!fullQ) return;
 
         const mappedAnswers = rq.answers
