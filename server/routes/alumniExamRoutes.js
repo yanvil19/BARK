@@ -2,6 +2,7 @@ const express = require('express');
 const {
   getAvailableExams,
   startExam,
+  saveProgress,
   submitExam,
   getMyAttempts,
   getDashboardAttempts,
@@ -19,6 +20,7 @@ router.get('/my-attempts', getDashboardAttempts);
 router.get('/:examId/my-attempts', getMyAttempts);
 router.get('/attempt/:attemptId', getAttemptDetails);
 router.post('/:id/start', startExam);
+router.patch('/attempt/:attemptId/progress', saveProgress);
 router.post('/attempt/:attemptId/submit', submitExam);
 
 module.exports = router;

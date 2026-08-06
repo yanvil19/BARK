@@ -27,6 +27,13 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   const [dragging, setDragging] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const isSubmittingRef = useRef(false);
+  const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     async function startOrResumeExam() {
@@ -57,11 +64,28 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
 
   const handleSelect = (questionId, answerId) => {
     if (submitting) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: answerId }));
+    const newAnswers = { ...answers, [questionId]: answerId };
+    setAnswers(newAnswers);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/progress`, {
+          method: 'PATCH',
+          body: { answers: newAnswers },
+        });
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      }
+    }, 2000);
   };
 
   const submitFinal = async () => {
     isSubmittingRef.current = true;
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     setSubmitting(true);
     try {
       await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/submit`, {

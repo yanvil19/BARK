@@ -207,6 +207,45 @@ async function startExam(req, res) {
   }
 }
 
+async function saveProgress(req, res) {
+  try {
+    const attemptId = req.params.attemptId;
+    const { answers } = req.body;
+
+    const attempt = await AlumniExamAttempt.findById(attemptId);
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+
+    if (attempt.alumni.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const exam = await MockBoardExam.findById(attempt.exam);
+    const deadline = getTimedDeadline(exam, attempt);
+    
+    if (deadline && Date.now() > deadline.getTime() + TIME_LIMIT_GRACE_MS) {
+      await submitExpiredTimedAttempt(attempt, exam, deadline);
+      return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
+    }
+
+    if (attempt.status !== 'in_progress') {
+      return res.status(400).json({ message: 'Exam is no longer in progress' });
+    }
+
+    if (answers) {
+      for (const [qId, ansId] of Object.entries(answers)) {
+        attempt.answers.set(qId, ansId);
+      }
+    }
+
+    await attempt.save();
+
+    res.json({ message: 'Progress saved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
 async function submitExam(req, res) {
   try {
     const attemptId = req.params.attemptId;
@@ -483,6 +522,7 @@ async function getAttemptDetails(req, res) {
 module.exports = {
   getAvailableExams,
   startExam,
+  saveProgress,
   submitExam,
   getMyAttempts,
   getDashboardAttempts,
