@@ -902,7 +902,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                               Question {String(index + 1).padStart(2, '0')}
                             </span>
                             <h4 className="ambe-question-title">
-                              {question.title || `Untitled Question ${index + 1}`}
+                              {question.description ? question.description.replace(/[\r\n]+/g, ' ').trim() : `Question ${index + 1}`}
                             </h4>
                           </div>
 
