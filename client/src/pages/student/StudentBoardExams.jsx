@@ -872,7 +872,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             <div className="ambe-questions-header">
               <div>
                 <h3>Questions</h3>
-                <p>Each question now groups the prompt, subject, answer choices, and image previews together.</p>
+                <p>Review the complete list of exam questions, answer choices, and attached figures.</p>
               </div>
               <span className="ambe-questions-hint">Click an image to expand it</span>
             </div>
