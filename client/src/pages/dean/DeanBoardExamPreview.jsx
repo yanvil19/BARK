@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -130,18 +131,13 @@ export default function MockBoardExamPreview({ examId, onBack }) {
             </div>
             <div className="mbep-card-body">
               <div className="mbep-question-title">
-                Question {currentIdx + 1}
-                {currentQuestion.description && (
-                  <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                    {currentQuestion.description}
-                  </p>
-                )}
+                {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
               </div>
 
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img
+                    <AuthImage
                       key={i}
                       src={img.startsWith('/') ? `${BASE}${img}` : img}
                       alt="Ref"
@@ -236,7 +232,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
             zIndex: 3000,
           }}
         >
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             style={{

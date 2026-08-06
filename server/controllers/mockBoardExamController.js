@@ -1,3 +1,4 @@
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const MockExamResult = require('../models/MockExamResult');
 const Program = require('../models/Program');
@@ -154,7 +155,7 @@ async function listApprovedQuestions(req, res) {
       .populate('createdBy', 'name')
       .sort({ updatedAt: -1 });
 
-    res.json({ questions });
+    res.json({ questions: questions.map(decryptQuestion) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -178,8 +179,8 @@ async function validateExamPayload(user, body) {
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
   if (!['student', 'alumni'].includes(targetAudience)) errors.push('Invalid target audience');
-  if (!isAlumniExam && status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
-  if (!isAlumniExam && status === 'published' && !body.endDateTime) errors.push('End date and time is required');
+  if (status === 'published' && !body.startDateTime) errors.push('Start date and time is required');
+  if (status === 'published' && !body.endDateTime) errors.push('End date and time is required');
   if (isTimed && (!Number.isFinite(timeLimitMinutes) || timeLimitMinutes < 1)) {
     errors.push('Time limit must be at least 1 minute');
   }
@@ -199,7 +200,7 @@ async function validateExamPayload(user, body) {
   if (start && end && end <= start) errors.push('End date must be later than the start date');
   
   const now = new Date();
-  if (!isAlumniExam && status === 'published' && end && end <= now) {
+  if (status === 'published' && end && end <= now) {
     errors.push('Cannot publish an exam that has already expired. Please adjust the end date and time.');
   }
 
@@ -315,7 +316,7 @@ async function createMockBoardExam(req, res) {
       });
     }
 
-    res.status(201).json({ exam: populated, warnings: scheduleConflict.warnings });
+    res.status(201).json({ exam: decryptExamQuestions(populated), warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -413,7 +414,7 @@ async function listMockBoardExams(req, res) {
       };
     });
 
-    res.json({ exams: enrichedExams });
+    res.json({ exams: enrichedExams.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -441,7 +442,7 @@ async function getMockBoardExam(req, res) {
     const program = await ensureDeanProgramAccess(req.user, exam.program?._id || exam.program);
     if (!program) return res.status(403).json({ message: 'Access denied to this exam' });
 
-    res.json({ exam });
+    res.json({ exam: decryptExamQuestions(exam) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -556,7 +557,7 @@ async function updateMockBoardExam(req, res) {
       });
     }
 
-    res.json({ exam: populated, warnings: scheduleConflict.warnings });
+    res.json({ exam: decryptExamQuestions(populated), warnings: scheduleConflict.warnings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -694,7 +695,7 @@ async function copyExam(req, res) {
       questionCount: reused.questions?.length || 0,
     });
 
-    res.status(201).json({ exam: populated });
+    res.status(201).json({ exam: decryptExamQuestions(populated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

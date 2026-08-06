@@ -1,3 +1,4 @@
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { shuffleArray, calculateScore } = require('../utils/examAttemptUtils');
@@ -72,7 +73,7 @@ async function getAvailableExams(req, res) {
       };
     });
 
-    res.json({ exams: enriched });
+    res.json({ exams: enriched.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -162,7 +163,8 @@ async function startExam(req, res) {
 
     const responseQuestions = [];
     const qMap = new Map();
-    currentExam.questions.forEach((q) => qMap.set(String(q._id), q));
+    const decryptedExam = decryptExamQuestions(currentExam);
+    decryptedExam.questions.forEach((q) => qMap.set(String(q._id), q));
 
     attempt.randomizedQuestions.forEach((rq) => {
       const fullQ = qMap.get(String(rq.question));
@@ -199,6 +201,45 @@ async function startExam(req, res) {
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+}
+
+async function saveProgress(req, res) {
+  try {
+    const attemptId = req.params.attemptId;
+    const { answers } = req.body;
+
+    const attempt = await AlumniExamAttempt.findById(attemptId);
+    if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
+
+    if (attempt.alumni.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const exam = await MockBoardExam.findById(attempt.exam);
+    const deadline = getTimedDeadline(exam, attempt);
+    
+    if (deadline && Date.now() > deadline.getTime() + TIME_LIMIT_GRACE_MS) {
+      await submitExpiredTimedAttempt(attempt, exam, deadline);
+      return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
+    }
+
+    if (attempt.status !== 'in_progress') {
+      return res.status(400).json({ message: 'Exam is no longer in progress' });
+    }
+
+    if (answers) {
+      for (const [qId, ansId] of Object.entries(answers)) {
+        attempt.answers.set(qId, ansId);
+      }
+    }
+
+    await attempt.save();
+
+    res.json({ message: 'Progress saved' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -401,7 +442,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'description images answers tag',
+        select: 'description images answers tag rationalization',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -416,7 +457,7 @@ async function getAttemptDetails(req, res) {
     const questions = [];
     if (attempt.status === 'submitted') {
       attempt.randomizedQuestions.forEach((rq) => {
-        const fullQ = rq.question;
+        const fullQ = decryptQuestion(rq.question);
         if (!fullQ) return;
 
         const mappedAnswers = rq.answers
@@ -437,6 +478,7 @@ async function getAttemptDetails(req, res) {
           userAnswer: userAnswer || null,
           correctAnswer: correctAnswer || null,
           subjectName: fullQ.tag?.name || null,
+          rationalization: fullQ.rationalization || null,
         });
       });
     }
@@ -480,6 +522,7 @@ async function getAttemptDetails(req, res) {
 module.exports = {
   getAvailableExams,
   startExam,
+  saveProgress,
   submitExam,
   getMyAttempts,
   getDashboardAttempts,

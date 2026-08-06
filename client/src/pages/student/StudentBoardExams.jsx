@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
@@ -871,7 +872,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             <div className="ambe-questions-header">
               <div>
                 <h3>Questions</h3>
-                <p>Each question now groups the prompt, subject, answer choices, and image previews together.</p>
+                <p>Review the complete list of exam questions, answer choices, and attached figures.</p>
               </div>
               <span className="ambe-questions-hint">Click an image to expand it</span>
             </div>
@@ -901,7 +902,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                               Question {String(index + 1).padStart(2, '0')}
                             </span>
                             <h4 className="ambe-question-title">
-                              {question.title || `Untitled Question ${index + 1}`}
+                              {question.description ? question.description.replace(/[\r\n]+/g, ' ').trim() : `Question ${index + 1}`}
                             </h4>
                           </div>
 
@@ -942,7 +943,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                                       className="ambe-question-image-button"
                                       onClick={() => setFullscreenImage(image)}
                                     >
-                                      <img
+                                      <AuthImage
                                         src={image}
                                         alt={`Question ${index + 1} image ${imageIndex + 1}`}
                                         className="ambe-question-thumb"
@@ -975,6 +976,15 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                               ))}
                             </ul>
                           </div>
+
+                          {question.rationalization && (
+                            <div className="ambe-question-answers-panel" style={{ marginTop: '16px' }}>
+                              <span className="ambe-section-label">Rationalization</span>
+                              <p className="ambe-question-text" style={{ padding: '0 16px 16px' }}>
+                                {question.rationalization}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </article>
@@ -996,7 +1006,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             >
               Close
             </button>
-            <img src={fullscreenImage} alt="Preview" className="ambe-image-full" />
+            <AuthImage src={fullscreenImage} alt="Preview" className="ambe-image-full" />
           </div>
         </div>
       )}

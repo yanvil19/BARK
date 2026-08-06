@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
+import PrivacyNotice from './components/PrivacyNotice.jsx';
 import Login from './pages/Login.jsx';
 import DeanApprovals from './pages/dean/DeanApproveQuestions.jsx';
 import StudentManager from './pages/dean/DeanStudentRegister.jsx';
@@ -44,16 +45,27 @@ import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx'
 import PCExamResults from './pages/programchair/PCExamResults.jsx';
 
 export default function App() {
-  const [route, setRoute] = useState('Dashboard');
+  const [route, setRoute] = useState(() => sessionStorage.getItem('bark_route') || 'Dashboard');
   const [me, setMe] = useState(null);
-  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState('');
+  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => sessionStorage.getItem('bark_editingMockBoardExamId') || '');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
-  const [examRunnerId, setExamRunnerId] = useState('');
-  const [examRunnerMode, setExamRunnerMode] = useState('details');
-  const [studentExamId, setStudentExamId] = useState('');
-  const [alumniExamId, setAlumniExamId] = useState('');
-  const [alumniResultExamId, setAlumniResultExamId] = useState('');
+  const [examRunnerId, setExamRunnerId] = useState(() => sessionStorage.getItem('bark_examRunnerId') || '');
+  const [examRunnerMode, setExamRunnerMode] = useState(() => sessionStorage.getItem('bark_examRunnerMode') || 'details');
+  const [studentExamId, setStudentExamId] = useState(() => sessionStorage.getItem('bark_studentExamId') || '');
+  const [alumniExamId, setAlumniExamId] = useState(() => sessionStorage.getItem('bark_alumniExamId') || '');
+  const [alumniResultExamId, setAlumniResultExamId] = useState(() => sessionStorage.getItem('bark_alumniResultExamId') || '');
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
+  const [isInitialAuthLoading, setIsInitialAuthLoading] = useState(true);
+  const prevMeRef = useRef(null);
+
+  useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
+  useEffect(() => sessionStorage.setItem('bark_editingMockBoardExamId', editingMockBoardExamId), [editingMockBoardExamId]);
+  useEffect(() => sessionStorage.setItem('bark_examRunnerId', examRunnerId), [examRunnerId]);
+  useEffect(() => sessionStorage.setItem('bark_examRunnerMode', examRunnerMode), [examRunnerMode]);
+  useEffect(() => sessionStorage.setItem('bark_studentExamId', studentExamId), [studentExamId]);
+  useEffect(() => sessionStorage.setItem('bark_alumniExamId', alumniExamId), [alumniExamId]);
+  useEffect(() => sessionStorage.setItem('bark_alumniResultExamId', alumniResultExamId), [alumniResultExamId]);
 
   function handleRoute(nextRoute) {
     if (nextRoute === 'alumniExamResults') {
@@ -62,7 +74,7 @@ export default function App() {
     setRoute(nextRoute);
   }
 
-  async function refreshMe() {
+  async function refreshMe(initial = false) {
     try {
       const data = await api('/api/auth/me');
       setMe((prev) => {
@@ -83,11 +95,13 @@ export default function App() {
         }
       }
       setMe(null);
+    } finally {
+      if (initial) setIsInitialAuthLoading(false);
     }
   }
 
   useEffect(() => {
-    refreshMe();
+    refreshMe(true);
   }, []);
 
   // [SESSION POLL - Deactivation detection]
@@ -111,7 +125,7 @@ export default function App() {
 
   function handleDeactivatedAcknowledge() {
     setShowDeactivatedModal(false);
-    api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    api('/api/auth/logout', { method: 'POST' }).catch(() => { });
     clearClientSessionStorage();
     setMe(null);
     // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
@@ -143,13 +157,31 @@ export default function App() {
     setRoute('Dashboard');
   }
 
+  // [PRIVACY NOTICE] - detect login transition (null → user) and show notice once per session
+  useEffect(() => {
+    const wasLoggedOut = prevMeRef.current === null;
+    const isNowLoggedIn = me !== null;
+    if (wasLoggedOut && isNowLoggedIn) {
+      const accepted = sessionStorage.getItem('bark_privacy_accepted');
+      if (!accepted) {
+        setShowPrivacyNotice(true);
+      }
+    }
+    prevMeRef.current = me;
+  }, [me]);
+
+  function handlePrivacyAccept() {
+    sessionStorage.setItem('bark_privacy_accepted', '1');
+    setShowPrivacyNotice(false);
+  }
+
   useEffect(() => {
     if (me && route === 'login') setRoute('Dashboard');
   }, [me, route]);
 
   useEffect(() => {
     const isLearner = me?.role === 'student' || me?.role === 'alumni';
-    if (isLearner && route === 'student') setRoute('Dashboard');
+    if (me && isLearner && route === 'student') setRoute('Dashboard');
   }, [me, route]);
 
   useEffect(() => {
@@ -165,7 +197,7 @@ export default function App() {
       'alumniExamResults',
     ]);
 
-    if (route && learnerRoutes.has(route) && !isLearner) {
+    if (me && route && learnerRoutes.has(route) && !isLearner) {
       setRoute('Dashboard');
     }
   }, [me, route]);
@@ -199,6 +231,15 @@ export default function App() {
       setExamRunnerMode('details');
     }
   }, [examRunnerId, route]);
+
+  useEffect(() => {
+    if (!isInitialAuthLoading && !me) {
+      const publicRoutes = new Set(['Dashboard', 'landing', 'login', 'credits']);
+      if (!publicRoutes.has(route)) {
+        setRoute('login');
+      }
+    }
+  }, [isInitialAuthLoading, me, route]);
 
   async function handleLogout() {
     try {
@@ -426,8 +467,19 @@ export default function App() {
     page = <AlumniExamResults examId={alumniResultExamId} />;
   if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
+  if (isInitialAuthLoading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}>
+        <h2>Loading NU-BOARD...</h2>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
+      {/* [PRIVACY NOTICE] - full-screen overlay shown once per session after login */}
+      {showPrivacyNotice && <PrivacyNotice onAccept={handlePrivacyAccept} />}
+
       <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
 
       <main className="page-content">

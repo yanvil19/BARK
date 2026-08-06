@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -26,6 +27,13 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   const [dragging, setDragging] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const isSubmittingRef = useRef(false);
+  const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     async function startOrResumeExam() {
@@ -56,11 +64,28 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
 
   const handleSelect = (questionId, answerId) => {
     if (submitting) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: answerId }));
+    const newAnswers = { ...answers, [questionId]: answerId };
+    setAnswers(newAnswers);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/progress`, {
+          method: 'PATCH',
+          body: { answers: newAnswers },
+        });
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      }
+    }, 2000);
   };
 
   const submitFinal = async () => {
     isSubmittingRef.current = true;
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     setSubmitting(true);
     try {
       await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/submit`, {
@@ -147,20 +172,9 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
           className="shared-page-header--bleed-lr"
           title={examInfo?.name}
           subtitle={attemptNumber ? `Attempt ${attemptNumber}` : examInfo?.description || 'Alumni Exam'}
-        >
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              className="mbep-exit-btn"
-              onClick={() => setShowSubmitConfirm(true)}
-              style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}
-              disabled={submitting || isSubmittingRef.current}
-            >
-              {submitting ? 'Submitting...' : '+ Submit Exam'}
-            </button>
-          </div>
-        </PageHeader>
+        />
 
-        <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: timeRemaining === null ? '1fr' : '1fr auto', gap: '20px' }}>
+        <div className={`mbep-stats mbep-stats-grid${timeRemaining === null ? ' mbep-stats-single' : ''}`}>
           <div className="mbep-progress-card">
             <div className="mbep-progress-info">
               <span>Progress ({answeredCount} answered)</span>
@@ -171,8 +185,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
             </div>
           </div>
           {timeRemaining !== null ? (
-            <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-bg)' }}>
+            <div className="mbep-progress-card mbep-timer-card">
+              <span className="mbep-timer-value">
                 {formatTimer(timeRemaining)}
               </span>
             </div>
@@ -187,18 +201,13 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
               </div>
               <div className="mbep-card-body">
                 <div className="mbep-question-title">
-                  {currentQuestion.title}
-                  {currentQuestion.description && (
-                    <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                      {currentQuestion.description}
-                    </p>
-                  )}
+                  {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
                 </div>
 
                 {currentQuestion.images?.length > 0 && (
                   <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     {currentQuestion.images.map((img, i) => (
-                      <img
+                      <AuthImage
                         key={i}
                         src={img.startsWith('/') ? `${BASE}${img}` : img}
                         alt="Ref"
@@ -261,8 +270,18 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
               <button className="mbep-btn-nav" onClick={() => setCurrentIdx((p) => Math.max(0, p - 1))} disabled={currentIdx === 0}>
                 Previous
               </button>
-              <button className="mbep-btn-nav" onClick={() => setCurrentIdx((p) => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
-                Next
+              <button
+                className={`mbep-btn-nav ${currentIdx === questions.length - 1 ? 'mbep-btn-submit' : ''}`}
+                onClick={() => {
+                  if (currentIdx === questions.length - 1) {
+                    setShowSubmitConfirm(true);
+                  } else {
+                    setCurrentIdx((p) => Math.min(questions.length - 1, p + 1));
+                  }
+                }}
+                disabled={submitting || isSubmittingRef.current}
+              >
+                {currentIdx === questions.length - 1 ? (submitting ? 'Submitting...' : 'Submit Exam') : 'Next'}
               </button>
             </div>
           </div>
@@ -317,7 +336,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
             X
           </button>
 
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             draggable={false}

@@ -1,3 +1,4 @@
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const mongoose = require('mongoose');
 const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
@@ -97,7 +98,8 @@ async function buildAlumniHighestScoreReport(exam, user) {
   if (bestAttempts.length === 0) return null;
 
   const totalTakers = bestAttempts.length;
-  const questionRates = buildQuestionRates(exam, bestAttempts);
+  const decryptedExamForAlumni = decryptExamQuestions(exam);
+  const questionRates = buildQuestionRates(decryptedExamForAlumni, bestAttempts);
 
   const tagIds = [...new Set(questionRates.map((qr) => qr.tagId))];
   const tags = await Tag.find({ _id: { $in: tagIds } });
@@ -219,7 +221,7 @@ exports.listExamsWithStatus = async (req, res) => {
       };
     });
 
-    res.json({ exams: examsWithStatus });
+    res.json({ exams: examsWithStatus.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -241,6 +243,10 @@ exports.getResult = async (req, res) => {
     if (!exam) {
       return res.status(403).json({ message: 'Forbidden or exam not found' });
     }
+
+    // Decrypt all populated question fields before processing
+    const decryptedExam = decryptExamQuestions(exam);
+    const examQuestions = decryptedExam.questions || [];
 
     if ((exam.targetAudience || 'student') === 'alumni') {
       const report = await buildAlumniHighestScoreReport(exam, req.user);
@@ -311,7 +317,8 @@ exports.computeResults = async (req, res) => {
 
     // 4. COMPUTE PER-QUESTION RATES
     const totalTakers = attempts.length;
-    const questionRates = buildQuestionRates(exam, attempts);
+    const decryptedExamForCompute = decryptExamQuestions(exam);
+    const questionRates = buildQuestionRates(decryptedExamForCompute, attempts);
 
     // 5. COMPUTE PER-SUBJECT AVERAGES (Average of question rates)
     const tagIds = [...new Set(questionRates.map(qr => qr.tagId))];
@@ -436,6 +443,10 @@ exports.getStudentResults = async (req, res) => {
       return res.status(403).json({ message: 'Forbidden or exam not found' });
     }
 
+    // Decrypt all populated question fields before processing
+    const decryptedExam = decryptExamQuestions(exam);
+    const examQuestions = decryptedExam.questions || [];
+
     if ((exam.targetAudience || 'student') === 'alumni') {
       const attempts = await AlumniExamAttempt.find({ exam: examId, status: 'submitted' })
         .populate('alumni', 'name email alumniId program')
@@ -486,7 +497,7 @@ exports.getStudentResults = async (req, res) => {
             totalItems += ss.total;
 
             const tagIdStr = String(ss.tag._id || ss.tag);
-            const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+            const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
 
             const questionBreakdowns = subjectQuestions.map(q => {
               const qId = String(q._id);
@@ -588,7 +599,7 @@ exports.getStudentResults = async (req, res) => {
         totalItems += ss.total;
         
         const tagIdStr = String(ss.tag._id || ss.tag);
-        const subjectQuestions = exam.questions.filter(q => String(q.tag) === tagIdStr);
+        const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
         
         const questionBreakdowns = subjectQuestions.map(q => {
           const qId = String(q._id);

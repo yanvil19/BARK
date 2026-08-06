@@ -1,3 +1,4 @@
+import AuthImage from '../components/AuthImage.jsx';
 import { useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
@@ -54,6 +55,7 @@ export default function QuestionForm({
           { text: '', isCorrect: false },
         ],
         tagId: q.tagId || '',
+        rationalization: q.rationalization || '',
         imagePreviews: [],
         uploadedUrls: [],
         uploading: false,
@@ -75,6 +77,7 @@ export default function QuestionForm({
         { text: '', isCorrect: false },
       ],
       tagId: initialData?.tag?._id || initialData?.tag || '',
+      rationalization: initialData?.rationalization || '',
       imagePreviews: (initialData?.images || []).map((url) => ({
         url: url.startsWith('/') ? `${BASE}${url}` : url,
         file: null,
@@ -156,7 +159,8 @@ export default function QuestionForm({
     if (field === 'tag' || field === 'subject') return true;
     if (field === 'correct' || field === 'answers') return true;
     if (field === 'description') return true;
-    if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers') return true;
+    if (field === 'rationalization') return true;
+    if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers' || type === 'missing_rationalization') return true;
 
     return msg === 'No subject assigned.' || msg === 'No correct answer selected' || msg === 'Question must have at least 4 answer choices';
   }
@@ -255,13 +259,31 @@ export default function QuestionForm({
     }
   }
 
-  function removeImage(qId, idx) {
+  async function removeImage(qId, idx) {
     if (readOnly) return;
+    
+    const targetQ = questionsData.find(q => q.id === qId);
+    if (!targetQ) return;
+    const urlToRemove = targetQ.uploadedUrls[idx];
+
     updateQuestion(qId, q => ({
       ...q,
       imagePreviews: q.imagePreviews.filter((_, i) => i !== idx),
       uploadedUrls: q.uploadedUrls.filter((_, i) => i !== idx)
     }));
+
+    // Immediately delete the image from storage to prevent orphaned files
+    if (urlToRemove) {
+      try {
+        const parts = urlToRemove.split('/image/');
+        if (parts.length === 2) {
+          const key = parts[1];
+          await apiAuth(`${BASE}/api/questions/image/${key}`, { method: 'DELETE' });
+        }
+      } catch (err) {
+        console.error('Failed to delete image from storage:', err);
+      }
+    }
   }
 
   // [IMPORT REVIEW - FLAG SYSTEM]
@@ -344,6 +366,11 @@ export default function QuestionForm({
       flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected', field: 'answers', type: 'duplicate_answers' });
     }
 
+    // 5. Rationalization Required
+    if (!q.rationalization || !q.rationalization.trim()) {
+      flags.push({ severity: 'BLOCKER', message: 'Rationalization is required.', field: 'rationalization', type: 'missing_rationalization' });
+    }
+
     return flags;
   }
 
@@ -379,6 +406,7 @@ export default function QuestionForm({
     }
     return '';
   }
+
 
   async function save(submit = false) {
     if (readOnly) return;
@@ -417,6 +445,7 @@ export default function QuestionForm({
           description: q.description.trim(),
           answers: q.answers,
           tagId: q.tagId,
+          rationalization: q.rationalization?.trim() || '',
           images: q.uploadedUrls,
           ...(programId ? { programId } : {}),
           // [IMPORT REVIEW - FLAG SYSTEM]
@@ -474,6 +503,7 @@ export default function QuestionForm({
             description: q.description.trim(),
             answers: q.answers,
             tagId: q.tagId,
+            rationalization: q.rationalization?.trim() || '',
             images: q.uploadedUrls,
             ...(programId ? { programId } : {}),
             image_required: q.image_required,
@@ -519,6 +549,7 @@ export default function QuestionForm({
             { text: '', isCorrect: false },
           ],
           tagId: prev[prev.length - 1]?.tagId || '',
+          rationalization: '',
           imagePreviews: [],
           uploadedUrls: [],
           uploading: false,
@@ -649,6 +680,26 @@ export default function QuestionForm({
                 </div>
               </section>
 
+              {/* Rationalization Field */}
+              <section className="qf-section qf-section--rationalization">
+                <div className="qf-section-heading">
+                  <div>
+                    <h3>Rationalization *</h3>
+                    <p>{readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}</p>
+                  </div>
+                </div>
+                <div className="qf-field qf-field--full">
+                  <textarea
+                    className="qf-rationalization-textarea"
+                    placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
+                    value={q.rationalization || ''}
+                    onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, rationalization: e.target.value }))}
+                    rows={4}
+                    disabled={readOnly}
+                  />
+                </div>
+              </section>
+
               <section className="qf-section">
                 <div className="qf-section-heading">
                   <div>
@@ -680,7 +731,7 @@ export default function QuestionForm({
                   <div className="image-previews">
                     {q.imagePreviews.map((img, idx) => (
                       <div key={idx} className="image-thumb">
-                        <img
+                        <AuthImage
                           src={img.url}
                           alt=""
                           onClick={() => setFullscreenImage(img.url)}
@@ -902,7 +953,7 @@ export default function QuestionForm({
             >
               Close
             </button>
-            <img src={fullscreenImage} alt="Fullscreen" className="fullscreen-img" />
+            <AuthImage src={fullscreenImage} alt="Fullscreen" className="fullscreen-img" />
           </div>
         </div>
       ) : null}

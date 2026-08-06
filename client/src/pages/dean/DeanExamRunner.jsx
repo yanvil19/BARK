@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -228,7 +229,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                       <ul>
                         {question.images.map((image, imageIndex) => (
                           <li key={`${question._id}-image-${imageIndex}`}>
-                            <img
+                            <AuthImage
                               src={image.startsWith('/') ? `${BASE}${image}` : image}
                               alt={`Question Image ${imageIndex + 1}`}
                               style={{
@@ -295,7 +296,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
                           <ul>
                             {currentQuestion.images.map((image, imageIndex) => (
                               <li key={`${currentQuestion._id}-image-${imageIndex}`}>
-                                <img
+                                <AuthImage
                                   src={image.startsWith('/') ? `${BASE}${image}` : image}
                                   alt={`Question Image ${imageIndex + 1}`}
                                   style={{
@@ -361,7 +362,7 @@ export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
             zIndex: 1000,
           }}
         >
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             style={{

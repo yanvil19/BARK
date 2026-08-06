@@ -1,3 +1,4 @@
+const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const mongoose = require('mongoose');
@@ -155,7 +156,7 @@ async function getAvailableExams(req, res) {
       return { ...exam, durationMinutes, questionCount, examCardStatus };
     });
 
-    res.json({ exams: enriched });
+    res.json({ exams: enriched.map(decryptExamQuestions) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -255,7 +256,8 @@ async function startExam(req, res) {
 
     const responseQuestions = [];
     const qMap = new Map();
-    currentExam.questions.forEach(q => qMap.set(String(q._id), q));
+    const decryptedExam = decryptExamQuestions(currentExam);
+    decryptedExam.questions.forEach(q => qMap.set(String(q._id), q));
 
     attempt.randomizedQuestions.forEach(rq => {
       const fullQ = qMap.get(String(rq.question));

@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
 
@@ -46,7 +47,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
       {question.images && question.images.length > 0 && (
         <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {question.images.map((img, i) => (
-            <img
+            <AuthImage
               key={i}
               src={img}
               alt="Question figure"
@@ -118,6 +119,15 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
           );
         })}
       </div>
+
+      {question.rationalization && (
+        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0' }}>
+          <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Rationalization</h4>
+          <p style={{ margin: 0, color: '#475569', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            {question.rationalization}
+          </p>
+        </div>
+      )}
     </div>
   );
 });
@@ -427,7 +437,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
           >
             ✕
           </button>
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             draggable={false}

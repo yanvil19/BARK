@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -195,7 +196,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
               {currentQuestion.images?.length > 0 && (
                 <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {currentQuestion.images.map((img, i) => (
-                    <img
+                    <AuthImage
                       key={i}
                       src={img.startsWith('/') ? `${BASE}${img}` : img}
                       alt="Ref"
@@ -337,7 +338,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
             ×
           </button>
 
-          <img
+          <AuthImage
             src={zoomedImage}
             alt="Zoomed"
             draggable={false}

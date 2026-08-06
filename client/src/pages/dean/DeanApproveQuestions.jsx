@@ -1,3 +1,4 @@
+import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
@@ -927,7 +928,7 @@ export default function QuestionApprovals({ me }) {
                   <h3 className="ca-section-label">Images</h3>
                   <div className="ca-images">
                     {selectedQuestion.images.map((img, i) => (
-                      <img
+                      <AuthImage
                         key={i}
                         src={img.startsWith('/') ? `${BASE}${img}` : img}
                         alt={`Question image ${i + 1}`}
@@ -952,6 +953,13 @@ export default function QuestionApprovals({ me }) {
                   ))}
                 </div>
               </section>
+
+              {selectedQuestion.rationalization && (
+                <section className="ca-section">
+                  <h3 className="ca-section-label">Rationalization</h3>
+                  <p className="ca-question-detail-text">{selectedQuestion.rationalization}</p>
+                </section>
+              )}
 
               <section className="ca-section">
                 <div className="ca-meta-grid">
@@ -1158,7 +1166,7 @@ export default function QuestionApprovals({ me }) {
         <div className="ca-image-overlay" onClick={() => setFullscreenImage(null)}>
           <div className="ca-image-modal" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="ca-image-close" onClick={() => setFullscreenImage(null)}>Close</button>
-            <img src={fullscreenImage} alt="Question preview" className="ca-image-full" />
+            <AuthImage src={fullscreenImage} alt="Question preview" className="ca-image-full" />
           </div>
         </div>
       )}
