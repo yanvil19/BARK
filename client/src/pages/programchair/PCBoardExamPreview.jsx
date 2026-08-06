@@ -131,12 +131,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
             </div>
             <div className="mbep-card-body">
               <div className="mbep-question-title">
-                Question {currentIdx + 1}
-                {currentQuestion.description && (
-                  <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                    {currentQuestion.description}
-                  </p>
-                )}
+                {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
               </div>
 
               {currentQuestion.images?.length > 0 && (
