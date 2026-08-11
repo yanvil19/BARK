@@ -13,7 +13,7 @@ function getTotalItemsFromAttempt(attempt, exam) {
     (sum, subjectScore) => sum + (subjectScore.total || 0),
     0
   );
-  return exam.questions?.length || totalFromSubjects || 0;
+  return totalFromSubjects || exam.questions?.length || 0;
 }
 
 function getAttemptPercentage(attempt, exam) {
@@ -364,6 +364,9 @@ exports.computeResults = async (req, res) => {
     const percentages = attempts.map((attempt) => getAttemptPercentage(attempt, exam));
     const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
     const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
+    const overallAverageScore = percentages.length > 0
+      ? Math.round(percentages.reduce((sum, p) => sum + p, 0) / percentages.length)
+      : 0;
 
     const totalEligibleStudents = await User.countDocuments({
       program: exam.program,
@@ -378,6 +381,7 @@ exports.computeResults = async (req, res) => {
       totalTakers,
       highestScore,
       lowestScore,
+      overallAverageScore,
       totalEligibleStudents,
       passingThreshold: finalThreshold,
       status: 'computed',
