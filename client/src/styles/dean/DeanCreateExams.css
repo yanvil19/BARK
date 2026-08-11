@@ -986,10 +986,6 @@
     align-items: flex-start;
   }
 
-  .mbe-question-panel {
-    width: 100%;
-  }
-
   .mbe-actions {
     justify-content: stretch;
     flex-direction: column;

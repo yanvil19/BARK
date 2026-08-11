@@ -71,6 +71,19 @@ function formatDurationFromMinutes(value) {
   return `${mins} minute${mins === 1 ? '' : 's'}`;
 }
 
+function truncateText(text, max = 100) {
+  if (!text) return '';
+
+  const clean = text
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (clean.length <= max) return clean;
+
+  return `${clean.slice(0, max)}...`;
+}
+
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
   const isEditing = !!editingExamId;
   const initialDraftRef = useRef(isEditing ? null : readExamCreateDraft());
@@ -790,6 +803,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                             className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''}`}
                           >
                             <div className="mbe-question-main">
+                              
                               <button
                                 type="button"
                                 className="mbe-question-copy mbe-question-toggle"
@@ -805,8 +819,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                   <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
                                 </div>
 
-                                <div className="mbe-question-headline mbe-question-headline--compact">
-                                </div>
+                                {!isExpanded && (
+                                  <div className="mbe-question-headline mbe-question-headline--compact">
+                                    {truncateText(question.description, 100)}
+                                  </div>
+                                )}
                               </button>
 
                               <div className="mbe-question-actions">
