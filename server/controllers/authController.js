@@ -15,6 +15,40 @@ const { welcomeCredentialsHtml } = require('../emails/templates/welcomeCredentia
 const BULK_REGISTER_MAX_ENTRIES = 500;
 const bulkRegistrationBatches = new Map();
 
+// ---------------------------------------------------------------------------
+// Login brute-force protection constants
+// ---------------------------------------------------------------------------
+
+// Pre-computed bcrypt hash of a random sentinel string.
+// Used in the "user not found" branch of loginUser so that the bcrypt.compare
+// call still runs, making the failed-lookup path take the same wall-clock time
+// as the failed-password path (prevents email enumeration via timing).
+const DUMMY_HASH =
+  '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+
+// Escalating lockout schedule.
+// Each entry: { minAttempts, durationMs }
+// The list is evaluated from highest → lowest; the first matching entry wins.
+const LOGIN_LOCKOUT_STEPS = [
+  { minAttempts: 30, durationMs: 24 * 60 * 60 * 1000 }, // ≥30 → 24 h (extreme abuse)
+  { minAttempts: 20, durationMs:      60 * 60 * 1000 }, // ≥20 → 1 h
+  { minAttempts: 15, durationMs:  45 * 60 * 1000 },     // ≥15 → 45 min
+  { minAttempts: 10, durationMs:  30 * 60 * 1000 },     // ≥10 → 30 min
+  { minAttempts:  5, durationMs:  15 * 60 * 1000 },     // ≥ 5 → 15 min
+];
+
+/**
+ * Returns the lockout duration in milliseconds for a given cumulative attempt
+ * count, or 0 if the count has not yet crossed any threshold.
+ */
+function getLockoutDurationMs(attempts) {
+  for (const step of LOGIN_LOCKOUT_STEPS) {
+    if (attempts >= step.minAttempts) return step.durationMs;
+  }
+  return 0;
+}
+
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
@@ -330,7 +364,40 @@ const loginUser = async (req, res) => {
     // Find user by email
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
+      // Run a dummy compare so that "user not found" and "wrong password"
+      // responses take the same amount of time (prevents email enumeration
+      // via timing differences).
+      await bcrypt.compare(String(password), DUMMY_HASH);
       return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // -----------------------------------------------------------------------
+    // Per-account lockout check
+    // -----------------------------------------------------------------------
+    const now = Date.now();
+
+    if (user.loginLockedUntil) {
+      const lockedUntilMs = new Date(user.loginLockedUntil).getTime();
+
+      if (now < lockedUntilMs) {
+        // Account is actively locked — reject immediately.
+        const secondsRemaining = Math.ceil((lockedUntilMs - now) / 1000);
+        const minutesRemaining = Math.ceil(secondsRemaining / 60);
+        res.setHeader('Retry-After', String(secondsRemaining));
+        return res.status(429).json({
+          message:
+            `Your account is temporarily locked due to too many failed login attempts. ` +
+            `Please try again in ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''}.`,
+          lockedUntil: new Date(lockedUntilMs).toISOString(),
+          retryAfterSeconds: secondsRemaining,
+        });
+      }
+
+      // Lockout has expired — clear it so this attempt is treated as fresh.
+      user.loginLockedUntil = null;
+      user.loginFailedAttempts = 0;
+      user.loginLastFailedAt = null;
+      // (saved below after the password check)
     }
 
     // Check if account is active
@@ -341,8 +408,40 @@ const loginUser = async (req, res) => {
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      // Increment cumulative failed-attempt counter
+      user.loginFailedAttempts = (user.loginFailedAttempts || 0) + 1;
+      user.loginLastFailedAt = new Date();
+
+      // Determine whether this attempt crosses a lockout threshold
+      const lockDurationMs = getLockoutDurationMs(user.loginFailedAttempts);
+      if (lockDurationMs > 0) {
+        const lockedUntil = new Date(now + lockDurationMs);
+        user.loginLockedUntil = lockedUntil;
+        await user.save();
+
+        const secondsRemaining = Math.ceil(lockDurationMs / 1000);
+        const minutesRemaining = Math.ceil(secondsRemaining / 60);
+        res.setHeader('Retry-After', String(secondsRemaining));
+        return res.status(429).json({
+          message:
+            `Too many failed login attempts. Your account has been locked for ` +
+            `${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''}.`,
+          lockedUntil: lockedUntil.toISOString(),
+          retryAfterSeconds: secondsRemaining,
+        });
+      }
+
+      await user.save();
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
+
+    // -----------------------------------------------------------------------
+    // Successful login — clear lockout counters
+    // -----------------------------------------------------------------------
+    user.loginFailedAttempts = 0;
+    user.loginLockedUntil = null;
+    user.loginLastFailedAt = null;
+    await user.save();
 
     // Generate token, set it as an httpOnly cookie (never in response body)
     const token = generateToken(user._id, user.role);
@@ -368,6 +467,7 @@ const loginUser = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
+
 
 // @desc    Logout user (clear cookie)
 // @route   POST /api/auth/logout
