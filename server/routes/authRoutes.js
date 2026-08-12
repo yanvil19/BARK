@@ -1,6 +1,6 @@
 const express = require('express');
-const { rateLimit: expressRateLimit } = require('express-rate-limit');
 const crypto = require('node:crypto');
+const { loginIpRateLimiter } = require('../middleware/loginIpRateLimit');
 const {
   registerUser,
   loginUser,
@@ -29,14 +29,7 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// [SECURITY FIX 2]
-const loginRateLimiter = expressRateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 15,
-  message: { message: 'Too many login attempts, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const { rateLimit: expressRateLimit } = require('express-rate-limit');
 
 const forgotPasswordRateLimiter = expressRateLimit({
   windowMs: 15 * 60 * 1000,
@@ -56,12 +49,8 @@ function isValidEmail(email) {
 
 // @route   POST /api/auth/login
 // @access  Public
-router.post(
-  '/login',
-  // [SECURITY FIX 2]
-  loginRateLimiter,
-  loginUser
-);
+// IP flood guard (25 req / 15 min per IP) + per-account lockout inside loginUser
+router.post('/login', loginIpRateLimiter, loginUser);
 
 // @route   POST /api/auth/logout
 // @access  Public

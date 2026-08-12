@@ -108,6 +108,22 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // --- Login brute-force protection ---
+    // Cumulative failed login counter; resets on successful login or lockout expiry.
+    loginFailedAttempts: {
+      type: Number,
+      default: 0,
+    },
+    // When set, the account is locked until this timestamp.
+    loginLockedUntil: {
+      type: Date,
+      default: null,
+    },
+    // Timestamp of the most recent failed login attempt.
+    loginLastFailedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
