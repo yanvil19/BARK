@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const Question = require('../models/Question');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const {
   listQuestions,
@@ -58,6 +59,35 @@ const { GetObjectCommand } = require('@aws-sdk/client-s3');
 // [New] Fetch and decrypt image
 router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULTY), async (req, res) => {
   try {
+    const key = req.params.key;
+    const imageUrl = `/api/questions/image/${key}`;
+
+    // 1. Find the question this image belongs to
+    const question = await Question.findOne({ images: imageUrl })
+      .select('state createdBy program')
+      .lean();
+
+    if (!question) {
+      return res.status(404).json({ message: 'Image not found' });
+    }
+
+    // 2. Determine if this user is allowed to view it
+    const isFaculty = FACULTY.includes(req.user.role);
+    const isOwner = String(question.createdBy) === String(req.user._id);
+    const isApproved = question.state === 'approved';
+
+    // Faculty can see their own question's images regardless of state.
+    // Non-owning faculty and students/alumni can only see approved (released) questions.
+    if (!isOwner && !isApproved) {
+      return res.status(403).json({ message: 'Not authorized to view this image' });
+    }
+
+    // Optional: scope students/alumni to their own program, if that's a rule in your app
+    // if (!isFaculty && String(question.program) !== String(req.user.program)) {
+    //   return res.status(403).json({ message: 'Not authorized to view this image' });
+    // }
+
+    // 3. Only now fetch + decrypt from R2
     const bucket = process.env.R2_BUCKET_NAME;
     if (!bucket) {
       return res.status(500).json({ message: 'R2 is not configured' });
@@ -66,7 +96,7 @@ router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULT
     const obj = await r2.send(
       new GetObjectCommand({
         Bucket: bucket,
-        Key: `question-images/${req.params.key}`,
+        Key: `question-images/${key}`,
       })
     );
 
@@ -75,8 +105,7 @@ router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULT
     const encryptedBlob = Buffer.concat(chunks);
 
     const decrypted = decryptBuffer(encryptedBlob);
-    
-    // We can use a generic image type or infer it from the key extension
+
     res.setHeader('Content-Type', 'image/jpeg');
     res.send(decrypted);
   } catch (err) {
