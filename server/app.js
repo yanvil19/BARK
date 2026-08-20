@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
 const authRoutes = require('./routes/authRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
 const adminCatalogRoutes = require('./routes/adminCatalogRoutes');
@@ -20,6 +21,22 @@ const sseRoutes = require('./routes/sseRoutes');
 const app = express();
 
 app.set('trust proxy', 1);
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+            baseUri: ["'self'"],
+        },
+    },
+}));
 
 app.use(cors({
     origin: (origin, callback) => {
