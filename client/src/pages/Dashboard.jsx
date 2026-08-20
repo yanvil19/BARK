@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiAuth } from '../lib/api.js';
 import SuperAdminDashboard from './superadmin/SAdminDashboard.jsx';
 import DeanDashboard from './dean/DeanDashboard.jsx';
 import ProgramChairDashboard from './programchair/PCDashboard.jsx';
@@ -13,13 +14,16 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
 
   // Fetch general stats needed by Super Admin and others
   useEffect(() => {
+    if (me?.role !== 'super_admin') {
+      setLoading(false);
+      return;
+    }
+
     const fetchStats = async () => {
       try {
         setError('');
         // [FIX 1 - REMOVE HARDCODED URL]
-        const statsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/stats/summary`);
-        if (!statsRes.ok) throw new Error(`Request failed (${statsRes.status})`);
-        const statsData = await statsRes.json();
+        const statsData = await apiAuth('/api/stats/summary');
         setStats(statsData);
         setLoading(false);
       } catch (error) {
@@ -29,7 +33,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
       }
     };
     fetchStats();
-  }, []);
+  }, [me?.role]);
 
   if (loading && me?.role === 'super_admin') {
     return <div className="dashboard-loading">Loading dashboard...</div>;

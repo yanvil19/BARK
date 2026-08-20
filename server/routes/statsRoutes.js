@@ -4,7 +4,12 @@ const router = express.Router();
 const { getSummaryStats, getProgramChairStats, getProfessorDashboardStats, getDeanDashboardStats } = require('../controllers/statsController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
-router.get('/summary', getSummaryStats);
+router.get(
+  '/summary',
+  protect,
+  authorizeRoles('super_admin'),
+  getSummaryStats
+);
 
 router.get(
   '/program-chair/stats',
