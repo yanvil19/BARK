@@ -5,6 +5,7 @@ import { enUS } from 'date-fns/locale';
 import { apiAuth } from '../lib/api.js';
 import { Modal } from './Modal.jsx';
 import {
+  abbreviateExamTitle,
   addConflictFlags,
   formatExamDateTime,
   getCalendarRange,
@@ -51,13 +52,26 @@ export default function ExamCalendar({ role, programId }) {
   const [error, setError] = useState('');
   const [selectedExam, setSelectedExam] = useState(null);
 
+  const effectiveProgramId = useMemo(() => {
+    if (!programId) return '';
+    if (typeof programId === 'object' && programId !== null) {
+      if (programId._id) return String(programId._id).trim();
+      if (typeof programId.toString === 'function' && programId.toString() !== '[object Object]') {
+        return programId.toString().trim();
+      }
+    }
+    const str = String(programId).trim();
+    if (str === '[object Object]' || str === 'undefined' || str === 'null') return '';
+    return str;
+  }, [programId]);
+
   const visibleRange = useMemo(() => getCalendarRange(date, view), [date, view]);
 
   useEffect(() => {
     let ignore = false;
 
     async function fetchCalendarExams() {
-      if (isManager && !programId) {
+      if (isDean && !effectiveProgramId) {
         setExams([]);
         return;
       }
@@ -69,7 +83,9 @@ export default function ExamCalendar({ role, programId }) {
         const params = new URLSearchParams();
 
         if (isManager) {
-          params.set('programId', programId);
+          if (effectiveProgramId) {
+            params.set('programId', effectiveProgramId);
+          }
           params.set('startRange', visibleRange.start.toISOString());
           params.set('endRange', visibleRange.end.toISOString());
         }
@@ -96,7 +112,7 @@ export default function ExamCalendar({ role, programId }) {
     return () => {
       ignore = true;
     };
-  }, [isManager, isDean, isChair, programId, visibleRange.end, visibleRange.start]);
+  }, [isManager, isDean, isChair, effectiveProgramId, visibleRange.end, visibleRange.start]);
 
   const calendarExams = useMemo(
     () => (isManager ? addConflictFlags(exams) : exams),
@@ -161,7 +177,8 @@ export default function ExamCalendar({ role, programId }) {
           onSelectEvent={(event) => setSelectedExam(event.resource)}
           eventPropGetter={eventPropGetter}
           components={{ event: EventLabel }}
-          popup
+          maxRows={Infinity}
+          doShowMoreDrillDown={false}
           style={{ minHeight: 620 }}
         />
       </div>

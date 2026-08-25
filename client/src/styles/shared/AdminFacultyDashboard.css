@@ -448,10 +448,14 @@
   margin: 1em 1.5em;
 }
 
-/* Subject Success Rate */
-.dashboard-pc-subject-box {
-  margin-bottom: 24px;
-  margin: 1em 1.5em;
+/* Calendar Wrapper */
+.dashboard-pc-calendar-wrapper {
+  margin: 1em 1.5em 24px;
+  display: block;
+}
+
+.dashboard-pc-calendar-wrapper .exam-calendar-shell {
+  margin: 0;
 }
 
 .pc-subject-grid {

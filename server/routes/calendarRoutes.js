@@ -2,6 +2,7 @@ const express = require('express');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const {
   getDeanCalendarExams,
+  getChairCalendarExams,
   getStudentCalendarExams,
 } = require('../services/calendarService');
 
@@ -32,9 +33,8 @@ router.get('/dean', protect, authorizeRoles('dean'), async (req, res) => {
 
 router.get('/chair', protect, authorizeRoles('program_chair'), async (req, res) => {
   try {
-    const exams = await getDeanCalendarExams({
-      departmentId: req.user.department,
-      programId: req.user.program,
+    const exams = await getChairCalendarExams({
+      programId: req.query.programId || req.query.program || req.user.program,
       startRange: req.query.startRange,
       endRange: req.query.endRange,
     });
