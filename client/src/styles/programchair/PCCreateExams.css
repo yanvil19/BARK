@@ -1221,3 +1221,5 @@
 .mbe-question-card--stack .mbe-question-main {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
+
+/**/

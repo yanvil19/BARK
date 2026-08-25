@@ -1041,6 +1041,7 @@
     width: fit-content;
   }
 }
+
 .mbe-state-badge {
   display: inline-flex;
   align-items: center;
@@ -1087,8 +1088,15 @@
 }
 
 @keyframes mbe-slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ca-bulk-count {
@@ -1233,3 +1241,5 @@
 .mbe-question-card--stack .mbe-question-main {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
+
+/**/
