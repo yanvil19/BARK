@@ -312,6 +312,42 @@
   color: #a4abcf;
 }
 
+.br-role-toggle-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.br-role-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  background: #f3f5fc;
+  color: #5261ab;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.br-role-btn:hover:not(:disabled) {
+  border-color: #8e99d1;
+  background: #e9edfd;
+}
+
+.br-role-btn.active {
+  background: var(--primary-bg);
+  color: var(--text-light);
+  border-color: var(--primary-bg);
+}
+
+.br-role-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Entries Table/List ─────────────────────────────────────────────────── */
 .br-entries {
   display: flex;
@@ -388,6 +424,67 @@
 .col-action {
   display: flex;
   justify-content: center;
+}
+
+.br-btn-remove-row {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #dc2626;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.br-btn-remove-row:hover:not(:disabled) {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.br-btn-remove-row:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+.br-btn-add-row-dashed {
+  width: 100%;
+  padding: 14px 20px;
+  margin-top: 8px;
+  background: #eef2ff;
+  border: 2px dashed #8e99d1;
+  border-radius: 10px;
+  color: #4a57a2;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.br-btn-add-row-dashed:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #5261ab;
+  color: #3b4888;
+}
+
+.br-btn-add-row-dashed:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */

@@ -149,68 +149,85 @@ const getProgramChairStats = async (req, res) => {
       return res.status(404).json({ message: 'Assigned program not found' });
     }
 
-    const programStudentCount = await User.countDocuments({
-      role: 'student',
-      program: req.user.program,
-      isActive: true,
-    });
-
-    const approvedQuestions = await Question.countDocuments({
-      program: req.user.program,
-      state: 'approved'
-    });
-
-    const pendingQuestionsCount = await Question.countDocuments({
-      program: req.user.program,
-      state: 'pending_chair'
-    });
-
-    const facultyStats = await Question.aggregate([
-      { $match: { program: req.user.program } },
-      {
-        $group: {
-          _id: '$createdBy',
-          totalQuestions: { $sum: 1 },
-          pendingQuestions: {
-            $sum: { $cond: [{ $eq: ['$state', 'pending_chair'] }, 1, 0] }
-          },
-          lastSubmittedAt: { $max: '$submittedAt' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'creator'
-        }
-      },
-      { $unwind: '$creator' },
-      {
-        $project: {
-          _id: 1,
-          name: '$creator.name',
-          role: '$creator.role',
-          totalQuestions: 1,
-          pendingQuestions: 1,
-          lastSubmittedAt: 1
-        }
-      },
-      { $sort: { lastSubmittedAt: -1 } }
+    const [
+      programStudentCount,
+      programAlumniCount,
+      approvedQuestions,
+      pendingQuestionsCount,
+      publishedExamsCount,
+      ongoingExamsCount,
+      facultyStats
+    ] = await Promise.all([
+      User.countDocuments({
+        role: 'student',
+        program: req.user.program,
+        isActive: true,
+      }),
+      User.countDocuments({
+        role: 'alumni',
+        program: req.user.program,
+        isActive: true,
+      }),
+      Question.countDocuments({
+        program: req.user.program,
+        state: 'approved'
+      }),
+      Question.countDocuments({
+        program: req.user.program,
+        state: 'pending_chair'
+      }),
+      MockBoardExam.countDocuments({
+        program: req.user.program,
+        status: 'published'
+      }),
+      MockBoardExam.countDocuments({
+        program: req.user.program,
+        status: 'ongoing'
+      }),
+      Question.aggregate([
+        { $match: { program: req.user.program } },
+        {
+          $group: {
+            _id: '$createdBy',
+            totalQuestions: { $sum: 1 },
+            pendingQuestions: {
+              $sum: { $cond: [{ $eq: ['$state', 'pending_chair'] }, 1, 0] }
+            },
+            lastSubmittedAt: { $max: '$submittedAt' }
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'creator'
+          }
+        },
+        { $unwind: '$creator' },
+        {
+          $project: {
+            _id: 1,
+            name: '$creator.name',
+            role: '$creator.role',
+            totalQuestions: 1,
+            pendingQuestions: 1,
+            lastSubmittedAt: 1
+          }
+        },
+        { $sort: { lastSubmittedAt: -1 } }
+      ])
     ]);
 
     res.status(200).json({
-      programStudentCount: [
-        {
-          programId: program._id,
-          programName: program.name || program.code || 'Assigned Program',
-          count: programStudentCount,
-        },
-      ],
+      programName: program.name || program.code || 'Assigned Program',
+      programCode: program.code || '',
+      programStudentCount,
+      programAlumniCount,
       approvedQuestions,
-      passingRate: 0,
-      examsPublished: 0,
       pendingQuestionsCount,
+      publishedExamsCount,
+      ongoingExamsCount,
       facultyStats,
       subjectSummary: [],
       reviewQuestions: []

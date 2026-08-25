@@ -111,47 +111,57 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
         <div className="pc-loading">Loading dashboard data...</div>
       ) : (
         <>
-          {/* Row 1: Student Count + Total Questions */}
+          {/* Row 1: Student Count, Alumni Count, Approved Questions */}
           <div className="dashboard-pc-top-row">
             <section className="dashboard-box">
               <div className="box-title">Program Student Count</div>
-              <div className="box-content-grid-2">
-                {(pcStats?.programStudentCount || []).map((prog, i) => ( 
-                  <div key={i} className="metric-card metric-card-blue student-count-card">
-                    <h2>{prog.count.toLocaleString()}</h2>
-                    <p>{prog.programName}</p>
-                  </div>
-                ))}
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.programStudentCount ?? 0).toLocaleString()}</h2>
+                  <p>{me?.program?.name || pcStats?.programName || 'Program'} Students</p>
+                </div>
               </div>
             </section>
 
-            <div className="dashboard-box">
+            <section className="dashboard-box">
+              <div className="box-title">Program Alumni Count</div>
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.programAlumniCount ?? 0).toLocaleString()}</h2>
+                  <p>{me?.program?.name || pcStats?.programName || 'Program'} Alumni</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="dashboard-box">
               <div className="box-title">No. of Approved Questions</div>
-                <div className="question-count-card">
-                  <h2>{(pcStats?.approvedQuestions || 0).toLocaleString()}</h2>
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.approvedQuestions ?? 0).toLocaleString()}</h2>
                   <p>Approved Questions</p>
                 </div>
-            </div>
+              </div>
+            </section>
           </div>
 
-          {/* Row 2: 3 Stats */}
+          {/* Row 2: Published Exam Count, On-going Exam Count, Pending Questions */}
           <div className="dashboard-pc-stats-row">
             <section className="dashboard-box">
-              <div className="box-title">Total Passing Rate</div>
+              <div className="box-title">Published Exam Count</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.totalPassingRate ?? '—'}%</h2>
-                  <p>SEA Students</p>
+                  <h2>{(pcStats?.publishedExamsCount ?? 0).toLocaleString()}</h2>
+                  <p>Published Exams in {me?.program?.name || pcStats?.programName || 'Program'}</p>
                 </div>
               </div>
             </section>
 
             <section className="dashboard-box">
-              <div className="box-title">Exams Published</div>
+              <div className="box-title">On-going Exam Count</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.examsPublished ?? '—'}</h2>
-                  <p>Total Exams Published in SEA</p>
+                  <h2>{(pcStats?.ongoingExamsCount ?? 0).toLocaleString()}</h2>
+                  <p>On-going Exams in {me?.program?.name || pcStats?.programName || 'Program'}</p>
                 </div>
               </div>
             </section>
@@ -160,7 +170,7 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
               <div className="box-title">Pending Questions</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.pendingQuestionsCount ?? '—'}</h2>
+                  <h2>{(pcStats?.pendingQuestionsCount ?? 0).toLocaleString()}</h2>
                   <p>Pending Questions</p>
                 </div>
               </div>
