@@ -1070,3 +1070,146 @@
   color: #2563eb;
   border: 1px solid #dbeafe;
 }
+
+/* ── Bulk Selection ─────────────────────────────────────── */
+
+/* Floating action bar */
+.ca-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--primary-bg);
+  border-radius: 10px;
+  flex-wrap: wrap;
+  animation: mbe-slideDown 0.18s ease;
+}
+
+@keyframes mbe-slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ca-bulk-count {
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  white-space: nowrap;
+}
+
+.ca-bulk-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ca-bulk-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.ca-bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ca-bulk-btn--approve {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.ca-bulk-btn--approve:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.ca-bulk-btn--remove {
+  background: #fee2e2;
+  color: #7f1d1d;
+  border: 1px solid #fca5a5;
+}
+
+.ca-bulk-btn--remove:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.ca-bulk-btn--clear {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ca-bulk-btn--clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Card-level checkbox — hidden until hover, shown when checked */
+.mbe-card-checkbox {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 0 4px 0 0;
+  flex-shrink: 0;
+}
+
+.mbe-question-card:hover .mbe-card-checkbox,
+.mbe-question-card.is-bulk-selected .mbe-card-checkbox {
+  opacity: 1;
+}
+
+.ca-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-bg);
+  flex-shrink: 0;
+}
+
+/* Bulk-selected card highlight */
+.mbe-question-card.is-bulk-selected {
+  background: #f0f3ff;
+  border-color: var(--primary-bg);
+  box-shadow: 0 4px 14px rgba(53, 64, 142, 0.12);
+}
+
+/* Toolbar "Select All" checkbox alignment */
+.mbe-bulk-checkbox {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Fixed-width action buttons in the toolbar stats row */
+.mbe-toolbar-action-btn {
+  min-width: 130px;
+  text-align: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.mbe-toolbar-action-btn--danger {
+  color: #b91c1c;
+  border-color: #fca5a5;
+  background: #fff5f5;
+}
+
+.mbe-toolbar-action-btn--danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Update question-main grid to accommodate checkbox column */
+.mbe-question-card--stack .mbe-question-main {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
