@@ -11,13 +11,12 @@ import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
 import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
 import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
 import UserAccount from './pages/UserAccount.jsx';
-import ChairTags from './pages/programchair/PCManageSubjects.jsx';
+import ManageSubject from './pages/shared/ManageSubject.jsx';
 import QuestionApprovals from './pages/programchair/PCApproveQuestions.jsx';
 import ChairCheatingLogs from './pages/programchair/PCLogs.jsx';
 import ProfessorQuestions from './pages/prof/ProfMyQuestions.jsx';
 import ChairQuestions from './pages/programchair/PCMyQuestions.jsx';
 import DeanQuestions from './pages/dean/DeanMyQuestions.jsx';
-import DeanTags from './pages/dean/DeanManageSubjects.jsx';
 import MockBoardExam from './pages/dean/DeanCreateExams.jsx';
 import AvailableMockBoardExams from './pages/shared/BoardExams.jsx';
 import DeanExamRunner from './pages/dean/DeanExamRunner.jsx';
@@ -273,14 +272,14 @@ export default function App() {
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers me={me} />;
   if (route === 'adminSettings') page = me?.role === 'super_admin' ? <AdminSettings /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
-  if (route === 'chairTags') page = <ChairTags me={me} />;
+  if (route === 'chairTags') page = <ManageSubject me={me} />;
   if (route === 'chairQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'chairCheatingLogs') page = <ChairCheatingLogs />;
   if (route === 'deanQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'profQuestions') page = <ProfessorQuestions me={me} />;
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
   if (route === 'deanQuestions') page = <DeanQuestions me={me} />;
-  if (route === 'deanTags') page = <DeanTags me={me} />;
+  if (route === 'deanTags') page = <ManageSubject me={me} />;
   if (route === 'mockBoardExam')
     page = (
       <MockBoardExam
