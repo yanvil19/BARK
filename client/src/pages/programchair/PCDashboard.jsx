@@ -125,7 +125,7 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
 
           {/* Program Exams Month Calendar */}
           <div className="dashboard-pc-calendar-wrapper">
-            <ExamCalendar role={me?.role} programId={me?.program?._id ? String(me.program._id) : (typeof me?.program === 'string' ? me.program : '')} />
+            <ExamCalendar role={me?.role} programId={chairProgramId} />
           </div>
 
           {/* Questions for Review and Approval */}

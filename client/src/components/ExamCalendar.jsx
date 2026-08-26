@@ -40,7 +40,7 @@ function EventLabel({ event }) {
   );
 }
 
-export default function ExamCalendar({ role, programId }) {
+export default function ExamCalendar({ role, programId, refreshKey }) {
   const normalizedRole = normalizeRole(role);
   const isDean = normalizedRole === 'dean';
   const isChair = normalizedRole === 'program_chair';
@@ -112,7 +112,7 @@ export default function ExamCalendar({ role, programId }) {
     return () => {
       ignore = true;
     };
-  }, [isManager, isDean, isChair, effectiveProgramId, visibleRange.end, visibleRange.start]);
+  }, [isManager, isDean, isChair, effectiveProgramId, visibleRange.end, visibleRange.start, refreshKey]);
 
   const calendarExams = useMemo(
     () => (isManager ? addConflictFlags(exams) : exams),

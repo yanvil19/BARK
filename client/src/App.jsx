@@ -19,7 +19,7 @@ import ChairQuestions from './pages/programchair/PCMyQuestions.jsx';
 import DeanQuestions from './pages/dean/DeanMyQuestions.jsx';
 import DeanTags from './pages/dean/DeanManageSubjects.jsx';
 import MockBoardExam from './pages/dean/DeanCreateExams.jsx';
-import AvailableMockBoardExams from './pages/student/StudentBoardExams.jsx';
+import AvailableMockBoardExams from './pages/shared/BoardExams.jsx';
 import DeanExamRunner from './pages/dean/DeanExamRunner.jsx';
 import MockBoardExamPreview from './pages/dean/DeanBoardExamPreview.jsx';
 import MockBoardExamTestRun from './pages/dean/DeanBoardExamTestRun.jsx';

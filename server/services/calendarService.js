@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const MockBoardExam = require('../models/MockBoardExam');
 const Program = require('../models/Program');
 
@@ -12,6 +13,14 @@ function toIdString(val) {
   const str = String(val).trim();
   if (str === '[object Object]' || str === 'undefined' || str === 'null') return '';
   return str;
+}
+
+function buildProgramQuery(pId) {
+  if (!pId || pId === 'all') return null;
+  if (mongoose.Types.ObjectId.isValid(pId)) {
+    return { $in: [pId, new mongoose.Types.ObjectId(pId)] };
+  }
+  return pId;
 }
 
 function applyDateRangeFilter(query, startRange, endRange) {
@@ -30,19 +39,48 @@ function applyDateRangeFilter(query, startRange, endRange) {
   ];
 }
 
+async function advanceExamStatuses(query = {}) {
+  const now = new Date();
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: 'published',
+      startDateTime: { $lte: now },
+      endDateTime: { $gt: now },
+    },
+    { $set: { status: 'ongoing' } }
+  );
+
+  await MockBoardExam.updateMany(
+    {
+      ...query,
+      status: { $in: ['published', 'ongoing'] },
+      endDateTime: { $lt: now },
+    },
+    { $set: { status: 'finished' } }
+  );
+}
+
 async function getDeanCalendarExams({ departmentId, programId, startRange, endRange }) {
   const query = {};
   const deptId = toIdString(departmentId);
   const pId = toIdString(programId);
 
   if (deptId) {
-    query.department = deptId;
+    if (mongoose.Types.ObjectId.isValid(deptId)) {
+      query.department = { $in: [deptId, new mongoose.Types.ObjectId(deptId)] };
+    } else {
+      query.department = deptId;
+    }
   }
 
-  if (pId && pId !== 'all') {
-    query.program = pId;
+  const programQuery = buildProgramQuery(pId);
+  if (programQuery) {
+    query.program = programQuery;
   }
 
+  await advanceExamStatuses(query);
   applyDateRangeFilter(query, startRange, endRange);
 
   return MockBoardExam.find(query)
@@ -61,9 +99,12 @@ async function getStudentCalendarExams({ programId }) {
     endDateTime: { $gt: now },
   };
 
-  if (pId) {
-    query.program = pId;
+  const programQuery = buildProgramQuery(pId);
+  if (programQuery) {
+    query.program = programQuery;
   }
+
+  await advanceExamStatuses(query);
 
   return MockBoardExam.find(query)
     .select('_id name program startDateTime endDateTime status')
@@ -72,14 +113,25 @@ async function getStudentCalendarExams({ programId }) {
     .lean();
 }
 
-async function getChairCalendarExams({ programId, startRange, endRange }) {
+async function getChairCalendarExams({ departmentId, programId, startRange, endRange }) {
   const query = {};
+  const deptId = toIdString(departmentId);
   const pId = toIdString(programId);
 
-  if (pId && pId !== 'all') {
-    query.program = pId;
+  if (deptId) {
+    if (mongoose.Types.ObjectId.isValid(deptId)) {
+      query.department = { $in: [deptId, new mongoose.Types.ObjectId(deptId)] };
+    } else {
+      query.department = deptId;
+    }
   }
 
+  const programQuery = buildProgramQuery(pId);
+  if (programQuery) {
+    query.program = programQuery;
+  }
+
+  await advanceExamStatuses(query);
   applyDateRangeFilter(query, startRange, endRange);
 
   return MockBoardExam.find(query)

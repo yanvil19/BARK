@@ -9,7 +9,7 @@ import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
-import '../../styles/student/StudentBoardExams.css';
+import '../../styles/shared/BoardExams.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -104,6 +104,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedAudience, setSelectedAudience] = useState('');
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+
+  function triggerCalendarRefresh() {
+    setCalendarRefreshKey((prev) => prev + 1);
+  }
 
   useEffect(() => {
     setCurrentPage(1);
@@ -181,6 +186,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     if (selectedExam?._id === examId) {
       setSelectedExam((prev) => (prev ? { ...prev, status } : prev));
     }
+
+    triggerCalendarRefresh();
   }
 
   function handleDelete(exam) {
@@ -620,6 +627,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
           programId={selectedProgramId}
           programs={programs}
           onProgramChange={setSelectedProgramId}
+          refreshKey={calendarRefreshKey}
         />
       </div>
 
