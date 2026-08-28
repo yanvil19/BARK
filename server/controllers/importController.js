@@ -90,20 +90,39 @@ const uploadAndExtract = async (req, res) => {
             }
         }
 
-        // ===== PRE-COUNT QUESTION BLOCKS =====
-        const questionCount = fileExtractionService.countQuestionBlocks(extractedText);
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
-        if (questionCount > maxQuestions) {
-            return res.status(400).json({
-                error: `Upload failed. The document contains more than ${maxQuestions} questions (${questionCount} detected). Please lessen the number of questions to ${maxQuestions} or fewer.`
-            });
-        }
-
         // ===== SET ACTIVE IMPORT =====
         markImportStart(userId);
         const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // ===== CALL GEMINI =====
+        // ===== STEP 1: AI PRE-COUNT QUESTION BLOCKS =====
+        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
+        let questionCount = 0;
+        try {
+            const countResult = await geminiService.countQuestions(extractedText);
+            questionCount = countResult.question_count || 0;
+        } catch (error) {
+            console.error('Gemini question count error:', error.message, error.status, error);
+            markImportEnd(userId);
+            return res.status(503).json({
+                error: 'An error occurred while analyzing the document. Please try again.'
+            });
+        }
+
+        if (questionCount > maxQuestions) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`
+            });
+        }
+
+        if (questionCount === 0) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: 'No multiple choice questions could be detected in your document. Please check the formatting and try again.'
+            });
+        }
+
+        // ===== STEP 2: FULL EXTRACTION =====
         let extractedQuestions = [];
         try {
             const tags = JSON.parse(req.body.tags || '[]');

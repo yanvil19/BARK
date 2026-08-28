@@ -1,4 +1,13 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const GEMINI_COUNT_PROMPT = `You are an expert examination document analyzer.
+Your task is to accurately count the total number of multiple choice questions present in the provided document text.
+
+Rules:
+1. Count each distinct multiple choice question (even if questions are unnumbered, or formatted with "1.", "1)", "Question 1", Roman numerals, letters, or bullet points).
+2. Do not hallucinate or count non-question headings, instructions, or multiple options of a single question as separate questions.
+3. Return ONLY a valid JSON object with the exact format:
+{
+  "question_count": <integer - total number of multiple choice questions found>
+}`;
 
 const GEMINI_SYSTEM_PROMPT = `You are a document parser for a board exam question extraction system.
 Your job is to extract multiple choice questions from the provided document text.
@@ -53,7 +62,7 @@ Rules you must strictly follow:
 7. Preserve the exact wording of questions and options.
    Do not paraphrase or correct grammar.
 8. If options are labeled 1/2/3/4 instead of A/B/C/D, map them to A/B/C/D.
-9. If you find more than 20 questions, extract only the first 20.
+9. Extract all multiple choice questions found in the document.
 10. For suggested_tag: if a tag list is provided at the top of the document text,
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
@@ -101,6 +110,50 @@ class GeminiService {
 
         const tagNames = tags.map(t => t.name).join(', ');
         return `[AVAILABLE TAGS — you must only suggest tags from this list]: ${tagNames}\n\n`;
+    }
+
+    /**
+     * Quickly and accurately counts the number of multiple-choice questions in the document.
+     */
+    async countQuestions(documentText, retryCount = 0) {
+        try {
+            const cleanedText = this.preprocessText(documentText);
+            const response = await this.client.getGenerativeModel({
+                model: this.model,
+                systemInstruction: GEMINI_COUNT_PROMPT
+            }).generateContent({
+                contents: [{
+                    role: 'user',
+                    parts: [{
+                        text: cleanedText
+                    }]
+                }],
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.0
+                }
+            });
+
+            const rawJson = response.response.text();
+            const data = JSON.parse(rawJson);
+            const count = typeof data.question_count === 'number'
+                ? data.question_count
+                : parseInt(data.question_count, 10) || 0;
+            return { question_count: count };
+        } catch (error) {
+            if (retryCount < 1) {
+                if (
+                    error.message?.includes('timeout') ||
+                    error.message?.includes('Unexpected token') ||
+                    error.status === 503
+                ) {
+                    console.log(`Retrying Gemini question count (attempt ${retryCount + 1})...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return this.countQuestions(documentText, retryCount + 1);
+                }
+            }
+            throw error;
+        }
     }
 
     /**
