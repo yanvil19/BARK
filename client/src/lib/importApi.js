@@ -4,6 +4,13 @@ import { apiAuth, apiAuthUpload } from './api.js';
 const BASE = import.meta.env.VITE_API_URL;
 
 /**
+ * Fetch current user's import limits and reset times
+ */
+export const getImportLimits = async () => {
+    return apiAuth(`${BASE}/api/import/limits`);
+};
+
+/**
  * Upload a file for question import
  */
 export const uploadDocumentForImport = async (file, tags = []) => {

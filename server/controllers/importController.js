@@ -1,6 +1,11 @@
 const fileExtractionService = require('../services/fileExtractionService');
 const geminiService = require('../services/geminiService');
-const { markImportStart, markImportEnd } = require('../middleware/importRateLimit');
+const {
+    markImportStart,
+    markImportEnd,
+    recordUserImport,
+    getUserImportLimits,
+} = require('../middleware/importRateLimit');
 const Question = require('../models/Question');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
@@ -8,6 +13,20 @@ const { encryptText } = require('../services/encryptionService');
 
 // In-memory session store (replaces Redis cache)
 const importSessions = new Map();
+
+/**
+ * GET /api/import/limits
+ */
+const getLimits = async (req, res) => {
+    try {
+        const userId = req.user?._id?.toString();
+        const limits = getUserImportLimits(userId);
+        return res.json({ limits });
+    } catch (error) {
+        console.error('Get limits error:', error);
+        return res.status(500).json({ error: 'Failed to retrieve upload limits' });
+    }
+};
 
 /**
  * POST /api/import/upload
@@ -31,7 +50,7 @@ const uploadAndExtract = async (req, res) => {
             return res.status(400).json({ error: 'No file provided' });
         }
 
-        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10) * 1024 * 1024;
+        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10, 10) * 1024 * 1024;
         if (req.file.size > maxSize) {
             return res.status(400).json({
                 error: 'Your file exceeds the 10MB limit. Please compress or split the document.'
@@ -73,10 +92,10 @@ const uploadAndExtract = async (req, res) => {
 
         // ===== PRE-COUNT QUESTION BLOCKS =====
         const questionCount = fileExtractionService.countQuestionBlocks(extractedText);
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20);
+        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
         if (questionCount > maxQuestions) {
             return res.status(400).json({
-                error: `More than ${maxQuestions} questions were detected. Please split into multiple uploads of ${maxQuestions} or fewer.`
+                error: `Upload failed. The document contains more than ${maxQuestions} questions (${questionCount} detected). Please lessen the number of questions to ${maxQuestions} or fewer.`
             });
         }
 
@@ -127,6 +146,10 @@ const uploadAndExtract = async (req, res) => {
             });
         }
 
+        // Record successful upload in rate-limit counter
+        recordUserImport(userId);
+        const updatedLimits = getUserImportLimits(userId);
+
         // ===== STATS =====
         const stats = {
             total: processedQuestions.length,
@@ -153,6 +176,8 @@ const uploadAndExtract = async (req, res) => {
             jobId,
             questions: processedQuestions,
             stats,
+            limits: updatedLimits,
+            detectedCount: questionCount || processedQuestions.length,
             message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
         });
 
@@ -273,6 +298,7 @@ const submitQuestions = async (req, res) => {
 };
 
 module.exports = {
+    getLimits,
     uploadAndExtract,
     getStatus,
     submitQuestions

@@ -3,11 +3,22 @@ const router = express.Router();
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const upload = require('../middleware/importValidation');
 const { 
-    importHourlyLimiter,
+    userImportLimiter,
     geminiMinuteLimiter,
     geminiDailyLimiter
 } = require('../middleware/importRateLimit');
 const importController = require('../controllers/importController');
+
+/**
+ * GET /api/import/limits
+ * Get current user's hourly and daily upload limits and reset timer
+ */
+router.get(
+    '/limits',
+    protect,
+    authorizeRoles('professor', 'program_chair', 'dean'),
+    importController.getLimits
+);
 
 /**
  * POST /api/import/upload
@@ -16,8 +27,8 @@ const importController = require('../controllers/importController');
 router.post(
     '/upload',
     protect,
-    importHourlyLimiter, // Per-user hourly limit
-    // [SECURITY FIX 2]
+    authorizeRoles('professor', 'program_chair', 'dean'),
+    userImportLimiter, // Per-user hourly (5) and daily (20) limit
     geminiMinuteLimiter, // Global burst limit
     geminiDailyLimiter, // Global daily limit
     upload.single('file'),
