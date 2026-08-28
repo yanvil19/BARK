@@ -702,6 +702,47 @@
   gap: 8px;
 }
 
+.ca-bulk-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(53, 64, 142, 0.07);
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+
+.ca-bulk-nav-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--primary-bg);
+  font-size: 16px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 12px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ca-bulk-nav-btn:hover:not(:disabled) {
+  background: rgba(53, 64, 142, 0.12);
+}
+
+.ca-bulk-nav-btn:disabled {
+  color: #c0c4db;
+  cursor: not-allowed;
+}
+
+.ca-bulk-nav-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-bg);
+  min-width: 36px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
 .ca-sidebar-expand-btn {
   background: transparent;
   border: none;
