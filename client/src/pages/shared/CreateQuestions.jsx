@@ -7,7 +7,7 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
-import '../../styles/prof/ProfQuestionsPage.css';
+import '../../styles/shared/CreateQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -64,7 +64,7 @@ function truncateText(text, max = 80) {
     : clean;
 }
 
-export default function QuestionsPage({ role, programId, programLabel, programs = [], onProgramChange, me }) {
+export default function CreateQuestions({ role, programId, programLabel, programs = [], onProgramChange, me }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -80,7 +80,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState(null);
   const [importLimits, setImportLimits] = useState({
-    hourly: { used: 0, max: 5, remaining: 5, resetAt: null, resetInSeconds: 0 },
+    hourly: { used: 0, max: 8, remaining: 8, resetAt: null, resetInSeconds: 0 },
     daily: { used: 0, max: 20, remaining: 20, resetAt: null, resetInSeconds: 0 },
     isLimitReached: false,
     earliestResetAt: null,
@@ -461,7 +461,12 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       setImportStage('idle');
       setExtractionProgress({ current: 0, total: 0, status: 'idle' });
       console.error('Count stage error:', error);
-      fetchLimits();
+      // If the server returned updated limits (e.g. counted as an attempt), apply them directly
+      if (error.data?.limits) {
+        setImportLimits(error.data.limits);
+      } else {
+        fetchLimits();
+      }
       setImportError(error.message || error.data?.error || 'Failed to analyze the document. Please try again.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -578,8 +583,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
-
-
 
   return (
     <main className="qp-page">
@@ -983,17 +986,13 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                       aria-valuemin="0"
                       aria-valuemax={extractionProgress.total}
                     >
-                      <span className="import-bar-divider">|</span>
                       {Array.from({ length: extractionProgress.total }, (_, i) => {
                         const num = i + 1;
                         const isDone = num <= extractionProgress.current;
                         return (
-                          <React.Fragment key={num}>
-                            <div className={`import-bar-segment ${isDone ? 'is-done' : ''}`} title={`Question ${num}`}>
-                              <span className="import-bar-segment-num">{num}</span>
-                            </div>
-                            <span className="import-bar-divider">|</span>
-                          </React.Fragment>
+                          <div key={num} className={`import-bar-segment ${isDone ? 'is-done' : ''}`} title={`Question ${num}`}>
+                            <span className="import-bar-segment-num">{num}</span>
+                          </div>
                         );
                       })}
                     </div>

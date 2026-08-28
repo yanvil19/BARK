@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import QuestionsPage from '../prof/ProfQuestionsPage.jsx';
+import QuestionsPage from '../shared/CreateQuestions.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;

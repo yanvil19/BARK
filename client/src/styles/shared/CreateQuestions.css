@@ -1008,7 +1008,7 @@
   font-family: var(--font-title);
 }
 
-/* Segmented bar: | 1 | 2 | 3 | ... | 20 | */
+/* Segmented bar: 1 2 3 ... 20 */
 .import-segmented-bar {
   display: flex;
   align-items: center;
@@ -1144,4 +1144,3 @@
     width: 100%;
   }
 }
-
