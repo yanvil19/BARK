@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import { uploadDocumentForImport, submitImportedQuestions, getImportLimits } from '../../lib/importApi.js';
+import { uploadDocumentForImport, submitImportedQuestions, getImportLimits, validateAndCountDocument, extractQuestionsFromToken } from '../../lib/importApi.js';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -86,7 +86,8 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     earliestResetAt: null,
   });
   const [countdownSeconds, setCountdownSeconds] = useState(0);
-  const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 20, status: 'idle' });
+  const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0, status: 'idle' });
+  const [importStage, setImportStage] = useState('idle'); // 'idle' | 'counting' | 'extracting' | 'completed'
   const progressTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [questionToDelete, setQuestionToDelete] = useState(null);
@@ -443,24 +444,81 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
 
     setImportLoading(true);
     setImportError(null);
-    setExtractionProgress({ current: 0, total: 20, status: 'extracting' });
 
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    let step = 0;
-    progressTimerRef.current = setInterval(() => {
-      step = Math.min(step + 1, 16);
-      setExtractionProgress((prev) => ({ ...prev, current: step }));
-    }, 600);
+    // ── Stage 1: AI counts questions ──────────────────────────────────────────
+    setImportStage('counting');
+    setExtractionProgress({ current: 0, total: 0, status: 'counting' });
+
+    let sessionToken = null;
+    let questionCount = 0;
 
     try {
-      const result = await uploadDocumentForImport(file, tags);
+      const countResult = await validateAndCountDocument(file);
+      sessionToken = countResult.token;
+      questionCount = countResult.questionCount;
+    } catch (error) {
+      setImportLoading(false);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Count stage error:', error);
+      fetchLimits();
+      setImportError(error.message || error.data?.error || 'Failed to analyze the document. Please try again.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
-      if (progressTimerRef.current) {
+    // ── Stage 2: Full extraction ──────────────────────────────────────────────
+    setImportStage('extracting');
+    setExtractionProgress({ current: 0, total: questionCount, status: 'extracting' });
+
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+
+    // Animate bar from 0 → questionCount over ~8s, then switch to 'finalizing'
+    const intervalMs = Math.max(300, Math.round(8000 / questionCount));
+    let step = 0;
+    progressTimerRef.current = setInterval(() => {
+      step += 1;
+      setExtractionProgress((prev) => ({ ...prev, current: Math.min(step, questionCount) }));
+      if (step >= questionCount) {
         clearInterval(progressTimerRef.current);
         progressTimerRef.current = null;
+        // Bar is full — switch to finalizing while API may still be running
+        setImportStage('finalizing');
       }
+    }, intervalMs);
 
-      const preFilledQuestions = (result.questions || []).map(q => {
+    // Kick off extraction in parallel with animation
+    let extractionResult = null;
+    let extractionError = null;
+    try {
+      extractionResult = await extractQuestionsFromToken(sessionToken, tags);
+    } catch (error) {
+      extractionError = error;
+    }
+
+    // Ensure timer is cleared if API finished before animation did
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+
+    // If there was an extraction error, bail out
+    if (extractionError) {
+      setImportLoading(false);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Extraction error:', extractionError);
+      fetchLimits();
+      setImportError(extractionError.message || extractionError.data?.error || 'Failed to import questions. Please try again.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Make sure bar shows as fully filled before completing
+    setExtractionProgress({ current: questionCount, total: questionCount, status: 'completed' });
+
+    try {
+      const preFilledQuestions = (extractionResult.questions || []).map(q => {
         const matchedTag = tags.find(
           t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
         );
@@ -485,18 +543,14 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         throw new Error('No questions could be extracted from this file. Please check the format and try again.');
       }
 
-      if (result.limits) {
-        setImportLimits(result.limits);
+      if (extractionResult.limits) {
+        setImportLimits(extractionResult.limits);
       } else {
         fetchLimits();
       }
 
-      const totalExtracted = preFilledQuestions.length;
-      const detectedCount = result.detectedCount || totalExtracted;
-      const barTotal = Math.max(totalExtracted, detectedCount, 20);
-
-      // Complete the progress bar: all extracted questions highlighted in blue
-      setExtractionProgress({ current: totalExtracted, total: barTotal, status: 'completed' });
+      // Brief completed state, then open review form
+      setImportStage('completed');
 
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(`question_draft_import_${me?._id || 'guest'}`);
@@ -509,23 +563,23 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         setEditQuestion(null);
         setShowForm(true);
         setImportLoading(false);
-        setExtractionProgress({ current: 0, total: 20, status: 'idle' });
+        setImportStage('idle');
+        setExtractionProgress({ current: 0, total: 0, status: 'idle' });
       }, 700);
 
     } catch (error) {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
       setImportLoading(false);
-      setExtractionProgress({ current: 0, total: 20, status: 'idle' });
-      console.error('Import error:', error);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Post-extraction error:', error);
       fetchLimits();
-      setImportError(error.message || error.data?.error || 'Failed to import questions. Please try again.');
+      setImportError(error.message || 'Failed to import questions. Please try again.');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
+
+
 
   return (
     <main className="qp-page">
@@ -899,40 +953,83 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           <div className={`import-drop-zone ${importLoading ? 'is-loading' : ''} ${importLimits.isLimitReached ? 'is-disabled' : ''}`}>
             {importLoading ? (
               <div className="import-loading-container">
-                <div className="import-loading-header">
-                  <span className="import-loading-spinner" />
-                  <h3 className="import-loading-title">
-                    {extractionProgress.status === 'completed'
-                      ? `Extracted ${extractionProgress.current} question${extractionProgress.current === 1 ? '' : 's'} successfully!`
-                      : `Extracting questions... (${extractionProgress.current} of ${extractionProgress.total} processed)`}
-                  </h3>
-                </div>
+                {/* ── Stage 1: AI is counting questions ───────────────── */}
+                {importStage === 'counting' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">Analyzing document &amp; counting questions…</h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Please wait while the AI reads your file and counts the questions.
+                    </span>
+                  </>
+                )}
 
-                <div
-                  className="import-segmented-bar"
-                  role="progressbar"
-                  aria-valuenow={extractionProgress.current}
-                  aria-valuemin="0"
-                  aria-valuemax={extractionProgress.total}
-                >
-                  <span className="import-bar-divider">|</span>
-                  {Array.from({ length: extractionProgress.total || 20 }, (_, i) => {
-                    const num = i + 1;
-                    const isDone = num <= extractionProgress.current;
-                    return (
-                      <React.Fragment key={num}>
-                        <div className={`import-bar-segment ${isDone ? 'is-done' : ''}`} title={`Question ${num}`}>
-                          <span className="import-bar-segment-num">{num}</span>
-                        </div>
-                        <span className="import-bar-divider">|</span>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
+                {/* ── Stage 2: Segmented bar filling up ───────────────── */}
+                {importStage === 'extracting' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">
+                        Extracting questions… ({extractionProgress.current} of {extractionProgress.total} processed)
+                      </h3>
+                    </div>
 
-                <span className="import-drop-zone-footnote">
-                  Please wait while the AI analyzes document structure, choices, and rationalizations.
-                </span>
+                    <div
+                      className="import-segmented-bar"
+                      role="progressbar"
+                      aria-valuenow={extractionProgress.current}
+                      aria-valuemin="0"
+                      aria-valuemax={extractionProgress.total}
+                    >
+                      <span className="import-bar-divider">|</span>
+                      {Array.from({ length: extractionProgress.total }, (_, i) => {
+                        const num = i + 1;
+                        const isDone = num <= extractionProgress.current;
+                        return (
+                          <React.Fragment key={num}>
+                            <div className={`import-bar-segment ${isDone ? 'is-done' : ''}`} title={`Question ${num}`}>
+                              <span className="import-bar-segment-num">{num}</span>
+                            </div>
+                            <span className="import-bar-divider">|</span>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+
+                    <span className="import-drop-zone-footnote">
+                      Please wait while the AI analyzes document structure, choices, and rationalizations.
+                    </span>
+                  </>
+                )}
+
+                {/* ── Stage 3: Bar full, finalizing results ───────────── */}
+                {importStage === 'finalizing' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">Finalizing your questions…</h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Almost done! Packaging your extracted questions for review.
+                    </span>
+                  </>
+                )}
+
+                {/* ── Stage 4: Completed ───────────────────────────────── */}
+                {importStage === 'completed' && (
+                  <>
+                    <div className="import-loading-header">
+                      <h3 className="import-loading-title">
+                        ✅ {extractionProgress.current} question{extractionProgress.current === 1 ? '' : 's'} extracted successfully!
+                      </h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Opening review form…
+                    </span>
+                  </>
+                )}
               </div>
             ) : (
               <>

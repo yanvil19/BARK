@@ -1,3 +1,5 @@
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 const GEMINI_COUNT_PROMPT = `You are an expert examination document analyzer.
 Your task is to accurately count the total number of multiple choice questions present in the provided document text.
 

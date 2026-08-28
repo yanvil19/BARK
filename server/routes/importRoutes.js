@@ -21,8 +21,36 @@ router.get(
 );
 
 /**
+ * POST /api/import/validate-count
+ * Stage 1: Upload file, extract text, AI-count questions, verify <= 20, return token + questionCount
+ */
+router.post(
+    '/validate-count',
+    protect,
+    authorizeRoles('professor', 'program_chair', 'dean'),
+    userImportLimiter, // Per-user hourly (5) and daily (20) limit
+    geminiMinuteLimiter,
+    geminiDailyLimiter,
+    upload.single('file'),
+    importController.validateAndCount
+);
+
+/**
+ * POST /api/import/extract
+ * Stage 2: Full question extraction using pre-counted session token
+ */
+router.post(
+    '/extract',
+    protect,
+    authorizeRoles('professor', 'program_chair', 'dean'),
+    geminiMinuteLimiter,
+    geminiDailyLimiter,
+    importController.extractFromSession
+);
+
+/**
  * POST /api/import/upload
- * Upload a file and extract questions using AI
+ * Upload a file and extract questions using AI (legacy single-stage)
  */
 router.post(
     '/upload',

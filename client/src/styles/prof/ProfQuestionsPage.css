@@ -1013,14 +1013,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  flex-wrap: wrap;
+  gap: 2px;
   background: #ffffff;
   border: 1px solid #dce3f8;
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   box-shadow: 0 2px 8px rgba(53, 64, 142, 0.08);
-  max-width: 100%;
-  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .import-bar-divider {
