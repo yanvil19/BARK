@@ -1,4 +1,4 @@
-import QuestionsPage from '../prof/ProfQuestionsPage.jsx';
+import QuestionsPage from '../shared/CreateQuestions.jsx';
 
 export default function ChairQuestions({ me }) {
   const programLabel = me?.program?.name || 'Your Program';

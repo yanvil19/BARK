@@ -106,8 +106,11 @@ const validateAndCount = async (req, res) => {
         }
 
         if (questionCount > maxQuestions) {
+            // Count this as a used upload attempt even though it's rejected
+            recordUserImport(userId);
             return res.status(400).json({
-                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`
+                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`,
+                limits: getUserImportLimits(userId),
             });
         }
 
@@ -116,6 +119,7 @@ const validateAndCount = async (req, res) => {
                 error: 'No multiple choice questions could be detected in this document. Please check the formatting and try again.'
             });
         }
+
 
         const token = `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         pendingCountSessions.set(token, {

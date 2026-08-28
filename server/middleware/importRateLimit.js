@@ -3,7 +3,7 @@ const { rateLimit } = require('express-rate-limit');
 const HOURLY_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-const HOURLY_MAX = parseInt(process.env.IMPORT_USER_HOURLY_LIMIT || '5', 10);
+const HOURLY_MAX = parseInt(process.env.IMPORT_USER_HOURLY_LIMIT || '8', 10);
 const DAILY_MAX = parseInt(process.env.IMPORT_USER_DAILY_LIMIT || '20', 10);
 
 // In-memory sliding window store for user upload timestamps: userId -> [timestamp, ...]
