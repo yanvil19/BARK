@@ -1,6 +1,11 @@
 const fileExtractionService = require('../services/fileExtractionService');
 const geminiService = require('../services/geminiService');
-const { markImportStart, markImportEnd } = require('../middleware/importRateLimit');
+const {
+    markImportStart,
+    markImportEnd,
+    recordUserImport,
+    getUserImportLimits,
+} = require('../middleware/importRateLimit');
 const Question = require('../models/Question');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
@@ -8,6 +13,237 @@ const { encryptText } = require('../services/encryptionService');
 
 // In-memory session store (replaces Redis cache)
 const importSessions = new Map();
+const pendingCountSessions = new Map();
+
+/**
+ * GET /api/import/limits
+ */
+const getLimits = async (req, res) => {
+    try {
+        const userId = req.user?._id?.toString();
+        const limits = getUserImportLimits(userId);
+        return res.json({ limits });
+    } catch (error) {
+        console.error('Get limits error:', error);
+        return res.status(500).json({ error: 'Failed to retrieve upload limits' });
+    }
+};
+
+/**
+ * POST /api/import/validate-count
+ * Stage 1: Extracts text, runs AI question counting, verifies <= 20 questions, and returns token + questionCount
+ */
+const validateAndCount = async (req, res) => {
+    const userId = req.user?._id?.toString();
+
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const allowedRoles = ['professor', 'program_chair', 'dean'];
+        if (!allowedRoles.includes(req.user.role?.toLowerCase())) {
+            return res.status(403).json({
+                error: 'Only Professors, Chairs, and Deans can import questions.'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file provided' });
+        }
+
+        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10, 10) * 1024 * 1024;
+        if (req.file.size > maxSize) {
+            return res.status(400).json({
+                error: 'Your file exceeds the 10MB limit. Please compress or split the document.'
+            });
+        }
+
+        const allowedMimes = [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        if (!allowedMimes.includes(req.file.mimetype)) {
+            return res.status(400).json({
+                error: 'Only PDF and DOCX files are supported. Please upload a valid file.'
+            });
+        }
+
+        // Extract text
+        let extractedText = '';
+        try {
+            extractedText = await fileExtractionService.extractFromFile(
+                req.file.buffer,
+                req.file.mimetype
+            );
+        } catch (error) {
+            console.error('File extraction error:', error);
+            return res.status(400).json({
+                error: 'Your file could not be read. It may be corrupted. Please try re-saving and uploading again.'
+            });
+        }
+
+        // Scanned PDF check
+        if (req.file.mimetype === 'application/pdf') {
+            if (fileExtractionService.isScannedPDF(extractedText)) {
+                return res.status(400).json({
+                    error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
+                });
+            }
+        }
+
+        // AI Question Counting
+        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
+        let questionCount = 0;
+        try {
+            const countResult = await geminiService.countQuestions(extractedText);
+            questionCount = countResult.question_count || 0;
+        } catch (error) {
+            console.error('Gemini question count error:', error.message, error.status, error);
+            return res.status(503).json({
+                error: 'An error occurred while analyzing the document. Please try again.'
+            });
+        }
+
+        if (questionCount > maxQuestions) {
+            return res.status(400).json({
+                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`
+            });
+        }
+
+        if (questionCount === 0) {
+            return res.status(400).json({
+                error: 'No multiple choice questions could be detected in this document. Please check the formatting and try again.'
+            });
+        }
+
+        const token = `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        pendingCountSessions.set(token, {
+            userId,
+            extractedText,
+            questionCount,
+            createdAt: Date.now(),
+        });
+
+        // Auto-expire in 10 minutes
+        setTimeout(() => pendingCountSessions.delete(token), 10 * 60 * 1000);
+
+        return res.json({
+            token,
+            questionCount,
+        });
+
+    } catch (error) {
+        console.error('Validate and count error:', error);
+        return res.status(500).json({
+            error: 'An unexpected error occurred. Please try again.'
+        });
+    }
+};
+
+/**
+ * POST /api/import/extract
+ * Stage 2: Full question extraction from a pre-counted session token
+ */
+const extractFromSession = async (req, res) => {
+    const userId = req.user?._id?.toString();
+
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { token, tags = [] } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'Session token is required' });
+        }
+
+        const session = pendingCountSessions.get(token);
+        if (!session || session.userId !== userId) {
+            return res.status(404).json({ error: 'Session expired or not found. Please upload again.' });
+        }
+
+        const { extractedText, questionCount } = session;
+
+        markImportStart(userId);
+        const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        let extractedQuestions = [];
+        try {
+            extractedQuestions = await geminiService.extractQuestions(extractedText, 0, tags);
+        } catch (error) {
+            console.error('Gemini extraction error:', error.message, error.status, error);
+            markImportEnd(userId);
+
+            if (error.message?.includes('timeout')) {
+                return res.status(503).json({
+                    error: 'The extraction is taking longer than expected. Please try again in a moment.'
+                });
+            } else if (error.message?.includes('JSON')) {
+                return res.status(503).json({
+                    error: 'Something went wrong during extraction. Please try again.'
+                });
+            } else {
+                return res.status(503).json({
+                    error: 'An error occurred during extraction. Please try again.'
+                });
+            }
+        }
+
+        if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: 'No questions could be detected in your document. Please check the formatting and try again.'
+            });
+        }
+
+        const processedQuestions = geminiService.processQuestionsWithGuardrails(extractedQuestions);
+        const validQuestions = processedQuestions.filter(q => q.status !== 'INVALID');
+        if (validQuestions.length === 0) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: 'No valid questions were found after checking your document. Please review the formatting guide and try again.'
+            });
+        }
+
+        // Record successful upload in rate-limit counter
+        recordUserImport(userId);
+        const updatedLimits = getUserImportLimits(userId);
+
+        const stats = {
+            total: processedQuestions.length,
+            ready: processedQuestions.filter(q => q.status === 'READY').length,
+            needsReview: processedQuestions.filter(q => q.status === 'NEEDS_REVIEW').length,
+            invalid: processedQuestions.filter(q => q.status === 'INVALID').length
+        };
+
+        importSessions.set(jobId, {
+            userId,
+            questions: processedQuestions,
+            stats,
+            createdAt: new Date().toISOString()
+        });
+        setTimeout(() => importSessions.delete(jobId), 60 * 60 * 1000);
+        pendingCountSessions.delete(token);
+        markImportEnd(userId);
+
+        return res.json({
+            jobId,
+            questions: processedQuestions,
+            stats,
+            limits: updatedLimits,
+            detectedCount: questionCount || processedQuestions.length,
+            message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
+        });
+
+    } catch (error) {
+        console.error('Extract from session error:', error);
+        markImportEnd(userId);
+        return res.status(500).json({
+            error: 'An unexpected error occurred during extraction. Please try again.'
+        });
+    }
+};
 
 /**
  * POST /api/import/upload
@@ -31,7 +267,7 @@ const uploadAndExtract = async (req, res) => {
             return res.status(400).json({ error: 'No file provided' });
         }
 
-        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10) * 1024 * 1024;
+        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10, 10) * 1024 * 1024;
         if (req.file.size > maxSize) {
             return res.status(400).json({
                 error: 'Your file exceeds the 10MB limit. Please compress or split the document.'
@@ -71,20 +307,39 @@ const uploadAndExtract = async (req, res) => {
             }
         }
 
-        // ===== PRE-COUNT QUESTION BLOCKS =====
-        const questionCount = fileExtractionService.countQuestionBlocks(extractedText);
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20);
-        if (questionCount > maxQuestions) {
-            return res.status(400).json({
-                error: `More than ${maxQuestions} questions were detected. Please split into multiple uploads of ${maxQuestions} or fewer.`
-            });
-        }
-
         // ===== SET ACTIVE IMPORT =====
         markImportStart(userId);
         const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // ===== CALL GEMINI =====
+        // ===== STEP 1: AI PRE-COUNT QUESTION BLOCKS =====
+        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
+        let questionCount = 0;
+        try {
+            const countResult = await geminiService.countQuestions(extractedText);
+            questionCount = countResult.question_count || 0;
+        } catch (error) {
+            console.error('Gemini question count error:', error.message, error.status, error);
+            markImportEnd(userId);
+            return res.status(503).json({
+                error: 'An error occurred while analyzing the document. Please try again.'
+            });
+        }
+
+        if (questionCount > maxQuestions) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`
+            });
+        }
+
+        if (questionCount === 0) {
+            markImportEnd(userId);
+            return res.status(400).json({
+                error: 'No multiple choice questions could be detected in your document. Please check the formatting and try again.'
+            });
+        }
+
+        // ===== STEP 2: FULL EXTRACTION =====
         let extractedQuestions = [];
         try {
             const tags = JSON.parse(req.body.tags || '[]');
@@ -127,6 +382,10 @@ const uploadAndExtract = async (req, res) => {
             });
         }
 
+        // Record successful upload in rate-limit counter
+        recordUserImport(userId);
+        const updatedLimits = getUserImportLimits(userId);
+
         // ===== STATS =====
         const stats = {
             total: processedQuestions.length,
@@ -153,6 +412,8 @@ const uploadAndExtract = async (req, res) => {
             jobId,
             questions: processedQuestions,
             stats,
+            limits: updatedLimits,
+            detectedCount: questionCount || processedQuestions.length,
             message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
         });
 
@@ -273,6 +534,9 @@ const submitQuestions = async (req, res) => {
 };
 
 module.exports = {
+    getLimits,
+    validateAndCount,
+    extractFromSession,
     uploadAndExtract,
     getStatus,
     submitQuestions

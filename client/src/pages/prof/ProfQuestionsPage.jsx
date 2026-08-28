@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import { uploadDocumentForImport, submitImportedQuestions } from '../../lib/importApi.js';
+import { uploadDocumentForImport, submitImportedQuestions, getImportLimits, validateAndCountDocument, extractQuestionsFromToken } from '../../lib/importApi.js';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -16,6 +16,31 @@ const BASE = import.meta.env.VITE_API_URL;
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
+
+function formatResetTime(isoDateStr) {
+  if (!isoDateStr) return '';
+  const date = new Date(isoDateStr);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timePart = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (isToday) {
+    return `Today at ${timePart}`;
+  }
+  const datePart = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return `${datePart} at ${timePart}`;
+}
+
+function formatCountdown(seconds) {
+  if (seconds <= 0) return '0s';
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  const parts = [];
+  if (hrs > 0) parts.push(`${hrs}h`);
+  if (mins > 0 || hrs > 0) parts.push(`${mins}m`);
+  parts.push(`${secs}s`);
+  return parts.join(' ');
+}
 
 function formatDate(iso) {
   if (!iso) return '-';
@@ -54,6 +79,16 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [importedQuestions, setImportedQuestions] = useState([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState(null);
+  const [importLimits, setImportLimits] = useState({
+    hourly: { used: 0, max: 5, remaining: 5, resetAt: null, resetInSeconds: 0 },
+    daily: { used: 0, max: 20, remaining: 20, resetAt: null, resetInSeconds: 0 },
+    isLimitReached: false,
+    earliestResetAt: null,
+  });
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [extractionProgress, setExtractionProgress] = useState({ current: 0, total: 0, status: 'idle' });
+  const [importStage, setImportStage] = useState('idle'); // 'idle' | 'counting' | 'extracting' | 'completed'
+  const progressTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -71,6 +106,23 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
   const [maxImages, setMaxImages] = useState(5);
   const itemsPerPage = 10;
+
+  const fetchLimits = useCallback(async () => {
+    try {
+      const data = await getImportLimits();
+      if (data?.limits) {
+        setImportLimits(data.limits);
+        if (data.limits.earliestResetAt) {
+          const secs = Math.max(0, Math.ceil((new Date(data.limits.earliestResetAt).getTime() - Date.now()) / 1000));
+          setCountdownSeconds(secs);
+        } else {
+          setCountdownSeconds(0);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch import limits:', err);
+    }
+  }, []);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -100,6 +152,26 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);
+
+  useEffect(() => {
+    if (showImportModal) {
+      fetchLimits();
+    }
+  }, [showImportModal, fetchLimits]);
+
+  useEffect(() => {
+    if (!importLimits.isLimitReached || countdownSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          fetchLimits();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [importLimits.isLimitReached, countdownSeconds, fetchLimits]);
 
   useEffect(() => {
     apiAuth('/api/admin/settings/public')
@@ -373,16 +445,83 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
     setImportLoading(true);
     setImportError(null);
 
-    try {
-      const result = await uploadDocumentForImport(file, tags);
+    // ── Stage 1: AI counts questions ──────────────────────────────────────────
+    setImportStage('counting');
+    setExtractionProgress({ current: 0, total: 0, status: 'counting' });
 
-      const preFilledQuestions = result.questions.map(q => {
+    let sessionToken = null;
+    let questionCount = 0;
+
+    try {
+      const countResult = await validateAndCountDocument(file);
+      sessionToken = countResult.token;
+      questionCount = countResult.questionCount;
+    } catch (error) {
+      setImportLoading(false);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Count stage error:', error);
+      fetchLimits();
+      setImportError(error.message || error.data?.error || 'Failed to analyze the document. Please try again.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // ── Stage 2: Full extraction ──────────────────────────────────────────────
+    setImportStage('extracting');
+    setExtractionProgress({ current: 0, total: questionCount, status: 'extracting' });
+
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+
+    // Animate bar from 0 → questionCount over ~8s, then switch to 'finalizing'
+    const intervalMs = Math.max(300, Math.round(8000 / questionCount));
+    let step = 0;
+    progressTimerRef.current = setInterval(() => {
+      step += 1;
+      setExtractionProgress((prev) => ({ ...prev, current: Math.min(step, questionCount) }));
+      if (step >= questionCount) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+        // Bar is full — switch to finalizing while API may still be running
+        setImportStage('finalizing');
+      }
+    }, intervalMs);
+
+    // Kick off extraction in parallel with animation
+    let extractionResult = null;
+    let extractionError = null;
+    try {
+      extractionResult = await extractQuestionsFromToken(sessionToken, tags);
+    } catch (error) {
+      extractionError = error;
+    }
+
+    // Ensure timer is cleared if API finished before animation did
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+
+    // If there was an extraction error, bail out
+    if (extractionError) {
+      setImportLoading(false);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Extraction error:', extractionError);
+      fetchLimits();
+      setImportError(extractionError.message || extractionError.data?.error || 'Failed to import questions. Please try again.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Make sure bar shows as fully filled before completing
+    setExtractionProgress({ current: questionCount, total: questionCount, status: 'completed' });
+
+    try {
+      const preFilledQuestions = (extractionResult.questions || []).map(q => {
         const matchedTag = tags.find(
           t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
         );
-
-        console.log('suggested_tag:', q.suggested_tag, '| confidence:', q.suggested_tag_confidence, '| matched:', matchedTag?.name);
-
 
         return {
           description: q.question_text || '',
@@ -404,24 +543,43 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
         throw new Error('No questions could be extracted from this file. Please check the format and try again.');
       }
 
+      if (extractionResult.limits) {
+        setImportLimits(extractionResult.limits);
+      } else {
+        fetchLimits();
+      }
+
+      // Brief completed state, then open review form
+      setImportStage('completed');
+
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(`question_draft_import_${me?._id || 'guest'}`);
       }
 
-      setImportedQuestions(preFilledQuestions);
-      setIsRestoringImportDraft(false);
-      setShowImportModal(false);
-      setEditQuestion(null);
-      setShowForm(true);
+      setTimeout(() => {
+        setImportedQuestions(preFilledQuestions);
+        setIsRestoringImportDraft(false);
+        setShowImportModal(false);
+        setEditQuestion(null);
+        setShowForm(true);
+        setImportLoading(false);
+        setImportStage('idle');
+        setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      }, 700);
 
     } catch (error) {
-      console.error('Import error:', error);
+      setImportLoading(false);
+      setImportStage('idle');
+      setExtractionProgress({ current: 0, total: 0, status: 'idle' });
+      console.error('Post-extraction error:', error);
+      fetchLimits();
       setImportError(error.message || 'Failed to import questions. Please try again.');
     } finally {
-      setImportLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
+
+
 
   return (
     <main className="qp-page">
@@ -738,20 +896,44 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
           <p className="qp-modal-subtitle">
             Upload a PDF or DOCX file containing multiple choice questions. An AI will extract the questions for your review.
           </p>
+
           <div className="qp-import-guidelines">
             <div className="qp-import-guideline">
-              <strong>Supported formats</strong>
-              <span>PDF (typed), DOCX</span>
+              <strong>Hourly Uploads</strong>
+              <span className="qp-import-quota-val">
+                {importLimits.hourly.used} / {importLimits.hourly.max}
+              </span>
             </div>
             <div className="qp-import-guideline">
-              <strong>File size</strong>
-              <span>Up to 10MB</span>
+              <strong>Daily Uploads</strong>
+              <span className="qp-import-quota-val">
+                {importLimits.daily.used} / {importLimits.daily.max}
+              </span>
             </div>
             <div className="qp-import-guideline">
-              <strong>Max questions</strong>
+              <strong>Max Questions</strong>
               <span>20 per upload</span>
             </div>
           </div>
+
+          {importLimits.isLimitReached && (
+            <div className="import-limit-banner">
+              <div className="import-limit-icon">⏳</div>
+              <div className="import-limit-text">
+                <strong>Upload Limit Reached</strong>
+                <p>
+                  You have reached your upload quota. Next upload available in{' '}
+                  <span className="import-limit-countdown">
+                    {formatCountdown(countdownSeconds)}
+                  </span>
+                  {importLimits.earliestResetAt && (
+                    <> ({formatResetTime(importLimits.earliestResetAt)})</>
+                  )}.
+                </p>
+              </div>
+            </div>
+          )}
+
           {importError && (
             <div className="import-error-banner">
               {importError}
@@ -766,28 +948,117 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             onChange={handleFileSelected}
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             style={{ display: 'none' }}
-            disabled={importLoading}
+            disabled={importLoading || importLimits.isLimitReached}
           />
-          <div className={`import-drop-zone ${importLoading ? 'is-loading' : ''}`}>
-            <div className="import-drop-zone-copy">
-              <h3>{importLoading ? 'Extracting your questions...' : 'Upload your question file'}</h3>
-            </div>
-            <button
-              type="button"
-              className="qp-btn-upload qp-btn-upload--large"
-              onClick={triggerFileInput}
-              disabled={importLoading}
-            >
-              {importLoading ? 'Processing...' : '📁Choose File'}
-            </button>
-            <span className="import-drop-zone-footnote">
-              This feature uses AI to extract information and may occasionally produce incorrect or incomplete results.
-            </span>
+          <div className={`import-drop-zone ${importLoading ? 'is-loading' : ''} ${importLimits.isLimitReached ? 'is-disabled' : ''}`}>
+            {importLoading ? (
+              <div className="import-loading-container">
+                {/* ── Stage 1: AI is counting questions ───────────────── */}
+                {importStage === 'counting' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">Analyzing document &amp; counting questions…</h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Please wait while the AI reads your file and counts the questions.
+                    </span>
+                  </>
+                )}
+
+                {/* ── Stage 2: Segmented bar filling up ───────────────── */}
+                {importStage === 'extracting' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">
+                        Extracting questions… ({extractionProgress.current} of {extractionProgress.total} processed)
+                      </h3>
+                    </div>
+
+                    <div
+                      className="import-segmented-bar"
+                      role="progressbar"
+                      aria-valuenow={extractionProgress.current}
+                      aria-valuemin="0"
+                      aria-valuemax={extractionProgress.total}
+                    >
+                      <span className="import-bar-divider">|</span>
+                      {Array.from({ length: extractionProgress.total }, (_, i) => {
+                        const num = i + 1;
+                        const isDone = num <= extractionProgress.current;
+                        return (
+                          <React.Fragment key={num}>
+                            <div className={`import-bar-segment ${isDone ? 'is-done' : ''}`} title={`Question ${num}`}>
+                              <span className="import-bar-segment-num">{num}</span>
+                            </div>
+                            <span className="import-bar-divider">|</span>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+
+                    <span className="import-drop-zone-footnote">
+                      Please wait while the AI analyzes document structure, choices, and rationalizations.
+                    </span>
+                  </>
+                )}
+
+                {/* ── Stage 3: Bar full, finalizing results ───────────── */}
+                {importStage === 'finalizing' && (
+                  <>
+                    <div className="import-loading-header">
+                      <span className="import-loading-spinner" />
+                      <h3 className="import-loading-title">Finalizing your questions…</h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Almost done! Packaging your extracted questions for review.
+                    </span>
+                  </>
+                )}
+
+                {/* ── Stage 4: Completed ───────────────────────────────── */}
+                {importStage === 'completed' && (
+                  <>
+                    <div className="import-loading-header">
+                      <h3 className="import-loading-title">
+                        ✅ {extractionProgress.current} question{extractionProgress.current === 1 ? '' : 's'} extracted successfully!
+                      </h3>
+                    </div>
+                    <span className="import-drop-zone-footnote">
+                      Opening review form…
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="import-drop-zone-copy">
+                  <h3>{importLimits.isLimitReached ? 'Upload temporarily paused' : 'Upload your question file'}</h3>
+                  <p className="import-drop-zone-sub">
+                    {importLimits.isLimitReached
+                      ? `Limit reached. Resets ${formatResetTime(importLimits.earliestResetAt)}`
+                      : 'Drag & drop or browse your typed PDF or DOCX file'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="qp-btn-upload qp-btn-upload--large"
+                  onClick={triggerFileInput}
+                  disabled={importLoading || importLimits.isLimitReached}
+                >
+                  📁 Choose File
+                </button>
+                <span className="import-drop-zone-footnote">
+                  This feature uses AI to extract multiple-choice questions (max 20 questions per file).
+                </span>
+              </>
+            )}
           </div>
         </div>
 
         <div className="modal-actions qp-modal-actions">
-          {hasImportDraft && (
+          {hasImportDraft && !importLoading && (
             <button
               type="button"
               className="modal-btn-primary"
@@ -798,7 +1069,6 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
                 setEditQuestion(null);
                 setShowForm(true);
               }}
-              disabled={importLoading}
             >
               Restore Previous Session
             </button>
@@ -809,7 +1079,7 @@ export default function QuestionsPage({ role, programId, programLabel, programs 
             onClick={closeImportModal}
             disabled={importLoading}
           >
-            Cancel
+            {importLoading ? 'Please wait...' : 'Cancel'}
           </button>
         </div>
       </Modal>

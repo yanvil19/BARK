@@ -4,6 +4,13 @@ import { apiAuth, apiAuthUpload } from './api.js';
 const BASE = import.meta.env.VITE_API_URL;
 
 /**
+ * Fetch current user's import limits and reset times
+ */
+export const getImportLimits = async () => {
+    return apiAuth(`${BASE}/api/import/limits`);
+};
+
+/**
  * Upload a file for question import
  */
 export const uploadDocumentForImport = async (file, tags = []) => {
@@ -12,6 +19,25 @@ export const uploadDocumentForImport = async (file, tags = []) => {
     formData.append('tags', JSON.stringify(tags.map(t => ({ name: t.name }))));
 
     return apiAuthUpload(`${BASE}/api/import/upload`, formData);
+};
+
+/**
+ * Stage 1: Upload file, AI-count questions, validate <= 20, receive token + questionCount
+ */
+export const validateAndCountDocument = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiAuthUpload(`${BASE}/api/import/validate-count`, formData);
+};
+
+/**
+ * Stage 2: Full question extraction using session token from Stage 1
+ */
+export const extractQuestionsFromToken = async (token, tags = []) => {
+    return apiAuth(`${BASE}/api/import/extract`, {
+        method: 'POST',
+        body: { token, tags: tags.map(t => ({ name: t.name })) }
+    });
 };
 
 /**

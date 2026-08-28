@@ -88,7 +88,7 @@ export default function QuestionApprovals({ me }) {
   const [warningModal, setWarningModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [actionTaken, setActionTaken] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [returnModal, setReturnModal] = useState(null);
   const [returnNote, setReturnNote] = useState('');
   const [returnSubmitting, setReturnSubmitting] = useState(false);
@@ -696,6 +696,15 @@ export default function QuestionApprovals({ me }) {
   const allPendingSelected = matchStateOnPage.length > 0 && matchStateOnPage.every(q => selectedIds.has(q._id));
   const somePendingSelected = matchStateOnPage.some(q => selectedIds.has(q._id));
 
+  // Ordered list of bulk-selected questions (follows filteredQuestions order for consistent navigation)
+  const bulkSelectedQuestions = useMemo(
+    () => filteredQuestions.filter(q => selectedIds.has(q._id)),
+    [filteredQuestions, selectedIds]
+  );
+  const bulkNavIndex = selectedQuestion
+    ? bulkSelectedQuestions.findIndex(q => q._id === selectedQuestion._id)
+    : -1;
+
   return (
     <main className="ca-page">
       <PageHeader
@@ -890,6 +899,29 @@ export default function QuestionApprovals({ me }) {
           <div className="ca-sidebar">
             <div className="ca-sidebar-header">
               <h2 className="ca-sidebar-title">Review Question</h2>
+              {selectedIds.size > 1 && bulkNavIndex !== -1 && (
+                <div className="ca-bulk-nav">
+                  <button
+                    type="button"
+                    className="ca-bulk-nav-btn"
+                    onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex - 1])}
+                    disabled={bulkNavIndex === 0}
+                    title="Previous selected question"
+                  >
+                    ←
+                  </button>
+                  <span className="ca-bulk-nav-label">{bulkNavIndex + 1} / {bulkSelectedQuestions.length}</span>
+                  <button
+                    type="button"
+                    className="ca-bulk-nav-btn"
+                    onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex + 1])}
+                    disabled={bulkNavIndex === bulkSelectedQuestions.length - 1}
+                    title="Next selected question"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
               <div className="ca-sidebar-header-actions">
                 <button
                   type="button"

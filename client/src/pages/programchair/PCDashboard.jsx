@@ -2,22 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/AdminFacultyDashboard.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import ExamCalendar from '../../components/ExamCalendar.jsx';
 
 const ProgramChairDashboard = ({ me, onRoute }) => {
   const [pcStats, setPcStats] = useState(null);
   const [pcLoading, setPcLoading] = useState(true);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [subjectDetails, setSubjectDetails] = useState([]);
-  const [subjectLoading, setSubjectLoading] = useState(false);
-  const [aiSummary, setAiSummary] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (!me || me.role !== 'program_chair') return;
 
     const fetchPcStats = async () => {
       try {
-        const [statsRes, pendingRes] = await Promise.all([
+        const [statsRes] = await Promise.all([
           apiAuth('/api/stats/program-chair/stats'),
           apiAuth('/api/questions/approvals?limit=10'),
         ]);
@@ -36,35 +32,6 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
     fetchPcStats();
   }, [me?.role]);
 
-  useEffect(() => {
-    if (me?.role !== 'program_chair') return;
-    if (!pcStats?.subjectSuccessRates) return;
-    
-    const fetchAiSummary = async () => {
-      setAiLoading(true);
-      try {
-        const res = await apiAuth('/api/program-chair/ai-summary', {
-          method: 'POST',
-          body: JSON.stringify({ subjectRates: pcStats.subjectSuccessRates }),
-        });
-        setAiSummary(res.summary || '');
-      } catch (err) {
-        console.error('Failed to generate AI summary:', err.message);
-        setAiSummary('Summary could not be generated at this time.');
-      } finally {
-        setAiLoading(false);
-      }
-    };
-    
-    fetchAiSummary();
-  }, [pcStats, me]);
-
-  const getSubjectColor = (val) => {
-    if (val >= 75) return '#2b3980';
-    if (val >= 50) return '#f5a623';
-    return '#e53935';
-  };
-
   const formatRole = (role) => {
     switch (role) {
       case 'program_chair': return 'Program Chair';
@@ -74,30 +41,9 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
     }
   };
 
-  const openSubjectModal = async (subject) => {
-    setSelectedSubject(subject);
-    setSubjectDetails([]);
-    setSubjectLoading(true);
-    try {
-      const res = await apiAuth(
-        `/api/program-chair/subject-details/${encodeURIComponent(subject.label)}`
-      );
-      setSubjectDetails(res.questions || []);
-    } catch (err) {
-      console.error('Failed to load subject details:', err.message);
-    } finally {
-      setSubjectLoading(false);
-    }
-  };
-
-  const closeModal = () => {
-    setSelectedSubject(null);
-    setSubjectDetails([]);
-  };
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
-  const subjectRates = pcStats?.subjectSuccessRates || [];
+  const chairProgramId = me?.program?._id || (typeof me?.program === 'string' ? me?.program : '');
 
   return (
     <main className="dashboard-pc-main">
@@ -111,47 +57,57 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
         <div className="pc-loading">Loading dashboard data...</div>
       ) : (
         <>
-          {/* Row 1: Student Count + Total Questions */}
+          {/* Row 1: Student Count, Alumni Count, Approved Questions */}
           <div className="dashboard-pc-top-row">
             <section className="dashboard-box">
               <div className="box-title">Program Student Count</div>
-              <div className="box-content-grid-2">
-                {(pcStats?.programStudentCount || []).map((prog, i) => ( 
-                  <div key={i} className="metric-card metric-card-blue student-count-card">
-                    <h2>{prog.count.toLocaleString()}</h2>
-                    <p>{prog.programName}</p>
-                  </div>
-                ))}
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.programStudentCount ?? 0).toLocaleString()}</h2>
+                  <p>{me?.program?.name || pcStats?.programName || 'Program'} Students</p>
+                </div>
               </div>
             </section>
 
-            <div className="dashboard-box">
+            <section className="dashboard-box">
+              <div className="box-title">Program Alumni Count</div>
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.programAlumniCount ?? 0).toLocaleString()}</h2>
+                  <p>{me?.program?.name || pcStats?.programName || 'Program'} Alumni</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="dashboard-box">
               <div className="box-title">No. of Approved Questions</div>
-                <div className="question-count-card">
-                  <h2>{(pcStats?.approvedQuestions || 0).toLocaleString()}</h2>
+              <div className="box-content-vertical">
+                <div className="metric-card metric-card-blue">
+                  <h2>{(pcStats?.approvedQuestions ?? 0).toLocaleString()}</h2>
                   <p>Approved Questions</p>
                 </div>
-            </div>
+              </div>
+            </section>
           </div>
 
-          {/* Row 2: 3 Stats */}
+          {/* Row 2: Published Exam Count, On-going Exam Count, Pending Questions */}
           <div className="dashboard-pc-stats-row">
             <section className="dashboard-box">
-              <div className="box-title">Total Passing Rate</div>
+              <div className="box-title">Published Exam Count</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.totalPassingRate ?? '—'}%</h2>
-                  <p>SEA Students</p>
+                  <h2>{(pcStats?.publishedExamsCount ?? 0).toLocaleString()}</h2>
+                  <p>Published Exams in {me?.program?.name || pcStats?.programName || 'Program'}</p>
                 </div>
               </div>
             </section>
 
             <section className="dashboard-box">
-              <div className="box-title">Exams Published</div>
+              <div className="box-title">On-going Exam Count</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.examsPublished ?? '—'}</h2>
-                  <p>Total Exams Published in SEA</p>
+                  <h2>{(pcStats?.ongoingExamsCount ?? 0).toLocaleString()}</h2>
+                  <p>On-going Exams in {me?.program?.name || pcStats?.programName || 'Program'}</p>
                 </div>
               </div>
             </section>
@@ -160,41 +116,17 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
               <div className="box-title">Pending Questions</div>
               <div className="box-content-vertical">
                 <div className="metric-card metric-card-blue">
-                  <h2>{pcStats?.pendingQuestionsCount ?? '—'}</h2>
+                  <h2>{(pcStats?.pendingQuestionsCount ?? 0).toLocaleString()}</h2>
                   <p>Pending Questions</p>
                 </div>
               </div>
             </section>
           </div>
 
-          {/* Subject Success Rate */}
-          <section className="dashboard-box dashboard-pc-subject-box">
-            <div className="box-title">Subject Success Rate</div>
-            <div className="pc-subject-grid">
-              {subjectRates.map((s, i) => (
-                <div
-                  key={i}
-                  className="metric-card pc-subject-card"
-                  style={{ borderTopColor: getSubjectColor(s.value) }}
-                  onClick={() => openSubjectModal(s)}
-                  title={`View breakdown for ${s.label}`}
-                >
-                  <h2 style={{ color: getSubjectColor(s.value) }}>{s.value}%</h2>
-                  <p>{s.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="pc-summary">
-              <h3>Summary</h3>
-              {aiLoading ? (
-                <p className="pc-summary-loading">
-                  Generating AI summary<span className="pc-dots">...</span>
-                </p>
-              ) : (
-                <p>{aiSummary || 'No summary available.'}</p>
-              )}
-            </div>
-          </section>
+          {/* Program Exams Month Calendar */}
+          <div className="dashboard-pc-calendar-wrapper">
+            <ExamCalendar role={me?.role} programId={chairProgramId} />
+          </div>
 
           {/* Questions for Review and Approval */}
           <section className="dashboard-table-section">
@@ -282,42 +214,6 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
             </div>
           </section>
         </>
-      )}
-
-      {/* Subject Detail Modal */}
-      {selectedSubject && (
-        <div className="pc-modal-overlay" onClick={closeModal}>
-          <div className="pc-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="pc-modal-header">
-              <h2>
-                <span className="pc-modal-pct">{selectedSubject.value}%</span>{' '}
-                <span className="pc-modal-subject">{selectedSubject.label}</span>
-              </h2>
-              <button className="pc-modal-close" onClick={closeModal}>✕</button>
-            </div>
-            <div className="pc-modal-body">
-              {subjectLoading ? (
-                <p className="pc-modal-loading">Loading question breakdown...</p>
-              ) : subjectDetails.length === 0 ? (
-                <p className="pc-modal-empty">No question data available for this subject.</p>
-              ) : (
-                <table className="modern-table pc-modal-table">
-                  <thead>
-                    <tr><th>Question ID</th><th>Result</th></tr>
-                  </thead>
-                  <tbody>
-                    {subjectDetails.map((item, i) => (
-                      <tr key={i}>
-                        <td>{item.questionId}</td>
-                        <td>{item.failCount}/{item.totalStudents} Students failed this question</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </main>
   );

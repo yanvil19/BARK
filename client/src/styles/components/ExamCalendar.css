@@ -71,6 +71,38 @@
   padding: 18px;
 }
 
+.exam-calendar-frame .rbc-month-view {
+  height: auto !important;
+  flex: 1 1 auto !important;
+}
+
+.exam-calendar-frame .rbc-month-row {
+  overflow: visible !important;
+  min-height: 120px !important;
+  height: auto !important;
+  flex: 1 0 auto !important;
+  max-height: none !important;
+}
+
+.exam-calendar-frame .rbc-row-content {
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.exam-calendar-frame .rbc-row-body {
+  max-height: none !important;
+  height: auto !important;
+}
+
+.exam-calendar-frame .rbc-date-cell {
+  height: auto !important;
+}
+
+.exam-calendar-frame .rbc-show-more {
+  display: none !important;
+}
+
 .exam-calendar-frame .rbc-toolbar {
   gap: 10px;
   margin-bottom: 18px;

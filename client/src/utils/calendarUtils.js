@@ -20,18 +20,28 @@ export function getCalendarRange(date, view) {
   };
 }
 
-export function getExamEventColor(status, role) {
-  if (role !== 'dean' && role !== 'program_chair') return '#2563eb';
-
+export function getExamEventColor(status) {
   const colors = {
     draft: '#ca8a04',
-    published: '#15803d',
+    published: '#16a34a',
     ongoing: '#2563eb',
-    finished: '#6b7280',
+    finished: '#8b5cf6',
     archived: '#374151',
   };
 
-  return colors[status] || '#35408e';
+  return colors[status] || '#2563eb';
+}
+
+export function abbreviateExamTitle(title) {
+  if (!title || typeof title !== 'string') return title || '';
+
+  return title
+    .replace(/\bPost[\s\-_]*Test\b\s*/gi, 'PT')
+    .replace(/\bPre[\s\-_]*Test\b\s*/gi, 'PrT')
+    .replace(/\bDiagnostic[\s\-_]*Test\b\s*/gi, 'DT')
+    .replace(/\bMock[\s\-_]*Board[\s\-_]*Exam\b\s*/gi, 'MBE')
+    .replace(/\bPractice[\s\-_]*Test\b\s*/gi, 'PT')
+    .trim();
 }
 
 export function formatExamDateTime(value) {

@@ -115,6 +115,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnError, setReturnError] = useState('');
   const [feedbackModal, setFeedbackModal] = useState(null);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState(new Set());
+  const [filteredBulkModal, setFilteredBulkModal] = useState(null); // 'add' | 'remove' | null
   // Subject search + pagination
   const [subjectSearch, setSubjectSearch] = useState('');
   const [subjectPage, setSubjectPage] = useState(1);
@@ -376,6 +378,96 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         return prev.filter((item) => String(item._id) !== id);
       }
       return [...prev, question];
+    });
+  }
+
+  function handleBulkCheckbox(e, question) {
+    e.stopPropagation();
+    setBulkSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(question._id)) {
+        next.delete(question._id);
+      } else {
+        next.add(question._id);
+      }
+      return next;
+    });
+  }
+
+  function handleSelectAllVisible(e) {
+    e.stopPropagation();
+    const visibleIds = filteredApprovedQuestions.map(q => q._id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => bulkSelectedIds.has(id));
+    
+    if (allSelected) {
+      setBulkSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setBulkSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }
+
+  function handleBulkAddSelected() {
+    if (bulkSelectedIds.size === 0) return;
+    const questionsToAdd = approvedQuestions.filter(q => bulkSelectedIds.has(q._id));
+    
+    setSelectedQuestions(prev => {
+      const existingIds = new Set(prev.map(q => String(q._id)));
+      const newQuestions = questionsToAdd.filter(q => !existingIds.has(String(q._id)));
+      return [...prev, ...newQuestions];
+    });
+    setBulkSelectedIds(new Set());
+  }
+
+  function handleBulkRemoveSelected() {
+    if (bulkSelectedIds.size === 0) return;
+    setSelectedQuestions(prev => prev.filter(q => !bulkSelectedIds.has(q._id)));
+    setBulkSelectedIds(new Set());
+  }
+
+  function handleConfirmAddFiltered() {
+    setSelectedQuestions(prev => {
+      const existingIds = new Set(prev.map(q => String(q._id)));
+      const newQuestions = filteredApprovedQuestions.filter(q => !existingIds.has(String(q._id)));
+      return [...prev, ...newQuestions];
+    });
+    setFilteredBulkModal(null);
+  }
+
+  function handleConfirmRemoveFiltered() {
+    const filteredIds = new Set(filteredApprovedQuestions.map(q => String(q._id)));
+    setSelectedQuestions(prev => prev.filter(q => !filteredIds.has(String(q._id))));
+    setFilteredBulkModal(null);
+  }
+
+  function getFilterDescription() {
+    const parts = [];
+    if (searchQuery.trim()) parts.push(`"${searchQuery.trim()}"`);
+    if (questionFilterTagId) {
+      const tag = filteredSubjectOptions.find(t => String(t._id) === String(questionFilterTagId));
+      if (tag) parts.push(tag.name);
+    }
+    if (approvedSelectionFilter === 'selected') parts.push('selected only');
+    if (approvedSelectionFilter === 'unselected') parts.push('not selected yet');
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
+
+  function isFilterActive() {
+    return searchQuery.trim() || questionFilterTagId || approvedSelectionFilter !== 'all';
+  }
+
+  function handleSelectFiltered() {
+    setBulkSelectedIds(prev => {
+      const next = new Set(prev);
+      filteredApprovedQuestions.forEach(q => next.add(q._id));
+      return next;
     });
   }
 
@@ -747,7 +839,36 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           {programId && selectedTagIds.length === 0 ? <p className="mbe-empty-message">Select at least one subject to show approved questions.</p> : null}
           {programId && selectedTagIds.length > 0 ? (
             <>
+              {bulkSelectedIds.size > 0 && (
+                <div className="ca-bulk-toolbar" style={{ marginBottom: '16px', borderRadius: '8px' }}>
+                  <span className="ca-bulk-count">
+                    {bulkSelectedIds.size} question{bulkSelectedIds.size > 1 ? 's' : ''} selected
+                  </span>
+                  <div className="ca-bulk-actions">
+                    <button className="ca-bulk-btn ca-bulk-btn--approve" type="button" onClick={handleBulkAddSelected}>Add Selected ({bulkSelectedIds.size})</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--remove" type="button" onClick={handleBulkRemoveSelected}>Remove Selected ({bulkSelectedIds.size})</button>
+                    <button className="ca-bulk-btn ca-bulk-btn--clear" type="button" onClick={() => setBulkSelectedIds(new Set())}>✕ Deselect All</button>
+                  </div>
+                </div>
+              )}
+
               <div className="mbe-toolbar">
+                <label className="ca-checkbox-wrapper mbe-bulk-checkbox" onClick={e => e.stopPropagation()} style={{ padding: '0 8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox"
+                    className="ca-checkbox"
+                    checked={filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id))}
+                    ref={el => { 
+                      if (el) {
+                        const someSelected = filteredApprovedQuestions.some(q => bulkSelectedIds.has(q._id));
+                        const allSelected = filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id));
+                        el.indeterminate = someSelected && !allSelected;
+                      }
+                    }}
+                    onChange={handleSelectAllVisible}
+                    title="Select All on this page"
+                  />
+                </label>
                 <input
                   className="mbe-input mbe-search"
                   type="text"
@@ -777,6 +898,18 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   <option value="unselected">Not selected yet</option>
                 </select>
                 <div className="mbe-toolbar-stats">
+                  <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={handleSelectFiltered}>
+                    {isFilterActive() ? 'Select Filtered' : 'Select All'}
+                  </button>
+                  {approvedSelectionFilter === 'selected' ? (
+                    <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn mbe-toolbar-action-btn--danger" onClick={() => setFilteredBulkModal('remove')}>
+                      Remove All Filtered
+                    </button>
+                  ) : (
+                    <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={() => setFilteredBulkModal('add')}>
+                      {isFilterActive() ? 'Add All Filtered' : 'Add All'}
+                    </button>
+                  )}
                   <span className="mbe-toolbar-pill">{filteredApprovedQuestions.length} available</span>
                   <span className="mbe-toolbar-pill mbe-toolbar-pill--selected">{selectedQuestions.length} selected</span>
                 </div>
@@ -800,9 +933,17 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                         return (
                           <article
                             key={question._id}
-                            className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''}`}
+                            className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''}`}
                           >
                             <div className="mbe-question-main">
+                              <label className="ca-checkbox-wrapper mbe-bulk-checkbox mbe-card-checkbox" onClick={e => e.stopPropagation()}>
+                                <input 
+                                  type="checkbox"
+                                  className="ca-checkbox"
+                                  checked={bulkSelectedIds.has(question._id)}
+                                  onChange={(e) => handleBulkCheckbox(e, question)}
+                                />
+                              </label>
                               <button
                                 type="button"
                                 className="mbe-question-copy mbe-question-toggle"
@@ -1074,6 +1215,54 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           </button>
         </div>
       </Modal>
+
+      {/* Add / Remove All Filtered Confirmation Modal */}
+      {filteredBulkModal && (
+        <Modal
+          open={!!filteredBulkModal}
+          onClose={() => setFilteredBulkModal(null)}
+          title={
+            filteredBulkModal === 'remove'
+              ? 'Remove All Filtered'
+              : getFilterDescription() ? 'Add All Filtered' : 'Add All Questions'
+          }
+          size="compact"
+          bodyClassName="custom-modal-body--compact"
+        >
+          <div className="modal-confirmation">
+            <div className="modal-confirmation-message">
+              {filteredBulkModal === 'remove' ? 'Remove' : 'Add'}{' '}
+              <strong>{filteredApprovedQuestions.length}</strong> question{filteredApprovedQuestions.length !== 1 ? 's' : ''}{' '}
+              {filteredBulkModal === 'remove' ? 'from' : 'to'} exam?
+            </div>
+            <div className="modal-confirmation-extra">
+              {filteredBulkModal === 'remove' ? (
+                <>This will remove all <strong>{filteredApprovedQuestions.length}</strong> currently visible selected questions{getFilterDescription() ? <> matching <em>{getFilterDescription()}</em></> : null} across all pages.</>
+              ) : getFilterDescription() ? (
+                <>This will add all <strong>{filteredApprovedQuestions.length}</strong> questions matching <em>{getFilterDescription()}</em> across all pages.</>
+              ) : (
+                <>This will add all <strong>{filteredApprovedQuestions.length}</strong> available questions across all pages.</>
+              )}
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="modal-btn-cancel"
+              onClick={() => setFilteredBulkModal(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={filteredBulkModal === 'remove' ? 'modal-btn-danger' : 'modal-btn-primary'}
+              onClick={filteredBulkModal === 'remove' ? handleConfirmRemoveFiltered : handleConfirmAddFiltered}
+            >
+              {filteredBulkModal === 'remove' ? 'Confirm & Remove' : 'Confirm & Add'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }
