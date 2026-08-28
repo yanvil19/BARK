@@ -401,10 +401,24 @@ export default function BulkRegister({ user }) {
         <div className="br-controls">
           <div className="form-group">
             <label>Registration Type</label>
-            <select value={role} onChange={(e) => setRole(e.target.value)} disabled={isSubmitting}>
-              <option value="student">Student</option>
-              <option value="alumni">Alumni</option>
-            </select>
+            <div className="br-role-toggle-group">
+              <button
+                type="button"
+                className={`br-role-btn ${role === 'student' ? 'active' : ''}`}
+                onClick={() => setRole('student')}
+                disabled={isSubmitting}
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                className={`br-role-btn ${role === 'alumni' ? 'active' : ''}`}
+                onClick={() => setRole('alumni')}
+                disabled={isSubmitting}
+              >
+                Alumni
+              </button>
+            </div>
           </div>
 
           {user.role === 'dean' && (
@@ -498,22 +512,29 @@ export default function BulkRegister({ user }) {
               <div className="col-action">
                 <button
                   type="button"
-                  className="br-btn-icon"
+                  className="br-btn-remove-row"
                   onClick={() => removeRow(index)}
                   disabled={entries.length === 1 || isSubmitting}
                   title="Remove row"
+                  aria-label="Remove row"
                 >
-                  &times;
+                  ✕
                 </button>
               </div>
             </div>
           ))}
+
+          <button
+            type="button"
+            className="br-btn-add-row-dashed"
+            onClick={addRow}
+            disabled={isSubmitting}
+          >
+            + Add Row
+          </button>
         </div>
 
         <div className="br-actions">
-          <button type="button" className="br-btn br-btn-secondary" onClick={addRow} disabled={isSubmitting}>
-            + Add Row
-          </button>
           <button type="submit" className="br-btn br-btn-primary" disabled={isSubmitting}>
             Register Batch
           </button>
