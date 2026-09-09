@@ -179,6 +179,7 @@ exports.listExamsWithStatus = async (req, res) => {
 
     const exams = await MockBoardExam.find(examQuery)
       .populate('program', 'name code')
+      .populate('createdBy', 'name')
       .sort({ startDateTime: -1 });
 
     const resultQuery = { department: req.user.department };
