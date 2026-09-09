@@ -792,13 +792,8 @@
 
   .br-entries-header,
   .br-entry-row {
-    grid-template-columns: 1fr 1.2fr auto;
+    grid-template-columns: 1fr 1.2fr 1fr auto;
     gap: 10px;
-  }
-
-  .br-entries-header .col:nth-child(3),
-  .br-entry-row .col:nth-child(3) {
-    display: none;
   }
 
   .br-entry-row .col input {
