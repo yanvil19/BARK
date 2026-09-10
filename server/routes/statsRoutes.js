@@ -1,8 +1,20 @@
 const express = require('express');
 const router = express.Router();
 
-const { getSummaryStats, getProgramChairStats, getProfessorDashboardStats, getDeanDashboardStats } = require('../controllers/statsController');
+const {
+  getSummaryStats,
+  getProgramChairStats,
+  getProfessorDashboardStats,
+  getDeanDashboardStats,
+  getNavbarBadgeCounts,
+} = require('../controllers/statsController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+
+router.get(
+  '/badge-counts',
+  protect,
+  getNavbarBadgeCounts
+);
 
 router.get(
   '/summary',

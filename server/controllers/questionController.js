@@ -324,8 +324,8 @@ const deleteQuestion = async (req, res) => {
     if (!question) return res.status(404).json({ message: 'Question not found' });
     if (question.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ message: 'Not your question' });
-    if (question.state !== 'draft')
-      return res.status(400).json({ message: 'Only draft questions can be deleted' });
+    if (question.state !== 'draft' && question.state !== 'rejected')
+      return res.status(400).json({ message: 'Only draft or rejected questions can be deleted' });
     if (question.is_used_in_exam)
       return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
 
@@ -385,6 +385,7 @@ const submitQuestion = async (req, res) => {
     question.state = 'pending_chair';
     question.submittedAt = new Date();
     question.revisionNote = null;
+    question.feedbackRead = false;
     await question.save();
 
     const populated = await question.populate([
@@ -437,10 +438,10 @@ const reviewQuestion = async (req, res) => {
       const questionToReturn = await Question.findById(questionId).select('is_used_in_exam');
       if (questionToReturn?.is_used_in_exam)
         return res.status(400).json({ message: 'Cannot return a question that is currently used in an exam' });
-      updateSet = { state: 'returned', revisionNote: note.trim(), currentReviewer: null, reviewStartedAt: null };
+      updateSet = { state: 'returned', revisionNote: note.trim(), feedbackRead: false, currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'reject') {
       requiredState = { $in: ['pending_chair', 'restored'] };
-      updateSet = { state: 'rejected', rejectionReason: note.trim(), currentReviewer: null, reviewStartedAt: null };
+      updateSet = { state: 'rejected', rejectionReason: note.trim(), feedbackRead: false, currentReviewer: null, reviewStartedAt: null };
     } else if (action === 'restore') {
       requiredState = 'rejected';
       updateSet = { state: 'restored', revisionNote: note?.trim() || null, currentReviewer: null, reviewStartedAt: null };
@@ -550,6 +551,7 @@ const deanReturnApprovedQuestion = async (req, res) => {
         $set: {
           state: 'returned',
           revisionNote: note.trim(),
+          feedbackRead: false,
           currentReviewer: null,
           reviewStartedAt: null,
         },
@@ -583,6 +585,25 @@ const deanReturnApprovedQuestion = async (req, res) => {
   }
 };
 
+// PATCH /api/questions/:id/mark-read
+const markQuestionRead = async (req, res) => {
+  try {
+    const question = await Question.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
+    if (!question) return res.status(404).json({ message: 'Question not found' });
+
+    question.feedbackRead = true;
+    await question.save();
+
+    res.json({ message: 'Marked as read', questionId: question._id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 module.exports = {
   listQuestions,
   listApprovals,
@@ -595,4 +616,5 @@ module.exports = {
   lockQuestion,
   unlockQuestion,
   deleteQuestionImagesFromR2,
+  markQuestionRead,
 };

@@ -341,14 +341,30 @@ export default function CreateQuestions({ role, programId, programLabel, program
     setPendingProgramId('');
   }
 
+  function markQuestionAsRead(question) {
+    if (!question?._id) return;
+    if ((question.state === 'returned' || question.state === 'rejected') && !question.feedbackRead) {
+      apiAuth(`${BASE}/api/questions/${question._id}/mark-read`, { method: 'PATCH' })
+        .then(() => {
+          setQuestions((prev) =>
+            prev.map((q) => (q._id === question._id ? { ...q, feedbackRead: true } : q))
+          );
+          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+        })
+        .catch(() => {});
+    }
+  }
+
   function openEditModal(question) {
     setEditQuestion(question);
     setShowForm(true);
+    markQuestionAsRead(question);
   }
 
   function openViewModal(question) {
     setViewQuestion(question);
     setShowViewModal(true);
+    markQuestionAsRead(question);
   }
 
   function handleSaved(savedData, isEdit) {
@@ -378,6 +394,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
       await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
       setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
       closeDeleteModal();
+      window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
       setFeedbackModal({
         title: 'Delete Failed',
@@ -399,6 +416,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
       const data = await apiAuth(`${BASE}/api/questions/${questionToSubmit._id}/submit`, { method: 'POST' });
       setQuestions((prev) => prev.map((item) => (item._id === questionToSubmit._id ? data.question : item)));
       setQuestionToSubmit(null);
+      window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
       setFeedbackModal({
         title: 'Submission Failed',
@@ -741,7 +759,12 @@ export default function CreateQuestions({ role, programId, programLabel, program
                       ) : null}
 
                       {question.state !== 'draft' && question.state !== 'returned' ? (
-                        <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
+                        <>
+                          <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
+                          {question.state === 'rejected' ? (
+                            <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
+                          ) : null}
+                        </>
                       ) : null}
                     </td>
                   </tr>
@@ -859,7 +882,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
         confirmVariant="danger"
       >
         <p className="qp-warning-text" style={{ margin: 0 }}>
-          This action cannot be undone. Drafts will be permanently removed.
+          This action cannot be undone. The question will be permanently removed.
         </p>
       </ConfirmationModal>
 

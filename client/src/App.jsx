@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Modal } from './components/Modal.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -56,6 +56,7 @@ export default function App() {
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [isInitialAuthLoading, setIsInitialAuthLoading] = useState(true);
+  const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0 });
   const prevMeRef = useRef(null);
 
   useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
@@ -102,6 +103,35 @@ export default function App() {
   useEffect(() => {
     refreshMe(true);
   }, []);
+
+  const fetchBadgeCounts = useCallback(async () => {
+    if (!me) {
+      setBadgeCounts({ pendingApprovals: 0, myReturnedOrRejected: 0 });
+      return;
+    }
+    try {
+      const counts = await api('/api/stats/badge-counts');
+      setBadgeCounts(counts || { pendingApprovals: 0, myReturnedOrRejected: 0 });
+    } catch {
+      // Non-critical background telemetry
+    }
+  }, [me]);
+
+  useEffect(() => {
+    fetchBadgeCounts();
+  }, [fetchBadgeCounts, route]);
+
+  // Periodic badge poll & custom event listener
+  useEffect(() => {
+    if (!me) return;
+    const interval = setInterval(fetchBadgeCounts, 30_000);
+    const onBadgeUpdate = () => fetchBadgeCounts();
+    window.addEventListener('badge-counts-updated', onBadgeUpdate);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('badge-counts-updated', onBadgeUpdate);
+    };
+  }, [me, fetchBadgeCounts]);
 
   // [SESSION POLL - Deactivation detection]
   // Polls /api/auth/me every 10 seconds while logged in so that if an admin
@@ -479,7 +509,7 @@ export default function App() {
       {/* [PRIVACY NOTICE] - full-screen overlay shown once per session after login */}
       {showPrivacyNotice && <PrivacyNotice onAccept={handlePrivacyAccept} />}
 
-      <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} />
+      <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} badgeCounts={badgeCounts} />
 
       <main className="page-content">
         {/* [FIX - REMOVE INVALID TOKEN TEXT] */}
