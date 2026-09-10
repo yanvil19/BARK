@@ -616,6 +616,14 @@ const ExamResults = ({ me }) => {
                   <span className="er-empty-meta-label">Threshold</span>
                   <strong>{threshold}%</strong>
                 </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Creator</span>
+                  <strong>{selectedExam?.createdBy?.name || '-'}</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Created Date</span>
+                  <strong>{formatDateTime(selectedExam?.createdAt) || '-'}</strong>
+                </div>
               </div>
             </EmptyStatePanel>
           )}
@@ -648,6 +656,14 @@ const ExamResults = ({ me }) => {
                   <span className="er-empty-meta-label">Threshold</span>
                   <strong>{threshold}%</strong>
                 </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Creator</span>
+                  <strong>{selectedExam?.createdBy?.name || '-'}</strong>
+                </div>
+                <div className="er-empty-meta-card">
+                  <span className="er-empty-meta-label">Created Date</span>
+                  <strong>{formatDateTime(selectedExam?.createdAt) || '-'}</strong>
+                </div>
               </div>
             </EmptyStatePanel>
           )}
@@ -670,6 +686,8 @@ const ExamResults = ({ me }) => {
                     <h2 className="er-report-title">{activeReport.examName}</h2>
                   </div>
                 <div className="er-report-meta">
+                  <span className="er-report-ts">Created by {selectedExam?.createdBy?.name || '-'} on {formatDateTime(selectedExam?.createdAt) || '-'}</span>
+                  <span className="er-divider">|</span>
                   <span className="er-report-ts">Last computed: {summary.computedAt}</span>
                   <span className="er-divider">|</span>
                   <div className="er-threshold-badge">
