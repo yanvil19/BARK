@@ -100,6 +100,40 @@
   cursor: not-allowed;
 }
 
+.nav-btn-with-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  position: relative;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+#Header .mobile-nav-item .nav-badge,
+.mobile-nav-item .nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  font-size: 12px;
+  padding: 0 6px;
+}
+
 /* ================================================
    AVATAR
    ================================================ */

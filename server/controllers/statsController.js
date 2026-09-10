@@ -731,6 +731,50 @@ const getExamActivityLogs = async (req, res) => {
   }
 };
 
+// @desc    Get notification badge counts for navbar items
+// @route   GET /api/stats/badge-counts
+// @access  Private
+const getNavbarBadgeCounts = async (req, res) => {
+  try {
+    const user = req.user;
+    const counts = {
+      pendingApprovals: 0,
+      myReturnedOrRejected: 0,
+    };
+
+    if (user.role === 'program_chair') {
+      if (user.program) {
+        counts.pendingApprovals = await Question.countDocuments({
+          program: user.program,
+          state: 'pending_chair',
+        });
+      }
+    } else if (user.role === 'dean') {
+      if (user.department) {
+        const programs = await Program.find({ department: user.department, isActive: true }).select('_id');
+        const programIds = programs.map((p) => p._id);
+        counts.pendingApprovals = await Question.countDocuments({
+          program: { $in: programIds },
+          state: 'pending_chair',
+        });
+      }
+    }
+
+    if (['professor', 'program_chair', 'dean'].includes(user.role)) {
+      counts.myReturnedOrRejected = await Question.countDocuments({
+        createdBy: user._id,
+        state: { $in: ['returned', 'rejected'] },
+        feedbackRead: { $ne: true },
+      });
+    }
+
+    res.status(200).json(counts);
+  } catch (error) {
+    console.error('Error fetching navbar badge counts:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 module.exports = {
   getSummaryStats,
   getProgramChairStats,
@@ -739,4 +783,5 @@ module.exports = {
   getDeanDashboardStats,
   getExamActivityLogs,
   getCheatingLogs: getExamActivityLogs,
+  getNavbarBadgeCounts,
 };

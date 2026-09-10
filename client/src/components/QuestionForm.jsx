@@ -475,6 +475,9 @@ export default function QuestionForm({
       if (clearQuestionsData) {
         clearQuestionsData();
       }
+      if (submit) {
+        window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+      }
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
       showFeedback({
@@ -527,6 +530,7 @@ export default function QuestionForm({
         if (clearQuestionsData) {
           clearQuestionsData();
         }
+        window.dispatchEvent(new CustomEvent('badge-counts-updated'));
         onSaved(savedQuestions, !!initialData && questionsData.length === 1);
       } catch (err) {
         notify(err.message || 'Failed to save question(s).', { variant: 'error' });

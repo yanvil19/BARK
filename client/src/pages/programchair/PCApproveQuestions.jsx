@@ -230,6 +230,10 @@ export default function QuestionApprovals({ me }) {
     setIsSidebarExpanded(false);
   }
 
+  function triggerBadgeCountsRefresh() {
+    window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+  }
+
   async function handleRestore(question) {
     try {
       await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'restore', note: '' } });
@@ -241,6 +245,7 @@ export default function QuestionApprovals({ me }) {
       setSelectedQuestion((prev) => (
         prev && prev._id === question._id ? { ...prev, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : prev
       ));
+      triggerBadgeCountsRefresh();
       notify('Question restored successfully.', { variant: 'success' });
     } catch (err) {
       if (err.status === 409) {
@@ -273,6 +278,7 @@ export default function QuestionApprovals({ me }) {
         setSelectedQuestion((prev) => (
           prev && prev._id === question._id ? { ...prev, state: 'approved', currentReviewer: null, reviewStartedAt: null } : prev
         ));
+        triggerBadgeCountsRefresh();
       } catch (err) {
         if (err.status === 409) {
           notify('This question has already been reviewed by someone else.', { variant: 'error' });
@@ -329,6 +335,9 @@ export default function QuestionApprovals({ me }) {
       )));
       handleClearSelections();
       setBulkSubmitting(false);
+      if (succeeded.length > 0) {
+        triggerBadgeCountsRefresh();
+      }
       const failed = ids.length - succeeded.length;
       if (failed > 0) notify(`${succeeded.length} approved. ${failed} failed (may have already been reviewed).`, { variant: 'warning' });
     }
@@ -373,6 +382,7 @@ export default function QuestionApprovals({ me }) {
       setSelectedQuestion(updatedQuestion);
       setActionModal(null);
       setNote('');
+      triggerBadgeCountsRefresh();
     } catch (err) {
       if (err.status === 409) {
         notify('This question has already been reviewed by someone else.', { variant: 'error' });
@@ -421,6 +431,7 @@ export default function QuestionApprovals({ me }) {
       }
       setReturnModal(null);
       setReturnNote('');
+      triggerBadgeCountsRefresh();
       notify('Question returned to creator successfully.', { variant: 'success' });
     } catch (err) {
       setReturnError(err.message || 'Failed to return question.');
