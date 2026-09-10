@@ -15,6 +15,7 @@ const {
   lockQuestion,
   unlockQuestion,
   deleteQuestionImagesFromR2,
+  markQuestionRead,
 } = require('../controllers/questionController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const AppSettings = require('../models/AppSettings');
@@ -46,6 +47,7 @@ router.get('/', protect, authorizeRoles(...FACULTY), listQuestions);
 router.get('/approvals', protect, authorizeRoles('program_chair', 'dean'), listApprovals);
 router.post('/', protect, authorizeRoles(...FACULTY), createQuestion);
 router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
+router.patch('/:id/mark-read', protect, authorizeRoles(...FACULTY), markQuestionRead);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
 router.post('/:id/submit', protect, authorizeRoles(...FACULTY), submitQuestion);
 router.post('/:id/review', protect, authorizeRoles('program_chair', 'dean'), reviewQuestion);

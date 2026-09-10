@@ -342,6 +342,7 @@ async function listMockBoardExams(req, res) {
     const exams = await MockBoardExam.find(query)
       .populate('program', 'name code department')
       .populate('subjectTags', 'name')
+      .populate('createdBy', 'name')
       .sort({ updatedAt: -1 })
       .lean();
 

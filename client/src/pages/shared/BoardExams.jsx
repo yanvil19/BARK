@@ -648,6 +648,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                     <tr>
                       <th>Exam Name</th>
                       <th>Program</th>
+                      <th>Creator</th>
+                      <th>Created Date</th>
                       <th>Subjects</th>
                       <th>Exam Start</th>
                       <th>Exam End</th>
@@ -668,6 +670,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                             {exam.program?.name || exam.program?.code || '-'}
                           </span>
                         </td>
+                        <td>{exam.createdBy?.name || '-'}</td>
+                        <td className="ambe-muted">{formatDateTime(exam.createdAt)}</td>
                         <td>
                           {(exam.subjectTags || []).length > 0 ? (
                             <div className="ambe-table-subjects">

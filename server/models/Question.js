@@ -69,6 +69,8 @@ const questionSchema = new mongoose.Schema(
     // Tracks whether this question is currently included in at least one exam.
     // When true, the question cannot be returned or deleted.
     is_used_in_exam: { type: Boolean, default: false, index: true },
+    // Tracks whether returned/rejected feedback has been viewed/read by the creator
+    feedbackRead: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
