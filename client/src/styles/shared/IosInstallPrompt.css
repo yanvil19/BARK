@@ -1,0 +1,148 @@
+.ios-prompt-backdrop {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  animation: iosPromptFadeIn 0.3s ease-out;
+}
+
+.ios-prompt-card {
+  background: #ffffff;
+  color: #1f2937;
+  border-radius: 16px;
+  max-width: 440px;
+  width: 100%;
+  padding: 20px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  margin-bottom: max(16px, env(safe-area-inset-bottom));
+  animation: iosPromptSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-prompt-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.ios-prompt-icon-wrapper {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: #1e3a8a;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ios-prompt-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.ios-prompt-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ios-prompt-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.ios-prompt-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.ios-prompt-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.ios-prompt-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: #374151;
+}
+
+.ios-prompt-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1e3a8a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.ios-prompt-share-icon,
+.ios-prompt-plus-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  margin-left: 4px;
+}
+
+.ios-prompt-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ios-prompt-btn {
+  background: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s ease;
+}
+
+.ios-prompt-btn:hover {
+  background: #1d4ed8;
+}
+
+@keyframes iosPromptFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes iosPromptSlideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

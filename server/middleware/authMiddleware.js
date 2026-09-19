@@ -26,6 +26,14 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Account is deactivated. Contact the admins for assistance.' });
     }
 
+    if (decoded.type === 'offline_sync') {
+      const isOfflineSyncRoute = req.originalUrl?.includes('/api/alumni-exams/offline-sync');
+      if (!isOfflineSyncRoute) {
+        return res.status(403).json({ message: 'Offline sync ticket is only valid for submitting offline attempts.' });
+      }
+      req.isOfflineSyncTicket = true;
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Not authorized, invalid token' });

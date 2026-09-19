@@ -4,6 +4,7 @@ import logo from '../assets/barklogo.png';
 import { useEffect, useRef, useState } from 'react';
 import ProfileModal from './ProfileModal.jsx';
 import ChangeCredentialsModal from './ChangeCredentialsModal.jsx';
+import SyncStatusBadge from './SyncStatusBadge.jsx';
 
 export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badgeCounts = {} }) {
   const [open, setOpen] = useState(false);
@@ -255,6 +256,8 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
 
       {/* RIGHT — Avatar + Hamburger */}
       <div className="nav-right" ref={wrapperRef}>
+        {isAlumni && <SyncStatusBadge onRequireLogin={() => onRoute('login')} />}
+
         {me ? (
           <div className="profile-wrapper">
             <div className="profile-icon avatar-initials" onClick={() => setOpen(!open)}>

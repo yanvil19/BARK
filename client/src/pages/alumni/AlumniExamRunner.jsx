@@ -5,8 +5,14 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import {
+  getOfflineExam,
+  savePendingAttempt,
+  getPendingAttempts,
+  removePendingAttempt,
+} from '../../lib/offlineDb.js';
 
-const BASE = import.meta.env.VITE_API_URL;
+const BASE = import.meta.env.VITE_API_URL || '';
 
 export default function AlumniExamRunner({ examId, onFinish, me }) {
   const [loading, setLoading] = useState(true);
@@ -29,6 +35,11 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   const isSubmittingRef = useRef(false);
   const saveTimeoutRef = useRef(null);
 
+  const clientAttemptIdRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const answersRef = useRef({});
+  const isOfflineExamRef = useRef(false);
+
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -38,13 +49,66 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   useEffect(() => {
     async function startOrResumeExam() {
       try {
-        const data = await apiAuth(`${BASE}/api/alumni-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
-        setExamInfo(data.exam);
-        setQuestions(data.questions);
-        setAttemptId(data.attemptId);
-        setAttemptNumber(data.attemptNumber);
-        setTimeRemaining(data.remainingTimeSeconds ?? null);
-        setAnswers(data.answers || {});
+        // 1. Check if exam is stored locally in IndexedDB first
+        const offlineExam = await getOfflineExam(examId);
+
+        if (offlineExam) {
+          isOfflineExamRef.current = true;
+          setExamInfo(offlineExam);
+          setQuestions(offlineExam.questions || []);
+
+          // Check if there is an in-progress offline attempt for this exam
+          const pending = await getPendingAttempts();
+          const inProgress = pending.find(
+            (p) => String(p.examId) === String(examId) && p.status === 'in_progress'
+          );
+
+          if (inProgress) {
+            clientAttemptIdRef.current = inProgress.clientAttemptId;
+            startTimeRef.current = inProgress.startTime;
+            setAnswers(inProgress.answers || {});
+            answersRef.current = inProgress.answers || {};
+            setTimeRemaining(inProgress.remainingTimeSeconds ?? null);
+          } else {
+            const newAttemptId = `offline_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            clientAttemptIdRef.current = newAttemptId;
+            const startIso = new Date().toISOString();
+            startTimeRef.current = startIso;
+            const initTime =
+              offlineExam.isTimed && offlineExam.timeLimitMinutes
+                ? Number(offlineExam.timeLimitMinutes) * 60
+                : null;
+            setTimeRemaining(initTime);
+            await savePendingAttempt({
+              clientAttemptId: newAttemptId,
+              examId,
+              answers: {},
+              startTime: startIso,
+              remainingTimeSeconds: initTime,
+              status: 'in_progress',
+            });
+          }
+          setLoading(false);
+          return;
+        }
+
+        // 2. If not stored locally and online, call server API
+        if (navigator.onLine) {
+          const data = await apiAuth(`${BASE}/api/alumni-exams/${encodeURIComponent(examId)}/start`, { method: 'POST' });
+          setExamInfo(data.exam);
+          setQuestions(data.questions);
+          setAttemptId(data.attemptId);
+          setAttemptNumber(data.attemptNumber);
+          setTimeRemaining(data.remainingTimeSeconds ?? null);
+          setAnswers(data.answers || {});
+          answersRef.current = data.answers || {};
+          clientAttemptIdRef.current = `online_${data.attemptId}`;
+          startTimeRef.current = new Date().toISOString();
+        } else {
+          setError(
+            'This exam has not been downloaded for offline use. Please connect to the internet and click "Download All for Offline" in Available Exams.'
+          );
+        }
       } catch (err) {
         setError(err.message || 'Failed to start exam.');
       } finally {
@@ -66,18 +130,34 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
     if (submitting) return;
     const newAnswers = { ...answers, [questionId]: answerId };
     setAnswers(newAnswers);
+    answersRef.current = newAnswers;
 
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/progress`, {
-          method: 'PATCH',
-          body: { answers: newAnswers },
-        });
-      } catch (err) {
-        console.error('Auto-save failed:', err);
-      }
-    }, 2000);
+    // Immediately persist in local IndexedDB
+    if (clientAttemptIdRef.current) {
+      savePendingAttempt({
+        clientAttemptId: clientAttemptIdRef.current,
+        examId,
+        answers: newAnswers,
+        startTime: startTimeRef.current,
+        remainingTimeSeconds: timeRemaining,
+        status: 'in_progress',
+      }).catch(() => {});
+    }
+
+    // If online and have attemptId, also debounce save progress to server
+    if (attemptId && navigator.onLine) {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/progress`, {
+            method: 'PATCH',
+            body: { answers: newAnswers },
+          });
+        } catch (err) {
+          console.error('Auto-save failed:', err);
+        }
+      }, 2000);
+    }
   };
 
   const submitFinal = async () => {
@@ -87,40 +167,92 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
       saveTimeoutRef.current = null;
     }
     setSubmitting(true);
-    try {
-      await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/submit`, {
-        method: 'POST',
-        body: { answers },
-      });
-      onFinish();
-    } catch (err) {
-      isSubmittingRef.current = false;
-      setFeedbackModal({
-        title: 'Submission Failed',
-        tone: 'danger',
-        message: err.message || 'Failed to submit exam.',
-      });
-      setSubmitting(false);
+
+    const endTime = new Date().toISOString();
+    const elapsedDurationSeconds = startTimeRef.current
+      ? Math.max(1, Math.round((new Date(endTime).getTime() - new Date(startTimeRef.current).getTime()) / 1000))
+      : null;
+
+    const offlineAttemptPayload = {
+      clientAttemptId: clientAttemptIdRef.current || `offline_${Date.now()}`,
+      examId,
+      answers: answersRef.current,
+      startTime: startTimeRef.current || endTime,
+      endTime,
+      elapsedDurationSeconds,
+      status: 'completed',
+    };
+
+    // Always persist to local IndexedDB pending queue first
+    await savePendingAttempt(offlineAttemptPayload);
+    window.dispatchEvent(new CustomEvent('offline-attempt-queued'));
+
+    // If online, attempt instant sync
+    if (navigator.onLine) {
+      try {
+        if (attemptId && !isOfflineExamRef.current) {
+          await apiAuth(`${BASE}/api/alumni-exams/attempt/${attemptId}/submit`, {
+            method: 'POST',
+            body: { answers: answersRef.current },
+          });
+          await removePendingAttempt(offlineAttemptPayload.clientAttemptId);
+        } else {
+          await apiAuth(`${BASE}/api/alumni-exams/offline-sync`, {
+            method: 'POST',
+            body: offlineAttemptPayload,
+          });
+          await removePendingAttempt(offlineAttemptPayload.clientAttemptId);
+        }
+        onFinish();
+        return;
+      } catch (err) {
+        console.warn('Online sync failed during submit, keeping saved in offline queue:', err);
+        // Do not throw; answers remain safely stored in IndexedDB!
+        onFinish();
+        return;
+      }
     }
+
+    // Fully offline: Answers are safely in IndexedDB
+    onFinish();
   };
 
+  // Monotonic local timer with active delta tracking (resistant to iOS tab suspension)
   useEffect(() => {
     if (timeRemaining === null || loading || submitting || error || isSubmittingRef.current) return;
 
+    let lastTick = performance.now();
     const timer = setInterval(() => {
+      const now = performance.now();
+      const deltaSeconds = Math.max(1, Math.round((now - lastTick) / 1000));
+      lastTick = now;
+
       setTimeRemaining((prev) => {
         if (prev === null) return null;
-        return prev > 0 ? prev - 1 : 0;
+        const next = prev > deltaSeconds ? prev - deltaSeconds : 0;
+
+        if (clientAttemptIdRef.current) {
+          savePendingAttempt({
+            clientAttemptId: clientAttemptIdRef.current,
+            examId,
+            answers: answersRef.current,
+            startTime: startTimeRef.current,
+            remainingTimeSeconds: next,
+            status: 'in_progress',
+          }).catch(() => {});
+        }
+
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [error, loading, submitting, timeRemaining]);
+  }, [error, loading, submitting, timeRemaining, examId]);
 
   useEffect(() => {
-    if (timeRemaining !== 0 || submitting || isSubmittingRef.current || !attemptId) return;
+    if (timeRemaining !== 0 || submitting || isSubmittingRef.current) return;
     submitFinal();
-  }, [attemptId, submitting, timeRemaining]);
+  }, [submitting, timeRemaining]);
 
   const formatTimer = (seconds) => {
     const total = Math.max(0, Number(seconds) || 0);

@@ -70,6 +70,19 @@ const alumniExamAttemptSchema = new mongoose.Schema(
         },
       },
     ],
+    clientAttemptId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    isOfflineSubmission: {
+      type: Boolean,
+      default: false,
+    },
+    elapsedDurationSeconds: {
+      type: Number,
+      default: null,
+    },
   },
   { timestamps: true }
 );

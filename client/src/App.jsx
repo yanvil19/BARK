@@ -42,30 +42,40 @@ import PCExamRunner from './pages/programchair/PCExamRunner.jsx';
 import PCMockBoardExamPreview from './pages/programchair/PCBoardExamPreview.jsx';
 import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx';
 import PCExamResults from './pages/programchair/PCExamResults.jsx';
+import {
+  getOfflineProfile,
+  saveOfflineProfile,
+  clearAllOfflineData,
+  requestStoragePersistence,
+  checkStorageIntegrity,
+  pruneExpiredExams,
+} from './lib/offlineDb.js';
+import IosInstallPrompt from './components/IosInstallPrompt.jsx';
 
 export default function App() {
-  const [route, setRoute] = useState(() => sessionStorage.getItem('bark_route') || 'Dashboard');
+  const [route, setRoute] = useState(() => localStorage.getItem('bark_route') || 'Dashboard');
   const [me, setMe] = useState(null);
-  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => sessionStorage.getItem('bark_editingMockBoardExamId') || '');
+  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => localStorage.getItem('bark_editingMockBoardExamId') || '');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
-  const [examRunnerId, setExamRunnerId] = useState(() => sessionStorage.getItem('bark_examRunnerId') || '');
-  const [examRunnerMode, setExamRunnerMode] = useState(() => sessionStorage.getItem('bark_examRunnerMode') || 'details');
-  const [studentExamId, setStudentExamId] = useState(() => sessionStorage.getItem('bark_studentExamId') || '');
-  const [alumniExamId, setAlumniExamId] = useState(() => sessionStorage.getItem('bark_alumniExamId') || '');
-  const [alumniResultExamId, setAlumniResultExamId] = useState(() => sessionStorage.getItem('bark_alumniResultExamId') || '');
+  const [examRunnerId, setExamRunnerId] = useState(() => localStorage.getItem('bark_examRunnerId') || '');
+  const [examRunnerMode, setExamRunnerMode] = useState(() => localStorage.getItem('bark_examRunnerMode') || 'details');
+  const [studentExamId, setStudentExamId] = useState(() => localStorage.getItem('bark_studentExamId') || '');
+  const [alumniExamId, setAlumniExamId] = useState(() => localStorage.getItem('bark_alumniExamId') || '');
+  const [alumniResultExamId, setAlumniResultExamId] = useState(() => localStorage.getItem('bark_alumniResultExamId') || '');
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [isInitialAuthLoading, setIsInitialAuthLoading] = useState(true);
   const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0 });
+  const [evictionAlert, setEvictionAlert] = useState(null);
   const prevMeRef = useRef(null);
 
-  useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
-  useEffect(() => sessionStorage.setItem('bark_editingMockBoardExamId', editingMockBoardExamId), [editingMockBoardExamId]);
-  useEffect(() => sessionStorage.setItem('bark_examRunnerId', examRunnerId), [examRunnerId]);
-  useEffect(() => sessionStorage.setItem('bark_examRunnerMode', examRunnerMode), [examRunnerMode]);
-  useEffect(() => sessionStorage.setItem('bark_studentExamId', studentExamId), [studentExamId]);
-  useEffect(() => sessionStorage.setItem('bark_alumniExamId', alumniExamId), [alumniExamId]);
-  useEffect(() => sessionStorage.setItem('bark_alumniResultExamId', alumniResultExamId), [alumniResultExamId]);
+  useEffect(() => localStorage.setItem('bark_route', route), [route]);
+  useEffect(() => localStorage.setItem('bark_editingMockBoardExamId', editingMockBoardExamId), [editingMockBoardExamId]);
+  useEffect(() => localStorage.setItem('bark_examRunnerId', examRunnerId), [examRunnerId]);
+  useEffect(() => localStorage.setItem('bark_examRunnerMode', examRunnerMode), [examRunnerMode]);
+  useEffect(() => localStorage.setItem('bark_studentExamId', studentExamId), [studentExamId]);
+  useEffect(() => localStorage.setItem('bark_alumniExamId', alumniExamId), [alumniExamId]);
+  useEffect(() => localStorage.setItem('bark_alumniResultExamId', alumniResultExamId), [alumniResultExamId]);
 
   function handleRoute(nextRoute) {
     if (nextRoute === 'alumniExamResults') {
@@ -83,6 +93,9 @@ export default function App() {
         }
         return data;
       });
+      if (data) {
+        saveOfflineProfile(data).catch(() => {});
+      }
     } catch (err) {
       if (err.status === 401) {
         const isDeactivated = Boolean(err.message && err.message.toLowerCase().includes('deactivated'));
@@ -93,8 +106,20 @@ export default function App() {
           });
           return;
         }
+        setMe(null);
+      } else {
+        // Network failure / offline: Attempt fallback to locally cached profile
+        try {
+          const cached = await getOfflineProfile();
+          if (cached?.me) {
+            setMe(cached.me);
+          } else {
+            setMe(null);
+          }
+        } catch {
+          setMe(null);
+        }
       }
-      setMe(null);
     } finally {
       if (initial) setIsInitialAuthLoading(false);
     }
@@ -102,10 +127,19 @@ export default function App() {
 
   useEffect(() => {
     refreshMe(true);
+    requestStoragePersistence().catch(() => {});
+    pruneExpiredExams().catch(() => {});
+    checkStorageIntegrity().then((result) => {
+      if (result.wasEvicted) {
+        setEvictionAlert(
+          `Notice: Your downloaded offline exams were cleared by device storage management (iOS eviction). Please reconnect to Wi-Fi and click "Download All for Offline" to re-sync.`
+        );
+      }
+    }).catch(() => {});
   }, []);
 
   const fetchBadgeCounts = useCallback(async () => {
-    if (!me) {
+    if (!me || !navigator.onLine) {
       setBadgeCounts({ pendingApprovals: 0, myReturnedOrRejected: 0 });
       return;
     }
@@ -123,7 +157,7 @@ export default function App() {
 
   // Periodic badge poll & custom event listener
   useEffect(() => {
-    if (!me) return;
+    if (!me || !navigator.onLine) return;
     const interval = setInterval(fetchBadgeCounts, 30_000);
     const onBadgeUpdate = () => fetchBadgeCounts();
     window.addEventListener('badge-counts-updated', onBadgeUpdate);
@@ -134,13 +168,14 @@ export default function App() {
   }, [me, fetchBadgeCounts]);
 
   // [SESSION POLL - Deactivation detection]
-  // Polls /api/auth/me every 10 seconds while logged in so that if an admin
-  // deactivates the account, the user is automatically kicked out.
+  // Only poll when actively online so offline users are never kicked out
   useEffect(() => {
     if (!me) return;
     const POLL_INTERVAL_MS = 10_000;
     const id = setInterval(() => {
-      refreshMe();
+      if (navigator.onLine) {
+        refreshMe();
+      }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [me]);
@@ -156,8 +191,8 @@ export default function App() {
     setShowDeactivatedModal(false);
     api('/api/auth/logout', { method: 'POST' }).catch(() => { });
     clearClientSessionStorage();
+    clearAllOfflineData().catch(() => {});
     setMe(null);
-    // Set the URL param BEFORE changing the route so Login mounts with ?session=deactivated
     window.history.replaceState({}, '', '/login?session=deactivated');
     setRoute('login');
   }
@@ -277,6 +312,7 @@ export default function App() {
       // Clear client state even if logout request fails
     }
     clearClientSessionStorage();
+    clearAllOfflineData().catch(() => {});
     setMe(null);
     setRoute('Dashboard');
   }
@@ -509,6 +545,39 @@ export default function App() {
       {/* [PRIVACY NOTICE] - full-screen overlay shown once per session after login */}
       {showPrivacyNotice && <PrivacyNotice onAccept={handlePrivacyAccept} />}
 
+      {evictionAlert && (
+        <div
+          role="alert"
+          style={{
+            background: '#fee2e2',
+            borderBottom: '1px solid #ef4444',
+            color: '#991b1b',
+            padding: '12px 16px',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 1000,
+          }}
+        >
+          <span>{evictionAlert}</span>
+          <button
+            type="button"
+            onClick={() => setEvictionAlert(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontWeight: 'bold',
+              color: '#991b1b',
+              cursor: 'pointer',
+              marginLeft: '12px',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <Navbar me={me} route={route} onRoute={handleRoute} onLogout={handleLogout} onMeRefresh={refreshMe} badgeCounts={badgeCounts} />
 
       <main className="page-content">
@@ -521,6 +590,8 @@ export default function App() {
         isPublic={(!me && route === 'Dashboard') || route === 'credits' || route === 'landing' || route === 'login'}
         landingSectionsAvailable={(!me && route === 'Dashboard') || route === 'landing'}
       />
+
+      <IosInstallPrompt />
 
       {/* [DEACTIVATION MODAL] */}
       <Modal

@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, getStoredAuthToken } from '../../lib/api.js';
 import '../../styles/alumni/AlumniAvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import {
+  getOfflineExams,
+  saveOfflineExams,
+  saveOfflineProfile,
+  saveOfflineImage,
+  getOfflineProfile,
+  setMeta,
+  getMeta,
+} from '../../lib/offlineDb.js';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -89,19 +98,48 @@ export default function AlumniAvailableExams({ onTakeExam }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [downloading, setDownloading] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState(null);
+  const [downloadError, setDownloadError] = useState(null);
+  const [offlineExamIds, setOfflineExamIds] = useState(new Set());
+  const [isOfflineView, setIsOfflineView] = useState(!navigator.onLine);
+  const [lastSyncedText, setLastSyncedText] = useState(null);
+
+  const loadOfflineStatus = async () => {
+    try {
+      const offlineList = await getOfflineExams();
+      setOfflineExamIds(new Set(offlineList.map((e) => String(e._id))));
+      const meta = await getMeta();
+      if (meta?.lastSyncedAt) {
+        setLastSyncedText(new Date(meta.lastSyncedAt).toLocaleString());
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  useEffect(() => {
+    loadOfflineStatus();
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     async function fetchExams() {
       setLoading(true);
       try {
+        if (!navigator.onLine) {
+          throw new Error('Offline');
+        }
         const data = await apiAuth(`${BASE}/api/alumni-exams/available`);
         if (!mounted) return;
         setExams(Array.isArray(data.exams) ? data.exams : []);
+        setIsOfflineView(false);
       } catch (err) {
         if (!mounted) return;
-        console.error('Failed to load alumni exams:', err);
-        setExams([]);
+        // Fall back to offline cached exams
+        const offlineList = await getOfflineExams();
+        setExams(offlineList || []);
+        setIsOfflineView(true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -111,6 +149,72 @@ export default function AlumniAvailableExams({ onTakeExam }) {
       mounted = false;
     };
   }, []);
+
+  const handleDownloadAll = async () => {
+    if (downloading || !navigator.onLine) return;
+    setDownloading(true);
+    setDownloadError(null);
+    setDownloadStatus('Connecting to server...');
+
+    try {
+      setDownloadStatus('Fetching bulk exam package...');
+      const data = await apiAuth(`${BASE}/api/alumni-exams/offline-package`);
+
+      const packageExams = data.exams || [];
+      const imageManifest = data.imageManifest || [];
+      const ticket = data.offlineSyncTicket;
+
+      // 1. Save exams structure
+      setDownloadStatus(`Saving ${packageExams.length} exams locally...`);
+      await saveOfflineExams(packageExams);
+
+      // 2. Save ticket to profile
+      const profile = await getOfflineProfile();
+      await saveOfflineProfile(profile?.me, ticket);
+
+      // 3. Download image manifest with byte tracking
+      let totalBytes = 0;
+      const totalImages = imageManifest.length;
+      const token = getStoredAuthToken();
+
+      for (let i = 0; i < totalImages; i++) {
+        const imgKey = imageManifest[i];
+        setDownloadStatus(`Downloading images: ${i + 1}/${totalImages} (${(totalBytes / (1024 * 1024)).toFixed(1)} MB)...`);
+
+        try {
+          const absUrl = imgKey.startsWith('/') ? `${BASE}${imgKey}` : imgKey;
+          const res = await fetch(absUrl, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            const blob = await res.blob();
+            totalBytes += blob.size;
+            await saveOfflineImage(imgKey, blob);
+          }
+        } catch (imgErr) {
+          console.warn('Failed to pre-cache image:', imgKey, imgErr);
+        }
+      }
+
+      // 4. Update metadata
+      const nowIso = new Date().toISOString();
+      await setMeta('lastSyncedAt', nowIso);
+      await setMeta('examCount', packageExams.length);
+      await setMeta('totalBytes', totalBytes);
+
+      setLastSyncedText(new Date().toLocaleString());
+      await loadOfflineStatus();
+
+      const mbText = (totalBytes / (1024 * 1024)).toFixed(1);
+      setDownloadStatus(`Ready! Saved ${packageExams.length} exams and ${totalImages} images (${mbText} MB) for offline testing.`);
+      setTimeout(() => setDownloadStatus(null), 6000);
+    } catch (err) {
+      console.error('Offline download failed:', err);
+      setDownloadError(err.message || 'Failed to download offline package');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const filteredExams = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -137,6 +241,94 @@ export default function AlumniAvailableExams({ onTakeExam }) {
         title="Available Exams"
         subtitle="Browse alumni mock board exams for your program. Published exams are visible, while only on-going exams can be answered."
       />
+
+      {/* Offline Download Action Bar */}
+      <section
+        className="aae-offline-bar"
+        style={{
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
+          color: '#ffffff',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>📥 Offline Exam Package</span>
+            {offlineExamIds.size > 0 && (
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  background: '#22c55e',
+                  color: '#ffffff',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                }}
+              >
+                {offlineExamIds.size} saved offline
+              </span>
+            )}
+            {isOfflineView && (
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                }}
+              >
+                Viewing Offline Cache
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '4px' }}>
+            {lastSyncedText
+              ? `Last synced: ${lastSyncedText}. Download all questions and images to test with zero internet.`
+              : 'Download exams and images once to answer questions without internet connection.'}
+          </div>
+          {downloadStatus && (
+            <div style={{ fontSize: '0.85rem', color: '#fef08a', marginTop: '6px', fontWeight: 600 }}>
+              {downloadStatus}
+            </div>
+          )}
+          {downloadError && (
+            <div style={{ fontSize: '0.85rem', color: '#fca5a5', marginTop: '6px' }}>
+              Error: {downloadError}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={handleDownloadAll}
+            disabled={downloading || !navigator.onLine}
+            style={{
+              background: navigator.onLine ? '#f59e0b' : '#64748b',
+              color: '#ffffff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: navigator.onLine && !downloading ? 'pointer' : 'not-allowed',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+              transition: 'opacity 0.2s',
+              opacity: downloading ? 0.7 : 1,
+            }}
+          >
+            {downloading ? 'Downloading Package...' : offlineExamIds.size > 0 ? '↻ Re-Sync Offline Package' : '⬇ Download All for Offline'}
+          </button>
+        </div>
+      </section>
 
       <section className="aae-toolbar">
         <div className="aae-status-tabs" role="tablist" aria-label="Exam status filters">
@@ -189,7 +381,8 @@ export default function AlumniAvailableExams({ onTakeExam }) {
         <section className="aae-grid" aria-label="Available alumni exams">
           {filteredExams.map((exam) => {
             const status = getExamStatus(exam);
-            const canTakeExam = status === 'ongoing';
+            const isSavedOffline = offlineExamIds.has(String(exam._id));
+            const canTakeExam = isSavedOffline || status === 'ongoing';
             return (
             <article key={exam._id} className={`aae-card aae-card--${status}`}>
               <div className="aae-card-body">
@@ -198,7 +391,24 @@ export default function AlumniAvailableExams({ onTakeExam }) {
                     <h3 className="aae-title">{exam.name}</h3>
                     <div className="aae-subtitle">{exam.program?.name || '-'}</div>
                   </div>
-                  <span className={`aae-status-badge status-${status}`}>{getStatusLabel(status)}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    <span className={`aae-status-badge status-${status}`}>{getStatusLabel(status)}</span>
+                    {isSavedOffline && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          background: 'rgba(34, 197, 94, 0.15)',
+                          color: '#16a34a',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        ✓ Ready Offline
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="aae-pills">

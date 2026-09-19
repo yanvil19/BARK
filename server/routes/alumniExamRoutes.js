@@ -7,6 +7,8 @@ const {
   getMyAttempts,
   getDashboardAttempts,
   getAttemptDetails,
+  getOfflinePackage,
+  syncOfflineAttempt,
 } = require('../controllers/alumniExamController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -16,6 +18,8 @@ router.use(protect);
 router.use(authorizeRoles('alumni'));
 
 router.get('/available', getAvailableExams);
+router.get('/offline-package', getOfflinePackage);
+router.post('/offline-sync', syncOfflineAttempt);
 router.get('/my-attempts', getDashboardAttempts);
 router.get('/:examId/my-attempts', getMyAttempts);
 router.get('/attempt/:attemptId', getAttemptDetails);

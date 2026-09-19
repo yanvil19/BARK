@@ -12,7 +12,13 @@ export function getStoredAuthToken() {
 
 export function clearClientSessionStorage() {
   try {
-    window.localStorage.clear();
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    window.localStorage.removeItem('bark_editingMockBoardExamId');
+    window.localStorage.removeItem('bark_examRunnerId');
+    window.localStorage.removeItem('bark_examRunnerMode');
+    window.localStorage.removeItem('bark_studentExamId');
+    window.localStorage.removeItem('bark_alumniExamId');
+    window.localStorage.removeItem('bark_alumniResultExamId');
   } catch {
     // Ignore storage access failures so auth redirects can still proceed.
   }

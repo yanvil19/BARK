@@ -26,6 +26,8 @@ function SuccessSeal() {
 }
 
 export default function AlumniExamResult({ onReturn, onViewResults }) {
+  const isOffline = !navigator.onLine;
+
   return (
     <main className="serc-page">
       <div className="serc-backdrop serc-backdrop--left" aria-hidden="true" />
@@ -33,8 +35,8 @@ export default function AlumniExamResult({ onReturn, onViewResults }) {
 
       <section className="serc-card">
         <div className="serc-topbar">
-          <span className="serc-badge">Submission Received</span>
-          <span className="serc-badge serc-badge--muted">Alumni Exam</span>
+          <span className="serc-badge">{isOffline ? 'Saved Locally (Offline)' : 'Submission Received'}</span>
+          <span className="serc-badge border-slate-300 serc-badge--muted">Alumni Exam</span>
         </div>
 
         <div className="serc-hero">
@@ -42,19 +44,28 @@ export default function AlumniExamResult({ onReturn, onViewResults }) {
 
           <div className="serc-copy">
             <p className="serc-eyebrow">Well done</p>
-            <h1 className="serc-title">Exam Attempt Completed Successfully</h1>
+            <h1 className="serc-title">
+              {isOffline ? 'Exam Saved Offline' : 'Exam Attempt Completed Successfully'}
+            </h1>
             <p className="serc-description">
-              Your answers have been recorded and scored. You can review your attempt history
-              immediately.
+              {isOffline
+                ? 'Your answers are safely saved on this device. Once you reconnect to the internet, click "Sync Now" in the header or dashboard to submit and view your official score.'
+                : 'Your answers have been recorded and scored. You can review your attempt history immediately.'}
             </p>
           </div>
         </div>
 
         <div className="serc-footer">
-          <button type="button" onClick={onViewResults} className="serc-primary-btn">
-            View Attempt History
-          </button>
-          <button type="button" onClick={onReturn} className="serc-secondary-btn">
+          {!isOffline && (
+            <button type="button" onClick={onViewResults} className="serc-primary-btn">
+              View Attempt History
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReturn}
+            className={isOffline ? 'serc-primary-btn' : 'serc-secondary-btn'}
+          >
             Return to Available Exams
           </button>
         </div>
