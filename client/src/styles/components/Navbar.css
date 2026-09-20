@@ -346,3 +346,32 @@
     padding-left: 16px;
   }
 }
+
+/* ================================================
+   INSTALL APP BUTTON
+   ================================================ */
+
+.install-app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--accent-yellow);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-yellow);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+
+.install-app-btn:hover {
+  background: var(--accent-yellow);
+  color: var(--primary-bg);
+}
+
+.install-app-btn svg {
+  flex-shrink: 0;
+}

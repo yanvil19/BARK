@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import ProfileModal from './ProfileModal.jsx';
 import ChangeCredentialsModal from './ChangeCredentialsModal.jsx';
 import SyncStatusBadge from './SyncStatusBadge.jsx';
+import InstallPromptButton from './InstallPromptButton.jsx';
 
 export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badgeCounts = {} }) {
   const [open, setOpen] = useState(false);
@@ -257,6 +258,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
       {/* RIGHT — Avatar + Hamburger */}
       <div className="nav-right" ref={wrapperRef}>
         {isAlumni && <SyncStatusBadge onRequireLogin={() => onRoute('login')} />}
+        {me && <InstallPromptButton />}
 
         {me ? (
           <div className="profile-wrapper">

@@ -1,69 +1,70 @@
-const CACHE_NAME = 'nu-board-static-v1';
+// ─── Cache name ──────────────────────────────────────────────────────────────
+// Bump this string whenever you want to force all clients to get a fresh cache.
+const CACHE_NAME = 'nu-board-static-v2';
 
-const STATIC_ASSETS = [
+// ─── Precache manifest ────────────────────────────────────────────────────────
+// This array is replaced at build time by the injectPrecacheManifest Vite plugin
+// (see vite.config.js). In dev/preview it falls back to just the shell entries.
+const PRECACHE_MANIFEST = self.__PRECACHE_MANIFEST__ || [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/src/assets/barklogo.png',
 ];
 
+// ─── Install: cache everything in PRECACHE_MANIFEST ──────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_MANIFEST))
+      .then(() => self.skipWaiting())
   );
 });
 
+// ─── Activate: delete stale caches ───────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.map((key) => key !== CACHE_NAME ? caches.delete(key) : null)
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
+// ─── Fetch ────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // 1. Never intercept or cache API calls in service worker; app layer handles IndexedDB
-  if (url.pathname.startsWith('/api')) {
-    return;
-  }
+  // 1. Never intercept API calls — app IndexedDB layer owns those responses.
+  if (url.pathname.startsWith('/api')) return;
 
-  // 2. Navigation requests (HTML navigation): Network-first with offline /index.html fallback
+  // 2. Navigation (HTML): network-first → fall back to cached /index.html (SPA shell).
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
-      })
+      fetch(request).catch(() =>
+        caches.match('/index.html').then((r) => r || caches.match('/'))
+      )
     );
     return;
   }
 
-  // 3. Static assets (JS, CSS, fonts, local images): Stale-While-Revalidate
+  // 3. Static assets: stale-while-revalidate.
+  //    Precached assets are served instantly; the network update runs in background.
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+    caches.match(request).then((cached) => {
+      const network = fetch(request)
+        .then((res) => {
+          if (res && res.status === 200 && res.type === 'basic') {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
           }
-          return networkResponse;
+          return res;
         })
-        .catch(() => cachedResponse);
+        .catch(() => cached);
 
-      return cachedResponse || fetchPromise;
+      return cached || network;
     })
   );
 });
+
