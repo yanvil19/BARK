@@ -73,7 +73,7 @@ const updateSettings = async (req, res) => {
     const settings = await AppSettings.findOneAndUpdate(
       { key: 'singleton' },
       { $set: update },
-      { new: true, upsert: true, returnDocument: 'after' }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.status(200).json(settings.toObject());

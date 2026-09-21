@@ -29,7 +29,7 @@ export default function SystemUpdateWarning({ me }) {
       }
 
       // 2. Connect to SSE
-      sse = new EventSource(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/sse/faculty`, {
+      sse = new EventSource('/api/sse/faculty', {
         withCredentials: true,
       });
 

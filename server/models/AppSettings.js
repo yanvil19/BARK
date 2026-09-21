@@ -34,7 +34,7 @@ appSettingsSchema.statics.getSingleton = async function () {
   return await this.findOneAndUpdate(
     { key: 'singleton' },
     { $setOnInsert: { key: 'singleton' } },
-    { new: true, upsert: true }
+    { returnDocument: 'after', upsert: true }
   );
 };
 

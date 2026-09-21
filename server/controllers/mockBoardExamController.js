@@ -746,7 +746,7 @@ async function setResultsReleaseDate(req, res) {
     const updated = await MockBoardExam.findByIdAndUpdate(
       exam._id,
       { $set: { resultsReleaseDate: releaseDate } },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     ).select('resultsReleaseDate status').lean();
     await logAudit(req.user._id, 'mock_exam_results_release_scheduled', 'MockBoardExam', exam._id, {
       name: exam.name,
