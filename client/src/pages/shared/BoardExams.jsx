@@ -1,11 +1,13 @@
-import AuthImage from '../../components/AuthImage.jsx';
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
+import AuthImage from '../../components/AuthImage.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import { Modal } from '../../components/Modal.jsx';
 import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
@@ -142,6 +144,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [actionMenu, setActionMenu] = useState(null);
 
+  useEffect(() => {
+    if (!selectedExam) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [Boolean(selectedExam)]);
+
   function triggerCalendarRefresh() {
     setCalendarRefreshKey((prev) => prev + 1);
   }
@@ -253,6 +266,15 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     }
 
     triggerCalendarRefresh();
+  }
+
+  function closeExamDetails() {
+    if (fullscreenImage) {
+      setFullscreenImage(null);
+      return;
+    }
+    setSelectedExam(null);
+    setExpandedQuestionId(null);
   }
 
   function handleDelete(exam) {
@@ -548,12 +570,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   async function handleView(examId) {
     if (selectedExam?._id === examId) {
-      setSelectedExam(null);
+      closeExamDetails();
       return;
     }
 
     try {
       const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+      setFullscreenImage(null);
       setSelectedExam(data.exam || null);
     } catch (err) {
       setFeedbackModal({
@@ -1037,11 +1060,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         </div>
       )}
 
-      {selectedExam && (
-        <section className="ambe-details">
+      <Modal
+        open={!!selectedExam}
+        onClose={closeExamDetails}
+        title="Exam Details"
+        bodyClassName="ambe-details-modal-body"
+      >
+        {selectedExam && (
+          <section className="ambe-details">
           <div className="ambe-details-header-new">
             <div className="ambe-details-header-copy">
-              <span className="ambe-details-eyebrow">Exam Details</span>
               <h2 className="ambe-details-name">{selectedExam.name}</h2>
               <p className="ambe-details-program">
                 {selectedExam.program?.name || selectedExam.program?.code || 'No program assigned'}
@@ -1216,22 +1244,31 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               </div>
             )}
           </div>
-        </section>
-      )}
+          </section>
+        )}
+      </Modal>
 
-      {fullscreenImage && (
-        <div className="ambe-image-overlay" onClick={() => setFullscreenImage(null)}>
+      {fullscreenImage && createPortal(
+        <div
+          className="ambe-image-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setFullscreenImage(null)}
+        >
           <div className="ambe-image-modal" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               className="ambe-image-close"
               onClick={() => setFullscreenImage(null)}
+              aria-label="Close image preview"
             >
               Close
             </button>
             <AuthImage src={fullscreenImage} alt="Preview" className="ambe-image-full" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {schedulingExamId && (() => {

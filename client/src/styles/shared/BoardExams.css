@@ -823,10 +823,33 @@
 .ambe-details-header-new {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
-  padding: 28px;
-  background: #35408e;
-  color: #ffffff;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 26px 28px;
+  background: linear-gradient(135deg, #f1f3fa 0%, #f8f9fd 100%);
+  border-bottom: 1px solid #e1e5f0;
+  color: #4a5578;
+}
+
+.ambe-details-modal-body {
+  min-height: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: #4a5578;
+  font-family: var(--font-body, sans-serif);
+}
+
+.ambe-details-modal-body strong {
+  font-family: var(--font-body, sans-serif);
+}
+
+.ambe-details-modal-body > .ambe-details {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .ambe-details-header-copy {
@@ -834,57 +857,52 @@
   min-width: 0;
 }
 
-.ambe-details-eyebrow {
-  display: inline-block;
-  margin-bottom: 10px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #c9d3ff;
-}
-
 .ambe-details-name {
   margin: 0;
+  font-family: var(--font-title, sans-serif);
   font-size: clamp(24px, 3vw, 32px);
-  line-height: 1.08;
-  color: #fad227;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--primary-bg, #35408e);
+  overflow-wrap: anywhere;
 }
 
 .ambe-details-program {
   margin: 10px 0 0;
   font-size: 15px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: #68749a;
 }
 
 .ambe-details-subjects {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
+  gap: 7px;
+  margin-top: 14px;
 }
 
 .ambe-details-subjects .ambe-pill.subject {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  min-height: 26px;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(53, 64, 142, 0.16);
+  color: #4a57a2;
 }
 
 .ambe-details-header-side {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
-  min-width: 240px;
+  gap: 10px;
+  min-width: 180px;
 }
 
 .ambe-details-release-note {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.92);
+  padding: 9px 12px;
+  border: 1px solid rgba(53, 64, 142, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #5966ac;
   font-size: 12px;
   line-height: 1.5;
   text-align: right;
@@ -920,9 +938,10 @@
 .ambe-stat-label,
 .ambe-question-number {
   display: inline-block;
+  font-family: var(--font-body, sans-serif);
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -952,9 +971,10 @@
 .ambe-stat-value {
   display: block;
   margin-top: 10px;
+  font-family: var(--font-body, sans-serif);
   font-size: 16px;
   line-height: 1.4;
-  color: #3f5ea8;
+  color: var(--primary-bg, #35408e);
 }
 
 .ambe-questions-container {
@@ -975,8 +995,10 @@
 
 .ambe-questions-header h3 {
   margin: 0;
+  font-family: var(--font-title, sans-serif);
   font-size: 20px;
-  color: #202b4d;
+  font-weight: 600;
+  color: var(--primary-bg, #35408e);
 }
 
 .ambe-questions-header p {
@@ -992,10 +1014,11 @@
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3f4ab8;
+  background: #eef0f8;
+  color: #5966ac;
+  font-family: var(--font-body, sans-serif);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -1058,15 +1081,16 @@
 }
 
 .ambe-question-number {
-  color: #4d5bb8;
+  color: #5966ac;
 }
 
 .ambe-question-title {
   margin: 8px 0 0;
-  font-size: 16px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 15px;
   line-height: 1.4;
-  color: #1d2848;
-  font-weight: 700;
+  color: #35405f;
+  font-weight: 600;
   word-break: break-word;
   overflow-wrap: anywhere;
   min-width: 0;
@@ -1270,7 +1294,7 @@
   padding: 24px;
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(6px);
-  z-index: 1200;
+  z-index: 10001;
 }
 
 .ambe-image-modal {
@@ -1556,7 +1580,9 @@
 }
 
 .ambe-table th {
+  height: 64px;
   padding: 13px 12px;
+  box-sizing: border-box;
   background-color: var(--primary-bg, #35408e);
   border-bottom: 3px solid var(--accent-yellow, #fad227);
   color: #ffffff;
