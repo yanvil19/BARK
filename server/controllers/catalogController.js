@@ -105,7 +105,7 @@ const updateDepartment = async (req, res) => {
     if (typeof code === 'string' && code.trim()) update.code = code.trim();
     if (typeof isActive === 'boolean') update.isActive = isActive;
 
-    const dept = await Department.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    const dept = await Department.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after', runValidators: true });
     if (!dept) return res.status(404).json({ message: 'Department not found' });
 
     const isToggle = Object.keys(update).length === 1 && Object.prototype.hasOwnProperty.call(update, 'isActive');
@@ -216,7 +216,7 @@ const updateProgram = async (req, res) => {
       update.department = departmentId;
     }
 
-    const program = await Program.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    const program = await Program.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after', runValidators: true });
     if (!program) return res.status(404).json({ message: 'Program not found' });
 
     const isToggle = Object.keys(update).length === 1 && Object.prototype.hasOwnProperty.call(update, 'isActive');

@@ -209,7 +209,7 @@ router.patch('/users/:id/email-toggle', protect, authorizeRoles('super_admin'), 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       { receiveEmails },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select('-password');
 
     if (!updatedUser) {
