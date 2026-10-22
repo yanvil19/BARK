@@ -196,10 +196,32 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
         <main className="mbep-content">
           {currentQuestion ? (
             <article className="mbep-card">
-              <div className="mbep-card-top">
+              <div className="mbep-card-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4>Question {currentIdx + 1}</h4>
+                {currentQuestion.groupId && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: '#ede9fe',
+                    color: '#5b21b6',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    letterSpacing: '0.04em'
+                  }}>
+                    Part of Question Set
+                  </span>
+                )}
               </div>
               <div className="mbep-card-body">
+                {currentQuestion.groupContext && (
+                  <div className="mbep-group-context-box">
+                    <div className="mbep-group-context-header">
+                      <span>Question Set Scenario</span>
+                    </div>
+                    <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                  </div>
+                )}
+
                 <div className="mbep-question-title">
                   {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
                 </div>

@@ -14,11 +14,33 @@ function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
 }
 
+function blankQuestion(inheritTagId = '') {
+  return {
+    id: generateId(),
+    description: '',
+    answers: [
+      { text: '', isCorrect: true },
+      { text: '', isCorrect: false },
+    ],
+    tagId: inheritTagId,
+    rationalization: '',
+    imagePreviews: [],
+    uploadedUrls: [],
+    uploading: false,
+    error: '',
+    aiFlags: [],
+    image_required: false,
+    image_note: null,
+    image_flag_removed_by_user: false,
+  };
+}
+
 export default function QuestionForm({
   me,
   tags,
   programId,
   initialData,
+  initialGroupQuestions = null,
   onSaved,
   onClose,
   readOnly = false,
@@ -32,8 +54,20 @@ export default function QuestionForm({
 
   const { notify } = useToast();
 
-  const isEditing = !!initialData;
+  const isEditing = !!initialData || (Array.isArray(initialGroupQuestions) && initialGroupQuestions.length > 0);
   const userId = me?._id || 'guest';
+
+  // [GROUPED QUESTIONS] — mode state
+  const isEditingGroup = (Array.isArray(initialGroupQuestions) && initialGroupQuestions.length > 0) || (isEditing && !!initialData?.groupId);
+  const [mode, setMode] = useState(isEditingGroup ? 'grouped' : 'single');
+  const isGrouped = mode === 'grouped';
+
+  // [GROUPED QUESTIONS] shared group context/stem text
+  const [groupContext, setGroupContext] = useState(
+    isEditingGroup
+      ? (initialGroupQuestions?.[0]?.groupContext || initialData?.groupContext || '')
+      : ''
+  );
 
   let draftKey = null;
   if (!readOnly && !isEditing) {
@@ -45,6 +79,32 @@ export default function QuestionForm({
   }
 
   const [questionsData, setQuestionsData, clearQuestionsData] = useLocalStorage(draftKey, () => {
+    // If grouped questions are provided for editing, pre-fill all of them
+    if (Array.isArray(initialGroupQuestions) && initialGroupQuestions.length > 0) {
+      return initialGroupQuestions.map((q) => ({
+        id: q._id || generateId(),
+        _id: q._id,
+        description: q.description || '',
+        answers: q.answers?.length >= 2 ? q.answers : [
+          { text: '', isCorrect: true },
+          { text: '', isCorrect: false },
+        ],
+        tagId: q.tag?._id || q.tag || '',
+        rationalization: q.rationalization || '',
+        imagePreviews: (q.images || []).map((url) => ({
+          url: url.startsWith('/') ? `${BASE}${url}` : url,
+          file: null,
+          existing: true,
+        })),
+        uploadedUrls: q.images || [],
+        uploading: false,
+        aiFlags: [],
+        image_required: q.image_required || false,
+        image_note: q.image_note || null,
+        image_flag_removed_by_user: q.image_flag_removed_by_user || false,
+      }));
+    }
+
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
       return importedQuestions.map(q => ({
@@ -70,7 +130,8 @@ export default function QuestionForm({
 
     // Default — single empty form or edit form
     return [{
-      id: generateId(),
+      id: initialData?._id || generateId(),
+      _id: initialData?._id,
       description: initialData?.description || '',
       answers: initialData?.answers || [
         { text: '', isCorrect: true },
@@ -261,7 +322,7 @@ export default function QuestionForm({
 
   async function removeImage(qId, idx) {
     if (readOnly) return;
-    
+
     const targetQ = questionsData.find(q => q.id === qId);
     if (!targetQ) return;
     const urlToRemove = targetQ.uploadedUrls[idx];
@@ -386,6 +447,11 @@ export default function QuestionForm({
       const q = questionsData[i];
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
 
+      // Check if question prompt / body is entered
+      if (!q.description || !q.description.trim()) {
+        return `${prefix}Question prompt / description is required.`;
+      }
+
       // Submissions always require resolving BLOCKERS (even in import mode)
       if (isSubmit) {
         const allFlags = getQuestionFlags(q);
@@ -404,6 +470,12 @@ export default function QuestionForm({
         }
       }
     }
+
+    // [GROUPED QUESTIONS] — enforce minimum of 2 questions
+    if (isGrouped && !readOnly && questionsData.length < 2) {
+      return 'A question group must have at least 2 questions.';
+    }
+
     return '';
   }
 
@@ -440,43 +512,105 @@ export default function QuestionForm({
     const savedQuestions = [];
 
     try {
-      for (const q of questionsData) {
-        const body = {
+      // [GROUPED QUESTIONS] — creating a new group
+      if (isGrouped && !isEditing) {
+        const questionsPayload = questionsData.map(q => ({
           description: q.description.trim(),
           answers: q.answers,
           tagId: q.tagId,
           rationalization: q.rationalization?.trim() || '',
           images: q.uploadedUrls,
-          ...(programId ? { programId } : {}),
-          // [IMPORT REVIEW - FLAG SYSTEM]
-          // Save image requirement tracking
           image_required: q.image_required,
           image_note: q.image_note,
           image_flag_removed_by_user: q.image_flag_removed_by_user,
-        };
+        }));
 
-        let question;
-        if (initialData && questionsData.length === 1) {
-          const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
-          question = data.question;
-        } else {
-          const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
-          question = data.question;
-        }
+        const data = await apiAuth(`${BASE}/api/questions/group`, {
+          method: 'POST',
+          body: {
+            questions: questionsPayload,
+            programId,
+            groupContext: groupContext.trim() || null,
+          },
+        });
 
         if (submit) {
-          await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
-          savedQuestions.push({ ...question, state: 'pending_chair' });
+          const subData = await apiAuth(`${BASE}/api/questions/group/${data.groupId}/submit`, { method: 'POST' });
+          savedQuestions.push(...subData.questions);
+          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
         } else {
-          savedQuestions.push(question);
+          savedQuestions.push(...data.questions);
+        }
+      } else if (isGrouped && isEditing) {
+        // [GROUPED QUESTIONS] — updating an existing group
+        const targetGroupId = initialGroupQuestions?.[0]?.groupId || initialData?.groupId;
+        const questionsPayload = questionsData.map(q => ({
+          _id: q._id,
+          description: q.description.trim(),
+          answers: q.answers,
+          tagId: q.tagId,
+          rationalization: q.rationalization?.trim() || '',
+          images: q.uploadedUrls,
+          image_required: q.image_required,
+          image_note: q.image_note,
+          image_flag_removed_by_user: q.image_flag_removed_by_user,
+        }));
+
+        const data = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}`, {
+          method: 'PUT',
+          body: {
+            questions: questionsPayload,
+            groupContext: groupContext.trim() || null,
+          },
+        });
+
+        if (submit) {
+          const subData = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}/submit`, { method: 'POST' });
+          savedQuestions.push(...subData.questions);
+          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+        } else {
+          savedQuestions.push(...data.questions);
+        }
+      } else {
+        // Single question mode (existing logic)
+        for (const q of questionsData) {
+          const body = {
+            description: q.description.trim(),
+            answers: q.answers,
+            tagId: q.tagId,
+            rationalization: q.rationalization?.trim() || '',
+            images: q.uploadedUrls,
+            ...(programId ? { programId } : {}),
+            // [IMPORT REVIEW - FLAG SYSTEM]
+            // Save image requirement tracking
+            image_required: q.image_required,
+            image_note: q.image_note,
+            image_flag_removed_by_user: q.image_flag_removed_by_user,
+          };
+
+          let question;
+          if (initialData && questionsData.length === 1) {
+            const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
+            question = data.question;
+          } else {
+            const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
+            question = data.question;
+          }
+
+          if (submit) {
+            await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
+            savedQuestions.push({ ...question, state: 'pending_chair' });
+          } else {
+            savedQuestions.push(question);
+          }
+        }
+        if (submit) {
+          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
         }
       }
 
       if (clearQuestionsData) {
         clearQuestionsData();
-      }
-      if (submit) {
-        window.dispatchEvent(new CustomEvent('badge-counts-updated'));
       }
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
@@ -545,20 +679,7 @@ export default function QuestionForm({
     setQuestionsData(prev => {
       const next = [
         ...prev,
-        {
-          id: generateId(),
-          description: '',
-          answers: [
-            { text: '', isCorrect: true },
-            { text: '', isCorrect: false },
-          ],
-          tagId: prev[prev.length - 1]?.tagId || '',
-          rationalization: '',
-          imagePreviews: [],
-          uploadedUrls: [],
-          uploading: false,
-          error: '',
-        }
+        blankQuestion(prev[prev.length - 1]?.tagId || ''),
       ];
       setCurrentQuestionIdx(next.length - 1);
       return next;
@@ -582,10 +703,369 @@ export default function QuestionForm({
     }
   }
 
+  // [GROUPED QUESTIONS] reorder helpers
+  function moveQuestionUp(index) {
+    if (index === 0) return;
+    setQuestionsData(prev => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      setCurrentQuestionIdx(index - 1);
+      return next;
+    });
+  }
+
+  function moveQuestionDown(index) {
+    if (index === questionsData.length - 1) return;
+    setQuestionsData(prev => {
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      setCurrentQuestionIdx(index + 1);
+      return next;
+    });
+  }
+
+  // When switching modes, reset to a fresh single/double-question state
+  function handleModeChange(newMode) {
+    if (newMode === mode || isEditing) return;
+    setMode(newMode);
+    if (newMode === 'grouped') {
+      // Ensure at least 2 blocks when entering grouped mode
+      if (questionsData.length < 2) {
+        setQuestionsData([
+          questionsData[0] || blankQuestion(),
+          blankQuestion(questionsData[0]?.tagId || ''),
+        ]);
+      }
+    } else {
+      // Back to single — trim to first question only
+      setQuestionsData([questionsData[0] || blankQuestion()]);
+    }
+    setCurrentQuestionIdx(0);
+  }
+
   const anyUploading = questionsData.some(q => q.uploading);
+
+  // Render a single question block (shared between single and grouped modes)
+  function renderQuestionBlock(q, index) {
+    return (
+      <div key={q.id} className="qf-question-block">
+        {/* ── Header ── */}
+        {isGrouped && !readOnly ? (
+          <div className="qf-group-question-header">
+            <div className="qf-group-question-header-left">
+              <span className="qf-group-q-number">{index + 1}</span>
+              <h4>Question {index + 1}</h4>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {/* Reorder arrows */}
+              <div className="qf-reorder-btns">
+                <button
+                  type="button"
+                  className="qf-reorder-btn"
+                  title="Move up"
+                  disabled={index === 0}
+                  onClick={() => moveQuestionUp(index)}
+                >↑</button>
+                <button
+                  type="button"
+                  className="qf-reorder-btn"
+                  title="Move down"
+                  disabled={index === questionsData.length - 1}
+                  onClick={() => moveQuestionDown(index)}
+                >↓</button>
+              </div>
+              {/* Remove — min 2 */}
+              {questionsData.length > 2 && (
+                <button
+                  type="button"
+                  className="qf-remove-question-btn"
+                  onClick={() => removeQuestionBlock(q.id)}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        ) : questionsData.length > 1 && !readOnly && !initialData ? (
+          <div className="qf-question-header">
+            <h4>Question {index + 1}</h4>
+            <button type="button" className="qf-remove-question-btn" onClick={() => removeQuestionBlock(q.id)}>Remove Question</button>
+          </div>
+        ) : null}
+
+        <div className="qf-grid">
+          <div className="qf-field">
+            <label>Subject *</label>
+            <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
+              <option value="">Select a subject</option>
+              {tags.map((tag) => (
+                <option key={tag._id} value={tag._id}>{tag.name}</option>
+              ))}
+            </select>
+            {tags.length === 0 && !readOnly ? (
+              <p className="qf-inline-note qf-inline-note--error">
+                No subjects available. Ask your Program Chair to create subjects first.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="qf-field qf-field--full">
+            <label>Question *</label>
+            <textarea
+              placeholder="Write the full question here..."
+              value={q.description}
+              onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
+              rows={5}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+
+        <section className="qf-section">
+          <div className="qf-section-heading">
+            <div>
+              <h3>Answers *</h3>
+              <p>{readOnly ? 'The correct answer is marked with a selected radio button.' : 'Select the radio button to mark the correct answer.'}</p>
+            </div>
+            {!readOnly && (
+              <button type="button" className="qf-secondary-btn" onClick={() => addAnswer(q.id)}>
+                + Add Answer
+              </button>
+            )}
+          </div>
+
+          <div className="qf-answer-list">
+            {q.answers.map((answer, idx) => (
+              <div key={idx} className="qf-answer-row">
+                <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
+                  <input
+                    className="qf-answer-radio"
+                    type="radio"
+                    checked={answer.isCorrect}
+                    onChange={() => setCorrect(q.id, idx)}
+                    title="Mark as correct"
+                    disabled={readOnly}
+                  />
+                </label>
+
+                <input
+                  className="qf-answer-input"
+                  type="text"
+                  placeholder={`Answer ${idx + 1}`}
+                  value={answer.text}
+                  onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
+                  disabled={readOnly}
+                />
+
+                {q.answers.length > 2 && !readOnly ? (
+                  <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Rationalization Field */}
+        <section className="qf-section qf-section--rationalization">
+          <div className="qf-section-heading">
+            <div>
+              <h3>Rationalization *</h3>
+              <p>{readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}</p>
+            </div>
+          </div>
+          <div className="qf-field qf-field--full">
+            <textarea
+              className="qf-rationalization-textarea"
+              placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
+              value={q.rationalization || ''}
+              onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, rationalization: e.target.value }))}
+              rows={4}
+              disabled={readOnly}
+            />
+          </div>
+        </section>
+
+        <section className="qf-section">
+          <div className="qf-section-heading">
+            <div>
+              <h3>Images</h3>
+              <p>{readOnly ? 'Images attached to this question.' : `Optional, maximum of ${maxImages} images.`}</p>
+            </div>
+          </div>
+
+          {!readOnly && (
+            <div className="qf-upload-box">
+              <input
+                id={`file-${q.id}`}
+                className="qf-file-input"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleImagePick(e, q.id)}
+              />
+              <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
+                Choose Files
+              </button>
+              <span className="qf-upload-note">
+                {q.uploading ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
+              </span>
+            </div>
+          )}
+
+          {q.imagePreviews.length > 0 ? (
+            <div className="image-previews">
+              {q.imagePreviews.map((img, idx) => (
+                <div key={idx} className="image-thumb">
+                  <AuthImage
+                    src={img.url}
+                    alt=""
+                    onClick={() => setFullscreenImage(img.url)}
+                    title="Click to view full size"
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeImage(q.id, idx)}
+                      className="btn-remove-img"
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : !readOnly || q.imagePreviews.length > 0 ? null : (
+            <p className="qf-inline-note">No images attached.</p>
+          )}
+        </section>
+
+        {/* [IMPORT REVIEW - FLAG SYSTEM] */}
+        {!readOnly && (
+          <div className="qf-flags-container">
+            {getVisibleQuestionFlags(q).map((flag, fIdx) => (
+              <div key={fIdx} className={`qf-flag qf-flag--${flag.severity.toLowerCase()}`}>
+                <span className="qf-flag-icon">
+                  <FlagSeverityIcon severity={flag.severity} />
+                </span>
+                <span className="qf-flag-message">{sanitizeFlagMessage(flag.message)}</span>
+
+                <div className="qf-flag-right">
+                  {/* [IMPORT REVIEW - FLAG SYSTEM] */}
+                  {/* Image requirement flag actions */}
+                  {flag.type === 'missing_image' && (
+                    <div className="qf-flag-actions">
+                      <button
+                        type="button"
+                        className="qf-flag-action-btn qf-flag-action-upload"
+                        onClick={() => document.getElementById(`file-${q.id}`)?.click()}
+                        disabled={q.uploading}
+                      >
+                        <span className="qf-btn-icon" aria-hidden="true">
+                          <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </span>
+                        Upload Image
+                      </button>
+                      <button
+                        type="button"
+                        className="qf-flag-action-btn qf-flag-action-remove"
+                        onClick={() => handleRemoveImageFlag(index)}
+                      >
+                        <span className="qf-btn-icon" aria-hidden="true">
+                          <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </span>
+                        Remove Flag
+                      </button>
+                    </div>
+                  )}
+
+                  {!isNonDismissableFlag(flag) && (
+                    <button
+                      type="button"
+                      className="qf-flag-dismiss"
+                      onClick={() => dismissFlag(q.id, flag)}
+                      aria-label="Dismiss flag"
+                      title="Dismiss"
+                    >
+                      {'\u00D7'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
+      {/* [GROUPED QUESTIONS] Mode indicator / toggle */}
+      {!readOnly && !isEditing && !isImportMode && (
+        <div className="qf-mode-toggle" role="group" aria-label="Question mode">
+          <button
+            type="button"
+            id="qf-mode-single"
+            className={`qf-mode-btn ${mode === 'single' ? 'qf-mode-btn--active' : ''}`}
+            onClick={() => handleModeChange('single')}
+          >
+            Single Question
+          </button>
+          <button
+            type="button"
+            id="qf-mode-grouped"
+            className={`qf-mode-btn ${mode === 'grouped' ? 'qf-mode-btn--active' : ''}`}
+            onClick={() => handleModeChange('grouped')}
+          >
+            Grouped Questions
+          </button>
+        </div>
+      )}
+
+      {isGrouped && isEditing && !readOnly && (
+        <div className="qf-mode-toggle" style={{ pointerEvents: 'none' }}>
+          <button
+            type="button"
+            className="qf-mode-btn qf-mode-btn--active"
+            style={{ width: '100%' }}
+          >
+            Editing Question Set ({questionsData.length} questions)
+          </button>
+        </div>
+      )}
+
+      {/* [GROUPED QUESTIONS] Group context/stem field */}
+      {isGrouped && !readOnly && (
+        <>
+          <div className="qf-group-context-section">
+            <div className="qf-group-context-label">
+              <strong>Group Context / Stem</strong>
+              <span>Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.</span>
+            </div>
+            <textarea
+              className="qf-group-context-textarea"
+              placeholder="e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."
+              value={groupContext}
+              onChange={e => setGroupContext(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="qf-group-notice">
+            <span className="qf-group-notice-icon">🔒</span>
+            <span>These questions will always appear together in a fixed order and cannot be randomized separately during exams.</span>
+          </div>
+        </>
+      )}
+
       {/* [IMPORT REVIEW - BUBBLE NAVIGATION] */}
       {useBubbleNav && (
         <ImportReviewBubbles
@@ -601,234 +1081,24 @@ export default function QuestionForm({
           // Only show current question when using bubble navigation
           if (useBubbleNav && index !== currentQuestionIdx) return null;
 
-          return (
-            <div key={q.id} className="qf-question-block">
-              {questionsData.length > 1 && !readOnly && !initialData && (
-                <div className="qf-question-header">
-                  <h4>Question {index + 1}</h4>
-                  <button type="button" className="qf-remove-question-btn" onClick={() => removeQuestionBlock(q.id)}>Remove Question</button>
-                </div>
-              )}
-
-              <div className="qf-grid">
-                <div className="qf-field">
-                  <label>Subject *</label>
-                  <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
-                    <option value="">Select a subject</option>
-                    {tags.map((tag) => (
-                      <option key={tag._id} value={tag._id}>{tag.name}</option>
-                    ))}
-                  </select>
-                  {tags.length === 0 && !readOnly ? (
-                    <p className="qf-inline-note qf-inline-note--error">
-                      No subjects available. Ask your Program Chair to create subjects first.
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="qf-field qf-field--full">
-                  <label>Question *</label>
-                  <textarea
-                    placeholder="Write the full question here..."
-                    value={q.description}
-                    onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
-                    rows={5}
-                    disabled={readOnly}
-                  />
-                </div>
-              </div>
-
-              <section className="qf-section">
-                <div className="qf-section-heading">
-                  <div>
-                    <h3>Answers *</h3>
-                    <p>{readOnly ? 'The correct answer is marked with a selected radio button.' : 'Select the radio button to mark the correct answer.'}</p>
-                  </div>
-                  {!readOnly && (
-                    <button type="button" className="qf-secondary-btn" onClick={() => addAnswer(q.id)}>
-                      + Add Answer
-                    </button>
-                  )}
-                </div>
-
-                <div className="qf-answer-list">
-                  {q.answers.map((answer, idx) => (
-                    <div key={idx} className="qf-answer-row">
-                      <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
-                        <input
-                          className="qf-answer-radio"
-                          type="radio"
-                          checked={answer.isCorrect}
-                          onChange={() => setCorrect(q.id, idx)}
-                          title="Mark as correct"
-                          disabled={readOnly}
-                        />
-                      </label>
-
-                      <input
-                        className="qf-answer-input"
-                        type="text"
-                        placeholder={`Answer ${idx + 1}`}
-                        value={answer.text}
-                        onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
-                        disabled={readOnly}
-                      />
-
-                      {q.answers.length > 2 && !readOnly ? (
-                        <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Rationalization Field */}
-              <section className="qf-section qf-section--rationalization">
-                <div className="qf-section-heading">
-                  <div>
-                    <h3>Rationalization *</h3>
-                    <p>{readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}</p>
-                  </div>
-                </div>
-                <div className="qf-field qf-field--full">
-                  <textarea
-                    className="qf-rationalization-textarea"
-                    placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
-                    value={q.rationalization || ''}
-                    onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, rationalization: e.target.value }))}
-                    rows={4}
-                    disabled={readOnly}
-                  />
-                </div>
-              </section>
-
-              <section className="qf-section">
-                <div className="qf-section-heading">
-                  <div>
-                    <h3>Images</h3>
-                    <p>{readOnly ? 'Images attached to this question.' : `Optional, maximum of ${maxImages} images.`}</p>
-                  </div>
-                </div>
-
-                {!readOnly && (
-                  <div className="qf-upload-box">
-                    <input
-                      id={`file-${q.id}`}
-                      className="qf-file-input"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(e) => handleImagePick(e, q.id)}
-                    />
-                    <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
-                      Choose Files
-                    </button>
-                    <span className="qf-upload-note">
-                      {q.uploading ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
-                    </span>
-                  </div>
-                )}
-
-                {q.imagePreviews.length > 0 ? (
-                  <div className="image-previews">
-                    {q.imagePreviews.map((img, idx) => (
-                      <div key={idx} className="image-thumb">
-                        <AuthImage
-                          src={img.url}
-                          alt=""
-                          onClick={() => setFullscreenImage(img.url)}
-                          title="Click to view full size"
-                        />
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            onClick={() => removeImage(q.id, idx)}
-                            className="btn-remove-img"
-                          >
-                            x
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : !readOnly || q.imagePreviews.length > 0 ? null : (
-                  <p className="qf-inline-note">No images attached.</p>
-                )}
-              </section>
-
-              {/* [IMPORT REVIEW - FLAG SYSTEM] */}
-              {!readOnly && (
-                <div className="qf-flags-container">
-                  {getVisibleQuestionFlags(q).map((flag, fIdx) => (
-                    <div key={fIdx} className={`qf-flag qf-flag--${flag.severity.toLowerCase()}`}>
-                      <span className="qf-flag-icon">
-                        <FlagSeverityIcon severity={flag.severity} />
-                      </span>
-                      <span className="qf-flag-message">{sanitizeFlagMessage(flag.message)}</span>
-
-                      <div className="qf-flag-right">
-                        {/* [IMPORT REVIEW - FLAG SYSTEM] */}
-                        {/* Image requirement flag actions */}
-                        {flag.type === 'missing_image' && (
-                          <div className="qf-flag-actions">
-                            <button
-                              type="button"
-                              className="qf-flag-action-btn qf-flag-action-upload"
-                              onClick={() => document.getElementById(`file-${q.id}`)?.click()}
-                              disabled={q.uploading}
-                            >
-                              <span className="qf-btn-icon" aria-hidden="true">
-                                <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M12 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                  <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  <path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                </svg>
-                              </span>
-                              Upload Image
-                            </button>
-                            <button
-                              type="button"
-                              className="qf-flag-action-btn qf-flag-action-remove"
-                              onClick={() => handleRemoveImageFlag(index)}
-                            >
-                              <span className="qf-btn-icon" aria-hidden="true">
-                                <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                  <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                </svg>
-                              </span>
-                              Remove Flag
-                            </button>
-                          </div>
-                        )}
-
-                        {!isNonDismissableFlag(flag) && (
-                          <button
-                            type="button"
-                            className="qf-flag-dismiss"
-                            onClick={() => dismissFlag(q.id, flag)}
-                            aria-label="Dismiss flag"
-                            title="Dismiss"
-                          >
-                            {'\u00D7'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
+          return renderQuestionBlock(q, index);
         })}
       </div>
 
-      {!readOnly && !initialData && !isImportMode && (
+      {/* Add another question — single mode (non-import) */}
+      {!readOnly && !initialData && !isImportMode && mode === 'single' && (
         <div className="qf-add-block">
           <button type="button" className="qf-add-question-block-btn" onClick={addQuestionBlock}>
             + Add Another Question
+          </button>
+        </div>
+      )}
+
+      {/* [GROUPED QUESTIONS] Add question to group */}
+      {isGrouped && !readOnly && (
+        <div className="qf-group-add-block">
+          <button type="button" className="qf-group-add-btn" onClick={addQuestionBlock}>
+            + Add Question to Group
           </button>
         </div>
       )}

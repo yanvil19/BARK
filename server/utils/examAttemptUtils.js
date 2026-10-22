@@ -8,6 +8,32 @@ function shuffleArray(array) {
   return array;
 }
 
+// [GROUPED QUESTIONS] Group-aware shuffle:
+// Questions sharing a groupId travel as a single slot in the randomized order.
+// Within the group, questions stay sorted by groupOrder.
+function shuffleQuestionsGroupAware(questions) {
+  const slots = [];
+  const groupMap = new Map();
+
+  for (const q of questions) {
+    const gid = q.groupId ? String(q.groupId).trim() : null;
+    if (!gid) {
+      slots.push([q]);
+    } else {
+      if (!groupMap.has(gid)) groupMap.set(gid, []);
+      groupMap.get(gid).push(q);
+    }
+  }
+
+  for (const [, members] of groupMap) {
+    members.sort((a, b) => (Number(a.groupOrder) || 0) - (Number(b.groupOrder) || 0));
+    slots.push(members);
+  }
+
+  shuffleArray(slots);
+  return slots.flat();
+}
+
 async function calculateScore(attempt, exam) {
   const populatedExam = await MockBoardExam.findById(exam._id).populate({
     path: 'questions',
@@ -39,5 +65,6 @@ async function calculateScore(attempt, exam) {
 
 module.exports = {
   shuffleArray,
+  shuffleQuestionsGroupAware,
   calculateScore,
 };

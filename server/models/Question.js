@@ -71,6 +71,13 @@ const questionSchema = new mongoose.Schema(
     is_used_in_exam: { type: Boolean, default: false, index: true },
     // Tracks whether returned/rejected feedback has been viewed/read by the creator
     feedbackRead: { type: Boolean, default: false, index: true },
+    // [GROUPED QUESTIONS]
+    // Shared UUID string linking all questions in a group. null for solo questions.
+    groupId: { type: String, default: null, index: true },
+    // 0-based position of this question within the group.
+    groupOrder: { type: Number, default: null },
+    // Optional shared context/stem text shown above all questions in the group during an exam.
+    groupContext: { type: String, default: null, trim: true },
   },
   { timestamps: true }
 );

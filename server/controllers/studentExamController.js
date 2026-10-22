@@ -12,6 +12,38 @@ function shuffleArray(array) {
   return array;
 }
 
+// [GROUPED QUESTIONS] Group-aware shuffle:
+// Questions sharing a groupId are treated as a single slot and kept in their
+// internal groupOrder. Solo questions (groupId === null) are individual slots.
+function shuffleQuestionsGroupAware(questions) {
+  const slots = [];
+  const groupMap = new Map(); // groupId -> Question[]
+
+  for (const q of questions) {
+    const gid = q.groupId ? String(q.groupId).trim() : null;
+    if (!gid) {
+      slots.push([q]); // solo question as its own slot
+    } else {
+      if (!groupMap.has(gid)) {
+        groupMap.set(gid, []);
+      }
+      groupMap.get(gid).push(q);
+    }
+  }
+
+  // Sort each group internally by groupOrder
+  for (const [, members] of groupMap) {
+    members.sort((a, b) => (Number(a.groupOrder) || 0) - (Number(b.groupOrder) || 0));
+    slots.push(members);
+  }
+
+  // Shuffle at the slot level
+  shuffleArray(slots);
+
+  // Flatten slots back to a single question list
+  return slots.flat();
+}
+
 const PROGRESS_LOG_THRESHOLDS = [25, 50, 75];
 
 async function advanceExamStatuses(query = {}) {
@@ -168,7 +200,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const exam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag',
+      select: 'description images answers tag groupId groupOrder groupContext',
     });
 
     if (!exam) return res.status(404).json({ message: 'Exam not found' });
@@ -178,7 +210,7 @@ async function startExam(req, res) {
     await advanceExamStatuses({ _id: exam._id });
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag',
+      select: 'description images answers tag groupId groupOrder groupContext',
     });
 
     if (now < currentExam.startDateTime) {
@@ -213,7 +245,8 @@ async function startExam(req, res) {
     }
 
     if (!attempt) {
-      const shuffledQuestions = shuffleArray([...currentExam.questions]);
+      // [GROUPED QUESTIONS] Use group-aware shuffle so grouped questions stay together
+      const shuffledQuestions = shuffleQuestionsGroupAware([...currentExam.questions]);
       const randomizedStructure = shuffledQuestions.map(q => {
         const shuffledAnswers = shuffleArray([...q.answers]);
         return {
@@ -274,7 +307,11 @@ async function startExam(req, res) {
           _id: fullQ._id,
           description: fullQ.description,
           images: fullQ.images,
-          answers: mappedAnswers
+          answers: mappedAnswers,
+          // [GROUPED QUESTIONS] — pass group metadata so the exam player can display
+          // a shared context/stem header above all questions in the same group.
+          groupId: fullQ.groupId || null,
+          groupContext: fullQ.groupContext || null,
         });
       }
     });

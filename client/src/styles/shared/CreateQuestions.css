@@ -363,6 +363,77 @@
   padding: 2px 9px;
 }
 
+/* Purple-indigo badge for grouped questions */
+.qp-badge--group {
+  background-color: #ede9fe;
+  color: #5b21b6;
+  border-color: #c4b5fd;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ── Grouped Question Rows ── */
+.qp-table tbody tr.qp-group-header-row {
+  background: #f7f8fe;
+  border-top: 2px solid #dbe2fb;
+}
+
+.qp-group-header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: #3f4e9a;
+}
+
+.qp-group-toggle-btn {
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  border-radius: 4px;
+}
+
+.qp-group-toggle-btn:hover {
+  background-color: #e0e5fc !important;
+  color: #27347a !important;
+}
+
+.qp-group-header-context {
+  font-size: 12px;
+  color: #7b84b5;
+  font-weight: 400;
+  font-style: italic;
+  max-width: 480px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qp-group-child-cell {
+  padding-left: 28px !important;
+  position: relative;
+}
+
+.qp-group-child-cell::before {
+  content: "↳";
+  position: absolute;
+  left: 12px;
+  color: #939ecf;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.qp-group-child-number {
+  font-weight: 700;
+  color: #5460a3;
+  margin-right: 6px;
+}
+
 /* Wrapper that stacks the status label + optional in-exam badge */
 .qp-status-cell {
   display: flex;
@@ -433,8 +504,15 @@
 }
 
 @keyframes qp-fade-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .qp-exam-use-label {
@@ -486,6 +564,7 @@
   color: #fff;
   border-color: var(--primary-bg);
 }
+
 .qp-exam-use-pill--active-all .qp-exam-use-pill-count {
   background: rgba(250, 210, 39, 0.9);
   color: var(--primary-bg);
@@ -497,6 +576,7 @@
   color: #fff;
   border-color: #1d4ed8;
 }
+
 .qp-exam-use-pill--active-used .qp-exam-use-pill-count {
   background: rgba(219, 234, 254, 0.4);
   color: #fff;
@@ -508,8 +588,9 @@
   color: #fff;
   border-color: #475569;
 }
+
 .qp-exam-use-pill--active-not_used .qp-exam-use-pill-count {
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
 
@@ -710,6 +791,7 @@
   .qp-pagination-controls {
     justify-content: center;
   }
+
   .qp-filters-wrapper {
     padding: 16px 0px;
     box-sizing: border-box;
@@ -997,7 +1079,9 @@
 }
 
 @keyframes import-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .import-loading-title {

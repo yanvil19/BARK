@@ -54,6 +54,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/user', authRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/admin/catalog', adminCatalogRoutes);
 app.use('/api/admin/settings', adminSettingsRoutes);

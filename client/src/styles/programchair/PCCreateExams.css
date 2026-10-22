@@ -1222,4 +1222,88 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
-/**/
+/* Question Grouping in Create Exams */
+.mbe-question-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mbe-group-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 1px solid #c7d2fe;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 10px 16px;
+  margin-top: 10px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+  transition: all 0.2s ease;
+}
+
+.mbe-group-header-card.is-collapsed {
+  border-bottom: 1px solid #c7d2fe;
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+
+.mbe-group-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mbe-group-header-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.mbe-group-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3730a3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mbe-group-header-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: #c7d2fe;
+  color: #312e81;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mbe-select-btn--group {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mbe-question-card.is-grouped {
+  border-left: 3px solid #6366f1;
+}
+
+.mbe-group-header-card + .mbe-question-card.is-grouped {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.mbe-part-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #c7d2fe;
+}

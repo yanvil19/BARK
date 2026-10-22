@@ -42,10 +42,14 @@ import PCExamRunner from './pages/programchair/PCExamRunner.jsx';
 import PCMockBoardExamPreview from './pages/programchair/PCBoardExamPreview.jsx';
 import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx';
 import PCExamResults from './pages/programchair/PCExamResults.jsx';
+import { useHeartbeat } from './hooks/useHeartbeat.js';
 
 export default function App() {
   const [route, setRoute] = useState(() => sessionStorage.getItem('bark_route') || 'Dashboard');
   const [me, setMe] = useState(null);
+
+  // Send periodic heartbeat when tab is focused and user is active
+  useHeartbeat(me);
   const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => sessionStorage.getItem('bark_editingMockBoardExamId') || '');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
   const [examRunnerId, setExamRunnerId] = useState(() => sessionStorage.getItem('bark_examRunnerId') || '');

@@ -117,6 +117,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [feedbackModal, setFeedbackModal] = useState(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState(new Set());
   const [filteredBulkModal, setFilteredBulkModal] = useState(null); // 'add' | 'remove' | null
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   // Subject search + pagination
   const [subjectSearch, setSubjectSearch] = useState('');
   const [subjectPage, setSubjectPage] = useState(1);
@@ -336,6 +337,34 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
         return matchesSearch && matchesTag && matchesSelection && matchesState;
       });
+
+    // Keep questions belonging to the same group contiguous and ordered by groupOrder
+    const groupClusters = new Map();
+    const result = [];
+    for (const q of filtered) {
+      if (!q.groupId) {
+        result.push(q);
+      } else {
+        if (!groupClusters.has(q.groupId)) {
+          groupClusters.set(q.groupId, []);
+          result.push({ _isGroupClusterPlaceholder: true, groupId: q.groupId });
+        }
+        groupClusters.get(q.groupId).push(q);
+      }
+    }
+
+    const finalQuestions = [];
+    for (const item of result) {
+      if (item._isGroupClusterPlaceholder) {
+        const cluster = groupClusters.get(item.groupId) || [];
+        cluster.sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+        finalQuestions.push(...cluster);
+      } else {
+        finalQuestions.push(item);
+      }
+    }
+
+    return finalQuestions;
   }, [approvedQuestions, approvedSelectionFilter, questionFilterTagId, searchQuery, selectedQuestionIds, questionStateFilter]);
 
   const filteredSubjectOptions = useMemo(
@@ -375,23 +404,41 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   }
 
   function handleQuestionToggle(question) {
-    const id = String(question._id);
+    const isGrouped = Boolean(question.groupId);
+    const relatedQuestions = isGrouped
+      ? approvedQuestions.filter(q => q.groupId === question.groupId)
+      : [question];
+
+    const relatedIds = new Set(relatedQuestions.map(q => String(q._id)));
+    const isAnySelected = selectedQuestions.some(item => relatedIds.has(String(item._id)));
+
     setSelectedQuestions((prev) => {
-      if (prev.some((item) => String(item._id) === id)) {
-        return prev.filter((item) => String(item._id) !== id);
+      if (isAnySelected) {
+        // Deselect all members of this group
+        return prev.filter(item => !relatedIds.has(String(item._id)));
       }
-      return [...prev, question];
+      // Add all members of this group (avoiding duplicates)
+      const existingIds = new Set(prev.map(item => String(item._id)));
+      const toAdd = relatedQuestions.filter(q => !existingIds.has(String(q._id)));
+      return [...prev, ...toAdd];
     });
   }
 
   function handleBulkCheckbox(e, question) {
     e.stopPropagation();
+    const isGrouped = Boolean(question.groupId);
+    const relatedQuestions = isGrouped
+      ? approvedQuestions.filter(q => q.groupId === question.groupId)
+      : [question];
+    const relatedIds = relatedQuestions.map(q => q._id);
+
     setBulkSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(question._id)) {
-        next.delete(question._id);
+      const isCurrentlySelected = next.has(question._id);
+      if (isCurrentlySelected) {
+        relatedIds.forEach(id => next.delete(id));
       } else {
-        next.add(question._id);
+        relatedIds.forEach(id => next.add(id));
       }
       return next;
     });
@@ -400,7 +447,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   function handleToggleAllFiltered() {
     const visibleIds = filteredApprovedQuestions.map(q => q._id);
     const allSelected = visibleIds.length > 0 && visibleIds.every(id => bulkSelectedIds.has(id));
-    
+
     if (allSelected) {
       setBulkSelectedIds(prev => {
         const next = new Set(prev);
@@ -1020,29 +1067,63 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     )}
                   </div>
 
-                  {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
-                  {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
-                  {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
-                    const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
-                    const safeQPage = Math.min(questionPage, totalQPages);
-                    const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
-                    return (
-                      <>
-                        <div className="mbe-approved-stack">
-                          {pagedQuestions.map((question) => {
-                            const isSelected = selectedQuestionIds.has(String(question._id));
-                            const imageCount = question.images?.length || 0;
-                            const answerCount = question.answers?.length || 0;
-                            const isExpanded = !!expandedQuestionIds[question._id];
+              {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
+              {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
+              {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
+                const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
+                const safeQPage = Math.min(questionPage, totalQPages);
+                const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
+                return (
+                  <>
+                    <div className="mbe-approved-stack">
+                      {pagedQuestions.map((question, qIdx) => {
+                        const isSelected = selectedQuestionIds.has(String(question._id));
+                        const imageCount = question.images?.length || 0;
+                        const answerCount = question.answers?.length || 0;
+                        const isExpanded = !!expandedQuestionIds[question._id];
+                        const isGrouped = Boolean(question.groupId);
+                        const prevQ = pagedQuestions[qIdx - 1];
+                        const isFirstInGroup = isGrouped && (!prevQ || prevQ.groupId !== question.groupId);
+                        const groupSiblings = isGrouped ? approvedQuestions.filter(q => q.groupId === question.groupId) : [];
+                        const groupTitle = question.groupContext?.trim() ? truncateText(question.groupContext.trim(), 90) : `Question Set (${groupSiblings.length} questions)`;
 
-                            return (
+                        return (
+                          <div key={question._id} className="mbe-question-item-wrapper">
+                            {isFirstInGroup && (
+                              <div
+                                className={`mbe-group-header-card ${collapsedGroups.has(question.groupId) ? 'is-collapsed' : ''}`}
+                                onClick={() => setCollapsedGroups(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(question.groupId)) next.delete(question.groupId);
+                                  else next.add(question.groupId);
+                                  return next;
+                                })}
+                                title="Click to collapse / expand question set"
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="mbe-group-header-left">
+                                  <span className="mbe-group-header-icon"></span>
+                                  <span className="mbe-group-header-title">{groupTitle}</span>
+                                  <span className="mbe-group-header-badge">{groupSiblings.length} questions</span>
+                                </div>
+                                <div className="mbe-group-header-actions">
+                                  <button
+                                    type="button"
+                                    className={`mbe-select-btn mbe-select-btn--group ${isSelected ? 'is-selected' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); handleQuestionToggle(question); }}
+                                  >
+                                    {isSelected ? 'Remove Set' : 'Add Set'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {(!isGrouped || !collapsedGroups.has(question.groupId)) && (
                               <article
-                                key={question._id}
-                                className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''}`}
+                                className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''} ${isGrouped ? 'is-grouped' : ''}`}
                               >
                                 <div className="mbe-question-main">
                                   <label className="ca-checkbox-wrapper mbe-bulk-checkbox mbe-card-checkbox" onClick={e => e.stopPropagation()}>
-                                    <input 
+                                    <input
                                       type="checkbox"
                                       className="ca-checkbox"
                                       checked={bulkSelectedIds.has(question._id)}
@@ -1057,6 +1138,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                   >
                                     <div className="mbe-question-meta-row">
                                       <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
+                                      {isGrouped && (
+                                        <span className="mbe-part-badge">Part {(question.groupOrder ?? 0) + 1}</span>
+                                      )}
                                       <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
                                       {question.createdBy?.name ? (
                                         <span className="mbe-meta-text">By {question.createdBy.name}</span>

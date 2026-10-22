@@ -6,6 +6,7 @@ const { logAudit } = require('../utils/auditLogger');
 const AppSettings = require('../models/AppSettings');
 const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { encryptText, decryptQuestion } = require('../services/encryptionService');
+const crypto = require('crypto');
 
 const r2 = new S3Client({
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -172,6 +173,338 @@ const listApprovals = async (req, res) => {
       .sort({ submittedAt: 1, updatedAt: 1 });
 
     res.json({ questions: questions.map(decryptQuestion) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+
+// POST /api/questions/group
+// Creates multiple Question documents sharing the same groupId.
+const createQuestionGroup = async (req, res) => {
+  try {
+    const { questions: questionsPayload, programId, groupContext } = req.body;
+
+    if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
+      return res.status(400).json({ message: 'A group must have at least 2 questions' });
+    }
+
+    const settings = await AppSettings.getSingleton();
+    const maxAllowed = settings.maxUploadImages ?? 5;
+
+    const accessibleIds = await getAccessibleProgramIds(req.user);
+    let resolvedProgramId;
+
+    if (req.user.role === 'professor' || req.user.role === 'program_chair') {
+      resolvedProgramId = req.user.program?.toString();
+    } else if (req.user.role === 'dean') {
+      if (!programId) return res.status(400).json({ message: 'Dean must specify a program' });
+      if (!accessibleIds.includes(programId))
+        return res.status(403).json({ message: 'Access denied to this program' });
+      resolvedProgramId = programId;
+    }
+
+    if (!resolvedProgramId) return res.status(400).json({ message: 'No program assigned' });
+
+    const groupId = crypto.randomUUID();
+    const createdQuestions = [];
+
+    for (let i = 0; i < questionsPayload.length; i++) {
+      const q = questionsPayload[i];
+
+      if (!q.description?.trim()) {
+        return res.status(400).json({ message: `Question ${i + 1}: Question prompt/description is required` });
+      }
+
+      if (Array.isArray(q.images) && q.images.length > maxAllowed) {
+        return res.status(400).json({ message: `Question ${i + 1}: maximum of ${maxAllowed} images allowed` });
+      }
+
+      // Validate tag if provided
+      if (q.tagId) {
+        const tag = await Tag.findById(q.tagId);
+        if (!tag || !tag.isActive) return res.status(400).json({ message: `Question ${i + 1}: invalid or inactive tag` });
+        if (tag.program.toString() !== resolvedProgramId)
+          return res.status(400).json({ message: `Question ${i + 1}: tag does not belong to the specified program` });
+      }
+
+      const questionData = {
+        description: encryptText(q.description.trim()),
+        images: q.images || [],
+        answers: (q.answers || []).map(a => ({ ...a, text: encryptText(a.text) })),
+        rationalization: encryptText(q.rationalization?.trim() || ''),
+        tag: q.tagId || null,
+        program: resolvedProgramId,
+        createdBy: req.user._id,
+        state: 'draft',
+        // Image flags from import
+        image_required: q.image_required || false,
+        image_note: q.image_note || null,
+        image_flag_removed_by_user: q.image_flag_removed_by_user || false,
+        // Group metadata
+        groupId,
+        groupOrder: i,
+        groupContext: groupContext?.trim() || null,
+      };
+
+      const question = await Question.create(questionData);
+      const populated = await question.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      createdQuestions.push(decryptQuestion(populated));
+    }
+
+    await logAudit(req.user._id, 'question_group_created', 'Question', null, {
+      groupId,
+      programId: resolvedProgramId,
+      questionCount: createdQuestions.length,
+    });
+
+    res.status(201).json({ questions: createdQuestions, groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// GET /api/questions/group/:groupId — fetch all questions in a group
+const getQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id })
+      .populate('tag', 'name')
+      .populate('program', 'name code')
+      .sort({ groupOrder: 1 });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Group not found or access denied' });
+    }
+
+    res.json({ questions: questions.map(decryptQuestion), groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// POST /api/questions/group/:groupId/submit — submit all questions in a group together
+const submitQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    if (questions.length < 2) {
+      return res.status(400).json({ message: 'A grouped question set must have at least 2 questions to submit' });
+    }
+
+    // Validate every question in the group against strict board exam rules
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (q.state !== 'draft' && q.state !== 'returned') {
+        return res.status(400).json({ message: `Question ${i + 1} is already ${q.state}` });
+      }
+
+      const decrypted = decryptQuestion(q);
+      const prefix = `Question ${i + 1}: `;
+
+      if (!decrypted.description?.trim()) {
+        return res.status(400).json({ message: `${prefix}Question text is required for submission` });
+      }
+      if (!decrypted.rationalization?.trim()) {
+        return res.status(400).json({ message: `${prefix}Rationalization is required for submission` });
+      }
+      if (!decrypted.tag) {
+        return res.status(400).json({ message: `${prefix}A subject tag must be assigned before submission` });
+      }
+
+      const answers = decrypted.answers || [];
+      const filledOptions = answers.filter(a => a.text?.trim() !== '').length;
+      if (filledOptions < 4 || filledOptions > 5) {
+        return res.status(400).json({ message: `${prefix}Questions must have exactly 4 or 5 filled options for board exams` });
+      }
+
+      const correctCount = answers.filter(a => a.isCorrect).length;
+      if (correctCount === 0) {
+        return res.status(400).json({ message: `${prefix}No correct answer selected` });
+      } else if (correctCount > 1) {
+        return res.status(400).json({ message: `${prefix}Multiple correct answers selected` });
+      }
+
+      const texts = answers.map(a => a.text?.trim().toLowerCase()).filter(Boolean);
+      const uniqueTexts = new Set(texts);
+      if (uniqueTexts.size < texts.length) {
+        return res.status(400).json({ message: `${prefix}Duplicate answer choices detected` });
+      }
+    }
+
+    // Transition all questions to pending_chair
+    const submittedQuestions = [];
+    for (const question of questions) {
+      question.state = 'pending_chair';
+      question.submittedAt = new Date();
+      question.revisionNote = null;
+      question.feedbackRead = false;
+      await question.save();
+
+      const populated = await question.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      submittedQuestions.push(decryptQuestion(populated));
+
+      await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
+        programId: question.program,
+        tagId: question.tag || null,
+        groupId,
+        state: question.state,
+      });
+    }
+
+    res.json({ questions: submittedQuestions, message: 'Question group submitted for review' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// DELETE /api/questions/group/:groupId — delete all questions in a group
+const deleteQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    for (const q of questions) {
+      if (q.state !== 'draft' && q.state !== 'rejected') {
+        return res.status(400).json({ message: 'Only draft or rejected questions can be deleted' });
+      }
+      if (q.is_used_in_exam) {
+        return res.status(400).json({ message: 'Cannot delete questions that are currently used in an exam' });
+      }
+    }
+
+    for (const q of questions) {
+      await deleteQuestionImagesFromR2(q.images);
+      await q.deleteOne();
+      await logAudit(req.user._id, 'question_deleted', 'Question', q._id, {
+        programId: q.program,
+        tagId: q.tag || null,
+        groupId,
+      });
+    }
+
+    res.json({ message: 'Question group deleted', groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// PUT /api/questions/group/:groupId — update entire question group (reorder, edit text, choices, context)
+const updateQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { questions: questionsPayload, groupContext } = req.body;
+
+    if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
+      return res.status(400).json({ message: 'A question group must have at least 2 questions' });
+    }
+
+    const existingQuestions = await Question.find({ groupId, createdBy: req.user._id });
+    if (existingQuestions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
+    for (const q of existingQuestions) {
+      if (!editableStates.includes(q.state)) {
+        return res.status(400).json({ message: 'Only draft, returned, pending, or restored question groups can be edited' });
+      }
+    }
+
+    const settings = await AppSettings.getSingleton();
+    const maxAllowed = settings.maxUploadImages ?? 5;
+    const programId = existingQuestions[0].program;
+
+    // Validate payloads
+    for (let i = 0; i < questionsPayload.length; i++) {
+      const q = questionsPayload[i];
+      if (!q.description?.trim()) {
+        return res.status(400).json({ message: `Question ${i + 1}: Question prompt/description is required` });
+      }
+      if (Array.isArray(q.images) && q.images.length > maxAllowed) {
+        return res.status(400).json({ message: `Question ${i + 1}: maximum of ${maxAllowed} images allowed` });
+      }
+    }
+
+    const existingMap = new Map(existingQuestions.map(q => [String(q._id), q]));
+    const updatedQuestions = [];
+
+    // Update or create members
+    for (let i = 0; i < questionsPayload.length; i++) {
+      const qData = questionsPayload[i];
+      const qId = qData._id ? String(qData._id) : null;
+      let questionDoc = qId ? existingMap.get(qId) : null;
+
+      if (questionDoc) {
+        questionDoc.description = encryptText(qData.description.trim());
+        questionDoc.rationalization = encryptText(qData.rationalization?.trim() || '');
+        questionDoc.answers = (qData.answers || []).map(a => ({ ...a, text: encryptText(a.text) }));
+        questionDoc.tag = qData.tagId || qData.tag?._id || qData.tag || null;
+        questionDoc.images = qData.images || [];
+        questionDoc.groupOrder = i;
+        questionDoc.groupContext = groupContext?.trim() || null;
+        if (questionDoc.state === 'pending_chair' || questionDoc.state === 'restored') {
+          questionDoc.state = 'draft';
+          questionDoc.currentReviewer = null;
+          questionDoc.reviewStartedAt = null;
+        }
+        await questionDoc.save();
+        existingMap.delete(qId);
+      } else {
+        questionDoc = await Question.create({
+          description: encryptText(qData.description.trim()),
+          images: qData.images || [],
+          answers: (qData.answers || []).map(a => ({ ...a, text: encryptText(a.text) })),
+          rationalization: encryptText(qData.rationalization?.trim() || ''),
+          tag: qData.tagId || qData.tag?._id || qData.tag || null,
+          program: programId,
+          createdBy: req.user._id,
+          state: 'draft',
+          groupId,
+          groupOrder: i,
+          groupContext: groupContext?.trim() || null,
+        });
+      }
+
+      const populated = await questionDoc.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      updatedQuestions.push(decryptQuestion(populated));
+    }
+
+    // Delete any questions that were removed from the group during edit
+    for (const [, removedQ] of existingMap) {
+      await deleteQuestionImagesFromR2(removedQ.images);
+      await removedQ.deleteOne();
+    }
+
+    await logAudit(req.user._id, 'question_group_updated', 'Question', null, {
+      groupId,
+      questionCount: updatedQuestions.length,
+    });
+
+    res.json({ questions: updatedQuestions, groupId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -505,6 +838,33 @@ const reviewQuestion = async (req, res) => {
       return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
     }
 
+    // If this question belongs to a group, apply the same review action to all siblings in that group
+    let siblingQuestions = [];
+    if (updated.groupId) {
+      const siblingFilter = {
+        groupId: updated.groupId,
+        _id: { $ne: updated._id },
+        state: requiredState,
+      };
+      if (req.user.role === 'program_chair') {
+        siblingFilter.program = req.user.program;
+      } else if (req.user.role === 'dean') {
+        const accessibleIds = await getAccessibleProgramIds(req.user);
+        siblingFilter.program = { $in: accessibleIds };
+      }
+
+      await Question.updateMany(
+        siblingFilter,
+        { $set: updateSet, ...(action === 'restore' ? { $unset: { rejectionReason: 1 } } : {}) }
+      );
+
+      const updatedSiblings = await Question.find({ groupId: updated.groupId })
+        .populate('tag', 'name')
+        .populate('program', 'name code')
+        .populate('createdBy', 'name');
+      siblingQuestions = updatedSiblings.map(decryptQuestion);
+    }
+
     const populated = await updated.populate([
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
@@ -516,8 +876,12 @@ const reviewQuestion = async (req, res) => {
       programId: updated.program,
       note: note?.trim() || null,
       newState: updated.state,
+      groupId: updated.groupId || null,
     });
-    res.json({ question: decryptQuestion(populated) });
+    res.json({
+      question: decryptQuestion(populated),
+      groupQuestions: siblingQuestions.length > 0 ? siblingQuestions : undefined,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -608,6 +972,11 @@ module.exports = {
   listQuestions,
   listApprovals,
   createQuestion,
+  createQuestionGroup,
+  getQuestionGroup,
+  updateQuestionGroup,
+  submitQuestionGroup,
+  deleteQuestionGroup,
   updateQuestion,
   deleteQuestion,
   submitQuestion,

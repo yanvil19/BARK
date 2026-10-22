@@ -73,7 +73,10 @@ export default function CreateQuestions({ role, programId, programLabel, program
   const [sortBy, setSortBy] = useState('newest');
   const [loading, setLoading] = useState(true);
   const [editQuestion, setEditQuestion] = useState(null);
+  const [editGroupQuestions, setEditGroupQuestions] = useState(null);
   const [viewQuestion, setViewQuestion] = useState(null);
+  const [viewGroupQuestions, setViewGroupQuestions] = useState(null);
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   // Import-related state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importedQuestions, setImportedQuestions] = useState([]);
@@ -277,11 +280,36 @@ export default function CreateQuestions({ role, programId, programLabel, program
       if (sortBy === 'oldest') {
         return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
       }
-
       return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
     });
 
-    return next;
+    // Keep questions belonging to the same group contiguous and ordered by groupOrder
+    const groupClusters = new Map();
+    const result = [];
+    for (const q of next) {
+      if (!q.groupId) {
+        result.push(q);
+      } else {
+        if (!groupClusters.has(q.groupId)) {
+          groupClusters.set(q.groupId, []);
+          result.push({ _isGroupClusterPlaceholder: true, groupId: q.groupId });
+        }
+        groupClusters.get(q.groupId).push(q);
+      }
+    }
+
+    const finalQuestions = [];
+    for (const item of result) {
+      if (item._isGroupClusterPlaceholder) {
+        const cluster = groupClusters.get(item.groupId) || [];
+        cluster.sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+        finalQuestions.push(...cluster);
+      } else {
+        finalQuestions.push(item);
+      }
+    }
+
+    return finalQuestions;
   }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
 
   const { paginatedQuestions } = useMemo(() => {
@@ -293,6 +321,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
   function closeFormModal() {
     setShowForm(false);
     setEditQuestion(null);
+    setEditGroupQuestions(null);
     setImportedQuestions([]);
     setIsRestoringImportDraft(false);
   }
@@ -300,6 +329,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
   function closeViewModal() {
     setShowViewModal(false);
     setViewQuestion(null);
+    setViewGroupQuestions(null);
   }
 
   function closeDeleteModal() {
@@ -308,6 +338,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
   function openCreateModal() {
     setEditQuestion(null);
+    setEditGroupQuestions(null);
     setShowForm(true);
   }
 
@@ -351,30 +382,80 @@ export default function CreateQuestions({ role, programId, programLabel, program
           );
           window.dispatchEvent(new CustomEvent('badge-counts-updated'));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }
 
   function openEditModal(question) {
-    setEditQuestion(question);
-    setShowForm(true);
+    if (question?.groupId) {
+      // Find all siblings in local state first
+      const siblings = questions
+        .filter((q) => q.groupId === question.groupId)
+        .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+
+      setEditQuestion(question);
+      setEditGroupQuestions(siblings.length > 0 ? siblings : [question]);
+      setShowForm(true);
+
+      // Also fetch fresh group data from backend in background to ensure up-to-date
+      apiAuth(`${BASE}/api/questions/group/${question.groupId}`)
+        .then((res) => {
+          if (Array.isArray(res?.questions) && res.questions.length > 0) {
+            setEditGroupQuestions(res.questions);
+          }
+        })
+        .catch(() => { });
+    } else {
+      setEditQuestion(question);
+      setEditGroupQuestions(null);
+      setShowForm(true);
+    }
     markQuestionAsRead(question);
   }
 
   function openViewModal(question) {
-    setViewQuestion(question);
-    setShowViewModal(true);
+    if (question?.groupId) {
+      const siblings = questions
+        .filter((q) => q.groupId === question.groupId)
+        .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+
+      setViewQuestion(question);
+      setViewGroupQuestions(siblings.length > 0 ? siblings : [question]);
+      setShowViewModal(true);
+
+      apiAuth(`${BASE}/api/questions/group/${question.groupId}`)
+        .then((res) => {
+          if (Array.isArray(res?.questions) && res.questions.length > 0) {
+            setViewGroupQuestions(res.questions);
+          }
+        })
+        .catch(() => { });
+    } else {
+      setViewQuestion(question);
+      setViewGroupQuestions(null);
+      setShowViewModal(true);
+    }
     markQuestionAsRead(question);
   }
 
   function handleSaved(savedData, isEdit) {
     if (Array.isArray(savedData)) {
-      if (isEdit && savedData.length === 1) {
+      if (savedData.length > 0 && savedData[0].groupId) {
+        // Group saved/updated: update existing members or append new
+        const savedIds = new Set(savedData.map((q) => q._id));
+        const savedMap = new Map(savedData.map((q) => [q._id, q]));
+        setQuestions((prev) => {
+          const updated = prev.map((q) => (savedIds.has(q._id) ? savedMap.get(q._id) : q));
+          const existingIds = new Set(prev.map((q) => q._id));
+          const newlyCreated = savedData.filter((q) => !existingIds.has(q._id));
+          return [...newlyCreated, ...updated];
+        });
+      } else if (isEdit && savedData.length === 1) {
         setQuestions((prev) => prev.map((q) => (q._id === savedData[0]._id ? savedData[0] : q)));
       } else {
         setQuestions((prev) => [...savedData, ...prev]);
       }
-    } else {
+    } else if (savedData) {
       if (isEdit) {
         setQuestions((prev) => prev.map((q) => (q._id === savedData._id ? savedData : q)));
       } else {
@@ -391,8 +472,13 @@ export default function CreateQuestions({ role, programId, programLabel, program
   async function confirmDelete() {
     if (!questionToDelete) return;
     try {
-      await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
-      setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
+      if (questionToDelete.isGroupAction && questionToDelete.groupId) {
+        await apiAuth(`${BASE}/api/questions/group/${questionToDelete.groupId}`, { method: 'DELETE' });
+        setQuestions((prev) => prev.filter((item) => item.groupId !== questionToDelete.groupId));
+      } else {
+        await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
+        setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
+      }
       closeDeleteModal();
       window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
@@ -404,8 +490,8 @@ export default function CreateQuestions({ role, programId, programLabel, program
     }
   }
 
-  function handleSubmit(question) {
-    setQuestionToSubmit(question);
+  function handleSubmit(question, isGroup = false) {
+    setQuestionToSubmit({ ...question, isGroupAction: isGroup });
   }
 
   async function confirmSubmit() {
@@ -413,8 +499,15 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
     setSubmitBusy(true);
     try {
-      const data = await apiAuth(`${BASE}/api/questions/${questionToSubmit._id}/submit`, { method: 'POST' });
-      setQuestions((prev) => prev.map((item) => (item._id === questionToSubmit._id ? data.question : item)));
+      if (questionToSubmit.isGroupAction && questionToSubmit.groupId) {
+        const data = await apiAuth(`${BASE}/api/questions/group/${questionToSubmit.groupId}/submit`, { method: 'POST' });
+        const updatedIds = new Set(data.questions.map(q => q._id));
+        const updatedMap = new Map(data.questions.map(q => [q._id, q]));
+        setQuestions((prev) => prev.map((item) => (updatedIds.has(item._id) ? updatedMap.get(item._id) : item)));
+      } else {
+        const data = await apiAuth(`${BASE}/api/questions/${questionToSubmit._id}/submit`, { method: 'POST' });
+        setQuestions((prev) => prev.map((item) => (item._id === questionToSubmit._id ? data.question : item)));
+      }
       setQuestionToSubmit(null);
       window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
@@ -700,75 +793,179 @@ export default function CreateQuestions({ role, programId, programLabel, program
                   </td>
                 </tr>
               ) : (
-                paginatedQuestions.map((question) => (
-                  <tr key={question._id}>
-                    <td>
-                      <div className="qp-question-text">{truncateText(question.description, 120)}</div>
+                (() => {
+                  const renderedGroupIds = new Set();
+                  return paginatedQuestions.map((question) => {
+                    const isGrouped = !!question.groupId;
+                    const isFirstInGroup = isGrouped && !renderedGroupIds.has(question.groupId);
+                    if (isFirstInGroup) {
+                      renderedGroupIds.add(question.groupId);
+                    }
 
-                      {question.state === 'returned' && question.revisionNote ? (
-                        <div className="qp-note qp-note--returned">
-                          <strong>Revision Note:</strong> {question.revisionNote}
-                        </div>
-                      ) : null}
+                    // Count total in this group within current list
+                    const groupMembers = isGrouped ? filteredQuestions.filter(q => q.groupId === question.groupId) : [];
+                    const canSubmitGroup = groupMembers.every(q => q.state === 'draft' || q.state === 'returned');
+                    const canDeleteGroup = groupMembers.every(q => q.state === 'draft' || q.state === 'rejected');
+                    const isGroupCollapsed = isGrouped && collapsedGroups.has(question.groupId);
+                    const canEditGroup = groupMembers.some(q => q.state === 'draft' || q.state === 'returned');
 
-                      {question.state === 'rejected' && question.rejectionReason ? (
-                        <div className="qp-note qp-note--rejected">
-                          <strong>Rejected:</strong> {question.rejectionReason}
-                        </div>
-                      ) : null}
-                    </td>
+                    const toggleCollapse = () => {
+                      setCollapsedGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(question.groupId)) {
+                          next.delete(question.groupId);
+                        } else {
+                          next.add(question.groupId);
+                        }
+                        return next;
+                      });
+                    };
 
-                    <td>
-                      {question.tag?.name ? (
-                        <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
-                      ) : (
-                        <span className="qp-none">(none)</span>
-                      )}
-                    </td>
+                    const groupDisplayTitle = question.groupContext?.trim()
+                      ? truncateText(question.groupContext.trim(), 90)
+                      : `Question Set (${groupMembers.length} questions)`;
 
-                    {role === 'dean' && (
-                      <td>
-                        {question.program?.code || question.program?.name ? (
-                          <span className="qp-badge qp-badge--program">
-                            {question.program?.code || question.program?.name}
-                          </span>
-                        ) : (
-                          <span className="qp-none">(none)</span>
+                    return (
+                      <React.Fragment key={question._id}>
+                        {isFirstInGroup && (
+                          <tr className="qp-group-header-row">
+                            <td colSpan={role === 'dean' ? 6 : 5}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div
+                                  className="qp-group-header-content"
+                                  onClick={toggleCollapse}
+                                  style={{ cursor: 'pointer', userSelect: 'none', flex: 1, minWidth: 0, padding: '4px 0' }}
+                                  title={isGroupCollapsed ? "Click to expand questions in this set" : "Click to collapse questions in this set"}
+                                >
+                                  <span style={{ fontWeight: 700 }}> {groupDisplayTitle}</span>
+                                  <span style={{ fontSize: '12px', color: '#6874aa', fontWeight: 500, marginLeft: '4px' }}>
+                                    ({groupMembers.length} question{groupMembers.length > 1 ? 's' : ''})
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  {canEditGroup && (
+                                    <button
+                                      type="button"
+                                      className="qp-btn-edit"
+                                      style={{ padding: '3px 10px', fontSize: '11px' }}
+                                      onClick={() => openEditModal(question)}
+                                      title="Edit all questions, reorder positions, or update scenario context"
+                                    >
+                                      Edit Set
+                                    </button>
+                                  )}
+                                  {canSubmitGroup && (
+                                    <button
+                                      type="button"
+                                      className="qp-btn-submit"
+                                      style={{ padding: '3px 10px', fontSize: '11px' }}
+                                      onClick={() => handleSubmit(question, true)}
+                                      title="Submit all questions in this group for review"
+                                    >
+                                      Submit Group
+                                    </button>
+                                  )}
+                                  {canDeleteGroup && (
+                                    <button
+                                      type="button"
+                                      className="qp-btn-delete"
+                                      style={{ padding: '3px 10px', fontSize: '11px' }}
+                                      onClick={() => setQuestionToDelete({ ...question, isGroupAction: true })}
+                                      title="Delete all questions in this group"
+                                    >
+                                      Delete Group
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    )}
+                        {!isGroupCollapsed && (
+                          <tr>
+                            <td className={isGrouped ? 'qp-group-child-cell' : ''}>
+                              <div className="qp-question-text">
+                                {isGrouped && (
+                                  <span className="qp-group-child-number">
+                                    Q{(question.groupOrder ?? 0) + 1}.
+                                  </span>
+                                )}
+                                {truncateText(question.description, 120)}
+                                {isGrouped && (
+                                  <span className="qp-badge qp-badge--group" title="This question belongs to a fixed question group">
+                                    Part {(question.groupOrder ?? 0) + 1}
+                                  </span>
+                                )}
+                              </div>
 
-                    <td>
-                      <span className={`qp-status qp-status--${question.state}`}>
-                        <span className="qp-status-dot" />
-                        {getStatusLabel(question.state)}
-                      </span>
-                    </td>
+                              {question.state === 'returned' && question.revisionNote ? (
+                                <div className="qp-note qp-note--returned">
+                                  <strong>Revision Note:</strong> {question.revisionNote}
+                                </div>
+                              ) : null}
 
-                    <td>{formatDate(question.updatedAt || question.createdAt)}</td>
+                              {question.state === 'rejected' && question.rejectionReason ? (
+                                <div className="qp-note qp-note--rejected">
+                                  <strong>Rejected:</strong> {question.rejectionReason}
+                                </div>
+                              ) : null}
+                            </td>
 
-                    <td className="qp-actions-cell">
-                      {question.state === 'draft' || question.state === 'returned' ? (
-                        <>
-                          <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
-                          <button className="qp-btn-submit" onClick={() => handleSubmit(question)}>
-                            {question.state === 'returned' ? 'Re-submit' : 'Submit'}
-                          </button>
-                          <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
-                        </>
-                      ) : null}
+                            <td>
+                              {question.tag?.name ? (
+                                <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
+                              ) : (
+                                <span className="qp-none">(none)</span>
+                              )}
+                            </td>
 
-                      {question.state !== 'draft' && question.state !== 'returned' ? (
-                        <>
-                          <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
-                          {question.state === 'rejected' ? (
-                            <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
-                          ) : null}
-                        </>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))
+                            {role === 'dean' && (
+                              <td>
+                                {question.program?.code || question.program?.name ? (
+                                  <span className="qp-badge qp-badge--program">
+                                    {question.program?.code || question.program?.name}
+                                  </span>
+                                ) : (
+                                  <span className="qp-none">(none)</span>
+                                )}
+                              </td>
+                            )}
+
+                            <td>
+                              <span className={`qp-status qp-status--${question.state}`}>
+                                <span className="qp-status-dot" />
+                                {getStatusLabel(question.state)}
+                              </span>
+                            </td>
+
+                            <td>{formatDate(question.updatedAt || question.createdAt)}</td>
+
+                            <td className="qp-actions-cell">
+                              {question.state === 'draft' || question.state === 'returned' ? (
+                                <>
+                                  <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
+                                  <button className="qp-btn-submit" onClick={() => handleSubmit(question, isGrouped)}>
+                                    {question.state === 'returned' ? 'Re-submit' : 'Submit'}
+                                  </button>
+                                  <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
+                                </>
+                              ) : null}
+
+                              {question.state !== 'draft' && question.state !== 'returned' ? (
+                                <>
+                                  <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
+                                  {question.state === 'rejected' ? (
+                                    <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
+                                  ) : null}
+                                </>
+                              ) : null}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })()
               )}
             </tbody>
           </table>
@@ -814,24 +1011,28 @@ export default function CreateQuestions({ role, programId, programLabel, program
       <Modal
         open={showForm}
         onClose={closeFormModal}
-        title={editQuestion ? 'Edit Question' : 'Create Question'}
+        title={editGroupQuestions ? 'Edit Question Set' : editQuestion ? 'Edit Question' : 'Create Question'}
       >
         <div className="qp-modal-copy">
           <p className="qp-modal-subtitle">
-            {editQuestion
-              ? 'Update the question details and save your changes.'
-              : importedQuestions.length > 0
-                ? `${importedQuestions.length} questions extracted. Review, assign tags, and save.`
-                : 'Add a new question draft for your program.'}
+            {editGroupQuestions
+              ? `Update all ${editGroupQuestions.length} questions in this set, reorder positions, or update the scenario context.`
+              : editQuestion
+                ? 'Update the question details and save your changes.'
+                : importedQuestions.length > 0
+                  ? `${importedQuestions.length} questions extracted. Review, assign tags, and save.`
+                  : 'Add a new question draft for your program.'}
           </p>
           {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
         </div>
 
         <QuestionForm
+          key={editGroupQuestions ? `group-${editGroupQuestions[0]?.groupId}` : editQuestion ? `single-${editQuestion._id}` : 'new'}
           me={me}
           tags={tags}
           programId={programId}
           initialData={editQuestion}
+          initialGroupQuestions={editGroupQuestions}
           maxImages={maxImages}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
           isImportDraft={isRestoringImportDraft}
@@ -850,18 +1051,22 @@ export default function CreateQuestions({ role, programId, programLabel, program
       <Modal
         open={showViewModal}
         onClose={closeViewModal}
-        title="View Question"
+        title={viewGroupQuestions ? 'View Question Set' : 'View Question'}
       >
         <div className="qp-modal-copy">
           <p className="qp-modal-subtitle">
-            Review the details of your submitted question. This view is read-only.
+            {viewGroupQuestions
+              ? `Review details of all ${viewGroupQuestions.length} questions in this question set. This view is read-only.`
+              : 'Review the details of your submitted question. This view is read-only.'}
           </p>
           {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
         </div>
 
         <QuestionForm
+          key={viewGroupQuestions ? `view-group-${viewGroupQuestions[0]?.groupId}` : viewQuestion ? `view-single-${viewQuestion._id}` : 'view'}
           tags={tags}
           initialData={viewQuestion}
+          initialGroupQuestions={viewGroupQuestions}
           onFeedback={setFeedbackModal}
           onClose={closeViewModal}
           readOnly={true}
@@ -872,17 +1077,17 @@ export default function CreateQuestions({ role, programId, programLabel, program
         open={!!questionToDelete}
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
-        title="Delete Question"
+        title={questionToDelete?.isGroupAction ? 'Delete Question Group' : 'Delete Question'}
         message={(
           <p style={{ margin: 0 }}>
-            Are you sure you want to <strong>"delete"</strong> this question?
+            Are you sure you want to <strong>delete</strong> this {questionToDelete?.isGroupAction ? 'entire question group' : 'question'}?
           </p>
         )}
-        confirmLabel="Delete Question"
+        confirmLabel={questionToDelete?.isGroupAction ? 'Delete Question Group' : 'Delete Question'}
         confirmVariant="danger"
       >
         <p className="qp-warning-text" style={{ margin: 0 }}>
-          This action cannot be undone. The question will be permanently removed.
+          This action cannot be undone. {questionToDelete?.isGroupAction ? 'All questions in this group will be permanently removed.' : 'The question will be permanently removed.'}
         </p>
       </ConfirmationModal>
 
@@ -893,10 +1098,14 @@ export default function CreateQuestions({ role, programId, programLabel, program
           setQuestionToSubmit(null);
         }}
         onConfirm={confirmSubmit}
-        title={questionToSubmit?.state === 'returned' ? 'Re-submit Question' : 'Submit Question'}
+        title={
+          questionToSubmit?.isGroupAction
+            ? (questionToSubmit?.state === 'returned' ? 'Re-submit Question Group' : 'Submit Question Group')
+            : (questionToSubmit?.state === 'returned' ? 'Re-submit Question' : 'Submit Question')
+        }
         message={(
           <p style={{ margin: 0 }}>
-            Submit this question for Chair review? You won't be able to edit it after this.
+            Submit {questionToSubmit?.isGroupAction ? 'this entire question group' : 'this question'} for Chair review? You won't be able to edit it after this.
           </p>
         )}
         confirmLabel={questionToSubmit?.state === 'returned' ? 'Re-submit' : 'Submit'}
