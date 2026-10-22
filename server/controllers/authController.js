@@ -1592,6 +1592,25 @@ const subscribeBulkRegisterEvents = (req, res) => {
   }
 };
 
+// @desc    Update current user's heartbeat timestamp
+// @route   POST /api/auth/heartbeat
+// @access  Private
+const heartbeat = async (req, res) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    const now = new Date();
+    await User.findByIdAndUpdate(req.user._id, { $set: { last_active_at: now } });
+
+    return res.status(200).json({ ok: true, last_active_at: now });
+  } catch (error) {
+    console.error('Heartbeat error:', error);
+    return res.status(500).json({ message: 'Failed to update heartbeat' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1612,4 +1631,6 @@ module.exports = {
   listRegistrationRequests,
   approveRegistrationRequest,
   rejectRegistrationRequest,
+  heartbeat,
 };
+

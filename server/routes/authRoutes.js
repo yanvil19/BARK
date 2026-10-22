@@ -21,6 +21,7 @@ const {
   listRegistrationRequests,
   approveRegistrationRequest,
   rejectRegistrationRequest,
+  heartbeat,
 } = require('../controllers/authController');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/emailService');
@@ -147,6 +148,10 @@ router.post('/register', protect, authorizeRoles('super_admin'), registerUser);
 // @route   GET /api/auth/me
 // @access  Private
 router.get('/me', protect, getMe);
+
+// @route   POST /api/auth/heartbeat
+// @access  Private
+router.post('/heartbeat', protect, heartbeat);
 
 // @route   PATCH /api/auth/update-credentials
 // @access  Private
