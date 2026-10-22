@@ -23,6 +23,7 @@ beforeEach(async () => {
 
 const validQuestion = () => ({
   description: 'What is 1+1?',
+  rationalization: 'Basic arithmetic shows that 1+1 equals 2.',
   answers: [{ text: '2', isCorrect: true }, { text: '3', isCorrect: false }],
   program: null, // set in test after prog is created
 });
@@ -119,6 +120,7 @@ describe('POST /api/questions/:id/submit', () => {
     const tag = await Tag.create({ name: 'Algebra', program: prog._id, createdBy: profUser._id });
     const q = await Question.create({
       description: 'What is 1+1?',
+      rationalization: 'Basic arithmetic shows that 1+1 equals 2.',
       answers: [{ text: '2', isCorrect: true }, { text: '3', isCorrect: false }, { text: '4', isCorrect: false }, { text: '5', isCorrect: false }],
       tag: tag._id, program: prog._id, createdBy: profUser._id, state: 'draft',
     });

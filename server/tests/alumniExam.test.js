@@ -26,6 +26,7 @@ async function createQuestion() {
 
   question = await Question.create({
     description: 'Q1',
+    rationalization: 'Explanation for Q1',
     answers: [
       { text: 'Correct', isCorrect: true },
       { text: 'Wrong', isCorrect: false },
@@ -106,14 +107,14 @@ beforeEach(async () => {
 });
 
 describe('alumni exam availability', () => {
-  it('returns published alumni exams immediately without a schedule', async () => {
+  it('returns published alumni exams when available within schedule window', async () => {
     const exam = await createAlumniExam({
       startDateTime: futureDate(1),
       endDateTime: futureDate(2),
     });
 
-    expect(exam.startDateTime).toBeNull();
-    expect(exam.endDateTime).toBeNull();
+    expect(exam.startDateTime).toBeDefined();
+    expect(exam.endDateTime).toBeDefined();
 
     const res = await request(app)
       .get('/api/alumni-exams/available')
@@ -331,7 +332,7 @@ describe('alumni exam attempts', () => {
 });
 
 describe('mock board alumni exam creation', () => {
-  it('allows publishing alumni exams without startDateTime and endDateTime', async () => {
+  it('allows publishing alumni exams with schedule', async () => {
     const res = await request(app)
       .post('/api/mock-board-exams')
       .set('Cookie', `nu_board_token=${deanToken}`)
@@ -340,14 +341,32 @@ describe('mock board alumni exam creation', () => {
         programId: prog._id,
         subjectTagIds: [tag._id],
         questionIds: [question._id],
+        startDateTime: futureDate(1),
+        endDateTime: futureDate(2),
         status: 'published',
         targetAudience: 'alumni',
       });
 
     expect(res.status).toBe(201);
     expect(res.body.exam.targetAudience).toBe('alumni');
-    expect(res.body.exam.startDateTime).toBeNull();
-    expect(res.body.exam.endDateTime).toBeNull();
+    expect(res.body.exam.startDateTime).toBeDefined();
+    expect(res.body.exam.endDateTime).toBeDefined();
+  });
+
+  it('rejects publishing alumni exams without startDateTime and endDateTime', async () => {
+    const res = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({
+        name: 'Published Alumni Exam Without Schedule',
+        programId: prog._id,
+        subjectTagIds: [tag._id],
+        questionIds: [question._id],
+        status: 'published',
+        targetAudience: 'alumni',
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it('allows simultaneous publishing of student and alumni exams at the same time', async () => {
