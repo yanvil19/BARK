@@ -397,8 +397,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     });
   }
 
-  function handleSelectAllVisible(e) {
-    e.stopPropagation();
+  function handleToggleAllFiltered() {
     const visibleIds = filteredApprovedQuestions.map(q => q._id);
     const allSelected = visibleIds.length > 0 && visibleIds.every(id => bulkSelectedIds.has(id));
     
@@ -458,18 +457,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
     if (approvedSelectionFilter === 'unselected') parts.push('not selected yet');
     return parts.length > 0 ? parts.join(', ') : null;
-  }
-
-  function isFilterActive() {
-    return searchQuery.trim() || questionFilterTagId || approvedSelectionFilter !== 'all';
-  }
-
-  function handleSelectFiltered() {
-    setBulkSelectedIds(prev => {
-      const next = new Set(prev);
-      filteredApprovedQuestions.forEach(q => next.add(q._id));
-      return next;
-    });
   }
 
   function handleReturnQuestion(question) {
@@ -933,35 +920,33 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               {programId && selectedTagIds.length > 0 ? (
                 <>
                   {bulkSelectedIds.size > 0 && (
-                    <div className="ca-bulk-toolbar" style={{ marginBottom: '16px', borderRadius: '8px' }}>
+                    <div className="ca-bulk-toolbar mbe-bulk-toolbar">
                       <span className="ca-bulk-count">
                         {bulkSelectedIds.size} question{bulkSelectedIds.size > 1 ? 's' : ''} selected
                       </span>
                       <div className="ca-bulk-actions">
-                        <button className="ca-bulk-btn ca-bulk-btn--approve" type="button" onClick={handleBulkAddSelected}>Add Selected ({bulkSelectedIds.size})</button>
-                        <button className="ca-bulk-btn ca-bulk-btn--remove" type="button" onClick={handleBulkRemoveSelected}>Remove Selected ({bulkSelectedIds.size})</button>
-                        <button className="ca-bulk-btn ca-bulk-btn--clear" type="button" onClick={() => setBulkSelectedIds(new Set())}>✕ Deselect All</button>
+                        {approvedQuestions.some((question) => (
+                          bulkSelectedIds.has(question._id) && !selectedQuestionIds.has(String(question._id))
+                        )) && (
+                          <button className="ca-bulk-btn ca-bulk-btn--approve" type="button" onClick={handleBulkAddSelected}>
+                            Add to exam
+                          </button>
+                        )}
+                        {approvedQuestions.some((question) => (
+                          bulkSelectedIds.has(question._id) && selectedQuestionIds.has(String(question._id))
+                        )) && (
+                          <button className="ca-bulk-btn ca-bulk-btn--remove" type="button" onClick={handleBulkRemoveSelected}>
+                            Remove from exam
+                          </button>
+                        )}
+                        <button className="ca-bulk-btn ca-bulk-btn--clear" type="button" onClick={() => setBulkSelectedIds(new Set())}>
+                          Clear selection
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  <div className="mbe-toolbar">
-                    <label className="ca-checkbox-wrapper mbe-bulk-checkbox" onClick={e => e.stopPropagation()} style={{ padding: '0 8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        className="ca-checkbox"
-                        checked={filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id))}
-                        ref={el => { 
-                          if (el) {
-                            const someSelected = filteredApprovedQuestions.some(q => bulkSelectedIds.has(q._id));
-                            const allSelected = filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id));
-                            el.indeterminate = someSelected && !allSelected;
-                          }
-                        }}
-                        onChange={handleSelectAllVisible}
-                        title="Select All on this page"
-                      />
-                    </label>
+                  <div className="mbe-question-filters">
                     <input
                       className="mbe-input mbe-search"
                       type="text"
@@ -990,22 +975,49 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                       <option value="selected">Selected only</option>
                       <option value="unselected">Not selected yet</option>
                     </select>
-                    <div className="mbe-toolbar-stats">
-                      <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={handleSelectFiltered}>
-                        {isFilterActive() ? 'Select Filtered' : 'Select All'}
-                      </button>
-                      {approvedSelectionFilter === 'selected' ? (
-                        <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn mbe-toolbar-action-btn--danger" onClick={() => setFilteredBulkModal('remove')}>
-                          Remove All Filtered
-                        </button>
-                      ) : (
-                        <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={() => setFilteredBulkModal('add')}>
-                          {isFilterActive() ? 'Add All Filtered' : 'Add All'}
-                        </button>
-                      )}
-                      <span className="mbe-toolbar-pill">{filteredApprovedQuestions.length} available</span>
-                      <span className="mbe-toolbar-pill mbe-toolbar-pill--selected">{selectedQuestions.length} selected</span>
-                    </div>
+                  </div>
+
+                  <div className="mbe-question-bulk-controls">
+                    <label className="mbe-select-matching">
+                      <input
+                        type="checkbox"
+                        className="ca-checkbox"
+                        checked={filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every((question) => bulkSelectedIds.has(question._id))}
+                        ref={(element) => {
+                          if (element) {
+                            const someSelected = filteredApprovedQuestions.some((question) => bulkSelectedIds.has(question._id));
+                            const allSelected = filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every((question) => bulkSelectedIds.has(question._id));
+                            element.indeterminate = someSelected && !allSelected;
+                          }
+                        }}
+                        onChange={handleToggleAllFiltered}
+                        disabled={filteredApprovedQuestions.length === 0}
+                      />
+                      <span>
+                        Select all {filteredApprovedQuestions.length} matching question{filteredApprovedQuestions.length === 1 ? '' : 's'}
+                      </span>
+                    </label>
+                    {filteredApprovedQuestions.length > 0 && (
+                      <>
+                        {approvedSelectionFilter === 'selected' ? (
+                          <button
+                            type="button"
+                            className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-filter-action mbe-filter-action--danger"
+                            onClick={() => setFilteredBulkModal('remove')}
+                          >
+                            Remove all matching
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-filter-action"
+                            onClick={() => setFilteredBulkModal('add')}
+                          >
+                            Add all matching
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}

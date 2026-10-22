@@ -21,6 +21,7 @@
   --mbe-audience-dark:     #1e2660;
   --mbe-audience-soft:     #eef2ff;
   --mbe-audience-border:   #c7d2fe;
+  --mbe-audience-accent:   #35408e;
   --mbe-audience-shadow:   rgba(53, 64, 142, 0.16);
   --mbe-audience-gradient: linear-gradient(135deg, #35408e 0%, #1e2660 100%);
   --mbe-audience-pill-bg:  #eef2ff;
@@ -29,14 +30,18 @@
 
 .mbe-page[data-audience="alumni"],
 .mbe-card[data-audience="alumni"] {
-  --mbe-audience:          #32418C;
-  --mbe-audience-dark:     #1a2b5e;
-  --mbe-audience-soft:     #fffdf0;
-  --mbe-audience-border:   #FBD117;
-  --mbe-audience-shadow:   rgba(251, 209, 23, 0.18);
-  --mbe-audience-gradient: linear-gradient(135deg, #c9a20d 0%, #a07e00 100%);
-  --mbe-audience-pill-bg:  #fffdf0;
-  --mbe-audience-pill-fg:  #7a6200;
+  --mbe-audience:          #805400;
+  --mbe-audience-dark:     #694400;
+  --mbe-audience-soft:     #fff8e5;
+  --mbe-audience-border:   #e8bd57;
+  --mbe-audience-accent:   #e8bd57;
+  --mbe-audience-text:     #71561e;
+  --mbe-audience-heading:  #805400;
+  --mbe-audience-muted:    #8b7546;
+  --mbe-audience-shadow:   rgba(128, 84, 0, 0.14);
+  --mbe-audience-gradient: linear-gradient(120deg, #f7dc7d 0%, #f4ca55 100%);
+  --mbe-audience-pill-bg:  #fff8e5;
+  --mbe-audience-pill-fg:  #694400;
 }
 
 /* ── Form wrapper ───────────────────────────────────────────────────── */
@@ -120,6 +125,25 @@
   text-transform: uppercase;
 }
 
+.mbe-page[data-audience="alumni"] .mbe-hero-banner {
+  color: var(--mbe-audience-heading);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-hero-label {
+  color: var(--mbe-audience-heading);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-hero-sublabel {
+  color: rgba(113, 86, 30, 0.88);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-hero-editing-badge,
+.mbe-page[data-audience="alumni"] .mbe-status-pill--draft {
+  color: var(--mbe-audience-heading);
+  background: rgba(255, 255, 255, 0.58);
+  border-color: rgba(113, 86, 30, 0.24);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    TAB BAR
 ════════════════════════════════════════════════════════════════════ */
@@ -133,6 +157,11 @@
   padding: 5px 6px;
   box-shadow: 0 2px 8px rgba(34, 41, 91, 0.07);
   overflow-x: auto;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-tab-bar {
+  background: var(--mbe-audience-soft);
+  border-color: var(--mbe-audience-border);
 }
 
 .mbe-tab-btn {
@@ -157,6 +186,11 @@
 .mbe-tab-btn:hover:not(.is-active) {
   background: #f0f3ff;
   color: #35408e;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-tab-btn:hover:not(.is-active) {
+  background: #ffefb2;
+  color: var(--mbe-audience-dark);
 }
 
 .mbe-tab-btn.is-active {
@@ -204,7 +238,33 @@
 }
 
 .mbe-card[data-audience] {
-  border-top: 3px solid var(--mbe-audience);
+  position: relative;
+  border-top: 3px solid var(--mbe-audience-accent, var(--mbe-audience));
+}
+
+.mbe-card[data-audience]::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  color: var(--mbe-audience);
+  content: attr(data-audience);
+  font-family: var(--font-title);
+  font-size: clamp(3.5rem, 11vw, 8rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0.045;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mbe-card[data-audience] > * {
+  position: relative;
+  z-index: 1;
 }
 
 .mbe-form-card,
@@ -306,9 +366,9 @@
 
 /* Alumni active state */
 .mbe-audience-card--alumni.is-active {
-  border-color: #FBD117;
-  background: #fffdf0;
-  box-shadow: 0 4px 18px rgba(251, 209, 23, 0.18);
+  border-color: #e9b52b;
+  background: #fff8df;
+  box-shadow: 0 4px 18px rgba(135, 89, 0, 0.16);
 }
 
 .mbe-audience-card-title {
@@ -323,7 +383,7 @@
 }
 
 .mbe-audience-card--alumni.is-active .mbe-audience-card-title {
-  color: #7a6200;
+  color: #684300;
 }
 
 .mbe-audience-card-desc {
@@ -338,7 +398,7 @@
 }
 
 .mbe-audience-card--alumni.is-active .mbe-audience-card-desc {
-  color: #8a7000;
+  color: #684300;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -504,7 +564,7 @@
   border: 1px solid #cfd6ee;
   border-radius: 10px;
   box-shadow: 0 4px 10px rgba(34, 41, 91, 0.07);
-  border-top: 3px solid var(--mbe-audience);
+  border-top: 3px solid var(--mbe-audience-accent, var(--mbe-audience));
 }
 
 .mbe-review-actions {
@@ -580,6 +640,66 @@
   gap: 12px;
   margin-bottom: 18px;
   flex-wrap: wrap;
+}
+
+.mbe-question-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) minmax(180px, 220px);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mbe-question-filters .mbe-search,
+.mbe-question-filters .mbe-filter-select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.mbe-question-bulk-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  margin-bottom: 18px;
+  padding: 8px 12px;
+  border: 1px solid #e2e7f5;
+  border-radius: 8px;
+  background: #f9faff;
+}
+
+.mbe-select-matching {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #5261ab;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mbe-select-matching input {
+  margin: 0;
+}
+
+.mbe-filter-action {
+  flex: 0 0 auto;
+}
+
+.mbe-filter-action--danger {
+  color: #a13030;
+  border-color: #f0c1c1;
+  background: #fff0f0;
+}
+
+.mbe-filter-action--danger:hover:not(:disabled) {
+  background: #fde7e7;
+  border-color: #e8a7a7;
+}
+
+.mbe-bulk-toolbar {
+  margin-bottom: 12px;
+  border-radius: 8px;
 }
 
 .mbe-search {
@@ -1283,18 +1403,12 @@
 .ca-bulk-btn--clear:hover:not(:disabled) { background: rgba(255, 255, 255, 0.25); }
 
 .mbe-card-checkbox {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  opacity: 1;
   display: flex;
   align-items: center;
   cursor: pointer;
   padding: 0 4px 0 0;
   flex-shrink: 0;
-}
-
-.mbe-question-card:hover .mbe-card-checkbox,
-.mbe-question-card.is-bulk-selected .mbe-card-checkbox {
-  opacity: 1;
 }
 
 .ca-checkbox {
@@ -1417,6 +1531,14 @@
   .mbe-review-block--full {
     grid-column: auto;
   }
+
+  .mbe-question-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mbe-question-filters .mbe-search {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1470,6 +1592,24 @@
     margin-left: 0;
   }
 
+  .mbe-question-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .mbe-question-filters .mbe-search {
+    grid-column: auto;
+  }
+
+  .mbe-question-bulk-controls {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mbe-filter-action {
+    width: 100%;
+    justify-content: center;
+  }
+
   .mbe-table-wrap {
     overflow-x: auto;
   }
@@ -1520,4 +1660,285 @@
     width: 100%;
     justify-content: flex-start;
   }
+}
+
+/* ── Alumni theme: warm golden text and low-contrast audience watermark ─ */
+.mbe-page[data-audience="alumni"] .mbe-tab-btn:not(.is-active) {
+  color: var(--mbe-audience-muted);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-tab-btn.is-active {
+  background: var(--mbe-audience);
+  color: #fff9e9;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-tab-badge:not(.is-active) {
+  background: rgba(128, 84, 0, 0.12);
+  color: var(--mbe-audience-heading);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-section-heading h2,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-legend,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-field label,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-field-heading label,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card-title,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-alumni-settings h3,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-value,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-description,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-headline--compact {
+  color: var(--mbe-audience-heading);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-section-heading p,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-field-meta:not(.is-error),
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card-desc,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-alumni-settings p,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-availability-note,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-meta-text,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-expand-icon,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-panel-label,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-label,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-duration,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-q-count,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-empty-message,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-table-empty {
+  color: var(--mbe-audience-muted);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-input,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-select-matching,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-table td,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-answer-list--cards li {
+  color: var(--mbe-audience-text);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-input {
+  border-color: #ead9a9;
+  background-color: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-input:focus {
+  border-color: var(--mbe-audience-border);
+  box-shadow: 0 0 0 3px rgba(232, 189, 87, 0.2);
+  background: #ffffff;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-input::placeholder {
+  color: rgba(113, 86, 30, 0.58);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-empty {
+  color: #a18d61;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-tag-option,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-toolbar-pill,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-meta-pill {
+  color: var(--mbe-audience-text);
+  border-color: #ead9a9;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-tag-option.is-selected,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-toolbar-pill--selected {
+  color: var(--mbe-audience-heading);
+  border-color: var(--mbe-audience-border);
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-subject-pill,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-answer-label {
+  color: var(--mbe-audience-heading);
+  border-color: var(--mbe-audience-border);
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-select-btn {
+  color: var(--mbe-audience-heading);
+  border-color: #e8d5a3;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-select-btn.is-selected {
+  color: #fff9e9;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-bulk-controls,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-panel,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-review-block {
+  border-color: #eee2c2;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-table th {
+  color: var(--mbe-audience-heading);
+  background: #fff8e5;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-table-wrap {
+  border-color: #eee2c2;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-btn-primary {
+  color: #624b1c;
+  background: #e8bd57;
+  box-shadow: 0 6px 18px rgba(128, 84, 0, 0.18);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-btn-primary:hover:not(:disabled) {
+  color: #624b1c;
+  background: #f0cf70;
+  box-shadow: 0 8px 22px rgba(128, 84, 0, 0.22);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-btn-secondary,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-btn-ghost {
+  color: var(--mbe-audience-heading);
+  border-color: #e8d5a3;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-btn-ghost:hover:not(:disabled) {
+  background: #fff4d2;
+  border-color: var(--mbe-audience-border);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card.is-bulk-selected {
+  background: var(--mbe-audience-soft);
+  box-shadow: 0 4px 14px rgba(128, 84, 0, 0.12);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card.is-selected {
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-count-pill,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-pill {
+  color: var(--mbe-audience-heading);
+  border-color: var(--mbe-audience-border);
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-tag-option input,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-check-row input,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .ca-checkbox {
+  accent-color: var(--mbe-audience-accent);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card {
+  border-color: #ead9a9;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card:hover {
+  border-color: var(--mbe-audience-border);
+  box-shadow: 0 8px 18px rgba(128, 84, 0, 0.1);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card.is-selected,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-question-card.is-bulk-selected {
+  border-color: var(--mbe-audience-border);
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-select-btn.is-selected {
+  color: #624b1c;
+  background: var(--mbe-audience-accent);
+  border-color: var(--mbe-audience-accent);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .ca-bulk-count {
+  color: #624b1c;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .ca-bulk-toolbar {
+  background: #f4ca55;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .ca-bulk-btn--clear {
+  color: #624b1c;
+  border-color: rgba(98, 75, 28, 0.28);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .ca-bulk-btn--clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .el-pagination-info {
+  color: var(--mbe-audience-muted);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .el-pagination-btn,
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .el-pagination-page {
+  color: var(--mbe-audience-heading);
+  border-color: #e8d5a3;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .el-pagination-page--active {
+  color: #624b1c;
+  border-color: var(--mbe-audience-accent);
+  background: var(--mbe-audience-accent);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-answer-list--cards li.is-correct {
+  color: #21603a;
+}
+
+@media (max-width: 600px) {
+  .mbe-card[data-audience]::after {
+    font-size: clamp(2.75rem, 14vw, 4.5rem);
+  }
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-alumni-settings {
+  border-color: var(--mbe-audience-border);
+  background: var(--mbe-audience-soft);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-availability-note {
+  border-color: #ead9a9;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-check-row input {
+  accent-color: var(--mbe-audience);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .dtp-input {
+  border-color: #ead9a9;
+  background: #fffdf7;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .dtp-input:hover {
+  border-color: var(--mbe-audience-border);
+  background: #ffffff;
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .dtp-val {
+  color: var(--mbe-audience-text);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card {
+  border-color: #ead9a9;
+  background: #fffdf7;
+  box-shadow: 0 4px 14px rgba(128, 84, 0, 0.08);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card:hover {
+  border-color: var(--mbe-audience-border);
+  box-shadow: 0 6px 18px rgba(128, 84, 0, 0.12);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card-title {
+  color: var(--mbe-audience-heading);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card-desc {
+  color: var(--mbe-audience-muted);
+}
+
+.mbe-page[data-audience="alumni"] .mbe-card[data-audience="alumni"] .mbe-audience-card--alumni.is-active {
+  border-color: var(--mbe-audience-accent);
+  background: var(--mbe-audience-soft);
+  box-shadow: 0 4px 18px rgba(128, 84, 0, 0.16);
 }
