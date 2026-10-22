@@ -474,3 +474,33 @@
 .mbep-page-secure {
   user-select: none;
 }
+
+/* ── Group Context Banner / Stem in Exam Runners ── */
+.mbep-group-context-box {
+  background: #f4f6fd;
+  border-left: 4px solid var(--primary-bg);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.mbep-group-context-header {
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-bg);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mbep-group-context-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #2e3856;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

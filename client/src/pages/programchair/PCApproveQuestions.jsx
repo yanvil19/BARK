@@ -1,5 +1,5 @@
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -91,6 +91,7 @@ export default function QuestionApprovals({ me }) {
   const [selectedState, setSelectedState] = useState(null); // Tracks state of first checked item
   const [bulkActionModal, setBulkActionModal] = useState(null); // 'return' | 'reject' | 'restore'
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
 
   const itemsPerPage = 10;
   const lockedIdRef = useRef(null);
@@ -269,15 +270,23 @@ export default function QuestionApprovals({ me }) {
 
     if (action === 'approve') {
       try {
-        await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'approve' } });
+        const res = await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'approve' } });
         setActionTaken(true);
         setLockedQuestionId(null);
-        setQuestions((prev) => prev.map((item) => (
-          item._id === question._id ? { ...item, state: 'approved', currentReviewer: null, reviewStartedAt: null } : item
-        )));
-        setSelectedQuestion((prev) => (
-          prev && prev._id === question._id ? { ...prev, state: 'approved', currentReviewer: null, reviewStartedAt: null } : prev
-        ));
+
+        const groupUpdated = res?.groupQuestions;
+        if (Array.isArray(groupUpdated) && groupUpdated.length > 0) {
+          const map = new Map(groupUpdated.map(q => [String(q._id), q]));
+          setQuestions((prev) => prev.map((item) => (map.has(String(item._id)) ? map.get(String(item._id)) : item)));
+          setSelectedQuestion((prev) => (prev && map.has(String(prev._id)) ? map.get(String(prev._id)) : prev));
+        } else {
+          setQuestions((prev) => prev.map((item) => (
+            item._id === question._id ? { ...item, state: 'approved', currentReviewer: null, reviewStartedAt: null } : item
+          )));
+          setSelectedQuestion((prev) => (
+            prev && prev._id === question._id ? { ...prev, state: 'approved', currentReviewer: null, reviewStartedAt: null } : prev
+          ));
+        }
         triggerBadgeCountsRefresh();
       } catch (err) {
         if (err.status === 409) {
@@ -452,14 +461,19 @@ export default function QuestionApprovals({ me }) {
     // If a different state is already locked, block selection
     if (selectedState && question.state !== selectedState) return;
 
+    const targetIds = question.groupId
+      ? questions.filter(q => q.groupId === question.groupId).map(q => q._id)
+      : [question._id];
+
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(question._id)) {
-        next.delete(question._id);
-        // If that was the last item, unlock the state tracking
+      const isCurrentlyChecked = next.has(question._id);
+
+      if (isCurrentlyChecked) {
+        targetIds.forEach(id => next.delete(id));
         if (next.size === 0) setSelectedState(null);
       } else {
-        next.add(question._id);
+        targetIds.forEach(id => next.add(id));
         if (!selectedState) setSelectedState(question.state);
       }
       return next;
@@ -680,7 +694,34 @@ export default function QuestionApprovals({ me }) {
       if (sortBy === 'oldest') return new Date(a.submittedAt || a.createdAt || 0) - new Date(b.submittedAt || b.createdAt || 0);
       return new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0);
     });
-    return next;
+
+    // Keep questions belonging to the same group contiguous and ordered by groupOrder
+    const groupClusters = new Map();
+    const result = [];
+    for (const q of next) {
+      if (!q.groupId) {
+        result.push(q);
+      } else {
+        if (!groupClusters.has(q.groupId)) {
+          groupClusters.set(q.groupId, []);
+          result.push({ _isGroupClusterPlaceholder: true, groupId: q.groupId });
+        }
+        groupClusters.get(q.groupId).push(q);
+      }
+    }
+
+    const finalQuestions = [];
+    for (const item of result) {
+      if (item._isGroupClusterPlaceholder) {
+        const cluster = groupClusters.get(item.groupId) || [];
+        cluster.sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+        finalQuestions.push(...cluster);
+      } else {
+        finalQuestions.push(item);
+      }
+    }
+
+    return finalQuestions;
   }, [questions, examUseFilter, filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   const { paginatedQuestions, totalPages } = useMemo(() => {
@@ -812,64 +853,154 @@ export default function QuestionApprovals({ me }) {
               )}
 
               <div className="ca-questions-list">
-                {paginatedQuestions.map((question) => {
-                  const isChecked = selectedIds.has(question._id);
-                  // Checkbox is available if nothing is selected yet, or if it matches the current selection lock
-                  const isCheckable = !selectedState || selectedState === question.state;
+                {(() => {
+                  const renderedGroupHeaders = new Set();
+                  return paginatedQuestions.map((question) => {
+                    const isChecked = selectedIds.has(question._id);
+                    const isCheckable = !selectedState || selectedState === question.state;
+                    const isGrouped = !!question.groupId;
+                    const isFirstInGroup = isGrouped && !renderedGroupHeaders.has(question.groupId);
+                    if (isFirstInGroup) renderedGroupHeaders.add(question.groupId);
 
-                  return (
-                    <div
-                      key={question._id}
-                      className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''}`}
-                      onClick={() => handleSelectQuestion(question)}
-                    >
-                      <div className="ca-card-top">
-                        {/* Checkbox wrapper handles hover logic cleanly */}
-                        {isCheckable && (
+                    const groupSiblings = isGrouped ? filteredQuestions.filter(q => q.groupId === question.groupId) : [];
+                    const groupTitle = question.groupContext?.trim()
+                      ? truncateText(question.groupContext.trim(), 80)
+                      : `Question Set (${groupSiblings.length} questions)`;
+                    const isGroupCollapsed = isGrouped && collapsedGroups.has(question.groupId);
+                    const isGroupActive = isGrouped && selectedQuestion?.groupId === question.groupId;
+                    const isAllGroupChecked = isGrouped && groupSiblings.length > 0 && groupSiblings.every(q => selectedIds.has(q._id));
+                    const isSomeGroupChecked = isGrouped && groupSiblings.some(q => selectedIds.has(q._id));
+
+                    const toggleGroupCollapse = (e) => {
+                      e.stopPropagation();
+                      setCollapsedGroups(prev => {
+                        const next = new Set(prev);
+                        if (next.has(question.groupId)) {
+                          next.delete(question.groupId);
+                        } else {
+                          next.add(question.groupId);
+                        }
+                        return next;
+                      });
+                    };
+
+                    return (
+                      <React.Fragment key={question._id}>
+                        {isFirstInGroup && (
                           <div
-                            className={`ca-card-checkbox-wrap ${isChecked ? 'is-checked' : ''}`}
-                            onClick={e => handleCheckbox(e, question)}
+                            className={`ca-group-header-card ${isGroupActive ? 'is-active' : ''} ${isAllGroupChecked ? 'is-checked' : ''}`}
+                            onClick={toggleGroupCollapse}
+                            title="Click to collapse / expand question set"
                           >
-                            <input
-                              type="checkbox"
-                              className="ca-checkbox"
-                              checked={isChecked}
-                              onChange={() => { }}
-                            />
+                            <div className="ca-card-top">
+                              {isCheckable && (
+                                <div
+                                  className={`ca-card-checkbox-wrap ${isAllGroupChecked ? 'is-checked' : ''}`}
+                                  onClick={e => handleCheckbox(e, question)}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="ca-checkbox"
+                                    checked={isAllGroupChecked}
+                                    ref={el => { if (el) el.indeterminate = isSomeGroupChecked && !isAllGroupChecked; }}
+                                    onChange={() => { }}
+                                  />
+                                </div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p className="ca-card-desc" style={{ fontWeight: 600, color: '#1e1b4b' }}>
+                                  <strong style={{ color: '#4338ca', marginRight: '6px' }}></strong>
+                                  {groupTitle}
+                                </p>
+                              </div>
+                              <div className="ca-card-badges">
+                                <div className="ca-group-badge">
+                                  {groupSiblings.length} questions
+                                </div>
+                                <div className={`ca-state-badge ca-state--${question.state}`}>
+                                  {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="ca-card-meta">
+                              <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
+                              <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
+                              <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
+                              <span className="ca-card-meta-datetime">
+                                <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
+                                <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
+                              </span>
+                            </div>
                           </div>
                         )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p className="ca-card-desc">{truncateText(question.description, 100)}</p>
-                        </div>
-                        <div className="ca-card-badges">
-                          <div className={`ca-state-badge ca-state--${question.state}`}>
-                            {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
+                        {!isGroupCollapsed && (
+                          <div
+                            className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''} ${isGrouped ? 'ca-card--grouped' : ''}`}
+                            style={isGrouped ? { marginLeft: '12px', borderLeft: '3px solid #6366f1' } : {}}
+                            onClick={() => handleSelectQuestion(question)}
+                          >
+                            <div className="ca-card-top">
+                              {/* Checkbox wrapper handles hover logic cleanly */}
+                              {isCheckable && (
+                                <div
+                                  className={`ca-card-checkbox-wrap ${isChecked ? 'is-checked' : ''}`}
+                                  onClick={e => handleCheckbox(e, question)}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="ca-checkbox"
+                                    checked={isChecked}
+                                    onChange={() => { }}
+                                  />
+                                </div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p className="ca-card-desc">
+                                  {isGrouped && (
+                                    <strong style={{ color: '#4338ca', marginRight: '6px' }}>
+                                      Q{(question.groupOrder ?? 0) + 1}.
+                                    </strong>
+                                  )}
+                                  {truncateText(question.description, 100)}
+                                </p>
+                              </div>
+                              <div className="ca-card-badges">
+                                {isGrouped && (
+                                  <div className="ca-state-badge" style={{ background: '#e0e7ff', color: '#3730a3' }}>
+                                    Part {(question.groupOrder ?? 0) + 1}
+                                  </div>
+                                )}
+                                <div className={`ca-state-badge ca-state--${question.state}`}>
+                                  {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
+                                </div>
+                                {question.state === 'approved' && question.is_used_in_exam && (
+                                  <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
+                                    Used in Exam
+                                  </div>
+                                )}
+                                {isBeingEvaluated(question, me?._id) && (
+                                  <div className="ca-evaluating-badge">
+                                    <span className="ca-evaluating-dot" />
+                                    Being Evaluated
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="ca-card-meta">
+                              <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
+                              <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
+                              <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
+                              <span className="ca-card-meta-datetime">
+                                <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
+                                <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
+                              </span>
+                            </div>
                           </div>
-                          {question.state === 'approved' && question.is_used_in_exam && (
-                            <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
-                              Used in Exam
-                            </div>
-                          )}
-                          {isBeingEvaluated(question, me?._id) && (
-                            <div className="ca-evaluating-badge">
-                              <span className="ca-evaluating-dot" />
-                              Being Evaluated
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="ca-card-meta">
-                        <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
-                        <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
-                        <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
-                        <span className="ca-card-meta-datetime">
-                          <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
-                          <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })()}
               </div>
 
               {filteredQuestions.length > 0 && (
@@ -898,163 +1029,201 @@ export default function QuestionApprovals({ me }) {
           )}
         </div>
 
-        {selectedQuestion ? (
-          <div className="ca-sidebar">
-            <div className="ca-sidebar-header">
-              <h2 className="ca-sidebar-title">Review Question</h2>
-              {selectedIds.size > 1 && bulkNavIndex !== -1 && (
-                <div className="ca-bulk-nav">
-                  <button
-                    type="button"
-                    className="ca-bulk-nav-btn"
-                    onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex - 1])}
-                    disabled={bulkNavIndex === 0}
-                    title="Previous selected question"
-                  >
-                    ←
-                  </button>
-                  <span className="ca-bulk-nav-label">{bulkNavIndex + 1} / {bulkSelectedQuestions.length}</span>
-                  <button
-                    type="button"
-                    className="ca-bulk-nav-btn"
-                    onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex + 1])}
-                    disabled={bulkNavIndex === bulkSelectedQuestions.length - 1}
-                    title="Next selected question"
-                  >
-                    →
-                  </button>
-                </div>
-              )}
-              <div className="ca-sidebar-header-actions">
-                <button
-                  type="button"
-                  className="ca-sidebar-expand-btn"
-                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                  title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-                >
-                  {isSidebarExpanded ? (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M4 14h6v6" />
-                      <path d="M20 10h-6V4" />
-                      <path d="M14 10l7-7" />
-                      <path d="M10 14l-7 7" />
-                    </svg>
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M15 3h6v6" />
-                      <path d="M9 21H3v-6" />
-                      <path d="M21 3l-7 7" />
-                      <path d="M3 21l7-7" />
-                    </svg>
+        {selectedQuestion ? (() => {
+          const isGroupedReview = !!selectedQuestion.groupId;
+          const groupSiblingsReview = isGroupedReview
+            ? questions.filter(q => q.groupId === selectedQuestion.groupId).sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
+            : [selectedQuestion];
+
+          return (
+            <div className="ca-sidebar">
+              <div className="ca-sidebar-header">
+                <div>
+                  <h2 className="ca-sidebar-title">
+                    {isGroupedReview ? `Review Question Set (${groupSiblingsReview.length} Questions)` : 'Review Question'}
+                  </h2>
+                  {isGroupedReview && (
+                    <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 600 }}>
+                      ⚡ Review actions apply atomically to all questions in this set
+                    </span>
                   )}
-                </button>
-                <button className="ca-sidebar-close" onClick={handleCloseSidebar}>x</button>
+                </div>
+                {selectedIds.size > 1 && bulkNavIndex !== -1 && (
+                  <div className="ca-bulk-nav">
+                    <button
+                      type="button"
+                      className="ca-bulk-nav-btn"
+                      onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex - 1])}
+                      disabled={bulkNavIndex === 0}
+                      title="Previous selected question"
+                    >
+                      ←
+                    </button>
+                    <span className="ca-bulk-nav-label">{bulkNavIndex + 1} / {bulkSelectedQuestions.length}</span>
+                    <button
+                      type="button"
+                      className="ca-bulk-nav-btn"
+                      onClick={() => handleSelectQuestion(bulkSelectedQuestions[bulkNavIndex + 1])}
+                      disabled={bulkNavIndex === bulkSelectedQuestions.length - 1}
+                      title="Next selected question"
+                    >
+                      →
+                    </button>
+                  </div>
+                )}
+                <div className="ca-sidebar-header-actions">
+                  <button
+                    type="button"
+                    className="ca-sidebar-expand-btn"
+                    onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                    title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                  >
+                    {isSidebarExpanded ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 14h6v6" />
+                        <path d="M20 10h-6V4" />
+                        <path d="M14 10l7-7" />
+                        <path d="M10 14l-7 7" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 3h6v6" />
+                        <path d="M9 21H3v-6" />
+                        <path d="M21 3l-7 7" />
+                        <path d="M3 21l7-7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button className="ca-sidebar-close" onClick={handleCloseSidebar}>x</button>
+                </div>
+              </div>
+
+              <div className="ca-sidebar-content">
+                {isGroupedReview && selectedQuestion.groupContext && (
+                  <section className="ca-section" style={{ background: '#f8faff', border: '1px solid #dce4ff', borderRadius: '8px', padding: '12px' }}>
+                    <h3 className="ca-section-label" style={{ color: '#3730a3' }}>Scenario / Shared Passage</h3>
+                    <p className="ca-question-detail-text" style={{ fontStyle: 'italic', color: '#1e293b' }}>
+                      {selectedQuestion.groupContext}
+                    </p>
+                  </section>
+                )}
+
+                {groupSiblingsReview.map((qItem, qIdx) => (
+                  <div
+                    key={qItem._id}
+                    style={{
+                      borderBottom: qIdx < groupSiblingsReview.length - 1 ? '2px dashed #e2e8f0' : 'none',
+                      paddingBottom: qIdx < groupSiblingsReview.length - 1 ? '20px' : '0',
+                      marginBottom: qIdx < groupSiblingsReview.length - 1 ? '20px' : '0',
+                    }}
+                  >
+                    <section className="ca-section">
+                      <h3 className="ca-section-label">
+                        {isGroupedReview ? `Question ${qIdx + 1}` : 'Question'}
+                      </h3>
+                      <p className="ca-question-detail-text">{qItem.description}</p>
+                    </section>
+
+                    {qItem.images && qItem.images.length > 0 && (
+                      <section className="ca-section">
+                        <h3 className="ca-section-label">Images</h3>
+                        <div className="ca-images">
+                          {qItem.images.map((img, i) => (
+                            <AuthImage
+                              key={i}
+                              src={img.startsWith('/') ? `${BASE}${img}` : img}
+                              alt={`Question image ${i + 1}`}
+                              className="ca-image"
+                              onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    <section className="ca-section">
+                      <h3 className="ca-section-label">Answers</h3>
+                      <div className="ca-answers">
+                        {qItem.answers.map((ans, i) => (
+                          <div key={i} className="ca-answer-item">
+                            <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
+                              {ans.isCorrect ? '✓' : '○'}
+                            </div>
+                            <div className="ca-answer-text">{ans.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {qItem.rationalization && (
+                      <section className="ca-section">
+                        <h3 className="ca-section-label">Rationalization</h3>
+                        <p className="ca-question-detail-text">{qItem.rationalization}</p>
+                      </section>
+                    )}
+                  </div>
+                ))}
+
+                <section className="ca-section">
+                  <div className="ca-meta-grid">
+                    <div>
+                      <span className="ca-meta-label">Subject</span>
+                      <div className="ca-meta-value">{selectedQuestion.tag?.name || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="ca-meta-label">Professor</span>
+                      <div className="ca-meta-value">{selectedQuestion.createdBy?.name || 'Unknown'}</div>
+                    </div>
+                    <div>
+                      <span className="ca-meta-label">Program</span>
+                      <div className="ca-meta-value">{formatProgramLabel(selectedQuestion.program)}</div>
+                    </div>
+                    <div>
+                      <span className="ca-meta-label">Submitted</span>
+                      <div className="ca-meta-value">
+                        {formatDate(getSubmittedAt(selectedQuestion))}
+                        {getSubmittedAt(selectedQuestion) ? ` · ${formatTime(getSubmittedAt(selectedQuestion))}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {selectedQuestion.state === 'returned' && selectedQuestion.revisionNote && (
+                  <section className="ca-section ca-section--note">
+                    <h3 className="ca-section-label">Revision Note</h3>
+                    <p className="ca-note-text">{selectedQuestion.revisionNote}</p>
+                  </section>
+                )}
+
+                {selectedQuestion.state === 'rejected' && selectedQuestion.rejectionReason && (
+                  <section className="ca-section ca-section--note">
+                    <h3 className="ca-section-label">Rejection Reason</h3>
+                    <p className="ca-note-text">{selectedQuestion.rejectionReason}</p>
+                  </section>
+                )}
+              </div>
+
+              <div className="ca-sidebar-actions">
+                {(selectedQuestion.state === 'pending_chair' || selectedQuestion.state === 'restored') ? (
+                  <>
+                    <button className="ca-btn ca-btn--approve" onClick={() => handleApprove(selectedQuestion)}>Approve</button>
+                    <button className="ca-btn ca-btn--return" onClick={() => { setActionModal({ question: selectedQuestion, action: 'return' }); setNote(''); }}>Return for Revision</button>
+                    <button className="ca-btn ca-btn--reject" onClick={() => { setActionModal({ question: selectedQuestion, action: 'reject' }); setNote(''); }}>Reject</button>
+                  </>
+                ) : (selectedQuestion.state === 'rejected') ? (
+                  <>
+                    <button className="ca-btn ca-btn--restore" onClick={() => handleRestore(selectedQuestion)}>Restore for Revision</button>
+                    <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
+                  </>
+                ) : (selectedQuestion.state === 'approved' && !selectedQuestion.is_used_in_exam) ? (
+                  <button className="ca-btn ca-btn--return" onClick={() => handleReturnToCreator(selectedQuestion)}>Return to Creator</button>
+                ) : (
+                  <p className="ca-no-actions">No actions available for this question.</p>
+                )}
               </div>
             </div>
-
-            <div className="ca-sidebar-content">
-              <section className="ca-section">
-                <h3 className="ca-section-label">Question</h3>
-                <p className="ca-question-detail-text">{selectedQuestion.description}</p>
-              </section>
-
-              {selectedQuestion.images && selectedQuestion.images.length > 0 && (
-                <section className="ca-section">
-                  <h3 className="ca-section-label">Images</h3>
-                  <div className="ca-images">
-                    {selectedQuestion.images.map((img, i) => (
-                      <AuthImage
-                        key={i}
-                        src={img.startsWith('/') ? `${BASE}${img}` : img}
-                        alt={`Question image ${i + 1}`}
-                        className="ca-image"
-                        onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              <section className="ca-section">
-                <h3 className="ca-section-label">Answers</h3>
-                <div className="ca-answers">
-                  {selectedQuestion.answers.map((ans, i) => (
-                    <div key={i} className="ca-answer-item">
-                      <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
-                        {ans.isCorrect ? '✓' : '○'}
-                      </div>
-                      <div className="ca-answer-text">{ans.text}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {selectedQuestion.rationalization && (
-                <section className="ca-section">
-                  <h3 className="ca-section-label">Rationalization</h3>
-                  <p className="ca-question-detail-text">{selectedQuestion.rationalization}</p>
-                </section>
-              )}
-
-              <section className="ca-section">
-                <div className="ca-meta-grid">
-                  <div>
-                    <span className="ca-meta-label">Subject</span>
-                    <div className="ca-meta-value">{selectedQuestion.tag?.name || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="ca-meta-label">Professor</span>
-                    <div className="ca-meta-value">{selectedQuestion.createdBy?.name || 'Unknown'}</div>
-                  </div>
-                  <div>
-                    <span className="ca-meta-label">Program</span>
-                    <div className="ca-meta-value">{formatProgramLabel(selectedQuestion.program)}</div>
-                  </div>
-                  <div>
-                    <span className="ca-meta-label">Submitted</span>
-                    <div className="ca-meta-value">
-                      {formatDate(getSubmittedAt(selectedQuestion))}
-                      {getSubmittedAt(selectedQuestion) ? ` · ${formatTime(getSubmittedAt(selectedQuestion))}` : ''}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {selectedQuestion.state === 'returned' && selectedQuestion.revisionNote && (
-                <section className="ca-section ca-section--note">
-                  <h3 className="ca-section-label">Revision Note</h3>
-                  <p className="ca-note-text">{selectedQuestion.revisionNote}</p>
-                </section>
-              )}
-
-              {selectedQuestion.state === 'rejected' && selectedQuestion.rejectionReason && (
-                <section className="ca-section ca-section--note">
-                  <h3 className="ca-section-label">Rejection Reason</h3>
-                  <p className="ca-note-text">{selectedQuestion.rejectionReason}</p>
-                </section>
-              )}
-            </div>
-
-            <div className="ca-sidebar-actions">
-              {(selectedQuestion.state === 'pending_chair' || selectedQuestion.state === 'restored') ? (
-                <>
-                  <button className="ca-btn ca-btn--approve" onClick={() => handleApprove(selectedQuestion)}>Approve</button>
-                  <button className="ca-btn ca-btn--return" onClick={() => { setActionModal({ question: selectedQuestion, action: 'return' }); setNote(''); }}>Return for Revision</button>
-                  <button className="ca-btn ca-btn--reject" onClick={() => { setActionModal({ question: selectedQuestion, action: 'reject' }); setNote(''); }}>Reject</button>
-                </>
-              ) : (selectedQuestion.state === 'rejected') ? (
-                <>
-                  <button className="ca-btn ca-btn--restore" onClick={() => handleRestore(selectedQuestion)}>Restore for Revision</button>
-                  <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
-                </>
-              ) : (selectedQuestion.state === 'approved' && !selectedQuestion.is_used_in_exam) ? (
-                <button className="ca-btn ca-btn--return" onClick={() => handleReturnToCreator(selectedQuestion)}>Return to Creator</button>
-              ) : (
-                <p className="ca-no-actions">No actions available for this question.</p>
-              )}
-            </div>
-          </div>
-        ) : (
+          );
+        })() : (
           <div className="ca-sidebar ca-sidebar--empty">
             <p>Select a question to view details</p>
           </div>

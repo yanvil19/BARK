@@ -1,7 +1,7 @@
 const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
-const { shuffleArray, calculateScore } = require('../utils/examAttemptUtils');
+const { shuffleArray, shuffleQuestionsGroupAware, calculateScore } = require('../utils/examAttemptUtils');
 
 const TIME_LIMIT_GRACE_MS = 10 * 1000;
 
@@ -85,7 +85,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag',
+      select: 'description images answers tag groupId groupOrder groupContext',
     });
 
     if (!currentExam) return res.status(404).json({ message: 'Exam not found' });
@@ -126,7 +126,8 @@ async function startExam(req, res) {
         exam: examId,
       }) + 1;
 
-      const shuffledQuestions = shuffleArray([...currentExam.questions]);
+      // [GROUPED QUESTIONS] Use group-aware shuffle so grouped questions stay together
+      const shuffledQuestions = shuffleQuestionsGroupAware([...currentExam.questions]);
       const randomizedStructure = shuffledQuestions.map((q) => {
         const shuffledAnswers = shuffleArray([...q.answers]);
         return {
@@ -182,6 +183,9 @@ async function startExam(req, res) {
         description: fullQ.description,
         images: fullQ.images,
         answers: mappedAnswers,
+        // [GROUPED QUESTIONS] — pass group metadata for context display in exam player
+        groupId: fullQ.groupId || null,
+        groupContext: fullQ.groupContext || null,
       });
     });
 

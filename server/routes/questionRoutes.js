@@ -7,6 +7,11 @@ const {
   listQuestions,
   listApprovals,
   createQuestion,
+  createQuestionGroup,
+  getQuestionGroup,
+  updateQuestionGroup,
+  submitQuestionGroup,
+  deleteQuestionGroup,
   updateQuestion,
   deleteQuestion,
   submitQuestion,
@@ -46,6 +51,12 @@ const upload = multer({
 router.get('/', protect, authorizeRoles(...FACULTY), listQuestions);
 router.get('/approvals', protect, authorizeRoles('program_chair', 'dean'), listApprovals);
 router.post('/', protect, authorizeRoles(...FACULTY), createQuestion);
+// [GROUPED QUESTIONS] — must be before /:id routes so 'group' isn't treated as an ID
+router.post('/group', protect, authorizeRoles(...FACULTY), createQuestionGroup);
+router.get('/group/:groupId', protect, authorizeRoles(...FACULTY), getQuestionGroup);
+router.put('/group/:groupId', protect, authorizeRoles(...FACULTY), updateQuestionGroup);
+router.post('/group/:groupId/submit', protect, authorizeRoles(...FACULTY), submitQuestionGroup);
+router.delete('/group/:groupId', protect, authorizeRoles(...FACULTY), deleteQuestionGroup);
 router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
 router.patch('/:id/mark-read', protect, authorizeRoles(...FACULTY), markQuestionRead);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);

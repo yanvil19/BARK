@@ -1379,6 +1379,7 @@
 
 /* Show checkbox on card hover or when checked */
 .ca-question-card:hover .ca-card-checkbox-wrap,
+.ca-group-header-card:hover .ca-card-checkbox-wrap,
 .ca-card-checkbox-wrap.is-checked {
   opacity: 1;
 }
@@ -1507,4 +1508,48 @@
 
 .ca-bulk-btn--clear:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* Question Grouping in Approvals */
+.ca-group-header-card {
+  background: #ffffff;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-left: 4px solid #6366f1;
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.ca-group-header-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+}
+
+.ca-group-header-card.is-active {
+  background: #f5f7ff;
+  border-color: var(--primary-bg);
+  box-shadow: 0 4px 18px rgba(53, 64, 142, 0.18);
+}
+
+.ca-group-header-card.is-checked {
+  background: #f8faff;
+  border-color: #6366f1;
+}
+
+.ca-group-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
