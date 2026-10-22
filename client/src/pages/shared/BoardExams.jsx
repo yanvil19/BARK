@@ -15,9 +15,6 @@ import '../../styles/shared/BoardExams.css';
 
 const BASE = import.meta.env.VITE_API_URL;
 
-// Preferred widths (px) for the 13 table columns, in order.
-// They add up to 1560, which matches the table's min-width in BoardExams.css.
-// If you change these, update `.ambe-table { min-width }` to the new total.
 const EXAM_TABLE_COLUMN_WIDTHS = [150, 120, 110, 110, 150, 110, 110, 96, 110, 124, 90, 110, 170];
 
 const STATUS_TABS = [
@@ -40,7 +37,6 @@ function formatDateTime(value) {
   });
 }
 
-// Table-only date cell: one field per column, shown as date on top and time underneath.
 function renderDateCell(value) {
   if (!value) return <span className="ambe-muted">-</span>;
   const date = new Date(value);
@@ -223,7 +219,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     setExpandedQuestionId(null);
   }, [selectedExam?._id]);
 
-  // Close the row action menu on outside click, scroll, resize, or Escape.
   useEffect(() => {
     if (!actionMenu) return undefined;
 
@@ -587,8 +582,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     }
   }
 
-  // Everything except the primary button lives in the "..." menu.
-  // Dangerous actions go last, behind a divider.
   function getMenuItems(exam) {
     const isAlumni = (exam.targetAudience || 'student') === 'alumni';
     const normal = [];
@@ -675,7 +668,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     return exams;
   }, [exams, me?.role, selectedProgramId]);
 
-  // Subject filter options come from the exams in the selected program, so the list stays relevant.
   const subjectOptions = useMemo(() => {
     const byKey = new Map();
     programExams.forEach((exam) => {
@@ -688,14 +680,12 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
   }, [programExams]);
 
-  // If the chosen subject isn't available after changing program, clear it.
   useEffect(() => {
     if (selectedSubject && !subjectOptions.some((option) => option.id === selectedSubject)) {
       setSelectedSubject('');
     }
   }, [subjectOptions, selectedSubject]);
 
-  // Everything except the status filter, so the status tabs can show counts for the current filters.
   const filteredExceptStatus = useMemo(() => {
     let filtered = programExams;
     if (searchQuery.trim()) {
@@ -758,7 +748,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />
 
-      {viewMode === 'list' && (me?.role === 'dean' || me?.role === 'program_chair') && (
+      {(viewMode === 'list' || viewMode === 'cards') && (me?.role === 'dean' || me?.role === 'program_chair') && (
         <div className="ambe-status-tabs" role="tablist" aria-label="Filter exams by status">
           {STATUS_TABS.map((tab) => {
             const isActive = selectedStatus === tab.value;
@@ -840,15 +830,25 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               type="button"
               className={viewMode === 'list' ? 'is-active' : ''}
               onClick={() => setViewMode('list')}
+              aria-pressed={viewMode === 'list'}
             >
-              List View
+              Table
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'cards' ? 'is-active' : ''}
+              onClick={() => setViewMode('cards')}
+              aria-pressed={viewMode === 'cards'}
+            >
+              Cards
             </button>
             <button
               type="button"
               className={viewMode === 'calendar' ? 'is-active' : ''}
               onClick={() => setViewMode('calendar')}
+              aria-pressed={viewMode === 'calendar'}
             >
-              Calendar View
+              Calendar
             </button>
           </div>
         </section>
@@ -864,7 +864,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         />
       </div>
 
-      <div className="ambe-list-view" style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+      <div className="ambe-list-view" style={{ display: viewMode === 'list' || viewMode === 'cards' ? 'block' : 'none' }}>
         {loading && (
           <div className="ambe-table-card ambe-skeleton" aria-busy="true" aria-label="Loading mock board exams">
             {[0, 1, 2, 3, 4].map((row) => (
@@ -897,6 +897,96 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
         {!loading && visibleExams.length > 0 && (
           <>
+            {viewMode === 'cards' ? (
+              <div className="ambe-card-view-grid" aria-label="Board exams cards">
+                {paginatedExams.map((exam) => {
+                  const subjects = exam.subjectTags || [];
+                  const isViewing = selectedExam?._id === exam._id;
+                  const isAlumni = (exam.targetAudience || 'student') === 'alumni';
+                  const start = exam.startDateTime ? new Date(exam.startDateTime) : null;
+                  const end = exam.endDateTime ? new Date(exam.endDateTime) : null;
+                  const status = exam.status || 'draft';
+                  const submissions = isAlumni
+                    ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
+                    : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`;
+
+                  return (
+                    <article key={exam._id} className="ambe-card-view-item">
+                      <div className="ambe-card-view-banner">
+                        <div className="ambe-card-view-banner-topline">
+                          <span className="ambe-card-view-program-code">{exam.program?.code || 'Board exam'}</span>
+                          <span className={`ambe-card-view-status ambe-card-view-status--${status}`}>{status}</span>
+                        </div>
+                        <h3 className="ambe-card-view-title" title={exam.name}>{exam.name}</h3>
+                        <p className="ambe-card-view-program">{exam.program?.name || exam.program?.code || 'No program assigned'}</p>
+                      </div>
+
+                      <div className="ambe-card-view-body">
+                        <div className="ambe-card-view-subjects" aria-label="Subjects">
+                          <span className="ambe-card-view-section-label">Subjects</span>
+                          {subjects.length > 0 ? subjects.slice(0, 3).map((tag) => (
+                            <span key={tag._id || tag.name} className="ambe-card-view-subject">{tag.name}</span>
+                          )) : <span className="ambe-card-view-no-subject">No subjects added</span>}
+                          {subjects.length > 3 && <span className="ambe-card-view-subject ambe-card-view-subject--more">+{subjects.length - 3} more</span>}
+                        </div>
+
+                        <div className="ambe-card-view-record-meta">
+                          <div><span>Creator</span><strong>{exam.createdBy?.name || '-'}</strong></div>
+                          <div><span>Created Date</span><strong>{formatDateTime(exam.createdAt)}</strong></div>
+                        </div>
+
+                        <div className="ambe-card-view-schedule">
+                          <div className="ambe-card-view-date-block">
+                            <span className="ambe-card-view-date-label">Exam Start</span>
+                            <strong>{start ? start.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</strong>
+                            {start && <span>{start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>}
+                          </div>
+                          <div className="ambe-card-view-date-block">
+                            <span className="ambe-card-view-date-label">Exam End</span>
+                            <strong>{end ? end.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</strong>
+                            {end && <span>{end.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>}
+                          </div>
+                        </div>
+
+                        <div className="ambe-card-view-stats">
+                          <div><strong>{formatExamDuration(exam)}</strong><span>Duration</span></div>
+                          <div><strong>{exam.questions?.length || 0}</strong><span>Questions</span></div>
+                          <div><strong>{submissions}</strong><span>Submissions</span></div>
+                          <div><strong>{isAlumni ? 'Alumni' : 'Students'}</strong><span>Audience</span></div>
+                        </div>
+
+                        {exam.resultsReleaseDate && exam.status !== 'archived' && (
+                          <p className="ambe-card-view-release">Results release: {formatDateTime(exam.resultsReleaseDate)}</p>
+                        )}
+
+                        <div className="ambe-card-view-actions">
+                          {exam.status === 'draft' ? (
+                            <button type="button" className="ambe-btn publish" onClick={() => handlePublish(exam)}>Publish exam</button>
+                          ) : (
+                            <button type="button" className="ambe-btn view" onClick={() => handleView(exam._id)}>
+                              {isViewing ? 'Hide details' : 'View details'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="ambe-btn ambe-btn-icon ambe-btn-more"
+                            onClick={(event) => toggleActionMenu(event, exam)}
+                            aria-label={`More actions for ${exam.name}`}
+                            aria-haspopup="menu"
+                            aria-expanded={actionMenu?.examId === exam._id}
+                            title="More actions"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
             <div className="ambe-table-card">
               <div className="ambe-scroll-x">
                 <table className="ambe-table">
@@ -1019,15 +1109,18 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                 </table>
               </div>
             </div>
-            <div className="ambe-pagination-footer">
-              <Pagination
-                currentPage={currentPage}
-                totalItems={visibleExams.length}
-                pageSize={10}
-                onPageChange={setCurrentPage}
-                itemLabel="exams"
-              />
-            </div>
+            )}
+            {(viewMode !== 'cards' || visibleExams.length > 10) && (
+              <div className={`ambe-pagination-footer${viewMode === 'cards' ? ' ambe-card-pagination' : ''}`}>
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={visibleExams.length}
+                  pageSize={10}
+                  onPageChange={setCurrentPage}
+                  itemLabel="exams"
+                />
+              </div>
+            )}
           </>
         )}
       </div>

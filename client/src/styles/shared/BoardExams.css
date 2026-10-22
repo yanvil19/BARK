@@ -1,5 +1,4 @@
 .ambe-page {
-  /* Palette (only used by the toolbar + list view; Calendar View never reads these) */
   --ambe-navy: #35408e;
   --ambe-ink: #1a2342;
   --ambe-text: #2b3552;
@@ -7,12 +6,26 @@
   --ambe-faint: #8a94b0;
   --ambe-line: rgba(53, 64, 142, 0.08);
   --ambe-tint: #eef1ff;
+  --ambe-status-draft: #94a3b8;
+  --ambe-status-draft-text: #5b6684;
+  --ambe-status-draft-bg: #fff;
+  --ambe-status-published: #3b82f6;
+  --ambe-status-published-text: #1d4ed8;
+  --ambe-status-published-bg: #e8f0ff;
+  --ambe-status-ongoing: #f59e0b;
+  --ambe-status-ongoing-text: #a16207;
+  --ambe-status-ongoing-bg: #fff3d6;
+  --ambe-status-finished: #0f766e;
+  --ambe-status-finished-text: #0f766e;
+  --ambe-status-finished-bg: #e6f4f1;
+  --ambe-status-archived: #cbd5e1;
+  --ambe-status-archived-text: #6b7280;
+  --ambe-status-archived-bg: #e1e5ec;
 
   margin: -20px;
   padding-bottom: 32px;
 }
 
-/* Keep controls consistent with the site's Nunito body font, without affecting Calendar View. */
 .ambe-view-controls,
 .ambe-list-view,
 .ambe-menu {
@@ -65,7 +78,6 @@
   flex-wrap: wrap;
 }
 
-/* Search, dropdowns and the view toggle all share one 40px height */
 .ambe-view-toggle {
   display: inline-flex;
   overflow: hidden;
@@ -140,7 +152,6 @@
   font-weight: 700;
 }
 
-/* SearchBar inside the controls bar */
 .ambe-search-bar {
   box-sizing: border-box;
   height: 40px;
@@ -167,7 +178,6 @@
   color: #9aa0b4;
 }
 
-/* Pagination footer: joined to the table card so they read as one surface */
 .ambe-pagination-footer {
   margin: 0 32px 16px;
   padding: 14px 20px;
@@ -294,7 +304,6 @@
   color: #ffffff;
 }
 
-/* With tabs above, the card sits a little closer than the default 24px */
 .ambe-status-tabs ~ .ambe-table-card,
 .ambe-status-tabs ~ .ambe-empty,
 .ambe-status-tabs ~ .ambe-loading {
@@ -381,7 +390,6 @@
   color: #4b5791;
 }
 
-/* Every row is at least 60px tall and everything sits on the same centerline */
 .ambe-table td {
   height: 60px;
   padding: 12px;
@@ -407,7 +415,6 @@
   padding-right: 20px;
 }
 
-/* Numbers line up on the right; the extra right padding keeps them off the next column */
 .ambe-table th.ambe-num,
 .ambe-table td.ambe-num {
   padding-right: 24px;
@@ -431,7 +438,6 @@
   font-weight: 700;
 }
 
-/* The exam name opens its details, so it reads as a link */
 .ambe-name-link {
   padding: 0;
   border: 0;
@@ -448,12 +454,10 @@
   text-underline-offset: 3px;
 }
 
-/* Secondary info is a softer gray so the exam name leads the eye */
 .ambe-cell-soft {
   color: var(--ambe-soft);
 }
 
-/* Date cells: date on the first line, time underneath */
 .ambe-date {
   display: flex;
   flex-direction: column;
@@ -470,7 +474,6 @@
   color: var(--ambe-faint);
 }
 
-/* Subjects: plain text, one subject per line */
 .ambe-subject-list {
   margin: 0;
   padding: 0;
@@ -511,12 +514,8 @@
   color: #3b4664;
 }
 
-/* ---------- Status ----------
-   Colors follow what the status means:
-   draft = not live yet (hollow gray) · published = scheduled (blue)
-   ongoing = in progress (amber) · finished = done (green) · archived = put away (light gray) */
+/* ---------- Status ---------- */
 
-/* Pill style: used by the Exam Details header */
 .ambe-status {
   display: inline-flex;
   align-items: center;
@@ -538,36 +537,35 @@
 }
 
 .ambe-status.draft {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--ambe-status-draft-bg);
+  color: var(--ambe-status-draft-text);
 }
 
 .ambe-status.published {
-  background: #e8f0ff;
-  color: #1d4ed8;
+  background: var(--ambe-status-published-bg);
+  color: var(--ambe-status-published-text);
 }
 
 .ambe-status.ongoing {
-  background: #fff3d6;
-  color: #a16207;
+  background: var(--ambe-status-ongoing-bg);
+  color: var(--ambe-status-ongoing-text);
 }
 
 .ambe-status.active {
-  background: #fff3d6;
-  color: #a16207;
+  background: var(--ambe-status-ongoing-bg);
+  color: var(--ambe-status-ongoing-text);
 }
 
 .ambe-status.finished {
-  background: #e3f6ea;
-  color: #15803d;
+  background: var(--ambe-status-finished-bg);
+  color: var(--ambe-status-finished-text);
 }
 
 .ambe-status.archived {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--ambe-status-archived-bg);
+  color: var(--ambe-status-archived-text);
 }
 
-/* Table style: a small dot with a soft halo + plain label */
 .ambe-table .ambe-status {
   --dot: #9ca3af;
   --halo: rgba(156, 163, 175, 0.22);
@@ -594,7 +592,6 @@
   flex-shrink: 0;
 }
 
-/* Draft is a hollow ring: nothing is live yet */
 .ambe-table .ambe-status.draft {
   color: var(--ambe-soft);
 }
@@ -602,22 +599,21 @@
 .ambe-table .ambe-status.draft::before {
   box-sizing: border-box;
   background: transparent;
-  border: 1.5px solid #94a3b8;
+  border: 1.5px solid var(--ambe-status-draft);
   box-shadow: none;
 }
 
 .ambe-table .ambe-status.published {
-  --dot: #3b82f6;
+  --dot: var(--ambe-status-published);
   --halo: rgba(59, 130, 246, 0.2);
 }
 
 .ambe-table .ambe-status.ongoing,
 .ambe-table .ambe-status.active {
-  --dot: #f59e0b;
+  --dot: var(--ambe-status-ongoing);
   --halo: rgba(245, 158, 11, 0.24);
 }
 
-/* The only motion in the table: a slow pulse on exams that are running right now */
 .ambe-table .ambe-status.ongoing::before,
 .ambe-table .ambe-status.active::before {
   animation: ambe-live 2.2s ease-out infinite;
@@ -635,7 +631,7 @@
 }
 
 .ambe-table .ambe-status.archived {
-  --dot: #cbd5e1;
+  --dot: var(--ambe-status-archived);
   --halo: rgba(203, 213, 225, 0.35);
   color: var(--ambe-faint);
 }
@@ -758,7 +754,6 @@
   border-color: #35408e;
 }
 
-/* Table buttons share one height and the same 8px radius as the filter controls */
 .ambe-table .ambe-btn {
   min-height: 32px;
   padding: 0 14px;
@@ -1689,4 +1684,266 @@
   .ambe-status-tabs {
     gap: 6px;
   }
+}
+
+/* ---------- Cards view ---------- */
+
+.ambe-card-view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  align-items: stretch;
+  gap: 20px;
+  margin: 24px 32px 0;
+}
+
+.ambe-card-view-item {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-body, sans-serif);
+  border: 1px solid #cfd6ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(34, 41, 91, 0.07);
+}
+
+.ambe-card-view-item strong { font-family: var(--font-body, sans-serif); }
+
+.ambe-card-view-banner {
+  display: flex;
+  min-height: 136px;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px 18px 14px;
+  border-bottom: 3px solid var(--accent-yellow, #fad227);
+  background: var(--primary-bg, #35408e);
+  color: #fff;
+}
+
+.ambe-card-view-banner-topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ambe-card-view-program-code {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ambe-card-view-status {
+  display: inline-flex;
+  min-height: 29px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.ambe-card-view-status--draft {
+  --ambe-card-status-dot: var(--ambe-status-draft);
+  border-color: var(--ambe-status-draft-bg);
+  background: var(--ambe-status-draft-bg);
+  color: var(--ambe-status-draft-text);
+}
+
+.ambe-card-view-status--published {
+  --ambe-card-status-dot: var(--ambe-status-published);
+  border-color: var(--ambe-status-published-bg);
+  background: var(--ambe-status-published-bg);
+  color: var(--ambe-status-published-text);
+}
+
+.ambe-card-view-status--ongoing,
+.ambe-card-view-status--active {
+  --ambe-card-status-dot: var(--ambe-status-ongoing);
+  border-color: var(--ambe-status-ongoing-bg);
+  background: var(--ambe-status-ongoing-bg);
+  color: var(--ambe-status-ongoing-text);
+}
+
+.ambe-card-view-status--finished {
+  --ambe-card-status-dot: var(--ambe-status-finished);
+  border-color: var(--ambe-status-finished-bg);
+  background: var(--ambe-status-finished-bg);
+  color: var(--ambe-status-finished-text);
+}
+
+.ambe-card-view-status--archived {
+  --ambe-card-status-dot: var(--ambe-status-archived);
+  border-color: var(--ambe-status-archived-bg);
+  background: var(--ambe-status-archived-bg);
+  color: var(--ambe-status-archived-text);
+}
+
+.ambe-card-view-status::before {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--ambe-card-status-dot, #ffffff);
+  content: '';
+}
+
+.ambe-card-view-title {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--font-body, inherit);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ambe-card-view-program {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.ambe-card-view-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+}
+
+.ambe-card-view-subjects {
+  display: flex;
+  min-height: 60px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.ambe-card-view-section-label {
+  flex-basis: 100%;
+  color: #68749a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ambe-card-view-subject {
+  max-width: calc(50% - 3px);
+  overflow: hidden;
+  padding: 6px 9px;
+  border: 1px solid rgba(53, 64, 142, 0.12);
+  border-radius: 4px;
+  background: #f9faff;
+  color: #4a57a2;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ambe-card-view-subject--more { background: #fff9df; color: #806815; }
+.ambe-card-view-no-subject { align-self: flex-start; color: #68749a; font-size: 13px; line-height: 1.4; }
+
+.ambe-card-view-record-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 54px;
+  gap: 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid #e8ebf5;
+}
+
+.ambe-card-view-record-meta div { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.ambe-card-view-record-meta span { color: #68749a; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.ambe-card-view-record-meta strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #34405f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ambe-card-view-schedule {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 76px;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e8ebf5;
+}
+
+.ambe-card-view-date-block { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.ambe-card-view-date-label { color: #68749a; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.ambe-card-view-date-block strong { color: #34405f; font-size: 13px; font-weight: 700; line-height: 1.4; }
+.ambe-card-view-date-block > span:last-child:not(.ambe-card-view-date-label) { color: #34405f; font-size: 13px; font-weight: 600; line-height: 1.4; }
+
+.ambe-card-view-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 92px;
+  gap: 12px 14px;
+  padding: 12px 0;
+}
+
+.ambe-card-view-stats div { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.ambe-card-view-stats strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #303c68;
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ambe-card-view-stats span { color: #68749a; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.ambe-card-view-release { margin: 0 0 10px; color: #806815; font-size: 12px; line-height: 1.45; }
+
+.ambe-card-view-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e8ebf5;
+}
+
+.ambe-card-view-actions .ambe-btn:not(.ambe-btn-icon) { min-height: 36px; flex: 1; }
+.ambe-card-view-actions .ambe-btn-icon { flex: 0 0 36px; }
+
+.ambe-card-pagination .pg-pagination { justify-content: center; margin-top: 0; }
+.ambe-card-pagination .pg-pagination-info { display: none; }
+
+@media (max-width: 768px) {
+  .ambe-card-view-grid { grid-template-columns: 1fr; margin: 16px; gap: 14px; }
 }
