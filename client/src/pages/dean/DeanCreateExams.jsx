@@ -1226,8 +1226,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                   </div>
                                 ) : null}
                               </article>
-                            );
-                          })}
+                            )}
+                          </div>
+                        );
+                      })}
                         </div>
                         <Pagination
                           currentPage={safeQPage}
