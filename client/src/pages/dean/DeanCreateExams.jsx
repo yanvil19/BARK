@@ -131,6 +131,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       : EMPTY_EXAM_FORM
   ));
 
+  // Active tab state: 'details' | 'subjects' | 'questions' | 'review'
+  const [activeTab, setActiveTab] = useState('details');
+
   useEffect(() => {
     if (isEditing) return;
     const id = setTimeout(() => {
@@ -394,8 +397,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     });
   }
 
-  function handleSelectAllVisible(e) {
-    e.stopPropagation();
+  function handleToggleAllFiltered() {
     const visibleIds = filteredApprovedQuestions.map(q => q._id);
     const allSelected = visibleIds.length > 0 && visibleIds.every(id => bulkSelectedIds.has(id));
     
@@ -455,18 +457,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
     if (approvedSelectionFilter === 'unselected') parts.push('not selected yet');
     return parts.length > 0 ? parts.join(', ') : null;
-  }
-
-  function isFilterActive() {
-    return searchQuery.trim() || questionFilterTagId || approvedSelectionFilter !== 'all';
-  }
-
-  function handleSelectFiltered() {
-    setBulkSelectedIds(prev => {
-      const next = new Set(prev);
-      filteredApprovedQuestions.forEach(q => next.add(q._id));
-      return next;
-    });
   }
 
   function handleReturnQuestion(question) {
@@ -551,6 +541,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       setSelectedTagIds([]);
       setApprovedQuestions([]);
       setSelectedQuestions([]);
+      setActiveTab('details');
       if (programs.length === 1) setProgramId(programs[0]._id);
       else setProgramId('');
       if (onClearEditing) onClearEditing();
@@ -573,580 +564,813 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
   }
 
+  // ─── Derived helpers for Review tab ────────────────────────────────────────
+  const questionsBySubject = useMemo(() => {
+    const map = {};
+    for (const q of selectedQuestions) {
+      const tagName = q.tag?.name || 'Unknown Subject';
+      if (!map[tagName]) map[tagName] = 0;
+      map[tagName]++;
+    }
+    return map;
+  }, [selectedQuestions]);
+
+  const selectedProgram = programs.find(p => String(p._id) === String(programId));
+
+  // ─── Tab completion indicators ──────────────────────────────────────────────
+  const detailsComplete = form.name && programId && form.startDateTime && form.endDateTime;
+  const subjectsComplete = selectedTagIds.length > 0;
+  const questionsComplete = selectedQuestions.length > 0;
+
+  // ─── Audience hero config ───────────────────────────────────────────────────
+  const audienceConfig = isAlumniExam
+    ? {
+        label: 'ALUMNI EXAM',
+        sublabel: 'Practice exam for alumni, available within the scheduled period.',
+      }
+    : {
+        label: 'STUDENT EXAM',
+        sublabel: 'Scheduled exam for currently enrolled students.',
+      };
+
   return (
-    <main className="mbe-page">
+    <main className="mbe-page" data-audience={isAlumniExam ? 'alumni' : 'student'}>
       <PageHeader
         className="shared-page-header--bleed"
         title="Mock Board Exam"
-        subtitle="Create a mock board exam by selecting the program first, then the subjects, then the approved questions."
+        subtitle={isEditing ? 'Edit an existing mock board exam.' : 'Create a new mock board exam for students or alumni.'}
       />
 
       <form className="mbe-form" onSubmit={handleSubmit}>
-        <section className="mbe-card mbe-form-card">
-          <div className="mbe-section-heading">
-            <div>
-              <h2>{editingExamId ? 'Edit Mock Board Exam' : 'Create Mock Board Exam'}</h2>
-              <p>
-                {isAlumniExam
-                  ? 'Create a reusable alumni practice exam with a scheduled opening and closing time and decide if each attempt should be timed.'
-                  : 'Create a student exam with a scheduled opening and closing time.'}
-              </p>
+
+        {/* ── Audience Hero Banner ──────────────────────────────────────────── */}
+        <div className="mbe-hero-banner">
+          <div className="mbe-hero-left">
+            <div className="mbe-hero-text">
+              <span className="mbe-hero-label">{audienceConfig.label}</span>
+              <span className="mbe-hero-sublabel">{audienceConfig.sublabel}</span>
             </div>
+          </div>
+          <div className="mbe-hero-right">
             <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>
               {getStatusLabel(form.status)}
             </span>
-          </div>
-
-          <div className="mbe-form-grid">
-            <div className="mbe-field">
-              <label>
-                Exam Name
-                <input
-                  className="mbe-input"
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </label>
-            </div>
-
-            <div className="mbe-field">
-              <label>
-                Target Audience
-                <select
-                  className="mbe-input"
-                  value={form.targetAudience || 'student'}
-                  onChange={(e) => {
-                    const targetAudience = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      targetAudience,
-                      isTimed: targetAudience === 'alumni' ? prev.isTimed : false,
-                      timeLimitMinutes: prev.timeLimitMinutes || 180,
-                    }));
-                  }}
-                  required
-                >
-                  <option value="student">Students</option>
-                  <option value="alumni">Alumni</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="mbe-field">
-              <label>
-                Program
-                <select
-                  className="mbe-input"
-                  value={programId}
-                  onChange={(e) => {
-                    setProgramId(e.target.value);
-                    setSelectedTagIds([]);
-                    setSelectedQuestions([]);
-                  }}
-                  required
-                  disabled={loadingPrograms || me.role === 'program_chair'}
-                >
-                  <option value="">Select a program</option>
-                  {programs.map((program) => (
-                    <option key={program._id} value={program._id}>
-                      {program.name} {program.code ? `(${program.code})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mbe-field">
-              <div className="mbe-field-heading">
-                <label>Exam Start</label>
-              </div>
-              <DateTimePicker
-                value={form.startDateTime}
-                onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
-              />
-            </div>
-
-            <div className="mbe-field">
-              <div className="mbe-field-heading">
-                <label>Exam End</label>
-                <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
-                  {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
-                </span>
-              </div>
-              <DateTimePicker
-                value={form.endDateTime}
-                onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
-              />
-            </div>
-
-            {isAlumniExam && (
-              <div className="mbe-field mbe-field--full">
-                <div className="mbe-alumni-settings">
-                  <div>
-                    <h3>Alumni Attempt Timer</h3>
-                    <p>This alumni exam becomes available when published and its schedule starts, and stays open until it ends, is archived or unpublished.</p>
-                  </div>
-
-                  <label className="mbe-check-row">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(form.isTimed)}
-                      onChange={(e) => setForm((prev) => ({
-                        ...prev,
-                        isTimed: e.target.checked,
-                        timeLimitMinutes: prev.timeLimitMinutes || 180,
-                      }))}
-                    />
-                    <span>Make each alumni attempt timed</span>
-                  </label>
-
-                  {form.isTimed ? (
-                    <label className="mbe-timer-field">
-                      Time Limit (minutes)
-                      <input
-                        className="mbe-input"
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.timeLimitMinutes}
-                        onChange={(e) => setForm((prev) => ({ ...prev, timeLimitMinutes: e.target.value }))}
-                        required
-                      />
-                      <span className="mbe-field-meta">
-                        {formatDurationFromMinutes(form.timeLimitMinutes) || 'Enter the allowed attempt time.'}
-                      </span>
-                    </label>
-                  ) : (
-                    <p className="mbe-availability-note">Attempts will be untimed.</p>
-                  )}
-                </div>
-              </div>
+            {isEditing && (
+              <span className="mbe-hero-editing-badge">Editing</span>
             )}
-
-            <div className="mbe-field">
-              <label>
-                Passing Threshold (%)
-                <input
-                  className="mbe-input"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.passingThreshold}
-                  onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
-                  required
-                />
-              </label>
-            </div>
-
-            <div className="mbe-field mbe-field--full mbe-textarea-grid">
-              <label>
-                Description
-                <textarea
-                  className="mbe-input mbe-textarea"
-                  rows="4"
-                  value={form.description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="General description of the exam..."
-                />
-              </label>
-              <label>
-                Instructions
-                <textarea
-                  className="mbe-input mbe-textarea"
-                  rows="4"
-                  value={form.instructions}
-                  onChange={(e) => setForm((prev) => ({ ...prev, instructions: e.target.value }))}
-                  placeholder="Exam instructions for students..."
-                />
-              </label>
-            </div>
           </div>
-        </section>
+        </div>
 
-        <section className="mbe-card mbe-selection-card">
-          <div className="mbe-section-heading">
-            <div>
-              <h2>Subjects</h2>
-              <p>Choose the subject areas that will be included in this exam.</p>
-            </div>
-            <span className="mbe-count-pill">{selectedTagIds.length} selected</span>
-          </div>
+        {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
+        <div className="mbe-tab-bar" role="tablist" aria-label="Exam creation steps">
+          {[
+            { key: 'details', label: 'Details', badge: detailsComplete ? 'Done' : null },
+            { key: 'subjects', label: 'Subjects', badge: selectedTagIds.length > 0 ? selectedTagIds.length : null },
+            { key: 'questions', label: 'Questions', badge: selectedQuestions.length > 0 ? selectedQuestions.length : null },
+            { key: 'review', label: 'Review & Save', badge: null },
+          ].map(({ key, label, badge }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === key}
+              className={`mbe-tab-btn ${activeTab === key ? 'is-active' : ''}`}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+              {badge !== null && (
+                <span className={`mbe-tab-badge ${activeTab === key ? 'is-active' : ''}`}>{badge}</span>
+              )}
+            </button>
+          ))}
+        </div>
 
-          {!programId ? <p className="mbe-empty-message">Select a program first before choosing subjects.</p> : null}
-          {programId && loadingSubjects ? <p className="mbe-empty-message">Loading subjects...</p> : null}
-          {programId && !loadingSubjects && subjectOptions.length === 0 ? <p className="mbe-empty-message">No subjects found for this program.</p> : null}
-          {programId && !loadingSubjects && subjectOptions.length > 0 ? (() => {
-            const filteredBySearch = subjectOptions.filter((tag) =>
-              !subjectSearch.trim() || tag.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
-            );
-            const totalSubjectPages = Math.max(1, Math.ceil(filteredBySearch.length / SUBJECTS_PER_PAGE));
-            const safeSubjectPage = Math.min(subjectPage, totalSubjectPages);
-            const pagedSubjects = filteredBySearch.slice((safeSubjectPage - 1) * SUBJECTS_PER_PAGE, safeSubjectPage * SUBJECTS_PER_PAGE);
-            return (
-              <>
-                <div className="mbe-subject-search-row">
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB: DETAILS
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'details' && (
+          <section className="mbe-card mbe-form-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+
+            {/* Audience toggle cards */}
+            <fieldset className="mbe-audience-fieldset">
+              <legend className="mbe-audience-legend">Who is this exam for?</legend>
+              <div className="mbe-audience-cards">
+
+                <label className={`mbe-audience-card mbe-audience-card--student ${!isAlumniExam ? 'is-active' : ''}`}>
                   <input
-                    className="mbe-input mbe-subject-search"
-                    type="text"
-                    placeholder="Search subjects..."
-                    value={subjectSearch}
-                    onChange={(e) => { setSubjectSearch(e.target.value); setSubjectPage(1); }}
+                    type="radio"
+                    name="targetAudience"
+                    value="student"
+                    checked={!isAlumniExam}
+                    onChange={() => setForm((prev) => ({ ...prev, targetAudience: 'student', isTimed: false }))}
                   />
-                </div>
-                {filteredBySearch.length === 0 ? (
-                  <p className="mbe-empty-message">No subjects match your search.</p>
-                ) : (
-                  <div className="mbe-tag-grid">
-                    {pagedSubjects.map((tag) => (
-                      <label key={tag._id} className="mbe-tag-option">
-                        <input
-                          type="checkbox"
-                          checked={selectedTagIds.includes(String(tag._id))}
-                          onChange={() => handleTagChange(String(tag._id))}
-                        />
-                        <span>{tag.name}</span>
-                      </label>
+                  <span className="mbe-audience-card-title">Students</span>
+                  <span className="mbe-audience-card-desc">Scheduled exam for enrolled students with a fixed time window.</span>
+                </label>
+
+                <label className={`mbe-audience-card mbe-audience-card--alumni ${isAlumniExam ? 'is-active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="targetAudience"
+                    value="alumni"
+                    checked={isAlumniExam}
+                    onChange={() => setForm((prev) => ({ ...prev, targetAudience: 'alumni' }))}
+                  />
+                  <span className="mbe-audience-card-title">Alumni</span>
+                  <span className="mbe-audience-card-desc">Practice exam for alumni. Supports multiple attempts and optional timers.</span>
+                </label>
+
+              </div>
+            </fieldset>
+
+            <div className="mbe-form-grid">
+              <div className="mbe-field">
+                <label>
+                  Exam Name
+                  <input
+                    className="mbe-input"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="mbe-field">
+                <label>
+                  Program
+                  <select
+                    className="mbe-input"
+                    value={programId}
+                    onChange={(e) => {
+                      setProgramId(e.target.value);
+                      setSelectedTagIds([]);
+                      setSelectedQuestions([]);
+                    }}
+                    required
+                    disabled={loadingPrograms || me.role === 'program_chair'}
+                  >
+                    <option value="">Select a program</option>
+                    {programs.map((program) => (
+                      <option key={program._id} value={program._id}>
+                        {program.name} {program.code ? `(${program.code})` : ''}
+                      </option>
                     ))}
-                  </div>
-                )}
-                <Pagination
-                  currentPage={safeSubjectPage}
-                  totalItems={filteredBySearch.length}
-                  pageSize={SUBJECTS_PER_PAGE}
-                  onPageChange={setSubjectPage}
-                  itemLabel="subjects"
-                  classPrefix="el"
+                  </select>
+                </label>
+              </div>
+
+              <div className="mbe-field">
+                <div className="mbe-field-heading">
+                  <label>Exam Start</label>
+                </div>
+                <DateTimePicker
+                  value={form.startDateTime}
+                  onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
                 />
-              </>
-            );
-          })() : null}
-        </section>
+              </div>
 
-        <section className="mbe-card mbe-table-card">
-          <div className="mbe-section-heading">
-            <div>
-              <h2>Approved Questions</h2>
-              <p>Browse each approved question as a preview card, then add the best ones to your exam.</p>
-            </div>
-            <span className="mbe-count-pill">{selectedQuestions.length} picked</span>
-          </div>
-
-          {!programId ? <p className="mbe-empty-message">Select a program first.</p> : null}
-          {programId && selectedTagIds.length === 0 ? <p className="mbe-empty-message">Select at least one subject to show approved questions.</p> : null}
-          {programId && selectedTagIds.length > 0 ? (
-            <>
-              {bulkSelectedIds.size > 0 && (
-                <div className="ca-bulk-toolbar" style={{ marginBottom: '16px', borderRadius: '8px' }}>
-                  <span className="ca-bulk-count">
-                    {bulkSelectedIds.size} question{bulkSelectedIds.size > 1 ? 's' : ''} selected
+              <div className="mbe-field">
+                <div className="mbe-field-heading">
+                  <label>Exam End</label>
+                  <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
+                    {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
                   </span>
-                  <div className="ca-bulk-actions">
-                    <button className="ca-bulk-btn ca-bulk-btn--approve" type="button" onClick={handleBulkAddSelected}>Add Selected ({bulkSelectedIds.size})</button>
-                    <button className="ca-bulk-btn ca-bulk-btn--remove" type="button" onClick={handleBulkRemoveSelected}>Remove Selected ({bulkSelectedIds.size})</button>
-                    <button className="ca-bulk-btn ca-bulk-btn--clear" type="button" onClick={() => setBulkSelectedIds(new Set())}>✕ Deselect All</button>
+                </div>
+                <DateTimePicker
+                  value={form.endDateTime}
+                  onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+                />
+              </div>
+
+              {isAlumniExam && (
+                <div className="mbe-field mbe-field--full">
+                  <div className="mbe-alumni-settings">
+                    <div>
+                      <h3>Alumni Attempt Timer</h3>
+                      <p>This alumni exam becomes available when published and its schedule starts, and stays open until it ends, is archived or unpublished.</p>
+                    </div>
+
+                    <label className="mbe-check-row">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.isTimed)}
+                        onChange={(e) => setForm((prev) => ({
+                          ...prev,
+                          isTimed: e.target.checked,
+                          timeLimitMinutes: prev.timeLimitMinutes || 180,
+                        }))}
+                      />
+                      <span>Make each alumni attempt timed</span>
+                    </label>
+
+                    {form.isTimed ? (
+                      <label className="mbe-timer-field">
+                        Time Limit (minutes)
+                        <input
+                          className="mbe-input"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={form.timeLimitMinutes}
+                          onChange={(e) => setForm((prev) => ({ ...prev, timeLimitMinutes: e.target.value }))}
+                          required
+                        />
+                        <span className="mbe-field-meta">
+                          {formatDurationFromMinutes(form.timeLimitMinutes) || 'Enter the allowed attempt time.'}
+                        </span>
+                      </label>
+                    ) : (
+                      <p className="mbe-availability-note">Attempts will be untimed.</p>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div className="mbe-toolbar">
-                <label className="ca-checkbox-wrapper mbe-bulk-checkbox" onClick={e => e.stopPropagation()} style={{ padding: '0 8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox"
-                    className="ca-checkbox"
-                    checked={filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id))}
-                    ref={el => { 
-                      if (el) {
-                        const someSelected = filteredApprovedQuestions.some(q => bulkSelectedIds.has(q._id));
-                        const allSelected = filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every(q => bulkSelectedIds.has(q._id));
-                        el.indeterminate = someSelected && !allSelected;
-                      }
-                    }}
-                    onChange={handleSelectAllVisible}
-                    title="Select All on this page"
+              <div className="mbe-field">
+                <label>
+                  Passing Threshold (%)
+                  <input
+                    className="mbe-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.passingThreshold}
+                    onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                    required
                   />
                 </label>
-                <input
-                  className="mbe-input mbe-search"
-                  type="text"
-                  placeholder="Search approved question"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <select
-                  className="mbe-input mbe-filter-select"
-                  value={questionFilterTagId}
-                  onChange={(e) => setQuestionFilterTagId(e.target.value)}
-                >
-                  <option value="">All selected subjects</option>
-                  {filteredSubjectOptions.map((tag) => (
-                    <option key={tag._id} value={tag._id}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="mbe-input mbe-filter-select"
-                  value={approvedSelectionFilter}
-                  onChange={(e) => setApprovedSelectionFilter(e.target.value)}
-                >
-                  <option value="all">All questions</option>
-                  <option value="selected">Selected only</option>
-                  <option value="unselected">Not selected yet</option>
-                </select>
-                <div className="mbe-toolbar-stats">
-                  <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={handleSelectFiltered}>
-                    {isFilterActive() ? 'Select Filtered' : 'Select All'}
-                  </button>
-                  {approvedSelectionFilter === 'selected' ? (
-                    <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn mbe-toolbar-action-btn--danger" onClick={() => setFilteredBulkModal('remove')}>
-                      Remove All Filtered
-                    </button>
+              </div>
+
+              <div className="mbe-field mbe-field--full mbe-textarea-grid">
+                <label>
+                  Description
+                  <textarea
+                    className="mbe-input mbe-textarea"
+                    rows="4"
+                    value={form.description}
+                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="General description of the exam..."
+                  />
+                </label>
+                <label>
+                  Instructions
+                  <textarea
+                    className="mbe-input mbe-textarea"
+                    rows="4"
+                    value={form.instructions}
+                    onChange={(e) => setForm((prev) => ({ ...prev, instructions: e.target.value }))}
+                    placeholder="Exam instructions for students..."
+                  />
+                </label>
+              </div>
+            </div>
+
+          </section>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB: SUBJECTS
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'subjects' && (
+          <section className="mbe-card mbe-selection-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+            <div className="mbe-section-heading">
+              <div>
+                <h2>Subjects</h2>
+                <p>Choose the subject areas that will be included in this exam.</p>
+              </div>
+              <div className="mbe-section-badges">
+                <span className="mbe-count-pill">{selectedTagIds.length} selected</span>
+              </div>
+            </div>
+
+            {!programId ? <p className="mbe-empty-message">Select a program first (in the Details tab) before choosing subjects.</p> : null}
+            {programId && loadingSubjects ? <p className="mbe-empty-message">Loading subjects...</p> : null}
+            {programId && !loadingSubjects && subjectOptions.length === 0 ? <p className="mbe-empty-message">No subjects found for this program.</p> : null}
+            {programId && !loadingSubjects && subjectOptions.length > 0 ? (() => {
+              const filteredBySearch = subjectOptions.filter((tag) =>
+                !subjectSearch.trim() || tag.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
+              );
+              const totalSubjectPages = Math.max(1, Math.ceil(filteredBySearch.length / SUBJECTS_PER_PAGE));
+              const safeSubjectPage = Math.min(subjectPage, totalSubjectPages);
+              const pagedSubjects = filteredBySearch.slice((safeSubjectPage - 1) * SUBJECTS_PER_PAGE, safeSubjectPage * SUBJECTS_PER_PAGE);
+              return (
+                <>
+                  <div className="mbe-subject-search-row">
+                    <input
+                      className="mbe-input mbe-subject-search"
+                      type="text"
+                      placeholder="Search subjects..."
+                      value={subjectSearch}
+                      onChange={(e) => { setSubjectSearch(e.target.value); setSubjectPage(1); }}
+                    />
+                  </div>
+                  {filteredBySearch.length === 0 ? (
+                    <p className="mbe-empty-message">No subjects match your search.</p>
                   ) : (
-                    <button type="button" className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-toolbar-action-btn" onClick={() => setFilteredBulkModal('add')}>
-                      {isFilterActive() ? 'Add All Filtered' : 'Add All'}
-                    </button>
+                    <div className="mbe-tag-grid">
+                      {pagedSubjects.map((tag) => (
+                        <label key={tag._id} className={`mbe-tag-option ${selectedTagIds.includes(String(tag._id)) ? 'is-selected' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedTagIds.includes(String(tag._id))}
+                            onChange={() => handleTagChange(String(tag._id))}
+                          />
+                          <span>{tag.name}</span>
+                        </label>
+                      ))}
+                    </div>
                   )}
-                  <span className="mbe-toolbar-pill">{filteredApprovedQuestions.length} available</span>
-                  <span className="mbe-toolbar-pill mbe-toolbar-pill--selected">{selectedQuestions.length} selected</span>
+                  <Pagination
+                    currentPage={safeSubjectPage}
+                    totalItems={filteredBySearch.length}
+                    pageSize={SUBJECTS_PER_PAGE}
+                    onPageChange={setSubjectPage}
+                    itemLabel="subjects"
+                    classPrefix="el"
+                  />
+                </>
+              );
+            })() : null}
+
+
+          </section>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB: QUESTIONS
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'questions' && (
+          <>
+            {/* Approved questions pool */}
+            <section className="mbe-card mbe-table-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+              <div className="mbe-section-heading">
+                <div>
+                  <h2>Approved Questions</h2>
+                  <p>Browse each approved question as a preview card, then add the best ones to your exam.</p>
+                </div>
+                <div className="mbe-section-badges">
+                  <span className="mbe-count-pill">{selectedQuestions.length} picked</span>
                 </div>
               </div>
 
-              {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
-              {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
-              {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
-                const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
-                const safeQPage = Math.min(questionPage, totalQPages);
-                const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
-                return (
-                  <>
-                    <div className="mbe-approved-stack">
-                      {pagedQuestions.map((question) => {
-                        const isSelected = selectedQuestionIds.has(String(question._id));
-                        const imageCount = question.images?.length || 0;
-                        const answerCount = question.answers?.length || 0;
-                        const isExpanded = !!expandedQuestionIds[question._id];
+              {!programId ? <p className="mbe-empty-message">Select a program first.</p> : null}
+              {programId && selectedTagIds.length === 0 ? <p className="mbe-empty-message">Select at least one subject to show approved questions.</p> : null}
+              {programId && selectedTagIds.length > 0 ? (
+                <>
+                  {bulkSelectedIds.size > 0 && (
+                    <div className="ca-bulk-toolbar mbe-bulk-toolbar">
+                      <span className="ca-bulk-count">
+                        {bulkSelectedIds.size} question{bulkSelectedIds.size > 1 ? 's' : ''} selected
+                      </span>
+                      <div className="ca-bulk-actions">
+                        {approvedQuestions.some((question) => (
+                          bulkSelectedIds.has(question._id) && !selectedQuestionIds.has(String(question._id))
+                        )) && (
+                          <button className="ca-bulk-btn ca-bulk-btn--approve" type="button" onClick={handleBulkAddSelected}>
+                            Add to exam
+                          </button>
+                        )}
+                        {approvedQuestions.some((question) => (
+                          bulkSelectedIds.has(question._id) && selectedQuestionIds.has(String(question._id))
+                        )) && (
+                          <button className="ca-bulk-btn ca-bulk-btn--remove" type="button" onClick={handleBulkRemoveSelected}>
+                            Remove from exam
+                          </button>
+                        )}
+                        <button className="ca-bulk-btn ca-bulk-btn--clear" type="button" onClick={() => setBulkSelectedIds(new Set())}>
+                          Clear selection
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                        return (
-                          <article
-                            key={question._id}
-                            className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''}`}
+                  <div className="mbe-question-filters">
+                    <input
+                      className="mbe-input mbe-search"
+                      type="text"
+                      placeholder="Search approved question"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <select
+                      className="mbe-input mbe-filter-select"
+                      value={questionFilterTagId}
+                      onChange={(e) => setQuestionFilterTagId(e.target.value)}
+                    >
+                      <option value="">All selected subjects</option>
+                      {filteredSubjectOptions.map((tag) => (
+                        <option key={tag._id} value={tag._id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="mbe-input mbe-filter-select"
+                      value={approvedSelectionFilter}
+                      onChange={(e) => setApprovedSelectionFilter(e.target.value)}
+                    >
+                      <option value="all">All questions</option>
+                      <option value="selected">Selected only</option>
+                      <option value="unselected">Not selected yet</option>
+                    </select>
+                  </div>
+
+                  <div className="mbe-question-bulk-controls">
+                    <label className="mbe-select-matching">
+                      <input
+                        type="checkbox"
+                        className="ca-checkbox"
+                        checked={filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every((question) => bulkSelectedIds.has(question._id))}
+                        ref={(element) => {
+                          if (element) {
+                            const someSelected = filteredApprovedQuestions.some((question) => bulkSelectedIds.has(question._id));
+                            const allSelected = filteredApprovedQuestions.length > 0 && filteredApprovedQuestions.every((question) => bulkSelectedIds.has(question._id));
+                            element.indeterminate = someSelected && !allSelected;
+                          }
+                        }}
+                        onChange={handleToggleAllFiltered}
+                        disabled={filteredApprovedQuestions.length === 0}
+                      />
+                      <span>
+                        Select all {filteredApprovedQuestions.length} matching question{filteredApprovedQuestions.length === 1 ? '' : 's'}
+                      </span>
+                    </label>
+                    {filteredApprovedQuestions.length > 0 && (
+                      <>
+                        {approvedSelectionFilter === 'selected' ? (
+                          <button
+                            type="button"
+                            className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-filter-action mbe-filter-action--danger"
+                            onClick={() => setFilteredBulkModal('remove')}
                           >
-                            <div className="mbe-question-main">
-                              <label className="ca-checkbox-wrapper mbe-bulk-checkbox mbe-card-checkbox" onClick={e => e.stopPropagation()}>
-                                <input 
-                                  type="checkbox"
-                                  className="ca-checkbox"
-                                  checked={bulkSelectedIds.has(question._id)}
-                                  onChange={(e) => handleBulkCheckbox(e, question)}
-                                />
-                              </label>
-                              <button
-                                type="button"
-                                className="mbe-question-copy mbe-question-toggle"
-                                onClick={() => toggleQuestionExpanded(question._id)}
-                                aria-expanded={isExpanded}
+                            Remove all matching
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="mbe-btn mbe-btn-ghost mbe-btn-small mbe-filter-action"
+                            onClick={() => setFilteredBulkModal('add')}
+                          >
+                            Add all matching
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
+                  {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
+                  {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
+                    const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
+                    const safeQPage = Math.min(questionPage, totalQPages);
+                    const pagedQuestions = filteredApprovedQuestions.slice((safeQPage - 1) * QUESTIONS_PER_PAGE, safeQPage * QUESTIONS_PER_PAGE);
+                    return (
+                      <>
+                        <div className="mbe-approved-stack">
+                          {pagedQuestions.map((question) => {
+                            const isSelected = selectedQuestionIds.has(String(question._id));
+                            const imageCount = question.images?.length || 0;
+                            const answerCount = question.answers?.length || 0;
+                            const isExpanded = !!expandedQuestionIds[question._id];
+
+                            return (
+                              <article
+                                key={question._id}
+                                className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''}`}
                               >
-                                <div className="mbe-question-meta-row">
-                                  <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
-                                  <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
-                                  {question.createdBy?.name ? (
-                                    <span className="mbe-meta-text">By {question.createdBy.name}</span>
-                                  ) : null}
-                                  <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
+                                <div className="mbe-question-main">
+                                  <label className="ca-checkbox-wrapper mbe-bulk-checkbox mbe-card-checkbox" onClick={e => e.stopPropagation()}>
+                                    <input 
+                                      type="checkbox"
+                                      className="ca-checkbox"
+                                      checked={bulkSelectedIds.has(question._id)}
+                                      onChange={(e) => handleBulkCheckbox(e, question)}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="mbe-question-copy mbe-question-toggle"
+                                    onClick={() => toggleQuestionExpanded(question._id)}
+                                    aria-expanded={isExpanded}
+                                  >
+                                    <div className="mbe-question-meta-row">
+                                      <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
+                                      <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
+                                      {question.createdBy?.name ? (
+                                        <span className="mbe-meta-text">By {question.createdBy.name}</span>
+                                      ) : null}
+                                      <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
+                                    </div>
+
+                                    {!isExpanded && (
+                                      <div className="mbe-question-headline mbe-question-headline--compact">
+                                        {truncateText(question.description, 100)}
+                                      </div>
+                                    )}
+                                  </button>
+
+                                  <div className="mbe-question-actions">
+                                    <button
+                                      className={`mbe-select-btn ${isSelected ? 'is-selected' : ''}`}
+                                      type="button"
+                                      onClick={() => handleQuestionToggle(question)}
+                                    >
+                                      {isSelected ? 'Added' : 'Add'}
+                                    </button>
+                                    {!question.is_used_in_exam && (
+                                      <button
+                                        className="mbe-btn mbe-btn-ghost mbe-btn-small"
+                                        type="button"
+                                        onClick={() => handleReturnQuestion(question)}
+                                      >
+                                        Return
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
-                                {!isExpanded && (
-                                  <div className="mbe-question-headline mbe-question-headline--compact">
-                                    {truncateText(question.description, 100)}
+                                {isExpanded ? (
+                                  <div className="mbe-question-details">
+                                    <section className="mbe-question-panel">
+                                      <p className="mbe-panel-label">Question</p>
+                                      <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
+                                    </section>
+
+                                    {imageCount > 0 ? (
+                                      <section className="mbe-question-panel">
+                                        <p className="mbe-panel-label">Images</p>
+                                        <div className="mbe-preview-images">
+                                          {question.images.map((image, index) => (
+                                            <button
+                                              key={index}
+                                              type="button"
+                                              className="mbe-preview-image-link"
+                                              onClick={() => setFullscreenImage(resolveImageUrl(image))}
+                                            >
+                                              <AuthImage
+                                                className="mbe-preview-image"
+                                                src={resolveImageUrl(image)}
+                                                alt={`Question image ${index + 1}`}
+                                              />
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </section>
+                                    ) : null}
+
+                                    <section className="mbe-question-panel">
+                                      <p className="mbe-panel-label">Answers</p>
+                                      <ul className="mbe-answer-list mbe-answer-list--cards">
+                                        {(question.answers || []).map((answer) => (
+                                          <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
+                                            <span className="mbe-answer-label">{answer.optionLabel}</span>
+                                            <span>{answer.text}</span>
+                                            {answer.isCorrect ? <strong>Correct</strong> : null}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </section>
+
+                                    {question.rationalization && (
+                                      <section className="mbe-question-panel">
+                                        <p className="mbe-panel-label">Rationalization</p>
+                                        <p className="mbe-question-description">{question.rationalization}</p>
+                                      </section>
+                                    )}
                                   </div>
-                                )}
-                              </button>
-
-                              <div className="mbe-question-actions">
-                                <button
-                                  className={`mbe-select-btn ${isSelected ? 'is-selected' : ''}`}
-                                  type="button"
-                                  onClick={() => handleQuestionToggle(question)}
-                                >
-                                  {isSelected ? 'Added' : 'Add'}
-                                </button>
-                                {!question.is_used_in_exam && (
-                                  <button
-                                    className="mbe-btn mbe-btn-ghost mbe-btn-small"
-                                    type="button"
-                                    onClick={() => handleReturnQuestion(question)}
-                                  >
-                                    Return
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {isExpanded ? (
-                              <div className="mbe-question-details">
-                                <section className="mbe-question-panel">
-                                  <p className="mbe-panel-label">Question</p>
-                                  <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
-                                </section>
-
-                                {imageCount > 0 ? (
-                                  <section className="mbe-question-panel">
-                                    <p className="mbe-panel-label">Images</p>
-                                    <div className="mbe-preview-images">
-                                      {question.images.map((image, index) => (
-                                        <button
-                                          key={index}
-                                          type="button"
-                                          className="mbe-preview-image-link"
-                                          onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                        >
-                                          <AuthImage
-                                            className="mbe-preview-image"
-                                            src={resolveImageUrl(image)}
-                                            alt={`Question image ${index + 1}`}
-                                          />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </section>
                                 ) : null}
+                              </article>
+                            );
+                          })}
+                        </div>
+                        <Pagination
+                          currentPage={safeQPage}
+                          totalItems={filteredApprovedQuestions.length}
+                          pageSize={QUESTIONS_PER_PAGE}
+                          onPageChange={setQuestionPage}
+                          itemLabel="questions"
+                          classPrefix="el"
+                        />
+                      </>
+                    );
+                  })() : null}
+                </>
+              ) : null}
+            </section>
 
-                                <section className="mbe-question-panel">
-                                  <p className="mbe-panel-label">Answers</p>
-                                  <ul className="mbe-answer-list mbe-answer-list--cards">
-                                    {(question.answers || []).map((answer) => (
-                                      <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                        <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                        <span>{answer.text}</span>
-                                        {answer.isCorrect ? <strong>Correct</strong> : null}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </section>
-
-                                {question.rationalization && (
-                                  <section className="mbe-question-panel">
-                                    <p className="mbe-panel-label">Rationalization</p>
-                                    <p className="mbe-question-description">{question.rationalization}</p>
-                                  </section>
-                                )}
-                              </div>
-                            ) : null}
-                          </article>
-                        );
-                      })}
-                    </div>
-                    <Pagination
-                      currentPage={safeQPage}
-                      totalItems={filteredApprovedQuestions.length}
-                      pageSize={QUESTIONS_PER_PAGE}
-                      onPageChange={setQuestionPage}
-                      itemLabel="questions"
-                      classPrefix="el"
-                    />
-                  </>
-                );
-              })() : null}
-            </>
-          ) : null}
-        </section>
-
-        <section className="mbe-card mbe-table-card">
-          <div className="mbe-section-heading">
-            <div>
-              <h2>Selected Questions</h2>
-              <p>Questions currently included in this mock board exam, shown as a clean audit view.</p>
-            </div>
-            <span className="mbe-count-pill">{selectedQuestions.length} total</span>
-          </div>
-
-          {selectedQuestions.length === 0 ? <p className="mbe-empty-message">No questions selected yet.</p> : null}
-          {selectedQuestions.length > 0 ? (
-            <>
-              <div className="mbe-toolbar mbe-toolbar--selected">
-                <select
-                  className="mbe-input mbe-filter-select"
-                  value={selectedQuestionFilterTagId}
-                  onChange={(e) => setSelectedQuestionFilterTagId(e.target.value)}
-                >
-                  <option value="">All selected subjects</option>
-                  {filteredSubjectOptions.map((tag) => (
-                    <option key={tag._id} value={tag._id}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Selected questions table */}
+            <section className="mbe-card mbe-table-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+              <div className="mbe-section-heading">
+                <div>
+                  <h2>Selected Questions</h2>
+                  <p>Questions currently included in this mock board exam, shown as a clean audit view.</p>
+                </div>
+                <div className="mbe-section-badges">
+                  <span className="mbe-count-pill">{selectedQuestions.length} total</span>
+                </div>
               </div>
 
-              <div className="mbe-table-wrap">
-                <table className="mbe-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Subject</th>
-                      <th>Choices</th>
-                      <th>Images</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSelectedQuestions.length > 0 ? (
-                      filteredSelectedQuestions.map((question, index) => (
-                        <tr key={question._id}>
-                          <td>{index + 1}</td>
-                          <td>
-                            <span className="mbe-subject-pill">{question.tag?.name || '-'}</span>
-                          </td>
-                          <td>{question.answers?.length || 0}</td>
-                          <td>{question.images?.length || 0}</td>
-                          <td>
-                            <button className="mbe-btn mbe-btn-danger mbe-btn-small" type="button" onClick={() => handleQuestionToggle(question)}>
-                              Remove
-                            </button>
-                          </td>
+              {selectedQuestions.length === 0 ? <p className="mbe-empty-message">No questions selected yet.</p> : null}
+              {selectedQuestions.length > 0 ? (
+                <>
+                  <div className="mbe-toolbar mbe-toolbar--selected">
+                    <select
+                      className="mbe-input mbe-filter-select"
+                      value={selectedQuestionFilterTagId}
+                      onChange={(e) => setSelectedQuestionFilterTagId(e.target.value)}
+                    >
+                      <option value="">All selected subjects</option>
+                      {filteredSubjectOptions.map((tag) => (
+                        <option key={tag._id} value={tag._id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mbe-table-wrap">
+                    <table className="mbe-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Subject</th>
+                          <th>Choices</th>
+                          <th>Images</th>
+                          <th>Action</th>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="mbe-table-empty">No selected questions match this subject.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {filteredSelectedQuestions.length > 0 ? (
+                          filteredSelectedQuestions.map((question, index) => (
+                            <tr key={question._id}>
+                              <td>{index + 1}</td>
+                              <td>
+                                <span className="mbe-subject-pill">{question.tag?.name || '-'}</span>
+                              </td>
+                              <td>{question.answers?.length || 0}</td>
+                              <td>{question.images?.length || 0}</td>
+                              <td>
+                                <button className="mbe-btn mbe-btn-danger mbe-btn-small" type="button" onClick={() => handleQuestionToggle(question)}>
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" className="mbe-table-empty">No selected questions match this subject.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : null}
+            </section>
+
+
+          </>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB: REVIEW & SAVE
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'review' && (
+          <section className="mbe-card mbe-form-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+            <div className="mbe-section-heading">
+              <div>
+                <h2>Review & Save</h2>
+                <p>Review your exam details before saving.</p>
               </div>
-            </>
-          ) : null}
-        </section>
-
-        {fullscreenImage ? (
-          <div className="mbe-image-overlay" onClick={() => setFullscreenImage(null)}>
-            <div className="mbe-image-modal" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="mbe-image-close"
-                onClick={() => setFullscreenImage(null)}
-              >
-                Close
-              </button>
-              <AuthImage src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
             </div>
-          </div>
-        ) : null}
 
-        <section className="mbe-actions">
-          <button className="mbe-btn mbe-btn-primary" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : editingExamId ? 'Update Mock Board Exam' : 'Create Mock Board Exam'}
-          </button>
-          {editingExamId ? (
-            <button className="mbe-btn mbe-btn-ghost" type="button" onClick={onClearEditing}>
-              Cancel Edit
-            </button>
-          ) : null}
-        </section>
+            <div className="mbe-review-grid">
+
+              {/* Audience */}
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">Exam Type</p>
+                <span className={`mbe-audience-pill mbe-audience-pill--${isAlumniExam ? 'alumni' : 'student'} mbe-audience-pill--lg`}>
+                  {isAlumniExam ? 'Alumni Exam' : 'Student Exam'}
+                </span>
+              </div>
+
+              {/* Name */}
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">Exam Name</p>
+                <p className="mbe-review-value">{form.name || <em className="mbe-review-empty">Not set</em>}</p>
+              </div>
+
+              {/* Program */}
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">Program</p>
+                <p className="mbe-review-value">
+                  {selectedProgram ? `${selectedProgram.name}${selectedProgram.code ? ` (${selectedProgram.code})` : ''}` : <em className="mbe-review-empty">Not selected</em>}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">Status</p>
+                <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>{getStatusLabel(form.status)}</span>
+              </div>
+
+              {/* Schedule */}
+              <div className="mbe-review-block mbe-review-block--full">
+                <p className="mbe-review-label">Schedule</p>
+                <p className="mbe-review-value">
+                  {form.startDateTime && form.endDateTime
+                    ? <>{new Date(form.startDateTime).toLocaleString()} → {new Date(form.endDateTime).toLocaleString()}{computedDuration && !computedDuration.includes('Invalid') ? <span className="mbe-review-duration"> ({computedDuration})</span> : null}</>
+                    : <em className="mbe-review-empty">No schedule set</em>}
+                </p>
+              </div>
+
+              {/* Passing threshold */}
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">Passing Threshold</p>
+                <p className="mbe-review-value">{form.passingThreshold}%</p>
+              </div>
+
+              {/* Timer (alumni only) */}
+              {isAlumniExam && (
+                <div className="mbe-review-block">
+                  <p className="mbe-review-label">Attempt Timer</p>
+                  <p className="mbe-review-value">
+                    {form.isTimed
+                      ? `Timed — ${formatDurationFromMinutes(form.timeLimitMinutes) || `${form.timeLimitMinutes} min`} per attempt`
+                      : 'Untimed'}
+                  </p>
+                </div>
+              )}
+
+              {/* Subjects */}
+              <div className="mbe-review-block mbe-review-block--full">
+                <p className="mbe-review-label">Subjects ({selectedTagIds.length})</p>
+                {selectedTagIds.length === 0
+                  ? <em className="mbe-review-empty">No subjects selected</em>
+                  : (
+                    <div className="mbe-review-tag-list">
+                      {filteredSubjectOptions.map(tag => (
+                        <span key={tag._id} className="mbe-subject-pill">{tag.name}</span>
+                      ))}
+                    </div>
+                  )}
+              </div>
+
+              {/* Questions breakdown */}
+              <div className="mbe-review-block mbe-review-block--full">
+                <p className="mbe-review-label">Questions ({selectedQuestions.length} total)</p>
+                {selectedQuestions.length === 0
+                  ? <em className="mbe-review-empty">No questions selected</em>
+                  : (
+                    <div className="mbe-review-subject-breakdown">
+                      {Object.entries(questionsBySubject).map(([name, count]) => (
+                        <div key={name} className="mbe-review-subject-row">
+                          <span className="mbe-subject-pill">{name}</span>
+                          <span className="mbe-review-q-count">{count} question{count !== 1 ? 's' : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+
+            </div>
+
+            <div className="mbe-tab-footer">
+              <div className="mbe-review-actions">
+                {editingExamId ? (
+                  <button className="mbe-btn mbe-btn-ghost" type="button" onClick={onClearEditing}>
+                    Cancel Edit
+                  </button>
+                ) : null}
+                <button className="mbe-btn mbe-btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : editingExamId ? 'Update Mock Board Exam' : 'Create Mock Board Exam'}
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
       </form>
 
+      {/* ── Fullscreen image overlay ──────────────────────────────────────── */}
+      {fullscreenImage ? (
+        <div className="mbe-image-overlay" onClick={() => setFullscreenImage(null)}>
+          <div className="mbe-image-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="mbe-image-close"
+              onClick={() => setFullscreenImage(null)}
+            >
+              Close
+            </button>
+            <AuthImage src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Feedback modal ────────────────────────────────────────────────── */}
       <FeedbackModal
         open={!!feedbackModal}
         onClose={() => setFeedbackModal(null)}
@@ -1155,6 +1379,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         message={feedbackModal?.message}
       />
 
+      {/* ── Return question modal ─────────────────────────────────────────── */}
       <Modal
         open={!!returnModal}
         onClose={() => {
@@ -1210,7 +1435,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         </div>
       </Modal>
 
-      {/* Add / Remove All Filtered Confirmation Modal */}
+      {/* ── Add/Remove All Filtered confirmation modal ────────────────────── */}
       {filteredBulkModal && (
         <Modal
           open={!!filteredBulkModal}
