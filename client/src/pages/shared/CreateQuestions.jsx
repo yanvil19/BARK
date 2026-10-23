@@ -7,6 +7,8 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
+import Table from '../../components/Table.jsx';
+import ActionMenu from '../../components/ActionMenu.jsx';
 import '../../styles/shared/CreateQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -311,6 +313,36 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
     return finalQuestions;
   }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
+
+  function getQuestionActions(question) {
+    const isDraftOrReturned = question.state === 'draft' || question.state === 'returned';
+    const items = [];
+
+    items.push({
+      key: 'view',
+      label: 'View Details',
+      onClick: () => openViewModal(question),
+    });
+
+    if (isDraftOrReturned) {
+      items.push({
+        key: 'edit',
+        label: 'Edit Question',
+        onClick: () => openEditModal(question),
+      });
+    }
+
+    if (question.state === 'draft' || question.state === 'returned' || question.state === 'rejected') {
+      items.push({
+        key: 'delete',
+        label: 'Delete Question',
+        danger: true,
+        onClick: () => handleDelete(question),
+      });
+    }
+
+    return items;
+  }
 
   const { paginatedQuestions } = useMemo(() => {
     return {
@@ -768,11 +800,12 @@ export default function CreateQuestions({ role, programId, programLabel, program
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
       ) : null}
 
-      <div className="qp-table-wrap">
-        {loading ? (
+      {loading ? (
+        <div className="ui-table-card">
           <p className="qp-loading">Loading questions...</p>
-        ) : (
-          <table className="qp-table">
+        </div>
+      ) : (
+        <Table className="qp-table">
             <thead>
               <tr>
                 <th style={{ width: '320px' }}>Question</th>
@@ -780,7 +813,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
                 {role === 'dean' && <th>Program</th>}
                 <th>Status</th>
                 <th>Updated</th>
-                <th>Actions</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -940,25 +973,31 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
                             <td>{formatDate(question.updatedAt || question.createdAt)}</td>
 
-                            <td className="qp-actions-cell">
-                              {question.state === 'draft' || question.state === 'returned' ? (
-                                <>
-                                  <button className="qp-btn-edit" onClick={() => openEditModal(question)}>Edit</button>
-                                  <button className="qp-btn-submit" onClick={() => handleSubmit(question, isGrouped)}>
+                            <td className="ui-table-actions-cell" style={{ textAlign: 'center' }}>
+                              <div className="ui-table-actions">
+                                {question.state === 'draft' || question.state === 'returned' ? (
+                                  <button
+                                    type="button"
+                                    className="ui-table-btn ui-table-btn--success"
+                                    onClick={() => handleSubmit(question, isGrouped)}
+                                  >
                                     {question.state === 'returned' ? 'Re-submit' : 'Submit'}
                                   </button>
-                                  <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
-                                </>
-                              ) : null}
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
+                                    onClick={() => openViewModal(question)}
+                                  >
+                                    View Details
+                                  </button>
+                                )}
 
-                              {question.state !== 'draft' && question.state !== 'returned' ? (
-                                <>
-                                  <button className="qp-btn-view" onClick={() => openViewModal(question)}>View</button>
-                                  {question.state === 'rejected' ? (
-                                    <button className="qp-btn-delete" onClick={() => handleDelete(question)}>Delete</button>
-                                  ) : null}
-                                </>
-                              ) : null}
+                                <ActionMenu
+                                  items={getQuestionActions(question)}
+                                  ariaLabel="More actions"
+                                />
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -968,9 +1007,8 @@ export default function CreateQuestions({ role, programId, programLabel, program
                 })()
               )}
             </tbody>
-          </table>
-        )}
-      </div>
+        </Table>
+      )}
 
       {/* ── Pagination ── */}
       {!loading && filteredQuestions.length > 0 && (
