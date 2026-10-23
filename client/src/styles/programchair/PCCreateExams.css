@@ -1011,6 +1011,134 @@
   background: #ffffff;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   GROUPED QUESTION SET — header card + child card divider
+════════════════════════════════════════════════════════════════════ */
+
+/* Wrapper that groups the header card + all child question cards */
+.mbe-question-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* The banner that sits above a grouped question set */
+.mbe-group-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px;
+  margin: 10px 0;
+  background: linear-gradient(135deg, #f0f2ff 0%, #eef0fc 100%);
+  border: 1.5px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mbe-group-header-card:hover {
+  background: linear-gradient(135deg, #e8ebff 0%, #e5e8fa 100%);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.mbe-group-header-card.is-collapsed {
+  border-radius: 10px;
+  border-bottom: 1.5px solid rgba(99, 102, 241, 0.3);
+}
+
+/* Left cluster: icon + title + badge */
+.mbe-group-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mbe-group-header-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  font-size: 14px;
+}
+
+.mbe-group-header-icon::before {
+  content: '⊞';
+}
+
+.mbe-group-header-title {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: #312e81;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mbe-group-header-badge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  background: rgba(99, 102, 241, 0.14);
+  color: #4338ca;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Right: Add Set / Remove Set button */
+.mbe-group-header-actions {
+  flex-shrink: 0;
+}
+
+/* Variant for the group-level toggle button */
+.mbe-select-btn.mbe-select-btn--group {
+  min-width: 100px;
+  font-size: 12px;
+}
+
+/* Child question cards that belong to a group */
+.mbe-question-card.is-grouped {
+  border-radius: 0;
+  background: #fafbff;
+}
+
+.mbe-question-card.is-grouped:hover {
+  border-left-color: #6366f1;
+  background: #f5f7ff;
+}
+
+.mbe-question-card.is-grouped.is-selected {
+  border-left-color: var(--mbe-audience, var(--primary-bg));
+  background: var(--mbe-audience-soft, #f5f7ff);
+}
+
+/* Last grouped card in a set gets a rounded bottom */
+.mbe-question-item-wrapper .mbe-question-card.is-grouped:last-child {
+  border-radius: 10px;
+}
+
+/* "Part N" chip on individual grouped child cards */
+.mbe-part-badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* ─── Select / Add button ───────────────────────────────────────── */
 .mbe-select-btn {
   min-width: 74px;

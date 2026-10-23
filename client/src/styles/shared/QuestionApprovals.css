@@ -1569,3 +1569,19 @@
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* Sidebar Review Bubble Navigation */
+.ca-sidebar .import-review-bubble-wrapper {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  gap: 12px;
+  background: #f8faff;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+}
+
+.ca-sidebar .import-review-nav-bubble {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}

@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
+import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -99,7 +100,11 @@ export default function QuestionApprovals({ me }) {
   const [selectedState, setSelectedState] = useState(null); // Tracks state of first checked item
   const [bulkActionModal, setBulkActionModal] = useState(null); // 'return' | 'reject' | 'restore'
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
+
+  useEffect(() => {
+    setActiveGroupIdx(0);
+  }, [selectedQuestion?._id, selectedQuestion?.groupId]);
 
   const itemsPerPage = 10;
   const lockedIdRef = useRef(null);
@@ -241,15 +246,22 @@ export default function QuestionApprovals({ me }) {
 
   async function handleRestore(question) {
     try {
-      await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'restore', note: '' } });
+      const res = await apiAuth(`${BASE}/api/questions/${question._id}/review`, { method: 'POST', body: { action: 'restore', note: '' } });
       setActionTaken(true);
       setLockedQuestionId(null);
-      setQuestions((prev) => prev.map((item) => (
-        item._id === question._id ? { ...item, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : item
-      )));
-      setSelectedQuestion((prev) => (
-        prev && prev._id === question._id ? { ...prev, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : prev
-      ));
+      const groupUpdated = res?.groupQuestions;
+      if (Array.isArray(groupUpdated) && groupUpdated.length > 0) {
+        const map = new Map(groupUpdated.map(q => [String(q._id), q]));
+        setQuestions((prev) => prev.map((item) => (map.has(String(item._id)) ? map.get(String(item._id)) : item)));
+        setSelectedQuestion((prev) => (prev && map.has(String(prev._id)) ? map.get(String(prev._id)) : prev));
+      } else {
+        setQuestions((prev) => prev.map((item) => (
+          item._id === question._id ? { ...item, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : item
+        )));
+        setSelectedQuestion((prev) => (
+          prev && prev._id === question._id ? { ...prev, state: 'restored', currentReviewer: null, reviewStartedAt: null, rejectionReason: null } : prev
+        ));
+      }
       notify('Question restored successfully.', { variant: 'success' });
     } catch (err) {
       if (err.status === 409) {
@@ -363,7 +375,7 @@ export default function QuestionApprovals({ me }) {
 
     setSubmitting(true);
     try {
-      await apiAuth(`${BASE}/api/questions/${actionModal.question._id}/review`, {
+      const res = await apiAuth(`${BASE}/api/questions/${actionModal.question._id}/review`, {
         method: 'POST',
         body: { action: actionModal.action, note: note.trim() },
       });
@@ -384,10 +396,17 @@ export default function QuestionApprovals({ me }) {
           : { rejectionReason: note.trim() }),
       };
 
-      setQuestions((prev) => prev.map((item) => (
-        item._id === actionModal.question._id ? updatedQuestion : item
-      )));
-      setSelectedQuestion(updatedQuestion);
+      const groupUpdated = res?.groupQuestions;
+      if (Array.isArray(groupUpdated) && groupUpdated.length > 0) {
+        const map = new Map(groupUpdated.map(q => [String(q._id), q]));
+        setQuestions((prev) => prev.map((item) => (map.has(String(item._id)) ? map.get(String(item._id)) : item)));
+        setSelectedQuestion((prev) => (prev && map.has(String(prev._id)) ? map.get(String(prev._id)) : prev));
+      } else {
+        setQuestions((prev) => prev.map((item) => (
+          item._id === actionModal.question._id ? updatedQuestion : item
+        )));
+        setSelectedQuestion(updatedQuestion);
+      }
       setActionModal(null);
       setNote('');
     } catch (err) {
@@ -481,20 +500,30 @@ export default function QuestionApprovals({ me }) {
     e.stopPropagation();
     if (!selectedState) return;
 
-    const matchStateOnPage = paginatedQuestions.filter(q => q.state === selectedState).map(q => q._id);
-    const allSelected = matchStateOnPage.every(id => selectedIds.has(id));
+    const matchStateOnPageIds = [];
+    paginatedQuestions.forEach(q => {
+      if (q.state === selectedState) {
+        if (q.groupId) {
+          questions.filter(s => s.groupId === q.groupId).forEach(s => matchStateOnPageIds.push(s._id));
+        } else {
+          matchStateOnPageIds.push(q._id);
+        }
+      }
+    });
+
+    const allSelected = matchStateOnPageIds.length > 0 && matchStateOnPageIds.every(id => selectedIds.has(id));
 
     if (allSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        matchStateOnPage.forEach(id => next.delete(id));
+        matchStateOnPageIds.forEach(id => next.delete(id));
         if (next.size === 0) setSelectedState(null);
         return next;
       });
     } else {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        matchStateOnPage.forEach(id => next.add(id));
+        matchStateOnPageIds.forEach(id => next.add(id));
         return next;
       });
     }
@@ -721,29 +750,62 @@ export default function QuestionApprovals({ me }) {
     return finalQuestions;
   }, [questions, examUseFilter, filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
+  const displayQuestions = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    for (const q of filteredQuestions) {
+      if (!q.groupId) {
+        list.push(q);
+      } else if (!seen.has(q.groupId)) {
+        seen.add(q.groupId);
+        list.push(q);
+      }
+    }
+    return list;
+  }, [filteredQuestions]);
+
   const { paginatedQuestions, totalPages } = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return {
-      paginatedQuestions: filteredQuestions.slice(startIndex, endIndex),
-      totalPages: Math.ceil(filteredQuestions.length / itemsPerPage),
+      paginatedQuestions: displayQuestions.slice(startIndex, endIndex),
+      totalPages: Math.ceil(displayQuestions.length / itemsPerPage) || 1,
     };
-  }, [filteredQuestions, currentPage]);
+  }, [displayQuestions, currentPage]);
 
   useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, examUseFilter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   // Match checks for Select All UI element
   const matchStateOnPage = paginatedQuestions.filter(q => q.state === selectedState);
-  const allPendingSelected = matchStateOnPage.length > 0 && matchStateOnPage.every(q => selectedIds.has(q._id));
-  const somePendingSelected = matchStateOnPage.some(q => selectedIds.has(q._id));
+  const matchStateOnPageIds = useMemo(() => {
+    const ids = [];
+    paginatedQuestions.forEach(q => {
+      if (q.state === selectedState) {
+        if (q.groupId) {
+          questions.filter(s => s.groupId === q.groupId).forEach(s => ids.push(s._id));
+        } else {
+          ids.push(q._id);
+        }
+      }
+    });
+    return ids;
+  }, [paginatedQuestions, selectedState, questions]);
 
-  // Ordered list of bulk-selected questions (follows filteredQuestions order for consistent navigation)
+  const allPendingSelected = matchStateOnPageIds.length > 0 && matchStateOnPageIds.every(id => selectedIds.has(id));
+  const somePendingSelected = matchStateOnPageIds.some(id => selectedIds.has(id));
+
+  // Ordered list of bulk-selected items (follows displayQuestions order for consistent navigation)
   const bulkSelectedQuestions = useMemo(
-    () => filteredQuestions.filter(q => selectedIds.has(q._id)),
-    [filteredQuestions, selectedIds]
+    () => displayQuestions.filter(q => {
+      if (q.groupId) {
+        return questions.filter(s => s.groupId === q.groupId).some(s => selectedIds.has(s._id));
+      }
+      return selectedIds.has(q._id);
+    }),
+    [displayQuestions, questions, selectedIds]
   );
   const bulkNavIndex = selectedQuestion
-    ? bulkSelectedQuestions.findIndex(q => q._id === selectedQuestion._id)
+    ? bulkSelectedQuestions.findIndex(q => q.groupId ? q.groupId === selectedQuestion.groupId : q._id === selectedQuestion._id)
     : -1;
 
   return (
@@ -850,160 +912,140 @@ export default function QuestionApprovals({ me }) {
               )}
 
               <div className="ca-questions-list">
-                {(() => {
-                  const renderedGroupHeaders = new Set();
-                  return paginatedQuestions.map((question) => {
-                    const isChecked = selectedIds.has(question._id);
-                    const isCheckable = !selectedState || selectedState === question.state;
-                    const isGrouped = !!question.groupId;
-                    const isFirstInGroup = isGrouped && !renderedGroupHeaders.has(question.groupId);
-                    if (isFirstInGroup) renderedGroupHeaders.add(question.groupId);
+                {paginatedQuestions.map((question) => {
+                  const isGrouped = !!question.groupId;
+                  const groupSiblings = isGrouped ? questions.filter(q => q.groupId === question.groupId).sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0)) : [];
+                  const isCheckable = !selectedState || selectedState === question.state;
+                  const isChecked = selectedIds.has(question._id);
+                  const isGroupActive = isGrouped && selectedQuestion?.groupId === question.groupId;
+                  const isAllGroupChecked = isGrouped && groupSiblings.length > 0 && groupSiblings.every(q => selectedIds.has(q._id));
+                  const isSomeGroupChecked = isGrouped && groupSiblings.some(q => selectedIds.has(q._id));
 
-                    const groupSiblings = isGrouped ? filteredQuestions.filter(q => q.groupId === question.groupId) : [];
-                    const groupTitle = question.groupContext?.trim()
-                      ? truncateText(question.groupContext.trim(), 80)
-                      : `Question Set (${groupSiblings.length} questions)`;
-                    const isGroupCollapsed = isGrouped && collapsedGroups.has(question.groupId);
-                    const isGroupActive = isGrouped && selectedQuestion?.groupId === question.groupId;
-                    const isAllGroupChecked = isGrouped && groupSiblings.length > 0 && groupSiblings.every(q => selectedIds.has(q._id));
-                    const isSomeGroupChecked = isGrouped && groupSiblings.some(q => selectedIds.has(q._id));
+                  const groupTitle = question.groupContext?.trim()
+                    ? truncateText(question.groupContext.trim(), 80)
+                    : `Question Set (${groupSiblings.length} questions)`;
 
-                    const toggleGroupCollapse = (e) => {
-                      e.stopPropagation();
-                      setCollapsedGroups(prev => {
-                        const next = new Set(prev);
-                        if (next.has(question.groupId)) {
-                          next.delete(question.groupId);
-                        } else {
-                          next.add(question.groupId);
-                        }
-                        return next;
-                      });
-                    };
-
+                  if (isGrouped) {
                     return (
-                      <React.Fragment key={question._id}>
-                        {isFirstInGroup && (
-                          <div
-                            className={`ca-group-header-card ${isGroupActive ? 'is-active' : ''} ${isAllGroupChecked ? 'is-checked' : ''}`}
-                            onClick={toggleGroupCollapse}
-                            title="Click to collapse / expand question set"
-                          >
-                            <div className="ca-card-top">
-                              {isCheckable && (
-                                <div
-                                  className={`ca-card-checkbox-wrap ${isAllGroupChecked ? 'is-checked' : ''}`}
-                                  onClick={e => handleCheckbox(e, question)}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="ca-checkbox"
-                                    checked={isAllGroupChecked}
-                                    ref={el => { if (el) el.indeterminate = isSomeGroupChecked && !isAllGroupChecked; }}
-                                    onChange={() => { }}
-                                  />
-                                </div>
-                              )}
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="ca-card-desc" style={{ fontWeight: 600, color: '#1e1b4b' }}>
-                                  <strong style={{ color: '#4338ca', marginRight: '6px' }}></strong>
-                                  {groupTitle}
-                                </p>
-                              </div>
-                              <div className="ca-card-badges">
-                                <div className="ca-group-badge">
-                                  {groupSiblings.length} questions
-                                </div>
-                                <div className={`ca-state-badge ca-state--${question.state}`}>
-                                  {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
-                                </div>
-                              </div>
+                      <div
+                        key={question.groupId || question._id}
+                        className={`ca-group-header-card ${isGroupActive ? 'is-active' : ''} ${isAllGroupChecked ? 'is-checked' : ''}`}
+                        onClick={() => handleSelectQuestion(question)}
+                        title="Click to review question set"
+                      >
+                        <div className="ca-card-top">
+                          {isCheckable && (
+                            <div
+                              className={`ca-card-checkbox-wrap ${isAllGroupChecked ? 'is-checked' : ''}`}
+                              onClick={e => handleCheckbox(e, question)}
+                            >
+                              <input
+                                type="checkbox"
+                                className="ca-checkbox"
+                                checked={isAllGroupChecked}
+                                ref={el => { if (el) el.indeterminate = isSomeGroupChecked && !isAllGroupChecked; }}
+                                onChange={() => { }}
+                              />
                             </div>
-                            <div className="ca-card-meta">
-                              <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
-                              <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
-                              <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
-                              <span className="ca-card-meta-datetime">
-                                <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
-                                <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
-                              </span>
-                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p className="ca-card-desc" style={{ fontWeight: 600, color: '#1e1b4b' }}>
+                              {groupTitle}
+                            </p>
                           </div>
-                        )}
-                        {!isGroupCollapsed && (
-                          <div
-                            className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''} ${isGrouped ? 'ca-card--grouped' : ''}`}
-                            style={isGrouped ? { marginLeft: '12px'} : {}}
-                            onClick={() => handleSelectQuestion(question)}
-                          >
-                            <div className="ca-card-top">
-                              {/* Checkbox wrapper handles hover logic cleanly */}
-                              {isCheckable && (
-                                <div
-                                  className={`ca-card-checkbox-wrap ${isChecked ? 'is-checked' : ''}`}
-                                  onClick={e => handleCheckbox(e, question)}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="ca-checkbox"
-                                    checked={isChecked}
-                                    onChange={() => { }}
-                                  />
-                                </div>
-                              )}
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="ca-card-desc">
-                                  {isGrouped && (
-                                    <strong style={{ color: '#4338ca', marginRight: '6px' }}>
-                                      Q{(question.groupOrder ?? 0) + 1}.
-                                    </strong>
-                                  )}
-                                  {truncateText(question.description, 100)}
-                                </p>
-                              </div>
-                              <div className="ca-card-badges">
-                                {isGrouped && (
-                                  <div className="ca-state-badge" style={{ background: '#e0e7ff', color: '#3730a3' }}>
-                                    Part {(question.groupOrder ?? 0) + 1}
-                                  </div>
-                                )}
-                                <div className={`ca-state-badge ca-state--${question.state}`}>
-                                  {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
-                                </div>
-                                {question.state === 'approved' && question.is_used_in_exam && (
-                                  <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
-                                    Used in Exam
-                                  </div>
-                                )}
-                                {isBeingEvaluated(question, me?._id) && (
-                                  <div className="ca-evaluating-badge">
-                                    <span className="ca-evaluating-dot" />
-                                    Being Evaluated
-                                  </div>
-                                )}
-                              </div>
+                          <div className="ca-card-badges">
+                            <div className="ca-group-badge">
+                              {groupSiblings.length} questions
                             </div>
-                            <div className="ca-card-meta">
-                              <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
-                              <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
-                              <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
-                              <span className="ca-card-meta-datetime">
-                                <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
-                                <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
-                              </span>
+                            <div className={`ca-state-badge ca-state--${question.state}`}>
+                              {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
                             </div>
+                            {question.state === 'approved' && question.is_used_in_exam && (
+                              <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
+                                Used in Exam
+                              </div>
+                            )}
+                            {isBeingEvaluated(question, me?._id) && (
+                              <div className="ca-evaluating-badge">
+                                <span className="ca-evaluating-dot" />
+                                Being Evaluated
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </React.Fragment>
+                        </div>
+                        <div className="ca-card-meta">
+                          <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
+                          <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
+                          <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
+                          <span className="ca-card-meta-datetime">
+                            <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
+                            <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
+                          </span>
+                        </div>
+                      </div>
                     );
-                  });
-                })()}
+                  }
+
+                  return (
+                    <div
+                      key={question._id}
+                      className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''}`}
+                      onClick={() => handleSelectQuestion(question)}
+                    >
+                      <div className="ca-card-top">
+                        {isCheckable && (
+                          <div
+                            className={`ca-card-checkbox-wrap ${isChecked ? 'is-checked' : ''}`}
+                            onClick={e => handleCheckbox(e, question)}
+                          >
+                            <input
+                              type="checkbox"
+                              className="ca-checkbox"
+                              checked={isChecked}
+                              onChange={() => { }}
+                            />
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p className="ca-card-desc">
+                            {truncateText(question.description, 100)}
+                          </p>
+                        </div>
+                        <div className="ca-card-badges">
+                          <div className={`ca-state-badge ca-state--${question.state}`}>
+                            {question.state === 'pending_chair' ? 'Pending' : question.state === 'restored' ? 'Restored' : getStatusLabel(question.state)}
+                          </div>
+                          {question.state === 'approved' && question.is_used_in_exam && (
+                            <div className="ca-state-badge" style={{ color: '#1d4ed8', backgroundColor: '#eef2ff' }}>
+                              Used in Exam
+                            </div>
+                          )}
+                          {isBeingEvaluated(question, me?._id) && (
+                            <div className="ca-evaluating-badge">
+                              <span className="ca-evaluating-dot" />
+                              Being Evaluated
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ca-card-meta">
+                        <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>
+                        <span className="ca-tag-pill">{question.tag?.name || 'N/A'}</span>
+                        <span className="ca-author">{question.createdBy?.name || 'Unknown'}</span>
+                        <span className="ca-card-meta-datetime">
+                          <span className="ca-date">{formatDate(getSubmittedAt(question))}</span>
+                          <span className="ca-time">{formatTime(getSubmittedAt(question))}</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {filteredQuestions.length > 0 && (
+              {displayQuestions.length > 0 && (
                 <div className="ca-pagination">
                   <div className="ca-pagination-info">
-                    Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredQuestions.length)} of {filteredQuestions.length} questions
+                    Showing {displayQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, displayQuestions.length)} of {displayQuestions.length} questions
                   </div>
                   <div className="ca-pagination-controls">
                     <button className="ca-pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>← Previous</button>
@@ -1031,6 +1073,9 @@ export default function QuestionApprovals({ me }) {
           const groupSiblingsReview = isGroupedReview
             ? questions.filter(q => q.groupId === selectedQuestion.groupId).sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
             : [selectedQuestion];
+          const currentReviewQuestion = isGroupedReview
+            ? (groupSiblingsReview[activeGroupIdx] || groupSiblingsReview[0] || selectedQuestion)
+            : selectedQuestion;
 
           return (
             <div className="ca-sidebar">
@@ -1105,97 +1150,97 @@ export default function QuestionApprovals({ me }) {
                   </section>
                 )}
 
-                {groupSiblingsReview.map((qItem, qIdx) => (
-                  <div
-                    key={qItem._id}
-                    style={{
-                      borderBottom: qIdx < groupSiblingsReview.length - 1 ? '2px dashed #e2e8f0' : 'none',
-                      paddingBottom: qIdx < groupSiblingsReview.length - 1 ? '20px' : '0',
-                      marginBottom: qIdx < groupSiblingsReview.length - 1 ? '20px' : '0',
-                    }}
-                  >
-                    <section className="ca-section">
-                      <h3 className="ca-section-label">
-                        {isGroupedReview ? `Question ${qIdx + 1}` : 'Question'}
-                      </h3>
-                      <p className="ca-question-detail-text">{qItem.description}</p>
-                    </section>
+                {isGroupedReview && groupSiblingsReview.length > 1 && (
+                  <ImportReviewBubbles
+                    questions={groupSiblingsReview}
+                    currentIdx={activeGroupIdx}
+                    onSelectQuestion={setActiveGroupIdx}
+                    readOnly={true}
+                  />
+                )}
 
-                    {qItem.images && qItem.images.length > 0 && (
-                      <section className="ca-section">
-                        <h3 className="ca-section-label">Images</h3>
-                        <div className="ca-images">
-                          {qItem.images.map((img, i) => (
-                            <AuthImage
-                              key={i}
-                              src={img.startsWith('/') ? `${BASE}${img}` : img}
-                              alt={`Question image ${i + 1}`}
-                              className="ca-image"
-                              onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
-                            />
-                          ))}
-                        </div>
-                      </section>
-                    )}
+                <div>
+                  <section className="ca-section">
+                    <h3 className="ca-section-label">
+                      {isGroupedReview ? `Question ${activeGroupIdx + 1} of ${groupSiblingsReview.length}` : 'Question'}
+                    </h3>
+                    <p className="ca-question-detail-text">{currentReviewQuestion.description}</p>
+                  </section>
 
+                  {currentReviewQuestion.images && currentReviewQuestion.images.length > 0 && (
                     <section className="ca-section">
-                      <h3 className="ca-section-label">Answers</h3>
-                      <div className="ca-answers">
-                        {qItem.answers.map((ans, i) => (
-                          <div key={i} className="ca-answer-item">
-                            <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
-                              {ans.isCorrect ? '✓' : '○'}
-                            </div>
-                            <div className="ca-answer-text">{ans.text}</div>
-                          </div>
+                      <h3 className="ca-section-label">Images</h3>
+                      <div className="ca-images">
+                        {currentReviewQuestion.images.map((img, i) => (
+                          <AuthImage
+                            key={i}
+                            src={img.startsWith('/') ? `${BASE}${img}` : img}
+                            alt={`Question image ${i + 1}`}
+                            className="ca-image"
+                            onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
+                          />
                         ))}
                       </div>
                     </section>
+                  )}
 
-                    {qItem.rationalization && (
-                      <section className="ca-section">
-                        <h3 className="ca-section-label">Rationalization</h3>
-                        <p className="ca-question-detail-text">{qItem.rationalization}</p>
-                      </section>
-                    )}
-                  </div>
-                ))}
+                  <section className="ca-section">
+                    <h3 className="ca-section-label">Answers</h3>
+                    <div className="ca-answers">
+                      {currentReviewQuestion.answers.map((ans, i) => (
+                        <div key={i} className="ca-answer-item">
+                          <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
+                            {ans.isCorrect ? '✓' : '○'}
+                          </div>
+                          <div className="ca-answer-text">{ans.text}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {currentReviewQuestion.rationalization && (
+                    <section className="ca-section">
+                      <h3 className="ca-section-label">Rationalization</h3>
+                      <p className="ca-question-detail-text">{currentReviewQuestion.rationalization}</p>
+                    </section>
+                  )}
+                </div>
 
                 <section className="ca-section">
                   <div className="ca-meta-grid">
                     <div>
                       <span className="ca-meta-label">Subject</span>
-                      <div className="ca-meta-value">{selectedQuestion.tag?.name || 'N/A'}</div>
+                      <div className="ca-meta-value">{currentReviewQuestion.tag?.name || selectedQuestion.tag?.name || 'N/A'}</div>
                     </div>
                     <div>
                       <span className="ca-meta-label">Professor</span>
-                      <div className="ca-meta-value">{selectedQuestion.createdBy?.name || 'Unknown'}</div>
+                      <div className="ca-meta-value">{currentReviewQuestion.createdBy?.name || selectedQuestion.createdBy?.name || 'Unknown'}</div>
                     </div>
                     <div>
                       <span className="ca-meta-label">Program</span>
-                      <div className="ca-meta-value">{formatProgramLabel(selectedQuestion.program)}</div>
+                      <div className="ca-meta-value">{formatProgramLabel(currentReviewQuestion.program || selectedQuestion.program)}</div>
                     </div>
                     <div>
                       <span className="ca-meta-label">Submitted</span>
                       <div className="ca-meta-value">
-                        {formatDate(getSubmittedAt(selectedQuestion))}
-                        {getSubmittedAt(selectedQuestion) ? ` · ${formatTime(getSubmittedAt(selectedQuestion))}` : ''}
+                        {formatDate(getSubmittedAt(currentReviewQuestion || selectedQuestion))}
+                        {getSubmittedAt(currentReviewQuestion || selectedQuestion) ? ` · ${formatTime(getSubmittedAt(currentReviewQuestion || selectedQuestion))}` : ''}
                       </div>
                     </div>
                   </div>
                 </section>
 
-                {selectedQuestion.state === 'returned' && selectedQuestion.revisionNote && (
+                {(currentReviewQuestion.state === 'returned' || selectedQuestion.state === 'returned') && (currentReviewQuestion.revisionNote || selectedQuestion.revisionNote) && (
                   <section className="ca-section ca-section--note">
                     <h3 className="ca-section-label">Revision Note</h3>
-                    <p className="ca-note-text">{selectedQuestion.revisionNote}</p>
+                    <p className="ca-note-text">{currentReviewQuestion.revisionNote || selectedQuestion.revisionNote}</p>
                   </section>
                 )}
 
-                {selectedQuestion.state === 'rejected' && selectedQuestion.rejectionReason && (
+                {(currentReviewQuestion.state === 'rejected' || selectedQuestion.state === 'rejected') && (currentReviewQuestion.rejectionReason || selectedQuestion.rejectionReason) && (
                   <section className="ca-section ca-section--note">
                     <h3 className="ca-section-label">Rejection Reason</h3>
-                    <p className="ca-note-text">{selectedQuestion.rejectionReason}</p>
+                    <p className="ca-note-text">{currentReviewQuestion.rejectionReason || selectedQuestion.rejectionReason}</p>
                   </section>
                 )}
               </div>
