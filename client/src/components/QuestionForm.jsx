@@ -50,7 +50,7 @@ export default function QuestionForm({
   maxImages = 5,
 }) {
   const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
-  const useBubbleNav = !readOnly && (isImportMode || !initialData);
+  
 
   const { notify } = useToast();
 
@@ -158,6 +158,8 @@ export default function QuestionForm({
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [showSubmitWarning, setShowSubmitWarning] = useState(false);
+  const isGroupedView = readOnly && isGrouped && questionsData.length > 1;
+  const useBubbleNav = (!readOnly && (isImportMode || !initialData)) || isGroupedView;
   const [showRemoveImageFlag, setShowRemoveImageFlag] = useState(false);
   const [imageRemovalQuestionIdx, setImageRemovalQuestionIdx] = useState(null);
   const [dismissedFlags, setDismissedFlags] = useState({});
@@ -750,41 +752,43 @@ export default function QuestionForm({
     return (
       <div key={q.id} className="qf-question-block">
         {/* ── Header ── */}
-        {isGrouped && !readOnly ? (
+        {isGrouped ? (
           <div className="qf-group-question-header">
             <div className="qf-group-question-header-left">
               <span className="qf-group-q-number">{index + 1}</span>
               <h4>Question {index + 1}</h4>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {/* Reorder arrows */}
-              <div className="qf-reorder-btns">
-                <button
-                  type="button"
-                  className="qf-reorder-btn"
-                  title="Move up"
-                  disabled={index === 0}
-                  onClick={() => moveQuestionUp(index)}
-                >↑</button>
-                <button
-                  type="button"
-                  className="qf-reorder-btn"
-                  title="Move down"
-                  disabled={index === questionsData.length - 1}
-                  onClick={() => moveQuestionDown(index)}
-                >↓</button>
+            {!readOnly && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {/* Reorder arrows */}
+                <div className="qf-reorder-btns">
+                  <button
+                    type="button"
+                    className="qf-reorder-btn"
+                    title="Move up"
+                    disabled={index === 0}
+                    onClick={() => moveQuestionUp(index)}
+                  >↑</button>
+                  <button
+                    type="button"
+                    className="qf-reorder-btn"
+                    title="Move down"
+                    disabled={index === questionsData.length - 1}
+                    onClick={() => moveQuestionDown(index)}
+                  >↓</button>
+                </div>
+                {/* Remove — min 2 */}
+                {questionsData.length > 2 && (
+                  <button
+                    type="button"
+                    className="qf-remove-question-btn"
+                    onClick={() => removeQuestionBlock(q.id)}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
-              {/* Remove — min 2 */}
-              {questionsData.length > 2 && (
-                <button
-                  type="button"
-                  className="qf-remove-question-btn"
-                  onClick={() => removeQuestionBlock(q.id)}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
+            )}
           </div>
         ) : questionsData.length > 1 && !readOnly && !initialData ? (
           <div className="qf-question-header">
@@ -1044,19 +1048,24 @@ export default function QuestionForm({
       )}
 
       {/* [GROUPED QUESTIONS] Group context/stem field */}
-      {isGrouped && !readOnly && (
+      {isGrouped && (
         <>
           <div className="qf-group-context-section">
             <div className="qf-group-context-label">
               <strong>Group Context / Stem</strong>
-              <span>Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.</span>
+              <span>
+                {readOnly
+                  ? 'Shared passage, scenario, or context shown above all questions in this group.'
+                  : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.'}
+              </span>
             </div>
             <textarea
               className="qf-group-context-textarea"
-              placeholder="e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."
+              placeholder={readOnly ? 'No shared context provided.' : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."}
               value={groupContext}
               onChange={e => setGroupContext(e.target.value)}
               rows={3}
+              disabled={readOnly}
             />
           </div>
           <div className="qf-group-notice">
@@ -1073,6 +1082,7 @@ export default function QuestionForm({
           currentIdx={currentQuestionIdx}
           onSelectQuestion={setCurrentQuestionIdx}
           getQuestionFlags={getVisibleQuestionFlags}
+          readOnly={readOnly}
         />
       )}
 

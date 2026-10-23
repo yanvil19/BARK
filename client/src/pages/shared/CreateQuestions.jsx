@@ -316,6 +316,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
   function getQuestionActions(question) {
     const isDraftOrReturned = question.state === 'draft' || question.state === 'returned';
+    const isGrouped = !!question.groupId;
     const items = [];
 
     items.push({
@@ -327,7 +328,7 @@ export default function CreateQuestions({ role, programId, programLabel, program
     if (isDraftOrReturned) {
       items.push({
         key: 'edit',
-        label: 'Edit Question',
+        label: isGrouped ? 'Edit Question Set' : 'Edit Question',
         onClick: () => openEditModal(question),
       });
     }
@@ -335,9 +336,15 @@ export default function CreateQuestions({ role, programId, programLabel, program
     if (question.state === 'draft' || question.state === 'returned' || question.state === 'rejected') {
       items.push({
         key: 'delete',
-        label: 'Delete Question',
+        label: isGrouped ? 'Delete Question Set' : 'Delete Question',
         danger: true,
-        onClick: () => handleDelete(question),
+        onClick: () => {
+          if (isGrouped) {
+            setQuestionToDelete({ ...question, isGroupAction: true });
+          } else {
+            handleDelete(question);
+          }
+        },
       });
     }
 
@@ -830,178 +837,101 @@ export default function CreateQuestions({ role, programId, programLabel, program
                   const renderedGroupIds = new Set();
                   return paginatedQuestions.map((question) => {
                     const isGrouped = !!question.groupId;
-                    const isFirstInGroup = isGrouped && !renderedGroupIds.has(question.groupId);
-                    if (isFirstInGroup) {
+                    if (isGrouped) {
+                      if (renderedGroupIds.has(question.groupId)) {
+                        return null;
+                      }
                       renderedGroupIds.add(question.groupId);
                     }
 
-                    // Count total in this group within current list
                     const groupMembers = isGrouped ? filteredQuestions.filter(q => q.groupId === question.groupId) : [];
-                    const canSubmitGroup = groupMembers.every(q => q.state === 'draft' || q.state === 'returned');
-                    const canDeleteGroup = groupMembers.every(q => q.state === 'draft' || q.state === 'rejected');
-                    const isGroupCollapsed = isGrouped && collapsedGroups.has(question.groupId);
-                    const canEditGroup = groupMembers.some(q => q.state === 'draft' || q.state === 'returned');
-
-                    const toggleCollapse = () => {
-                      setCollapsedGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(question.groupId)) {
-                          next.delete(question.groupId);
-                        } else {
-                          next.add(question.groupId);
-                        }
-                        return next;
-                      });
-                    };
-
-                    const groupDisplayTitle = question.groupContext?.trim()
-                      ? truncateText(question.groupContext.trim(), 90)
-                      : `Question Set (${groupMembers.length} questions)`;
+                    const groupDisplayTitle = question.groupContext?.trim() || 'Question Set';
 
                     return (
-                      <React.Fragment key={question._id}>
-                        {isFirstInGroup && (
-                          <tr className="qp-group-header-row">
-                            <td colSpan={role === 'dean' ? 6 : 5}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div
-                                  className="qp-group-header-content"
-                                  onClick={toggleCollapse}
-                                  style={{ cursor: 'pointer', userSelect: 'none', flex: 1, minWidth: 0, padding: '4px 0' }}
-                                  title={isGroupCollapsed ? "Click to expand questions in this set" : "Click to collapse questions in this set"}
-                                >
-                                  <span style={{ fontWeight: 700 }}> {groupDisplayTitle}</span>
-                                  <span style={{ fontSize: '12px', color: '#6874aa', fontWeight: 500, marginLeft: '4px' }}>
-                                    ({groupMembers.length} question{groupMembers.length > 1 ? 's' : ''})
-                                  </span>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  {canEditGroup && (
-                                    <button
-                                      type="button"
-                                      className="qp-btn-edit"
-                                      style={{ padding: '3px 10px', fontSize: '11px' }}
-                                      onClick={() => openEditModal(question)}
-                                      title="Edit all questions, reorder positions, or update scenario context"
-                                    >
-                                      Edit Set
-                                    </button>
-                                  )}
-                                  {canSubmitGroup && (
-                                    <button
-                                      type="button"
-                                      className="qp-btn-submit"
-                                      style={{ padding: '3px 10px', fontSize: '11px' }}
-                                      onClick={() => handleSubmit(question, true)}
-                                      title="Submit all questions in this group for review"
-                                    >
-                                      Submit Group
-                                    </button>
-                                  )}
-                                  {canDeleteGroup && (
-                                    <button
-                                      type="button"
-                                      className="qp-btn-delete"
-                                      style={{ padding: '3px 10px', fontSize: '11px' }}
-                                      onClick={() => setQuestionToDelete({ ...question, isGroupAction: true })}
-                                      title="Delete all questions in this group"
-                                    >
-                                      Delete Group
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
+                      <tr key={question._id}>
+                        <td>
+                          <div className="qp-question-text">
+                            {isGrouped ? (
+                              <>
+                                <strong style={{ color: '#2d3775' }}>{truncateText(groupDisplayTitle, 100)}</strong>
+                                <span className="qp-badge qp-badge--group" title="Fixed Question Group">
+                                  Set ({groupMembers.length} questions)
+                                </span>
+                              </>
+                            ) : (
+                              truncateText(question.description, 120)
+                            )}
+                          </div>
+
+                          {question.state === 'returned' && question.revisionNote ? (
+                            <div className="qp-note qp-note--returned">
+                              <strong>Revision Note:</strong> {question.revisionNote}
+                            </div>
+                          ) : null}
+
+                          {question.state === 'rejected' && question.rejectionReason ? (
+                            <div className="qp-note qp-note--rejected">
+                              <strong>Rejected:</strong> {question.rejectionReason}
+                            </div>
+                          ) : null}
+                        </td>
+
+                        <td>
+                          {question.tag?.name ? (
+                            <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
+                          ) : (
+                            <span className="qp-none">(none)</span>
+                          )}
+                        </td>
+
+                        {role === 'dean' && (
+                          <td>
+                            {question.program?.code || question.program?.name ? (
+                              <span className="qp-badge qp-badge--program">
+                                {question.program?.code || question.program?.name}
+                              </span>
+                            ) : (
+                              <span className="qp-none">(none)</span>
+                            )}
+                          </td>
                         )}
-                        {!isGroupCollapsed && (
-                          <tr>
-                            <td className={isGrouped ? 'qp-group-child-cell' : ''}>
-                              <div className="qp-question-text">
-                                {isGrouped && (
-                                  <span className="qp-group-child-number">
-                                    Q{(question.groupOrder ?? 0) + 1}.
-                                  </span>
-                                )}
-                                {truncateText(question.description, 120)}
-                                {isGrouped && (
-                                  <span className="qp-badge qp-badge--group" title="This question belongs to a fixed question group">
-                                    Part {(question.groupOrder ?? 0) + 1}
-                                  </span>
-                                )}
-                              </div>
 
-                              {question.state === 'returned' && question.revisionNote ? (
-                                <div className="qp-note qp-note--returned">
-                                  <strong>Revision Note:</strong> {question.revisionNote}
-                                </div>
-                              ) : null}
+                        <td>
+                          <span className={`qp-status qp-status--${question.state}`}>
+                            <span className="qp-status-dot" />
+                            {getStatusLabel(question.state)}
+                          </span>
+                        </td>
 
-                              {question.state === 'rejected' && question.rejectionReason ? (
-                                <div className="qp-note qp-note--rejected">
-                                  <strong>Rejected:</strong> {question.rejectionReason}
-                                </div>
-                              ) : null}
-                            </td>
+                        <td>{formatDate(question.updatedAt || question.createdAt)}</td>
 
-                            <td>
-                              {question.tag?.name ? (
-                                <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
-                              ) : (
-                                <span className="qp-none">(none)</span>
-                              )}
-                            </td>
-
-                            {role === 'dean' && (
-                              <td>
-                                {question.program?.code || question.program?.name ? (
-                                  <span className="qp-badge qp-badge--program">
-                                    {question.program?.code || question.program?.name}
-                                  </span>
-                                ) : (
-                                  <span className="qp-none">(none)</span>
-                                )}
-                              </td>
+                        <td className="ui-table-actions-cell" style={{ textAlign: 'center' }}>
+                          <div className="ui-table-actions">
+                            {question.state === 'draft' || question.state === 'returned' ? (
+                              <button
+                                type="button"
+                                className="ui-table-btn ui-table-btn--success"
+                                onClick={() => handleSubmit(question, isGrouped)}
+                              >
+                                {question.state === 'returned' ? 'Re-submit' : 'Submit'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
+                                onClick={() => openViewModal(question)}
+                              >
+                                View Details
+                              </button>
                             )}
 
-                            <td>
-                              <span className={`qp-status qp-status--${question.state}`}>
-                                <span className="qp-status-dot" />
-                                {getStatusLabel(question.state)}
-                              </span>
-                            </td>
-
-                            <td>{formatDate(question.updatedAt || question.createdAt)}</td>
-
-                            <td className="ui-table-actions-cell" style={{ textAlign: 'center' }}>
-                              <div className="ui-table-actions">
-                                {question.state === 'draft' || question.state === 'returned' ? (
-                                  <button
-                                    type="button"
-                                    className="ui-table-btn ui-table-btn--success"
-                                    onClick={() => handleSubmit(question, isGrouped)}
-                                  >
-                                    {question.state === 'returned' ? 'Re-submit' : 'Submit'}
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
-                                    onClick={() => openViewModal(question)}
-                                  >
-                                    View Details
-                                  </button>
-                                )}
-
-                                <ActionMenu
-                                  items={getQuestionActions(question)}
-                                  ariaLabel="More actions"
-                                />
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                            <ActionMenu
+                              items={getQuestionActions(question)}
+                              ariaLabel="More actions"
+                            />
+                          </div>
+                        </td>
+                      </tr>
                     );
                   });
                 })()
