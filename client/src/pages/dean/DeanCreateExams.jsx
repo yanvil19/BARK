@@ -651,7 +651,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       <form className="mbe-form" onSubmit={handleSubmit}>
 
         {/* ── Audience Hero Banner ──────────────────────────────────────────── */}
-        <div className="mbe-hero-banner">
+        <div className="mbe-hero-banner" data-audience={isAlumniExam ? 'alumni' : 'student'}>
           <div className="mbe-hero-left">
             <div className="mbe-hero-text">
               <span className="mbe-hero-label">{audienceConfig.label}</span>

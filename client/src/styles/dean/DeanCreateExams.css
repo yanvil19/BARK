@@ -56,6 +56,28 @@
   color: #ffffff;
   transition: background 0.35s ease, box-shadow 0.35s ease;
   animation: mbe-bannerIn 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.mbe-hero-banner[data-audience]::after {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  color: #ffffff;
+  content: attr(data-audience);
+  font-family: var(--font-title);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0.12;
+  pointer-events: none;
+  text-transform: uppercase;
+  user-select: none;
+  white-space: nowrap;
 }
 
 @keyframes mbe-bannerIn {
@@ -68,6 +90,8 @@
   align-items: center;
   gap: 16px;
   min-width: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .mbe-hero-text {
@@ -99,6 +123,8 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .mbe-hero-editing-badge {
@@ -202,26 +228,6 @@
 
 .mbe-card[data-audience] {
   position: relative;
-}
-
-.mbe-card[data-audience]::after {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 2;
-  color: var(--mbe-audience);
-  content: attr(data-audience);
-  font-family: var(--font-title);
-  font-size: clamp(3.5rem, 11vw, 8rem);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  opacity: 0.045;
-  pointer-events: none;
-  text-transform: uppercase;
-  transform: translate(-50%, -50%);
-  user-select: none;
-  white-space: nowrap;
 }
 
 .mbe-card[data-audience] > * {
@@ -1767,8 +1773,3 @@
   }
 }
 
-@media (max-width: 600px) {
-  .mbe-card[data-audience]::after {
-    font-size: clamp(2.75rem, 14vw, 4.5rem);
-  }
-}
