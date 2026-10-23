@@ -909,7 +909,7 @@ export default function QuestionApprovals({ me }) {
                               )}
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <p className="ca-card-desc" style={{ fontWeight: 600, color: '#1e1b4b' }}>
-                                  <strong style={{ color: '#4338ca', marginRight: '6px' }}></strong>
+                                  <strong style={{ marginRight: '6px' }}></strong>
                                   {groupTitle}
                                 </p>
                               </div>
@@ -936,7 +936,7 @@ export default function QuestionApprovals({ me }) {
                         {!isGroupCollapsed && (
                           <div
                             className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''} ${isGrouped ? 'ca-card--grouped' : ''}`}
-                            style={isGrouped ? { marginLeft: '12px', borderLeft: '3px solid #6366f1' } : {}}
+                            style={isGrouped ? { marginLeft: '12px'} : {}}
                             onClick={() => handleSelectQuestion(question)}
                           >
                             <div className="ca-card-top">
@@ -957,7 +957,7 @@ export default function QuestionApprovals({ me }) {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <p className="ca-card-desc">
                                   {isGrouped && (
-                                    <strong style={{ color: '#4338ca', marginRight: '6px' }}>
+                                    <strong style={{ marginRight: '6px' }}>
                                       Q{(question.groupOrder ?? 0) + 1}.
                                     </strong>
                                   )}
@@ -1043,7 +1043,7 @@ export default function QuestionApprovals({ me }) {
                     {isGroupedReview ? `Review Question Set (${groupSiblingsReview.length} Questions)` : 'Review Question'}
                   </h2>
                   {isGroupedReview && (
-                    <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600 }}>
                       ⚡ Review actions apply atomically to all questions in this set
                     </span>
                   )}

@@ -202,7 +202,6 @@
 
 .mbe-card[data-audience] {
   position: relative;
-  border-top: 3px solid var(--mbe-audience-accent, var(--mbe-audience));
 }
 
 .mbe-card[data-audience]::after {

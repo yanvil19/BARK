@@ -202,7 +202,6 @@
 
 .mbe-card[data-audience] {
   position: relative;
-  border-top: 3px solid var(--mbe-audience-accent, var(--mbe-audience));
 }
 
 .mbe-card[data-audience]::after {
@@ -515,7 +514,6 @@
   border: 1px solid #cfd6ee;
   border-radius: 10px;
   box-shadow: 0 4px 10px rgba(34, 41, 91, 0.07);
-  border-top: 3px solid var(--mbe-audience-accent, var(--mbe-audience));
 }
 
 .mbe-review-actions {

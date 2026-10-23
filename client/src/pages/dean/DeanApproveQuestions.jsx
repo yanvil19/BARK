@@ -933,7 +933,7 @@ export default function QuestionApprovals({ me }) {
                         {!isGroupCollapsed && (
                           <div
                             className={`ca-question-card ${selectedQuestion?._id === question._id ? 'is-active' : ''} ${isChecked ? 'is-checked' : ''} ${!isCheckable ? 'ca-card--disabled' : ''} ${isGrouped ? 'ca-card--grouped' : ''}`}
-                            style={isGrouped ? { marginLeft: '12px', borderLeft: '3px solid #6366f1' } : {}}
+                            style={isGrouped ? { marginLeft: '12px'} : {}}
                             onClick={() => handleSelectQuestion(question)}
                           >
                             <div className="ca-card-top">
