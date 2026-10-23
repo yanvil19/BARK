@@ -1014,11 +1014,40 @@
    GROUPED QUESTION SET — header card + child card divider
 ════════════════════════════════════════════════════════════════════ */
 
-/* Wrapper that groups the header card + all child question cards */
-.mbe-question-item-wrapper {
+/* Bordered container grouping the entire set (header + child questions) */
+.mbe-group-set-box {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
+  border: 1.5px solid rgba(99, 102, 241, 0.35);
+  border-radius: 14px;
+  background: #f8faff;
+  padding: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mbe-group-set-box:hover {
+  border-color: #818cf8;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.08);
+}
+
+.mbe-group-set-box.is-collapsed {
+  background: #ffffff;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Wrapper that groups the child question cards */
+.mbe-group-set-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Header checkbox in group set */
+.mbe-group-header-checkbox {
+  margin-right: 4px;
 }
 
 /* The banner that sits above a grouped question set */
@@ -1028,7 +1057,6 @@
   justify-content: space-between;
   gap: 14px;
   padding: 12px 18px;
-  margin: 10px 0;
   background: linear-gradient(135deg, #f0f2ff 0%, #eef0fc 100%);
   border: 1.5px solid rgba(99, 102, 241, 0.3);
   border-radius: 10px;
@@ -1044,7 +1072,6 @@
 
 .mbe-group-header-card.is-collapsed {
   border-radius: 10px;
-  border-bottom: 1.5px solid rgba(99, 102, 241, 0.3);
 }
 
 /* Left cluster: icon + title + badge */
@@ -1107,23 +1134,24 @@
 
 /* Child question cards that belong to a group */
 .mbe-question-card.is-grouped {
-  border-radius: 0;
-  background: #fafbff;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #dce2f5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.mbe-question-card.is-grouped .mbe-question-main {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .mbe-question-card.is-grouped:hover {
-  border-left-color: #6366f1;
-  background: #f5f7ff;
+  border-color: #6366f1;
+  background: #fcfdff;
 }
 
 .mbe-question-card.is-grouped.is-selected {
-  border-left-color: var(--mbe-audience, var(--primary-bg));
+  border-color: var(--mbe-audience, var(--primary-bg));
   background: var(--mbe-audience-soft, #f5f7ff);
-}
-
-/* Last grouped card in a set gets a rounded bottom */
-.mbe-question-item-wrapper .mbe-question-card.is-grouped:last-child {
-  border-radius: 10px;
 }
 
 /* "Part N" chip on individual grouped child cards */
