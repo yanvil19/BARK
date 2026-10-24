@@ -5,6 +5,7 @@ import '../../styles/programchair/PCExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./PCIndividualReportView.jsx";
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -76,7 +77,7 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
               letterSpacing: '0.04em',
               whiteSpace: 'nowrap'
             }}>
-              Part of Question Set
+              {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
             </span>
           )}
           <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
@@ -189,14 +190,40 @@ const TopicRow = memo(({ subject, isExpanded, onToggle, expandedQuestionKey, onQ
 
       {isExpanded && (
         <div className="er-questions-list">
-          {subject.questions.map((question, idx) => (
-            <QuestionRow
-              key={question.questionId || `${subject.name}-${idx}`}
-              question={question}
-              isExpanded={expandedQuestionKey === `${subject.name}-${question.questionId || idx}`}
-              onToggle={() => onQuestionToggle(`${subject.name}-${question.questionId || idx}`)}
-            />
-          ))}
+          {groupQuestionsForDisplay(subject.questions).map((item) => {
+            if (item.type === 'question') {
+              const question = item.question;
+              const key = question.questionId || `${subject.name}-${item.questionNumber}`;
+              return (
+                <QuestionRow
+                  key={key}
+                  question={question}
+                  isExpanded={expandedQuestionKey === `${subject.name}-${key}`}
+                  onToggle={() => onQuestionToggle(`${subject.name}-${key}`)}
+                />
+              );
+            }
+
+            return (
+              <section className="er-question-set" key={`${subject.name}-${item.groupId}`}>
+                <header className="er-question-set-header">
+                  <strong>Question Set {item.setNumber}</strong>
+                  <span>{item.questions.length} parts</span>
+                </header>
+                {item.questions.map(({ question }, index) => {
+                  const key = question.questionId || `${subject.name}-${item.setNumber}-${index}`;
+                  return (
+                    <QuestionRow
+                      key={key}
+                      question={question}
+                      isExpanded={expandedQuestionKey === `${subject.name}-${key}`}
+                      onToggle={() => onQuestionToggle(`${subject.name}-${key}`)}
+                    />
+                  );
+                })}
+              </section>
+            );
+          })}
         </div>
       )}
     </div>

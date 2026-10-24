@@ -774,16 +774,64 @@
 .ca-sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+}
+
+.ca-review-question-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.ca-sidebar .ca-review-question-sections > .ca-section {
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(53, 64, 142, 0.12);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ca-sidebar .ca-review-question-sections .ca-question-detail-text {
+  margin-top: 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.ca-sidebar .ca-review-question-sections .ca-section-label {
+  margin-bottom: 2px;
+}
+
+.ca-sidebar .ca-review-question-sections .ca-answers {
+  gap: 12px;
+}
+
+.ca-sidebar .ca-review-question-sections .ca-answer-item {
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 9px;
+}
+
+.ca-sidebar .ca-review-question-sections .ca-answer-text {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.ca-review-metadata {
+  padding-top: 20px;
+  border-top: 1px solid rgba(53, 64, 142, 0.14);
+}
+
+.ca-review-metadata .ca-meta-grid {
+  row-gap: 18px;
 }
 
 .ca-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ca-section-label {
@@ -808,11 +856,12 @@
 
 .ca-question-detail-text {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   color: #4a5268;
-  line-height: 1.5;
+  line-height: 1.65;
   overflow-wrap: anywhere;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .ca-meta-grid {
@@ -855,14 +904,14 @@
 .ca-answers {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .ca-answer-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px;
+  padding: 12px;
   background: #f9faff;
   border-radius: 7px;
   border: 1px solid rgba(53, 64, 142, 0.15);
@@ -890,11 +939,13 @@
 }
 
 .ca-answer-text {
-  font-size: 13px;
+  font-size: 14px;
   color: #1a1f4b;
   flex: 1;
+  line-height: 1.55;
   overflow-wrap: anywhere;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .ca-section--note {

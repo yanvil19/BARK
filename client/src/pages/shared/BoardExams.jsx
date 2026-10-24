@@ -4,6 +4,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
@@ -1119,12 +1120,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         open={!!selectedExam}
         onClose={closeExamDetails}
         title="Exam Details"
+        size="wide"
         bodyClassName="ambe-details-modal-body"
       >
         {selectedExam && (
           <section className="ambe-details">
           <div className="ambe-details-header-new">
             <div className="ambe-details-header-copy">
+              <span className="ambe-details-audience">
+                {selectedExam.targetAudience === 'alumni' ? 'Alumni exam' : 'Student exam'}
+              </span>
               <h2 className="ambe-details-name">{selectedExam.name}</h2>
               <p className="ambe-details-program">
                 {selectedExam.program?.name || selectedExam.program?.code || 'No program assigned'}
@@ -1189,7 +1194,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
             {selectedExamQuestions.length > 0 && (
               <div className="ambe-question-list">
-                {selectedExamQuestions.map((question, index) => {
+                {groupQuestionsForDisplay(selectedExamQuestions).map((item) => {
+                  const renderQuestion = (question, index) => {
                   const answers = organizeQuestionAnswers(question).answers || [];
                   const questionImages = (question.images || []).map(resolveImageSrc).filter(Boolean);
                   const isExpanded = String(expandedQuestionId) === String(question._id);
@@ -1206,6 +1212,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                           <div className="ambe-question-title-block">
                             <span className="ambe-question-number">
                               Question {String(index + 1).padStart(2, '0')}
+                              {getQuestionSetPart(question) ? ` · Part ${getQuestionSetPart(question)}` : ''}
                             </span>
                             <h4 className="ambe-question-title">
                               {question.description ? question.description.replace(/[\r\n]+/g, ' ').trim() : `Question ${index + 1}`}
@@ -1294,6 +1301,32 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                         </div>
                       )}
                     </article>
+                  );
+                  };
+
+                  if (item.type === 'question') {
+                    return renderQuestion(item.question, item.questionNumber - 1);
+                  }
+
+                  const firstQuestion = item.questions[0]?.question;
+                  return (
+                    <section className="ambe-question-set" key={`question-set-${item.groupId}`}>
+                      <header className="ambe-question-set-header">
+                        <strong>Question Set {item.setNumber}</strong>
+                        <span>{item.questions.length} parts</span>
+                      </header>
+                      {firstQuestion?.groupContext && (
+                        <div className="ambe-question-set-context">
+                          <span>Shared passage / scenario</span>
+                          <p>{firstQuestion.groupContext}</p>
+                        </div>
+                      )}
+                      <div className="ambe-question-set-list">
+                        {item.questions.map(({ question, questionNumber }) =>
+                          renderQuestion(question, questionNumber - 1)
+                        )}
+                      </div>
+                    </section>
                   );
                 })}
               </div>

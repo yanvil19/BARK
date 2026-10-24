@@ -5,6 +5,7 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -134,6 +135,11 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
   if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
+  const currentQuestionSet = currentQuestion?.groupId
+    ? groupQuestionsForDisplay(questions).find(
+        (item) => item.type === 'group' && item.groupId === String(currentQuestion.groupId)
+      )
+    : null;
   const answeredCount = Object.values(answers).filter(Boolean).length;
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
   const alumniName = me?.name || `${me?.firstName || ''} ${me?.lastName || ''}`.trim() || 'Alumni';
@@ -208,7 +214,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
                     borderRadius: '12px',
                     letterSpacing: '0.04em'
                   }}>
-                    Part of Question Set
+                    {`Question Set ${currentQuestionSet?.setNumber || ''}${getQuestionSetPart(currentQuestion) ? ` · Part ${getQuestionSetPart(currentQuestion)}` : ''}`}
                   </span>
                 )}
               </div>

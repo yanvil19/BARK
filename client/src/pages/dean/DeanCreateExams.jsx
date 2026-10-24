@@ -1252,7 +1252,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                     onChange={(e) => handleBulkCheckbox(e, firstQ)}
                                   />
                                 </label>
-                                <span className="mbe-group-header-icon"></span>
+                                <span className="mbe-group-header-icon" aria-hidden="true">
+                                  <svg viewBox="0 0 24 24" fill="none">
+                                    <rect x="4" y="5" width="16" height="5" rx="1.5" />
+                                    <rect x="4" y="14" width="16" height="5" rx="1.5" />
+                                    <path d="M8 7.5h8M8 16.5h8" />
+                                  </svg>
+                                </span>
                                 <span className="mbe-group-header-title">{groupTitle}</span>
                                 <span className="mbe-group-header-badge">{groupSiblings.length} questions</span>
                               </div>

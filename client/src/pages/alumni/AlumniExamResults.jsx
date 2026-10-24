@@ -6,6 +6,7 @@ import '../../styles/shared/MockBoardExamPreview.css';
 import '../../styles/alumni/AlumniExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -260,6 +261,13 @@ function QuestionReview({ questions, onZoomImage }) {
       return next;
     });
   };
+  const questionSetTotals = new Map();
+  questions.forEach((question) => {
+    if (question.groupId) {
+      const groupId = String(question.groupId);
+      questionSetTotals.set(groupId, (questionSetTotals.get(groupId) || 0) + 1);
+    }
+  });
 
   return (
     <section className="aer-breakdown-card">
@@ -282,7 +290,12 @@ function QuestionReview({ questions, onZoomImage }) {
       </div>
 
       <div className="aer-question-list">
-        {filtered.length > 0 ? filtered.map((question, index) => {
+        {filtered.length > 0 ? groupQuestionsForDisplay(filtered).map((item) => {
+          const groupedQuestions = item.type === 'group'
+            ? item.questions
+            : [{ question: item.question, questionNumber: item.questionNumber }];
+          const questionCards = groupedQuestions.map(({ question, questionNumber }) => {
+          const index = questionNumber - 1;
           const questionKey = question._id || String(index);
           const selectedId = String(question.userAnswer || '');
           const correctId = String(question.correctAnswer || '');
@@ -301,20 +314,8 @@ function QuestionReview({ questions, onZoomImage }) {
               >
                 <span className="aer-question-number">Question {index + 1}</span>
                 <span className="aer-question-dropdown-title">{getQuestionPreview(question, index)}</span>
-                {question.groupId && (
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    background: '#ede9fe',
-                    color: '#5b21b6',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    letterSpacing: '0.04em',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}>
-                    Part of Question Set
-                  </span>
+                {question.groupId && getQuestionSetPart(question) && (
+                  <span className="aer-question-set-part">Part {getQuestionSetPart(question)}</span>
                 )}
                 <span className={`aer-result-chip status-${isCorrect ? 'green' : 'red'}`}>{isCorrect ? 'Correct' : 'Wrong'}</span>
                 <span className={`aer-chevron ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
@@ -386,6 +387,24 @@ function QuestionReview({ questions, onZoomImage }) {
                 </div>
               )}
             </article>
+          );
+          });
+
+          if (item.type !== 'group') return questionCards[0];
+
+          const totalParts = questionSetTotals.get(String(item.groupId)) || item.questions.length;
+          return (
+            <section className="aer-question-set" key={`question-set-${item.groupId}`}>
+              <header className="aer-question-set-header">
+                <strong>Question Set {item.setNumber}</strong>
+                <span>
+                  {item.questions.length === totalParts
+                    ? `${totalParts} parts`
+                    : `${item.questions.length} of ${totalParts} parts shown`}
+                </span>
+              </header>
+              <div className="aer-question-set-list">{questionCards}</div>
+            </section>
           );
         }) : (
           <div className="aer-question-empty">No questions match this filter.</div>
@@ -604,6 +623,8 @@ export default function AlumniExamResults({ examId }) {
                   onSelect={(id) => {
                     setSelectedExamId(id);
                     setSelectedAttemptId('');
+                    setIsAttemptDetailOpen(false);
+                    setAttemptDetails(null);
                   }}
                 />
               ))}
@@ -634,7 +655,7 @@ export default function AlumniExamResults({ examId }) {
                 </div>
               </div>
 
-              {!isAttemptDetailOpen ? (
+              {!isAttemptDetailOpen || !selectedAttempt ? (
                 <AttemptOverview
                   exam={selectedExam}
                   onSelectAttempt={(nextAttempt) => {

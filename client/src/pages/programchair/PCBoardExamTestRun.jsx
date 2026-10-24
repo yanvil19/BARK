@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -116,6 +117,11 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
 
   const questions = exam.questions || [];
   const currentQuestion = questions[currentIdx];
+  const currentQuestionSet = currentQuestion?.groupId
+    ? groupQuestionsForDisplay(questions).find(
+        (item) => item.type === 'group' && item.groupId === String(currentQuestion.groupId)
+      )
+    : null;
   const answeredCount = Object.values(answers).filter(Boolean).length;
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
@@ -199,7 +205,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
                   borderRadius: '12px',
                   letterSpacing: '0.04em'
                 }}>
-                  Part of Question Set
+                  {`Question Set ${currentQuestionSet?.setNumber || ''}${getQuestionSetPart(currentQuestion) ? ` · Part ${getQuestionSetPart(currentQuestion)}` : ''}`}
                 </span>
               )}
             </div>

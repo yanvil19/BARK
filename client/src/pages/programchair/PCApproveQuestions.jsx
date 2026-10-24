@@ -1162,7 +1162,7 @@ export default function QuestionApprovals({ me }) {
                   />
                 )}
 
-                <div>
+                <div className="ca-review-question-sections">
                   <section className="ca-section">
                     <h3 className="ca-section-label">
                       {isGroupedReview ? `Question ${activeGroupIdx + 1} of ${groupSiblingsReview.length}` : 'Question'}
@@ -1209,7 +1209,7 @@ export default function QuestionApprovals({ me }) {
                   )}
                 </div>
 
-                <section className="ca-section">
+                <section className="ca-section ca-review-metadata">
                   <div className="ca-meta-grid">
                     <div>
                       <span className="ca-meta-label">Subject</span>

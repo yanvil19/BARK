@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
   const isAlumni = audience === 'alumni';
@@ -52,7 +53,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
                 borderRadius: '12px',
                 letterSpacing: '0.04em'
               }}>
-                Part of Question Set
+                {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
               </span>
             )}
           </div>
@@ -87,7 +88,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
               borderRadius: '12px',
               letterSpacing: '0.04em'
             }}>
-              Part of Question Set
+              {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
             </span>
           )}
         </div>
@@ -248,7 +249,21 @@ const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience, onZ
       {isExpanded && (
         <div className="er-ind-q-list">
           <div className="er-ind-q-list-title">Questions</div>
-          {subject.questions.map(q => <QuestionBreakdownRow key={q.questionId} question={q} audience={audience} onZoom={onZoom} />)}
+          {groupQuestionsForDisplay(subject.questions).map((item) => (
+            item.type === 'group' ? (
+              <section className="er-question-set" key={item.groupId}>
+                <header className="er-question-set-header">
+                  <strong>Question Set {item.setNumber}</strong>
+                  <span>{item.questions.length} parts</span>
+                </header>
+                {item.questions.map(({ question }) => (
+                  <QuestionBreakdownRow key={question.questionId} question={question} audience={audience} onZoom={onZoom} />
+                ))}
+              </section>
+            ) : (
+              <QuestionBreakdownRow key={item.question.questionId} question={item.question} audience={audience} onZoom={onZoom} />
+            )
+          ))}
         </div>
       )}
     </div>
