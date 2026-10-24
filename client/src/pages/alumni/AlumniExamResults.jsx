@@ -2,6 +2,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
+import '../../styles/shared/MockBoardExamPreview.css';
 import '../../styles/alumni/AlumniExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
@@ -300,6 +301,21 @@ function QuestionReview({ questions, onZoomImage }) {
               >
                 <span className="aer-question-number">Question {index + 1}</span>
                 <span className="aer-question-dropdown-title">{getQuestionPreview(question, index)}</span>
+                {question.groupId && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: '#ede9fe',
+                    color: '#5b21b6',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}>
+                    Part of Question Set
+                  </span>
+                )}
                 <span className={`aer-result-chip status-${isCorrect ? 'green' : 'red'}`}>{isCorrect ? 'Correct' : 'Wrong'}</span>
                 <span className={`aer-chevron ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -310,6 +326,15 @@ function QuestionReview({ questions, onZoomImage }) {
 
               {isExpanded && (
                 <div className="aer-question-dropdown-body">
+                  {question.groupContext && (
+                    <div className="mbep-group-context-box" style={{ marginTop: '16px', marginBottom: '16px' }}>
+                      <div className="mbep-group-context-header">
+                        <span>Question Set Scenario / Shared Passage</span>
+                      </div>
+                      <div className="mbep-group-context-text">{question.groupContext}</div>
+                    </div>
+                  )}
+
                   {(titleText || !descriptionText) && <h3>{titleText || getQuestionTitle(question, index)}</h3>}
                   {titleText && descriptionText && descriptionText !== titleText && (
                     <p className="aer-question-description">{descriptionText}</p>

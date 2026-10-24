@@ -11,7 +11,9 @@ const questionResultSchema = new mongoose.Schema({
     count: { type: Number, default: 0, min: 0 },
     isCorrect: { type: Boolean, default: false },
   }],
-  unansweredCount: { type: Number, default: 0, min: 0 }
+  unansweredCount: { type: Number, default: 0, min: 0 },
+  groupId: { type: String, default: null },
+  groupContext: { type: String, default: null, trim: true }
 });
 
 const subjectResultSchema = new mongoose.Schema({

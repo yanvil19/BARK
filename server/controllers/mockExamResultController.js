@@ -78,6 +78,8 @@ function buildQuestionRates(exam, attempts) {
       correctRate: totalTakers > 0 ? Math.round((correctCount / totalTakers) * 100) : 0,
       answerCounts,
       unansweredCount: Math.max(totalTakers - answeredCount, 0),
+      groupId: question.groupId || null,
+      groupContext: question.groupContext || null,
     };
   });
 }
@@ -127,6 +129,8 @@ async function buildAlumniHighestScoreReport(exam, user) {
         correctRate: sq.correctRate,
         answerCounts: sq.answerCounts,
         unansweredCount: sq.unansweredCount,
+        groupId: sq.groupId || null,
+        groupContext: sq.groupContext || null,
       })),
     };
   });
@@ -257,16 +261,30 @@ exports.getResult = async (req, res) => {
       return res.json({ result: report });
     }
 
-    const result = await MockExamResult.findOne({ 
+    const resultDoc = await MockExamResult.findOne({ 
       examId: req.params.examId,
       department: req.user.department 
-    });
+    }).lean();
 
-    if (!result) {
+    if (!resultDoc) {
       return res.json({ result: null, message: 'Result not yet computed' });
     }
 
-    res.json({ result });
+    // Enrich questions with groupContext and groupId from exam questions if missing
+    const qMap = new Map(examQuestions.map(q => [String(q._id), q]));
+    if (resultDoc.subjects) {
+      resultDoc.subjects.forEach(sub => {
+        (sub.questions || []).forEach(sq => {
+          const originalQ = qMap.get(String(sq.questionId));
+          if (originalQ) {
+            if (!sq.groupId && originalQ.groupId) sq.groupId = originalQ.groupId;
+            if (!sq.groupContext && originalQ.groupContext) sq.groupContext = originalQ.groupContext;
+          }
+        });
+      });
+    }
+
+    res.json({ result: resultDoc });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -353,6 +371,8 @@ exports.computeResults = async (req, res) => {
           correctRate: sq.correctRate,
           answerCounts: sq.answerCounts,
           unansweredCount: sq.unansweredCount,
+          groupId: sq.groupId || null,
+          groupContext: sq.groupContext || null,
         }))
       };
     });
@@ -526,6 +546,9 @@ exports.getStudentResults = async (req, res) => {
                 correctAnswer: correctOptionId || null,
                 isCorrect,
                 points: isCorrect ? 1 : 0,
+                rationalization: q.rationalization || null,
+                groupId: q.groupId || null,
+                groupContext: q.groupContext || null,
               };
             });
 
@@ -616,7 +639,9 @@ exports.getStudentResults = async (req, res) => {
             questionId: qId,
             label: q.title || q.description || 'Question',
             isCorrect: isCorrect,
-            points: isCorrect ? 1 : 0
+            points: isCorrect ? 1 : 0,
+            groupId: q.groupId || null,
+            groupContext: q.groupContext || null,
           };
         });
 

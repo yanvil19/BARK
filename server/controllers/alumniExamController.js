@@ -225,7 +225,7 @@ async function saveProgress(req, res) {
 
     const exam = await MockBoardExam.findById(attempt.exam);
     const deadline = getTimedDeadline(exam, attempt);
-    
+
     if (deadline && Date.now() > deadline.getTime() + TIME_LIMIT_GRACE_MS) {
       await submitExpiredTimedAttempt(attempt, exam, deadline);
       return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
@@ -446,7 +446,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'description images answers tag rationalization',
+        select: 'description images answers tag rationalization groupId groupContext',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -483,6 +483,8 @@ async function getAttemptDetails(req, res) {
           correctAnswer: correctAnswer || null,
           subjectName: fullQ.tag?.name || null,
           rationalization: fullQ.rationalization || null,
+          groupId: fullQ.groupId || null,
+          groupContext: fullQ.groupContext || null,
         });
       });
     }

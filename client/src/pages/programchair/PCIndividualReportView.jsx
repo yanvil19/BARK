@@ -7,10 +7,58 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
   
   if (!isAlumni) {
     return (
-      <div className="er-ind-q-row">
-        <div className="er-ind-q-prompt">{question.label}</div>
-        <div className={`er-ind-q-points ${question.isCorrect ? 'correct' : 'incorrect'}`}>
-          {question.points} point{question.points !== 1 ? 's' : ''}
+      <div style={{
+        background: '#fff',
+        border: '1px solid rgba(30, 45, 107, 0.08)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+      }}>
+        {question.groupContext && (
+          <div style={{
+            background: '#f4f6fd',
+            borderLeft: '4px solid #1e2d6b',
+            borderRadius: '0 6px 6px 0',
+            padding: '8px 12px',
+            marginBottom: '4px'
+          }}>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              color: '#1e2d6b',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '3px'
+            }}>
+              Question Set Scenario / Shared Passage
+            </div>
+            <div style={{ fontSize: '13px', color: '#2e3856', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+              {question.groupContext}
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="er-ind-q-prompt" style={{ margin: 0 }}>{question.label}</div>
+            {question.groupId && (
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                background: '#ede9fe',
+                color: '#5b21b6',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                letterSpacing: '0.04em'
+              }}>
+                Part of Question Set
+              </span>
+            )}
+          </div>
+          <div className={`er-ind-q-points ${question.isCorrect ? 'correct' : 'incorrect'}`} style={{ flexShrink: 0 }}>
+            {question.points} point{question.points !== 1 ? 's' : ''}
+          </div>
         </div>
       </div>
     );
@@ -25,20 +73,60 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
       marginBottom: '1rem'
     }}>
       <div className="ser-question-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
-          {question.label}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
+            {question.label}
+          </h3>
+          {question.groupId && (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              background: '#ede9fe',
+              color: '#5b21b6',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              letterSpacing: '0.04em'
+            }}>
+              Part of Question Set
+            </span>
+          )}
+        </div>
         <span style={{ 
           padding: '0.25rem 0.75rem', 
           borderRadius: '9999px', 
           fontSize: '0.875rem', 
           fontWeight: '500',
           backgroundColor: question.isCorrect ? '#dcfce7' : '#fee2e2',
-          color: question.isCorrect ? '#166534' : '#991b1b'
+          color: question.isCorrect ? '#166534' : '#991b1b',
+          flexShrink: 0
         }}>
           {question.isCorrect ? 'Correct' : 'Incorrect'}
         </span>
       </div>
+
+      {question.groupContext && (
+        <div style={{
+          background: '#f4f6fd',
+          borderLeft: '4px solid #1e2d6b',
+          borderRadius: '0 8px 8px 0',
+          padding: '12px 16px',
+          marginBottom: '1rem'
+        }}>
+          <div style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#1e2d6b',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '4px'
+          }}>
+            Question Set Scenario / Shared Passage
+          </div>
+          <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+            {question.groupContext}
+          </div>
+        </div>
+      )}
       
       {question.description && (
         <p style={{ color: '#4b5563', marginBottom: '1rem' }}>{question.description}</p>

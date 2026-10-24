@@ -65,6 +65,20 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
       <button type="button" className="er-question-row" onClick={onToggle}>
         <div className="er-question-main">
           <span className="er-q-label">{question.label}</span>
+          {question.groupId && (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              background: '#ede9fe',
+              color: '#5b21b6',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              letterSpacing: '0.04em',
+              whiteSpace: 'nowrap'
+            }}>
+              Part of Question Set
+            </span>
+          )}
           <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
         </div>
 
@@ -82,6 +96,30 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
 
       {isExpanded && (
         <div className="er-question-details">
+          {question.groupContext && (
+            <div style={{
+              background: '#f4f6fd',
+              borderLeft: '4px solid var(--er-navy)',
+              borderRadius: '0 8px 8px 0',
+              padding: '12px 16px',
+              marginBottom: '14px'
+            }}>
+              <div style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--er-navy)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '4px'
+              }}>
+                Question Set Scenario / Shared Passage
+              </div>
+              <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                {question.groupContext}
+              </div>
+            </div>
+          )}
+
           <div className="er-question-prompt-card">
             <span className="er-question-detail-label">Question</span>
             <p>{question.description || question.label}</p>
