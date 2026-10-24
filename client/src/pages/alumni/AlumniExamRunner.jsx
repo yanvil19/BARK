@@ -140,6 +140,27 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
         (item) => item.type === 'group' && item.groupId === String(currentQuestion.groupId)
       )
     : null;
+  const hasGroupedQuestions = questions.some((question) => question.groupId);
+  const navigationItems = [];
+  for (let i = 0; i < questions.length;) {
+    const groupId = questions[i].groupId;
+    if (!groupId) {
+      navigationItems.push({ type: 'question', question: questions[i], index: i });
+      i += 1;
+      continue;
+    }
+
+    let end = i + 1;
+    while (end < questions.length && String(questions[end].groupId) === String(groupId)) {
+      end += 1;
+    }
+    navigationItems.push({
+      type: 'group',
+      questions: questions.slice(i, end),
+      startIndex: i,
+    });
+    i = end;
+  }
   const answeredCount = Object.values(answers).filter(Boolean).length;
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
   const alumniName = me?.name || `${me?.firstName || ''} ${me?.lastName || ''}`.trim() || 'Alumni';
@@ -280,7 +301,59 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
 
           <div className="mbep-navigator-wrap">
             <div className="mbep-nav-bar">
-              {questions.map((q, i) => {
+              {hasGroupedQuestions ? navigationItems.map((item) => {
+                if (item.type === 'group') {
+                  const answeredGroupCount = item.questions.filter((question) => answers[question._id]).length;
+                  const groupProgress = (answeredGroupCount / item.questions.length) * 100;
+                  return (
+                    <div
+                      key={`group-${item.questions[0]._id}`}
+                      className="mbep-nav-group"
+                      style={{ '--group-progress': `${groupProgress}%` }}
+                      role="group"
+                      aria-label={`Question set, ${answeredGroupCount} of ${item.questions.length} answered`}
+                    >
+                      {item.questions.map((question, groupIndex) => {
+                        const questionIndex = item.startIndex + groupIndex;
+                        const isAnswered = !!answers[question._id];
+                        let groupItemClass = 'mbep-nav-group-item';
+                        if (currentIdx === questionIndex) groupItemClass += ' active';
+                        else if (isAnswered) groupItemClass += ' is-answered-preview';
+
+                        return (
+                          <button
+                            key={question._id || questionIndex}
+                            className={groupItemClass}
+                            onClick={() => setCurrentIdx(questionIndex)}
+                            aria-label={`Question ${questionIndex + 1}${isAnswered ? ', answered' : ''}`}
+                            aria-current={currentIdx === questionIndex ? 'step' : undefined}
+                          >
+                            {questionIndex + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                const { question, index } = item;
+                const isAnswered = !!answers[question._id];
+                let dotClass = 'mbep-nav-circle';
+                if (currentIdx === index) dotClass += ' active';
+                else if (isAnswered) dotClass += ' is-answered-preview';
+
+                return (
+                  <button
+                    key={question._id || index}
+                    className={dotClass}
+                    onClick={() => setCurrentIdx(index)}
+                    aria-label={`Question ${index + 1}${isAnswered ? ', answered' : ''}`}
+                    aria-current={currentIdx === index ? 'step' : undefined}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              }) : questions.map((q, i) => {
                 const isAnswered = !!answers[q._id];
                 let dotClass = 'mbep-nav-circle';
                 if (currentIdx === i) dotClass += ' active';

@@ -245,8 +245,8 @@
 }
 
 .mbep-nav-circle.is-answered-preview {
-  background: #f0f1f8;
-  border-color: #5a63a8;
+  background: rgba(90, 99, 168, 0.16);
+  border-color: rgba(53, 64, 142, 0.2);
   color: #5a63a8;
 }
 
@@ -258,9 +258,63 @@
   padding: 16px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   justify-content: center;
   margin-top: 24px;
+}
+
+.mbep-nav-group {
+  display: flex;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  min-height: 42px;
+  padding: 2px;
+  overflow: hidden;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgba(90, 99, 168, 0.16) var(--group-progress),
+    #fff var(--group-progress)
+  );
+  transition: background 0.3s ease;
+}
+
+.mbep-nav-group-item {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8b92bc;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.mbep-nav-group-item:hover {
+  color: var(--primary-bg);
+}
+
+.mbep-nav-group-item.is-answered-preview {
+  color: #5a63a8;
+}
+
+.mbep-nav-group-item.active {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
 }
 
 .mbep-nav-circle {
