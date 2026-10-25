@@ -568,54 +568,11 @@ client/src/pages/dean/DeanDashboard.jsx
 -> Dean dashboard with program-level stats and navigation shortcuts for question approvals, exam management, and reports.
 
 ```
-client/src/pages/dean/DeanApproveQuestions.jsx
-```
--> Question approval queue for deans: review questions submitted by program chairs, approve, return for revision, or reject with comments.
-
-```
 client/src/pages/dean/DeanMyQuestions.jsx
 ```
--> Dean's personal question bank view: create, edit, and manage questions they authored.
+-> Thin wrapper around `shared/MyQuestions.jsx`: loads the dean's department programs and passes a program picker.
 
-```
-client/src/pages/dean/DeanManageSubjects.jsx
-```
--> Subject (tag) management for deans within their department's programs.
-
-```
-client/src/pages/dean/DeanStudentRegister.jsx
-```
--> Registration request management for deans: review, approve, or reject pending student/alumni/faculty registrations.
-
-```
-client/src/pages/dean/DeanCreateExams.jsx
-```
--> Mock board exam creation and management for deans: assemble question sets, set schedules, publish exams, and view conflict warnings.
-
-```
-client/src/pages/dean/DeanBoardExamPreview.jsx
-```
--> Read-only preview of a mock board exam's questions before publishing, including decrypted question and answer display.
-
-```
-client/src/pages/dean/DeanBoardExamTestRun.jsx
-```
--> Interactive test-run mode for deans to walk through an exam as if taking it, without recording an actual attempt.
-
-```
-client/src/pages/dean/DeanExamResults.jsx
-```
--> Exam result overview for deans: trigger result computation, view pass/fail breakdowns, and navigate to individual reports.
-
-```
-client/src/pages/dean/DeanExamRunner.jsx
-```
--> Dean's own timed exam runner page for taking a mock board exam as a participant with real attempt recording.
-
-```
-client/src/pages/dean/DeanIndividualReportView.jsx
-```
--> Detailed per-student result report view for deans showing per-subject scores and answer breakdown.
+> Other dean pages (approvals, subjects, registration, exams, results) live in `pages/shared/`.
 
 ---
 
@@ -627,59 +584,16 @@ client/src/pages/programchair/PCDashboard.jsx
 -> Program chair dashboard with program-level stats and shortcuts for question approvals, exam creation, and audit logs.
 
 ```
-client/src/pages/programchair/PCApproveQuestions.jsx
-```
--> Question approval queue for program chairs: first-level review of professor-submitted questions before escalation to dean.
-
-```
 client/src/pages/programchair/PCMyQuestions.jsx
 ```
--> Program chair's personal question bank view: create, edit, and manage their own questions.
-
-```
-client/src/pages/programchair/PCManageSubjects.jsx
-```
--> Subject (tag) management for program chairs within their program.
-
-```
-client/src/pages/programchair/PCStudentRegister.jsx
-```
--> Registration request management for program chairs: approve or reject pending registrations in their program.
-
-```
-client/src/pages/programchair/PCCreateExams.jsx
-```
--> Mock board exam creation and management for program chairs within their program scope.
-
-```
-client/src/pages/programchair/PCBoardExamPreview.jsx
-```
--> Read-only exam preview page for program chairs before they publish an exam.
-
-```
-client/src/pages/programchair/PCBoardExamTestRun.jsx
-```
--> Test-run mode for program chairs to walk through an exam without recording an attempt.
-
-```
-client/src/pages/programchair/PCExamResults.jsx
-```
--> Exam result overview for program chairs with result computation trigger and per-student navigation.
-
-```
-client/src/pages/programchair/PCExamRunner.jsx
-```
--> Program chair's timed exam runner for taking a mock board exam as a participant.
-
-```
-client/src/pages/programchair/PCIndividualReportView.jsx
-```
--> Detailed individual exam result report view for program chairs.
+-> Thin wrapper around `shared/MyQuestions.jsx`: passes the chair's own program as a fixed scope.
 
 ```
 client/src/pages/programchair/PCLogs.jsx
 ```
 -> Audit log / activity log viewer for program chairs showing admin actions within their scope.
+
+> Other program chair pages (approvals, subjects, registration, exams, results) live in `pages/shared/`.
 
 ---
 
@@ -693,7 +607,7 @@ client/src/pages/prof/ProfDashboard.jsx
 ```
 client/src/pages/prof/ProfMyQuestions.jsx
 ```
--> Professor's personal question bank: create, edit, delete, and submit questions for review.
+-> Thin wrapper around `shared/MyQuestions.jsx` for the professor's own program.
 
 ---
 
@@ -757,25 +671,67 @@ client/src/pages/alumni/AlumniExamResults.jsx
 
 ### Pages — Shared
 
-```
-client/src/pages/shared/BoardExams.jsx
-```
--> Shared board exam listing page used by multiple faculty roles to view available exams filtered by program and status.
+> Pages used by more than one faculty role (dean, program chair, professor). Role-specific behavior is handled inside each page via `me.role`.
 
 ```
-client/src/pages/shared/BulkRegister.jsx
+client/src/pages/shared/MyQuestions.jsx
 ```
--> Shared bulk registration page allowing authorized faculty to upload or manually enter a list of users for batch account creation.
+-> "My Questions" page used by professors, chairs, and deans: question list with status capsules, create/edit/view via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review.
 
 ```
-client/src/pages/shared/CreateQuestions.jsx
+client/src/pages/shared/ApproveQuestions.jsx
 ```
--> Shared question creation and management page used by professors, chairs, and deans; includes AI-assisted import from PDF/DOCX with live review.
+-> Question approval queue for deans and program chairs: review submitted questions, approve, return for revision, or reject; includes a "Used in Exam" filter.
 
 ```
 client/src/pages/shared/ManageSubject.jsx
 ```
--> Shared subject (tag) CRUD page for creating, editing, and deactivating subject tags within a program.
+-> Subject (tag) CRUD page for creating, editing, and deactivating subject tags within a program (deans and chairs).
+
+```
+client/src/pages/shared/StudentRegister.jsx
+```
+-> Student Registration page for deans and chairs; wraps `BulkRegister` with a role-aware subtitle (department vs. program).
+
+```
+client/src/pages/shared/BulkRegister.jsx
+```
+-> Bulk registration form allowing authorized faculty to upload or manually enter a list of users for batch account creation.
+
+```
+client/src/pages/shared/BoardExams.jsx
+```
+-> Board exam listing page for deans and chairs to view exams filtered by program, status, audience, and subject.
+
+```
+client/src/pages/shared/CreateExams.jsx
+```
+-> Mock board exam creation and editing for deans and chairs: assemble question sets, set schedules, publish, and view conflict warnings.
+
+```
+client/src/pages/shared/BoardExamPreview.jsx
+```
+-> Read-only preview of a mock board exam's questions and answers.
+
+```
+client/src/pages/shared/BoardExamTestRun.jsx
+```
+-> Interactive test-run mode for faculty to walk through an exam as if taking it, without recording an attempt.
+
+```
+client/src/pages/shared/ExamRunner.jsx
+```
+-> Faculty exam viewer opened from Board Exams in `details`, `preview`, or `testRun` mode.
+
+```
+client/src/pages/shared/ExamResults.jsx
+```
+-> Exam result overview: trigger result computation, view pass/fail breakdowns, and open individual reports. Program chairs only see their own program's exams.
+
+```
+client/src/pages/shared/IndividualReportView.jsx
+```
+-> Detailed per-student result report showing per-subject scores and answer breakdown.
 
 ---
 
@@ -820,6 +776,11 @@ client/src/components/QuestionForm.jsx
 client/src/components/QuestionFilters.jsx
 ```
 -> Filter bar component for the question list: filters by subject tag, approval status, and search text.
+
+```
+client/src/components/CapsuleFilters.jsx
+```
+-> Reusable row of pill-shaped filter buttons with optional count badges (`options`, `value`, `onChange`); used for status filters on Approve Questions.
 
 ```
 client/src/components/SearchBar.jsx
@@ -992,6 +953,11 @@ client/src/styles/components/QuestionFilters.css
 -> Styles for the question filter bar with tag chips and status dropdown.
 
 ```
+client/src/styles/components/CapsuleFilters.css
+```
+-> Styles for `CapsuleFilters`: outlined pills, yellow count circle, solid navy active state.
+
+```
 client/src/styles/components/SearchBar.css
 ```
 -> Styles for the search input component with icon and clear button.
@@ -1062,9 +1028,24 @@ client/src/styles/shared/BulkRegister.css
 -> Styles for the bulk registration page: file upload zone, user list table, and progress indicator.
 
 ```
-client/src/styles/shared/CreateQuestions.css
+client/src/styles/shared/MyQuestions.css
 ```
--> Styles for the question creation/import page layout, question list sidebar, and action toolbar.
+-> Styles for the My Questions page (`qp-*` classes): question list, import modal, and action toolbar.
+
+```
+client/src/styles/shared/CreateExams.css
+```
+-> Styles for the exam creation/editing page (deans and chairs).
+
+```
+client/src/styles/shared/ExamResults.css
+```
+-> Styles for the exam results overview and report navigation (deans and chairs).
+
+```
+client/src/styles/shared/StudentRegister.css
+```
+-> Styles for the Student Registration page (deans and chairs).
 
 ```
 client/src/styles/shared/MockBoardExamPreview.css
@@ -1092,44 +1073,14 @@ client/src/styles/shared/SubjectTags.css
 -> Styles for the subject tag management page: tag chips, edit inline form, and deactivate toggle.
 
 ```
-client/src/styles/dean/DeanCreateExams.css
+client/src/styles/dean/DeanDashboard.css
 ```
--> Dean-specific overrides and layout styles for the exam creation/management page.
-
-```
-client/src/styles/dean/DeanExamResults.css
-```
--> Dean-specific styles for the exam results overview and report navigation.
-
-```
-client/src/styles/dean/DeanStudentRegister.css
-```
--> Dean-specific styles for the student registration management page.
-
-```
-client/src/styles/programchair/PCCreateExams.css
-```
--> Program-chair-specific styles for the exam creation page.
-
-```
-client/src/styles/programchair/PCExamResults.css
-```
--> Program-chair-specific styles for the exam results page.
+-> Dean-specific dashboard styles layered on top of `AdminFacultyDashboard.css`.
 
 ```
 client/src/styles/programchair/PCLogs.css
 ```
 -> Styles for the audit log viewer page: log entry rows, action type badges, and timestamp display.
-
-```
-client/src/styles/programchair/PCStudentRegister.css
-```
--> Program-chair-specific styles for the registration management page.
-
-```
-client/src/styles/prof/ProfQuestions.css
-```
--> Professor-specific styles for the question bank page.
 
 ```
 client/src/styles/student/StudentDashboard.css
