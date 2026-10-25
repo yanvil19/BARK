@@ -15,10 +15,10 @@ export default function CapsuleFilters({ options, value, onChange, ariaLabel = '
             aria-pressed={isActive}
             onClick={() => onChange(option.value)}
           >
+            <span>{option.label}</span>
             {option.count !== undefined && (
               <span className="capsule-filter-count">{option.count}</span>
             )}
-            <span>{option.label}</span>
           </button>
         );
       })}

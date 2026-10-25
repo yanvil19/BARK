@@ -3,6 +3,7 @@ import { apiAuth } from '../../lib/api.js';
 import '../../styles/alumni/AlumniAvailableExams.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -139,23 +140,16 @@ export default function AlumniAvailableExams({ onTakeExam }) {
       />
 
       <section className="aae-toolbar">
-        <div className="aae-status-tabs" role="tablist" aria-label="Exam status filters">
-          {[
-            ['all', 'All'],
-            ['published', 'Published'],
-            ['ongoing', 'On-going'],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={`aae-status-tab ${statusFilter === key ? 'active' : ''}`}
-              onClick={() => setStatusFilter(key)}
-            >
-              <span>{label}</span>
-              <strong>{statusCounts[key]}</strong>
-            </button>
-          ))}
-        </div>
+        <CapsuleFilters
+          ariaLabel="Exam status filters"
+          options={[
+            { value: 'all', label: 'All', count: statusCounts.all },
+            { value: 'published', label: 'Published', count: statusCounts.published },
+            { value: 'ongoing', label: 'On-going', count: statusCounts.ongoing },
+          ]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
         <SearchBar
           value={search}
           onChange={setSearch}

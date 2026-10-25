@@ -780,7 +780,7 @@ client/src/components/QuestionFilters.jsx
 ```
 client/src/components/CapsuleFilters.jsx
 ```
--> Reusable row of pill-shaped filter buttons with optional count badges (`options`, `value`, `onChange`); used for status filters on Approve Questions.
+-> Reusable row of pill-shaped filter buttons with optional count badges (`options`, `value`, `onChange`); used for the status filters on Approve Questions, My Questions, Board Exams, and the student/alumni Available Exams pages.
 
 ```
 client/src/components/SearchBar.jsx
@@ -955,7 +955,7 @@ client/src/styles/components/QuestionFilters.css
 ```
 client/src/styles/components/CapsuleFilters.css
 ```
--> Styles for `CapsuleFilters`: outlined pills, yellow count circle, solid navy active state.
+-> Styles for `CapsuleFilters`: outlined pills (label then yellow count badge), solid navy active state; modeled on the Board Exams status filters.
 
 ```
 client/src/styles/components/SearchBar.css

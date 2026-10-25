@@ -77,65 +77,8 @@
 }
 
 .qp-state-pills {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
   margin-bottom: 16px;
-}
-
-.qp-state-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border: 1px solid rgba(53, 64, 142, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #5966ac;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.qp-state-pill:hover {
-  background: #f9fafb;
-  border-color: rgba(53, 64, 142, 0.18);
-}
-
-.qp-state-pill--active {
-  background: var(--primary-bg);
-  color: #fff;
-  border-color: var(--primary-bg);
-}
-
-.qp-state-pill--active:hover {
-  background: var(--primary-bg);
-  border-color: var(--primary-bg);
-}
-
-.qp-state-pill-count {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-yellow);
-  color: var(--primary-bg);
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.qp-state-pill--active .qp-state-pill-count {
-  background: rgba(250, 210, 39, 0.95);
-}
-
-.qp-state-pill--more {
-  position: relative;
+  padding: 0 20px;
 }
 
 .qp-more-wrap {
@@ -219,7 +162,6 @@
   padding: 0 20px;
 }
 
-.qp-state-pill:focus,
 .qp-btn-add:focus,
 .qp-btn-edit:focus,
 .qp-btn-submit:focus {
@@ -737,9 +679,6 @@
   }
 
   .qp-state-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
     margin-bottom: 16px;
     padding: 0 16px;
     box-sizing: border-box;

@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -861,26 +862,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       />
 
       {(viewMode === 'list' || viewMode === 'cards') && (me?.role === 'dean' || me?.role === 'program_chair') && (
-        <div className="ambe-status-tabs" role="tablist" aria-label="Filter exams by status">
-          {STATUS_TABS.map((tab) => {
-            const isActive = selectedStatus === tab.value;
-            const count = tab.value ? (statusCounts[tab.value] || 0) : statusCounts.all;
-
-            return (
-              <button
-                key={tab.value || 'all'}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`ambe-status-tab${isActive ? ' is-active' : ''}`}
-                onClick={() => setSelectedStatus(tab.value)}
-              >
-                {tab.label}
-                <span className="ambe-status-tab-count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
+        <CapsuleFilters
+          className="ambe-status-tabs"
+          ariaLabel="Filter exams by status"
+          options={STATUS_TABS.map((tab) => ({
+            value: tab.value,
+            label: tab.label,
+            count: tab.value ? (statusCounts[tab.value] || 0) : statusCounts.all,
+          }))}
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+        />
       )}
 
       {(me?.role === 'dean' || me?.role === 'program_chair') && (

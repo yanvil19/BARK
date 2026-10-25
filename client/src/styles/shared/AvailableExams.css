@@ -154,11 +154,13 @@
   font-size: 14px;
 }
 
-/* Minor spacing alignment with reused QuestionApprovals classes */
-.ae-state-pills.ca-state-pills {
+/* Status filters (CapsuleFilters) */
+.ae-state-pills {
+  margin-bottom: 16px;
   padding: 14px 28px 0;
 }
 
+/* Minor spacing alignment with reused QuestionApprovals classes */
 .ae-filters.ca-filters {
   padding: 12px 28px 20px;
 

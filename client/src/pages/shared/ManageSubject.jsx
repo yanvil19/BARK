@@ -175,10 +175,6 @@ export default function ManageSubject({ me }) {
       </PageHeader>
 
       <div className="ct-controls-row">
-        <div className="qp-state-pill qp-state-pill--active">
-          <span className="qp-state-pill-count">{filteredTags.length}</span>
-          <span>{searchQuery ? 'Matches' : 'All Subjects'}</span>
-        </div>
         {isDean ? (
           <div className="st-dean-toolbar">
             <select

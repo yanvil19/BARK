@@ -9,6 +9,7 @@ import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import Table from '../../components/Table.jsx';
 import ActionMenu from '../../components/ActionMenu.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import '../../styles/shared/MyQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -769,19 +770,17 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         </div>
       </PageHeader>
 
-      <div className="qp-state-pills">
-        {STATE_FILTERS.map((state) => (
-          <button
-            key={state}
-            type="button"
-            className={`qp-state-pill ${filter === state ? 'qp-state-pill--active' : ''}`}
-            onClick={() => setFilter(state)}
-          >
-            <span className="qp-state-pill-count">{counts[state] || 0}</span>
-            <span>{state === 'all' ? 'All' : getStatusLabel(state)}</span>
-          </button>
-        ))}
-      </div>
+      <CapsuleFilters
+        className="qp-state-pills"
+        ariaLabel="Filter questions by status"
+        options={STATE_FILTERS.map((state) => ({
+          value: state,
+          label: state === 'all' ? 'All' : getStatusLabel(state),
+          count: counts[state] || 0,
+        }))}
+        value={filter}
+        onChange={setFilter}
+      />
 
       <QuestionFilters
         className="qp-filters-wrapper"
