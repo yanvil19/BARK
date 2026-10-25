@@ -1,7 +1,14 @@
+* {
+  font-family: var(--font-body);
+}
+
 /* ===== EXAM LOGS PAGE (el-) — Program Chair activity monitor ===== */
 
 .el-page {
-  padding: 0;
+  padding-bottom: calc(var(--footer-height, 60px) + 20px);
+  min-height: calc(100vh - 70px);
+  display: flex;
+  flex-direction: column;
 }
 
 .el-page-header {
@@ -50,10 +57,14 @@
   flex: 1;
   min-width: 200px;
   padding: 9px 14px;
-  border: 1px solid #d0d5dd;
+  border: 1px solid rgb(31, 41, 71, 0.2);
   border-radius: 6px;
   font-size: 14px;
-  background: #fafafa;
+  background: #fff;
+}
+
+.el-search::placeholder {
+  color: rgba(31, 41, 71, 0.5);
 }
 
 .el-filter-select {
@@ -84,7 +95,7 @@
 .el-helper-note {
   margin: -4px 0 16px;
   color: #8b92bc;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .el-loading {
@@ -308,4 +319,390 @@
     grid-column: 1;
     grid-row: auto;
   }
+}
+
+/* ===== Exam sidebar ===== */
+.el-layout {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0 1.25rem;
+  /* border: 1px solid red; */
+}
+
+.el-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.el-sidebar {
+  width: 25rem;
+  min-height: 35rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border: 1px solid #D0D3E7;
+  border-radius: 0.625rem;
+}
+
+.el-sidebar-helper {
+  margin: 0 0 -10px 0;
+  color: #8b96bc;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.el-sidebar-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  background: #F3F5FC;
+  border: 1px solid #D0D3E7;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.el-sidebar-search:focus {
+  border-color: #35408E;
+}
+
+.el-sidebar-search::placeholder {
+  color: rgba(31, 41, 71, 0.5);
+}
+
+.el-sidebar-label {
+  color: #8b96bc;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 1rem 0 -0.5rem 0;
+}
+
+.el-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.el-type-btn {
+  padding: 0.5rem 0.25rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  background: #FFFFFF;
+  border: 1px solid #D0D3E7;
+  color: #35408E;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background .2s, color .2s, border-color .2s;
+}
+
+.el-type-btn:hover:not(.is-active) {
+  border-color: #35408E;
+}
+
+.el-type-btn.is-active {
+  background: #35408E;
+  color: #FFFFFF;
+  border-color: #35408E;
+}
+
+.el-exam-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-right: 2px;
+}
+
+.el-exam-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  background: #FFFFFF;
+  border: 1px solid #D0D3E7;
+  border-radius: 0.625rem;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+
+.el-exam-item:hover {
+  border-color: #35408E;
+  box-shadow: 0 2px 8px rgba(53, 64, 142, .12);
+  transform: translateY(-1px);
+}
+
+.el-exam-item.is-selected {
+  border-color: #35408E;
+  background: #F9FAFF;
+}
+
+.el-exam-name {
+  color: #35408E;
+  font-size: 0.80rem;
+  font-weight: 900;
+}
+
+.el-exam-date {
+  color: #8c96ae;
+  font-size: 0.6rem;
+}
+
+.el-exam-empty {
+  margin: 0;
+  color: #8c96ae;
+  font-size: 0.8125rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.els-pagination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+}
+
+.els-pagination-info {
+  color: #35408E;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.els-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.els-pagination-pages {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.els-pagination-btn,
+.els-pagination-page {
+  background: #FFFFFF;
+  border: 1px solid #D0D3E7;
+  color: #35408E;
+  border-radius: 0.5rem;
+  font-size: 0.6875rem;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.els-pagination-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.els-pagination-page--active {
+  background: #35408E;
+  color: #FFFFFF;
+  border-color: #35408E;
+}
+
+@media (max-width: 900px) {
+  .el-layout {
+    flex-direction: column;
+  }
+
+  .el-sidebar {
+    width: 100%;
+  }
+}
+
+/* ===== Logs content panel ===== */
+.el-panel {
+  flex: 1;
+  min-height: 360px;
+  box-sizing: border-box;
+  padding: 1rem 3rem 1rem;
+  background: #FFFFFF;
+  border: 1px solid #D0D3E7;
+  border-radius: 0.6rem;
+  overflow-y: auto;
+}
+
+.el-panel--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  height: 360px;
+  min-height: 360px;
+  align-self: flex-start;
+}
+
+.el-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.el-panel-empty-sub {
+  margin: 0;
+  color: #35408E;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+
+.el-panel-empty-title {
+  margin: 0;
+  color: #35408E;
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+  font-family: var(--font-title) !important;
+  /* border: 1px solid red; */
+}
+
+.el-panel .el-filters {
+  position: sticky;
+  top: -0.5rem;
+  z-index: 1;
+  background: #FFFFFF;
+  padding: 0.75rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.el-empty-card-prompt {
+  background-color: #ffffff;
+  border-radius: 0.8rem;
+  border: 1px solid #D0D3E7;
+  height: 360px;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.el-empty-card-subtitle {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: #636874;
+  margin-bottom: 8px;
+}
+
+.el-empty-card-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #35408E;
+  margin: 0;
+  letter-spacing: -0.02em;
+  font-family: var(--font-title);
+}
+
+.el-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.el-status-filter {
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  min-width: 150px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.el-status-filter:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ===== Responsive layout overrides ===== */
+.el-layout {
+  align-items: flex-start;
+  height: auto;
+  min-height: 0;
+}
+
+.el-sidebar {
+  width: 25rem;
+  height: auto;
+  min-height: 35rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.el-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .el-panel {
+    padding: 0.5rem 1rem 0.5625rem;
+  }
+
+  .el-panel-empty-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Empty state minimum height (placed last so it wins over responsive overrides) */
+.el-panel.el-panel--empty {
+  height: 360px;
+  min-height: 360px;
+  align-self: flex-start;
+}
+
+/* ===== User Type Badges for Activity Logs ===== */
+.el-user-type-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+.el-user-type-tag--student {
+  background: #E9EAF3;
+  color: #35408E;
+  border: 1px solid #D0D3E7;
+}
+
+.el-user-type-tag--alumni {
+  background: #FDF6D8;
+  color: #78350F;
+  border: 1px solid #FAD227;
 }
