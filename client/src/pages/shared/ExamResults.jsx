@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
-import '../../styles/dean/DeanExamResults.css';
+import '../../styles/shared/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import IndividualReportView from "./DeanIndividualReportView.jsx";
+import IndividualReportView from "./IndividualReportView.jsx";
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const getStatusClass = (avg, threshold) => {
@@ -401,13 +401,19 @@ const ExamResults = ({ me }) => {
   const fetchExams = useCallback(async () => {
     try {
       const data = await listExamsWithStatus();
-      setExams(data.exams || []);
+      let allExams = data.exams || [];
+      // Program chairs only see exams for their own program
+      if (me?.role === 'program_chair') {
+        const myProgramId = me?.program?._id || me?.program;
+        allExams = allExams.filter((e) => String(e.program?._id || e.program) === String(myProgramId));
+      }
+      setExams(allExams);
     } catch (err) {
       console.error('Failed to fetch exams:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [me?.role, me?.program]);
 
   const handleViewReport = useCallback(async (examId) => {
     setSelectedExamId(examId);

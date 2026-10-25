@@ -26,7 +26,7 @@ function getModeTitle(mode) {
   return 'Exam Details';
 }
 
-export default function DeanExamRunner({ examId, mode = 'details', onBack }) {
+export default function ExamRunner({ examId, mode = 'details', onBack }) {
   const [exam, setExam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState({});

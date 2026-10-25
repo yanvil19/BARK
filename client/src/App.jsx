@@ -6,7 +6,7 @@ import LandingPage from './pages/LandingPage.jsx';
 import PrivacyNotice from './components/PrivacyNotice.jsx';
 import Login from './pages/Login.jsx';
 import DeanApprovals from './pages/dean/DeanApproveQuestions.jsx';
-import StudentManager from './pages/dean/DeanStudentRegister.jsx';
+import StudentManager from './pages/shared/StudentRegister.jsx';
 import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
 import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
 import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
@@ -17,12 +17,12 @@ import ChairCheatingLogs from './pages/programchair/PCLogs.jsx';
 import ProfessorQuestions from './pages/prof/ProfMyQuestions.jsx';
 import ChairQuestions from './pages/programchair/PCMyQuestions.jsx';
 import DeanQuestions from './pages/dean/DeanMyQuestions.jsx';
-import MockBoardExam from './pages/dean/DeanCreateExams.jsx';
+import MockBoardExam from './pages/shared/CreateExams.jsx';
 import AvailableMockBoardExams from './pages/shared/BoardExams.jsx';
-import DeanExamRunner from './pages/dean/DeanExamRunner.jsx';
-import MockBoardExamPreview from './pages/dean/DeanBoardExamPreview.jsx';
-import MockBoardExamTestRun from './pages/dean/DeanBoardExamTestRun.jsx';
-import ExamResults from './pages/dean/DeanExamResults.jsx';
+import ExamRunner from './pages/shared/ExamRunner.jsx';
+import MockBoardExamPreview from './pages/shared/BoardExamPreview.jsx';
+import MockBoardExamTestRun from './pages/shared/BoardExamTestRun.jsx';
+import ExamResults from './pages/shared/ExamResults.jsx';
 import StudentExamRunner from './pages/student/StudentExamRunner.jsx';
 import StudentExamResult from './pages/student/StudentExamResult.jsx';
 import StudentAvailableExams from './pages/student/StudentAvailableExams.jsx';
@@ -36,12 +36,6 @@ import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
 import "react-datepicker/dist/react-datepicker.css";
-import PCStudentManager from './pages/programchair/PCStudentRegister.jsx';
-import PCMockBoardExam from './pages/programchair/PCCreateExams.jsx';
-import PCExamRunner from './pages/programchair/PCExamRunner.jsx';
-import PCMockBoardExamPreview from './pages/programchair/PCBoardExamPreview.jsx';
-import PCMockBoardExamTestRun from './pages/programchair/PCBoardExamTestRun.jsx';
-import PCExamResults from './pages/programchair/PCExamResults.jsx';
 import { useHeartbeat } from './hooks/useHeartbeat.js';
 
 export default function App() {
@@ -372,17 +366,17 @@ export default function App() {
     );
   if (route === 'deanExamRunner')
     page = (
-      <DeanExamRunner
+      <ExamRunner
         examId={examRunnerId}
         mode={examRunnerMode}
         onBack={() => setRoute('availableMockBoardExams')}
       />
     );
-  if (route === 'pcStudentManager') page = <PCStudentManager me={me} onNavigate={setRoute} />;
-  if (route === 'pcExamResults') page = <PCExamResults me={me} />;
+  if (route === 'pcStudentManager') page = <StudentManager me={me} onNavigate={setRoute} />;
+  if (route === 'pcExamResults') page = <ExamResults me={me} />;
   if (route === 'pcMockBoardExam')
     page = (
-      <PCMockBoardExam
+      <MockBoardExam
         me={me}
         editingExamId={editingMockBoardExamId}
         onClearEditing={() => setEditingMockBoardExamId('')}
@@ -421,21 +415,21 @@ export default function App() {
     );
   if (route === 'pcMockBoardExamPreview')
     page = (
-      <PCMockBoardExamPreview
+      <MockBoardExamPreview
         examId={examRunnerId}
         onBack={() => setRoute('pcAvailableMockBoardExams')}
       />
     );
   if (route === 'pcMockBoardExamTestRun')
     page = (
-      <PCMockBoardExamTestRun
+      <MockBoardExamTestRun
         examId={examRunnerId}
         onBack={() => setRoute('pcAvailableMockBoardExams')}
       />
     );
   if (route === 'pcExamRunner')
     page = (
-      <PCExamRunner
+      <ExamRunner
         examId={examRunnerId}
         mode={examRunnerMode}
         onBack={() => setRoute('pcAvailableMockBoardExams')}
