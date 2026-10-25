@@ -9,7 +9,7 @@ import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import Table from '../../components/Table.jsx';
 import ActionMenu from '../../components/ActionMenu.jsx';
-import '../../styles/shared/CreateQuestions.css';
+import '../../styles/shared/MyQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -66,7 +66,7 @@ function truncateText(text, max = 80) {
     : clean;
 }
 
-export default function CreateQuestions({ role, programId, programLabel, programs = [], onProgramChange, me }) {
+export default function MyQuestions({ role, programId, programLabel, programs = [], onProgramChange, me }) {
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');

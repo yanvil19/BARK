@@ -45,8 +45,12 @@ function formatProgramLabel(program) {
 
 function truncateText(text, max = 100) {
   if (!text) return '';
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}...`;
+  const clean = text
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max)}...`;
 }
 
 function isBeingEvaluated(question, meId) {
