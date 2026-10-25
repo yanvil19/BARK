@@ -8,6 +8,7 @@ import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import Table from '../../components/Table.jsx';
+import Pagination from '../../components/Pagination.jsx';
 import ActionMenu from '../../components/ActionMenu.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import '../../styles/shared/MyQuestions.css';
@@ -19,6 +20,16 @@ const BASE = import.meta.env.VITE_API_URL;
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
+
+// Dot tone for the table status cell (.ui-table-status in Table.css)
+const QUESTION_STATUS_TONES = {
+  draft: 'hollow',
+  pending_chair: 'amber',
+  returned: 'orange',
+  approved: 'green',
+  rejected: 'red',
+  restored: 'violet',
+};
 
 function formatResetTime(isoDateStr) {
   if (!isoDateStr) return '';
@@ -106,7 +117,6 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [pendingDeanAction, setPendingDeanAction] = useState('create');
   const [pendingProgramId, setPendingProgramId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [hasImportDraft, setHasImportDraft] = useState(false);
   const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
@@ -136,7 +146,6 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       const programParam = programId ? `&programId=${encodeURIComponent(programId)}` : '';
       const data = await apiAuth(`${BASE}/api/questions?page=${encodeURIComponent(currentPage)}&limit=${encodeURIComponent(itemsPerPage)}${programParam}`);
       setQuestions(data.questions || []);
-      setTotalPages(typeof data.totalPages === 'number' ? Math.max(1, data.totalPages) : 1);
       setTotalItems(typeof data.totalItems === 'number' ? Math.max(0, data.totalItems) : 0);
     } catch (err) {
       console.error('Failed to load questions:', err);
@@ -352,11 +361,134 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     return items;
   }
 
-  const { paginatedQuestions } = useMemo(() => {
-    return {
-      paginatedQuestions: filteredQuestions,
-    };
+  // A question set shows as one row (its first member); remember each set's size for the badge
+  const { tableRows, groupSizes } = useMemo(() => {
+    const sizes = new Map();
+    const rows = [];
+    filteredQuestions.forEach((q) => {
+      if (!q.groupId) {
+        rows.push(q);
+        return;
+      }
+      if (!sizes.has(q.groupId)) rows.push(q);
+      sizes.set(q.groupId, (sizes.get(q.groupId) || 0) + 1);
+    });
+    return { tableRows: rows, groupSizes: sizes };
   }, [filteredQuestions]);
+
+  const questionColumns = [
+    {
+      key: 'question',
+      label: 'Question',
+      width: '320px',
+      className: 'ui-table-cell-lead',
+      render: (question) => (
+        <>
+          <div className="qp-question-text">
+            {question.groupId ? (
+              <>
+                <strong>{truncateText(question.groupContext?.trim() || 'Question Set', 100)}</strong>
+                <span className="qp-badge qp-badge--group" title="Fixed Question Group">
+                  Set ({groupSizes.get(question.groupId)} questions)
+                </span>
+              </>
+            ) : (
+              truncateText(question.description, 120)
+            )}
+          </div>
+
+          {question.state === 'returned' && question.revisionNote ? (
+            <div className="qp-note qp-note--returned">
+              <strong>Revision Note:</strong> {question.revisionNote}
+            </div>
+          ) : null}
+
+          {question.state === 'rejected' && question.rejectionReason ? (
+            <div className="qp-note qp-note--rejected">
+              <strong>Rejected:</strong> {question.rejectionReason}
+            </div>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: 'subject',
+      label: 'Subject',
+      render: (question) => (
+        question.tag?.name ? (
+          <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
+        ) : (
+          <span className="qp-none">(none)</span>
+        )
+      ),
+    },
+    ...(role === 'dean' ? [{
+      key: 'program',
+      label: 'Program',
+      render: (question) => (
+        question.program?.code || question.program?.name ? (
+          <span className="qp-badge qp-badge--program">
+            {question.program?.code || question.program?.name}
+          </span>
+        ) : (
+          <span className="qp-none">(none)</span>
+        )
+      ),
+    }] : []),
+    {
+      key: 'status',
+      label: 'Status',
+      render: (question) => (
+        <span className={`ui-table-status ui-table-status--${QUESTION_STATUS_TONES[question.state] || 'default'}`}>
+          {getStatusLabel(question.state)}
+        </span>
+      ),
+    },
+    {
+      key: 'updated',
+      label: 'Updated',
+      render: (question) => <span className="qp-cell-soft">{formatDate(question.updatedAt || question.createdAt)}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (question) => {
+        const isGrouped = !!question.groupId;
+        const canSubmit = question.state === 'draft' || question.state === 'returned';
+        // When the row button is already "View Details", don't repeat it in the menu;
+        // hide the menu entirely if nothing else is left.
+        const menuItems = getQuestionActions(question).filter((item) => canSubmit || item.key !== 'view');
+        return (
+          <div className="ui-table-actions">
+            {canSubmit ? (
+              <button
+                type="button"
+                className="ui-table-btn ui-table-btn--success"
+                onClick={() => handleSubmit(question, isGrouped)}
+              >
+                {question.state === 'returned' ? 'Re-submit' : 'Submit'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
+                onClick={() => openViewModal(question)}
+              >
+                View Details
+              </button>
+            )}
+
+            {menuItems.length > 0 && (
+              <ActionMenu
+                items={menuItems}
+                ariaLabel="More actions"
+              />
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   function closeFormModal() {
     setShowForm(false);
@@ -806,172 +938,26 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
       ) : null}
 
-      {loading ? (
-        <div className="ui-table-card">
-          <p className="qp-loading">Loading questions...</p>
-        </div>
-      ) : (
-        <Table className="qp-table">
-            <thead>
-              <tr>
-                <th style={{ width: '320px' }}>Question</th>
-                <th>Subject</th>
-                {role === 'dean' && <th>Program</th>}
-                <th>Status</th>
-                <th>Updated</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredQuestions.length === 0 ? (
-                <tr>
-                  <td colSpan={role === 'dean' ? 6 : 5} className="qp-empty">
-                    {filter === 'all'
-                      ? 'No questions found. Create your first one!'
-                      : `No ${getStatusLabel(filter)} questions found.`}
-                  </td>
-                </tr>
-              ) : (
-                (() => {
-                  const renderedGroupIds = new Set();
-                  return paginatedQuestions.map((question) => {
-                    const isGrouped = !!question.groupId;
-                    if (isGrouped) {
-                      if (renderedGroupIds.has(question.groupId)) {
-                        return null;
-                      }
-                      renderedGroupIds.add(question.groupId);
-                    }
+      <Table
+        className="qp-questions-table"
+        columns={questionColumns}
+        data={tableRows}
+        keyField="_id"
+        loading={loading}
+        emptyMessage={filter === 'all'
+          ? 'No questions found. Create your first one!'
+          : `No ${getStatusLabel(filter)} questions found.`}
+      />
 
-                    const groupMembers = isGrouped ? filteredQuestions.filter(q => q.groupId === question.groupId) : [];
-                    const groupDisplayTitle = question.groupContext?.trim() || 'Question Set';
-
-                    return (
-                      <tr key={question._id}>
-                        <td>
-                          <div className="qp-question-text">
-                            {isGrouped ? (
-                              <>
-                                <strong style={{ color: '#2d3775' }}>{truncateText(groupDisplayTitle, 100)}</strong>
-                                <span className="qp-badge qp-badge--group" title="Fixed Question Group">
-                                  Set ({groupMembers.length} questions)
-                                </span>
-                              </>
-                            ) : (
-                              truncateText(question.description, 120)
-                            )}
-                          </div>
-
-                          {question.state === 'returned' && question.revisionNote ? (
-                            <div className="qp-note qp-note--returned">
-                              <strong>Revision Note:</strong> {question.revisionNote}
-                            </div>
-                          ) : null}
-
-                          {question.state === 'rejected' && question.rejectionReason ? (
-                            <div className="qp-note qp-note--rejected">
-                              <strong>Rejected:</strong> {question.rejectionReason}
-                            </div>
-                          ) : null}
-                        </td>
-
-                        <td>
-                          {question.tag?.name ? (
-                            <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
-                          ) : (
-                            <span className="qp-none">(none)</span>
-                          )}
-                        </td>
-
-                        {role === 'dean' && (
-                          <td>
-                            {question.program?.code || question.program?.name ? (
-                              <span className="qp-badge qp-badge--program">
-                                {question.program?.code || question.program?.name}
-                              </span>
-                            ) : (
-                              <span className="qp-none">(none)</span>
-                            )}
-                          </td>
-                        )}
-
-                        <td>
-                          <span className={`qp-status qp-status--${question.state}`}>
-                            <span className="qp-status-dot" />
-                            {getStatusLabel(question.state)}
-                          </span>
-                        </td>
-
-                        <td>{formatDate(question.updatedAt || question.createdAt)}</td>
-
-                        <td className="ui-table-actions-cell" style={{ textAlign: 'center' }}>
-                          <div className="ui-table-actions">
-                            {question.state === 'draft' || question.state === 'returned' ? (
-                              <button
-                                type="button"
-                                className="ui-table-btn ui-table-btn--success"
-                                onClick={() => handleSubmit(question, isGrouped)}
-                              >
-                                {question.state === 'returned' ? 'Re-submit' : 'Submit'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
-                                onClick={() => openViewModal(question)}
-                              >
-                                View Details
-                              </button>
-                            )}
-
-                            <ActionMenu
-                              items={getQuestionActions(question)}
-                              ariaLabel="More actions"
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  });
-                })()
-              )}
-            </tbody>
-        </Table>
-      )}
-
-      {/* ── Pagination ── */}
-      {!loading && filteredQuestions.length > 0 && (
-        <div className="qp-pagination">
-          <div className="qp-pagination-info">
-            Showing {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {filteredQuestions.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + filteredQuestions.length} of {totalItems} questions
-          </div>
-          <div className="qp-pagination-controls">
-            <button
-              className="qp-pagination-btn"
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              ← Previous
-            </button>
-            <div className="qp-pagination-pages">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  className={`qp-pagination-page ${currentPage === page ? 'qp-pagination-page--active' : ''}`}
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button
-              className="qp-pagination-btn"
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next →
-            </button>
-          </div>
+      {!loading && totalItems > 0 && (
+        <div className="ui-table-footer">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={itemsPerPage}
+            onPageChange={setCurrentPage}
+            itemLabel="questions"
+          />
         </div>
       )}
 

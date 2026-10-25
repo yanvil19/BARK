@@ -198,9 +198,10 @@
 }
 
 .qp-question-text {
-  font-size: 12px;
-  color: #888;
-  margin-top: 4px;
+  /* Same as the Board Exams lead column (exam name) */
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-bg, #35408e);
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -273,116 +274,13 @@
   vertical-align: middle;
 }
 
-/* ── Grouped Question Rows ── */
-.qp-table tbody tr.qp-group-header-row,
-.ui-table tbody tr.qp-group-header-row {
-  background: #f7f8fe;
-  border-top: 2px solid #dbe2fb;
-}
-
-.qp-group-header-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-title);
-  font-size: 13px;
-  font-weight: 700;
-  color: #3f4e9a;
-}
-
-.qp-group-toggle-btn {
-  transition: transform 0.15s ease, background-color 0.15s ease;
-  border-radius: 4px;
-}
-
-.qp-group-toggle-btn:hover {
-  background-color: #e0e5fc !important;
-  color: #27347a !important;
-}
-
-.qp-group-header-context {
-  font-size: 12px;
-  color: #7b84b5;
-  font-weight: 400;
-  font-style: italic;
-  max-width: 480px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.qp-group-child-cell {
-  padding-left: 28px !important;
-  position: relative;
-}
-
-.qp-group-child-cell::before {
-  content: "↳";
-  position: absolute;
-  left: 12px;
-  color: #939ecf;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.qp-group-child-number {
-  font-weight: 700;
-  color: #5460a3;
-  margin-right: 6px;
-}
-
-/* Wrapper that stacks the status label + optional in-exam badge */
-.qp-status-cell {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 5px;
-}
-
 .qp-none {
-  color: #bbb;
-  font-size: 13px;
+  color: #7682a2;
+  font-size: 12px;
 }
 
-.qp-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.qp-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
-.qp-status--draft {
-  color: #6f42c1;
-}
-
-.qp-status--pending_chair {
-  color: #c08400;
-}
-
-.qp-status--returned {
-  color: #d97706;
-}
-
-.qp-status--approved {
-  color: #22a06b;
-}
-
-.qp-status--rejected {
-  color: #e03a3a;
-}
-
-.qp-status--restored {
-  color: #8b5cf6;
+.qp-cell-soft {
+  color: #5b6684;
 }
 
 /* ── Exam-use sub-filter pills ─────────────────────────────────── */
@@ -584,90 +482,6 @@
   color: #667085;
 }
 
-/* Pagination */
-.qp-pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.qp-pagination-info {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
-}
-
-.qp-pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.qp-pagination-btn {
-  padding: 8px 14px;
-  border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  background: #fff;
-  color: #555;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.qp-pagination-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: var(--primary-bg);
-  color: var(--primary-bg);
-}
-
-.qp-pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.qp-pagination-pages {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.qp-pagination-page {
-  min-width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid #d0d5dd;
-  border-radius: 4px;
-  background: #fff;
-  color: #555;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.qp-pagination-page:hover {
-  background: #f9fafb;
-  border-color: var(--primary-bg);
-  color: var(--primary-bg);
-}
-
-.qp-pagination-page--active {
-  background: var(--primary-bg);
-  color: #fff;
-  border-color: var(--primary-bg);
-}
-
 @media (max-width: 980px) {
 
   .qp-state-pills,
@@ -686,20 +500,6 @@
 
   .qp-header {
     margin-bottom: 10px;
-  }
-
-  .qp-pagination {
-    justify-content: center;
-    text-align: center;
-  }
-
-  .qp-pagination-info {
-    width: 100%;
-    text-align: center;
-  }
-
-  .qp-pagination-controls {
-    justify-content: center;
   }
 
   .qp-filters-wrapper {
@@ -734,7 +534,8 @@
     overflow-x: auto;
   }
 
-  .qp-table {
+  .qp-table,
+  .qp-questions-table {
     min-width: 760px;
   }
 }

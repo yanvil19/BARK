@@ -180,12 +180,6 @@
 
 .ambe-pagination-footer {
   margin: 0 32px 16px;
-  padding: 14px 20px;
-  background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.14);
-  border-top: 1px solid var(--ambe-line);
-  border-radius: 0 0 24px 24px;
-  box-shadow: 0 1px 2px rgba(34, 48, 96, 0.05), 0 10px 28px rgba(34, 48, 96, 0.06);
 }
 
 .ambe-conflict-message {
@@ -223,7 +217,10 @@
   line-height: 1.35;
 }
 
-.ambe-table-card,
+.ambe-table-card {
+  margin: 24px 32px 0;
+}
+
 .ambe-details {
   margin: 24px 32px 0;
   background: #ffffff;
@@ -231,18 +228,6 @@
   border-radius: 24px;
   box-shadow: 0 1px 2px rgba(34, 48, 96, 0.05), 0 10px 28px rgba(34, 48, 96, 0.06);
   overflow: hidden;
-}
-
-.ambe-table-card:has(+ .ambe-pagination-footer) {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom: none;
-}
-
-.ambe-scroll-x {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* ---------- Status filters (CapsuleFilters) ---------- */
@@ -315,70 +300,14 @@
 
 /* ---------- Exam table ---------- */
 
+/* Table skin comes from components/Table.css; only page-specific bits live here */
 .ambe-table {
-  width: 100%;
   /* Matches the sum of EXAM_TABLE_COLUMN_WIDTHS in BoardExams.jsx */
   min-width: 1560px;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
 }
 
-.ambe-table th {
-  padding: 14px 12px;
-  background: var(--ambe-tint);
-  border-bottom: 1px solid rgba(53, 64, 142, 0.2);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-align: left;
-  white-space: nowrap;
-  vertical-align: middle;
-  color: #4b5791;
-}
-
-.ambe-table td {
-  height: 60px;
-  padding: 12px;
-  border-top: 1px solid var(--ambe-line);
-  font-size: 13px;
-  line-height: 20px;
-  text-align: left;
-  color: var(--ambe-text);
-  vertical-align: middle;
-}
-
-.ambe-table tbody tr:first-child td {
-  border-top: none;
-}
-
-.ambe-table th:first-child,
-.ambe-table td:first-child {
-  padding-left: 20px;
-}
-
-.ambe-table th:last-child,
-.ambe-table td:last-child {
-  padding-right: 20px;
-}
-
-.ambe-table th.ambe-num,
 .ambe-table td.ambe-num {
-  padding-right: 24px;
-  text-align: right;
   white-space: nowrap;
-}
-
-.ambe-table tbody tr {
-  transition: background-color 0.15s ease;
-}
-
-.ambe-table tbody tr:hover {
-  background: rgba(53, 64, 142, 0.04);
-}
-
-.ambe-table tbody tr:hover td:first-child {
-  box-shadow: inset 3px 0 0 var(--ambe-navy);
 }
 
 .ambe-td-name {
@@ -513,80 +442,8 @@
   color: var(--ambe-status-archived-text);
 }
 
-.ambe-table .ambe-status {
-  --dot: #9ca3af;
-  --halo: rgba(156, 163, 175, 0.22);
-  justify-content: flex-start;
-  gap: 9px;
-  min-height: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--ambe-text);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: capitalize;
-}
-
-.ambe-table .ambe-status::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dot);
-  box-shadow: 0 0 0 3px var(--halo);
-  flex-shrink: 0;
-}
-
-.ambe-table .ambe-status.draft {
-  color: var(--ambe-soft);
-}
-
-.ambe-table .ambe-status.draft::before {
-  box-sizing: border-box;
-  background: transparent;
-  border: 1.5px solid var(--ambe-status-draft);
-  box-shadow: none;
-}
-
-.ambe-table .ambe-status.published {
-  --dot: var(--ambe-status-published);
-  --halo: rgba(59, 130, 246, 0.2);
-}
-
-.ambe-table .ambe-status.ongoing,
-.ambe-table .ambe-status.active {
-  --dot: var(--ambe-status-ongoing);
-  --halo: rgba(245, 158, 11, 0.24);
-}
-
-.ambe-table .ambe-status.ongoing::before,
-.ambe-table .ambe-status.active::before {
-  animation: ambe-live 2.2s ease-out infinite;
-}
-
-@keyframes ambe-live {
-  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
-  70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-}
-
-.ambe-table .ambe-status.finished {
-  --dot: #16a34a;
-  --halo: rgba(22, 163, 74, 0.2);
-}
-
-.ambe-table .ambe-status.archived {
-  --dot: var(--ambe-status-archived);
-  --halo: rgba(203, 213, 225, 0.35);
-  color: var(--ambe-faint);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ambe-skeleton-row span,
-  .ambe-table .ambe-status.ongoing::before,
-  .ambe-table .ambe-status.active::before {
+  .ambe-skeleton-row span {
     animation: none;
   }
 }
@@ -1443,15 +1300,17 @@
   .ambe-loading,
   .ambe-empty,
   .ambe-view-controls,
-  .ambe-table-card,
   .ambe-details {
     margin: 16px;
     border-radius: 20px;
   }
 
+  .ambe-table-card {
+    margin: 16px 16px 0;
+  }
+
   .ambe-pagination-footer {
     margin: 0 16px 16px;
-    border-radius: 0 0 20px 20px;
   }
 
   .ambe-skeleton-row {
@@ -1620,70 +1479,11 @@
   color: #ffffff;
 }
 
-.ambe-table-card {
-  border-color: rgba(53, 64, 142, 0.24);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.ambe-table-card:has(+ .ambe-pagination-footer) {
-  border-bottom: 0;
-}
-
-.ambe-table th {
-  height: 64px;
-  padding: 13px 12px;
-  box-sizing: border-box;
-  background-color: var(--primary-bg, #35408e);
-  border-bottom: 3px solid var(--accent-yellow, #fad227);
-  color: #ffffff;
-  font-family: var(--font-body, inherit);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1.4;
-  text-align: center;
-  text-transform: none;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.ambe-table td {
-  height: 64px;
-  border-top-color: #edf0f5;
-  text-align: center;
-}
-
-.ambe-table th:first-child,
-.ambe-table td:first-child {
-  padding-left: 12px;
-}
-
-.ambe-table th:last-child,
-.ambe-table td:last-child {
-  padding-right: 12px;
-}
-
-.ambe-table th.ambe-num,
-.ambe-table td.ambe-num {
-  padding-right: 12px;
-  text-align: center;
-}
-
-.ambe-table tbody tr:hover {
-  background: #f9faff;
-}
-
 .ambe-name-link {
   display: block;
   max-width: 100%;
   line-height: 1.45;
   overflow-wrap: anywhere;
-  text-align: left;
-}
-
-.ambe-table td.ambe-td-name {
-  padding-left: 20px;
   text-align: left;
 }
 
@@ -1701,13 +1501,6 @@
 
 .ambe-release-date {
   text-align: center;
-}
-
-.ambe-pagination-footer {
-  border-color: rgba(53, 64, 142, 0.24);
-  border-top-color: #edf0f5;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 @media (max-width: 768px) {

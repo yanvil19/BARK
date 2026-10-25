@@ -9,14 +9,25 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  margin: 20px
+  margin: 20px;
 }
 
-.ui-table-card:has(+ .ambe-pagination-footer),
-.ui-table-card:has(+ .qp-pagination) {
+/* Card joins the footer (pagination) placed directly after it */
+.ui-table-card:has(+ .ui-table-footer) {
+  margin-bottom: 0;
   border-bottom: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+.ui-table-footer {
+  margin: 0 20px 20px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.24);
+  border-top-color: #edf0f5;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .ui-table-scroll {
@@ -51,7 +62,7 @@
   font-weight: 700 !important;
   letter-spacing: 0.01em;
   line-height: 1.4;
-  text-align: left;
+  text-align: center;
   text-transform: none !important;
   white-space: nowrap;
   vertical-align: middle;
@@ -64,7 +75,8 @@
   font-family: var(--font-body, 'Nunito', sans-serif);
   font-size: 13px;
   line-height: 20px;
-  color: #1f2947;
+  color: #2b3552;
+  text-align: center;
   vertical-align: middle;
 }
 
@@ -74,12 +86,18 @@
 
 .ui-table th:first-child,
 .ui-table td:first-child {
-  padding-left: 20px;
+  padding-left: 12px;
 }
 
 .ui-table th:last-child,
 .ui-table td:last-child {
-  padding-right: 20px;
+  padding-right: 12px;
+}
+
+/* Left-aligned lead column (e.g. exam / question name) */
+.ui-table td.ui-table-cell-lead {
+  padding-left: 20px;
+  text-align: left;
 }
 
 .ui-table tbody tr {
@@ -103,6 +121,95 @@
   text-align: center;
   color: #6b77b0;
   font-size: 14px;
+}
+
+/* Status cell: coloured dot + label (Board Exams standard).
+   Pages map their statuses to a tone modifier below. */
+.ui-table-status {
+  --dot: #9ca3af;
+  --halo: rgba(156, 163, 175, 0.22);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #2b3552;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.ui-table-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: 0 0 0 3px var(--halo);
+  flex-shrink: 0;
+}
+
+.ui-table-status--hollow {
+  color: #5b6684;
+}
+
+.ui-table-status--hollow::before {
+  box-sizing: border-box;
+  background: transparent;
+  border: 1.5px solid #94a3b8;
+  box-shadow: none;
+}
+
+.ui-table-status--blue {
+  --dot: #3b82f6;
+  --halo: rgba(59, 130, 246, 0.2);
+}
+
+.ui-table-status--amber,
+.ui-table-status--live {
+  --dot: #f59e0b;
+  --halo: rgba(245, 158, 11, 0.24);
+}
+
+.ui-table-status--live::before {
+  animation: ui-table-status-live 2.2s ease-out infinite;
+}
+
+.ui-table-status--orange {
+  --dot: #f97316;
+  --halo: rgba(249, 115, 22, 0.22);
+}
+
+.ui-table-status--green {
+  --dot: #16a34a;
+  --halo: rgba(22, 163, 74, 0.2);
+}
+
+.ui-table-status--red {
+  --dot: #dc2626;
+  --halo: rgba(220, 38, 38, 0.2);
+}
+
+.ui-table-status--violet {
+  --dot: #8b5cf6;
+  --halo: rgba(139, 92, 246, 0.22);
+}
+
+.ui-table-status--muted {
+  --dot: #cbd5e1;
+  --halo: rgba(203, 213, 225, 0.35);
+  color: #8a94b0;
+}
+
+@keyframes ui-table-status-live {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-table-status--live::before {
+    animation: none;
+  }
 }
 
 /* Actions cell container */

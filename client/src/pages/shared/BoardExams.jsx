@@ -30,6 +30,16 @@ const STATUS_TABS = [
   { value: 'archived', label: 'Archived' },
 ];
 
+// Dot tone for the table status cell (.ui-table-status in Table.css)
+const EXAM_STATUS_TONES = {
+  draft: 'hollow',
+  published: 'blue',
+  ongoing: 'live',
+  active: 'live',
+  finished: 'green',
+  archived: 'muted',
+};
+
 function formatDateTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('en-PH', {
@@ -707,7 +717,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         key: 'name',
         label: 'Exam Name',
         width: EXAM_TABLE_COLUMN_WIDTHS[0],
-        className: 'ambe-td-name',
+        className: 'ambe-td-name ui-table-cell-lead',
         render: (exam) => {
           const isViewing = selectedExam?._id === exam._id;
           return (
@@ -809,7 +819,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         width: EXAM_TABLE_COLUMN_WIDTHS[11],
         render: (exam) => (
           <>
-            <span className={`ambe-status ${exam.status}`}>{exam.status}</span>
+            <span className={`ui-table-status ui-table-status--${EXAM_STATUS_TONES[exam.status] || 'default'}`}>{exam.status}</span>
             {exam.resultsReleaseDate && exam.status !== 'archived' && (
               <div className="ambe-release-date">
                 Release: {formatDateTime(exam.resultsReleaseDate)}
@@ -970,7 +980,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
       <div className="ambe-list-view" style={{ display: viewMode === 'list' || viewMode === 'cards' ? 'block' : 'none' }}>
         {loading && (
-          <div className="ambe-table-card ambe-skeleton" aria-busy="true" aria-label="Loading mock board exams">
+          <div className="ui-table-card ambe-table-card ambe-skeleton" aria-busy="true" aria-label="Loading mock board exams">
             {[0, 1, 2, 3, 4].map((row) => (
               <div key={row} className="ambe-skeleton-row">
                 {[0, 1, 2, 3, 4, 5, 6, 7].map((cell) => (
@@ -1084,7 +1094,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             ) : (
             <Table
               wrapperClassName="ambe-table-card"
-              scrollWrapperClassName="ambe-scroll-x"
               className="ambe-table"
               columns={examColumns}
               data={paginatedExams}
@@ -1092,7 +1101,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             />
             )}
             {(viewMode !== 'cards' || visibleExams.length > 10) && (
-              <div className={`ambe-pagination-footer${viewMode === 'cards' ? ' ambe-card-pagination' : ''}`}>
+              <div className={`ui-table-footer ambe-pagination-footer${viewMode === 'cards' ? ' ambe-card-pagination' : ''}`}>
                 <Pagination
                   currentPage={currentPage}
                   totalItems={visibleExams.length}
