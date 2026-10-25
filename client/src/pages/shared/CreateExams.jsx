@@ -84,6 +84,21 @@ function truncateText(text, max = 100) {
   return `${clean.slice(0, max)}...`;
 }
 
+// Grey circle + check beside a field label or tab; turns green once valid / complete
+function FieldCheck({ valid, validText = 'Valid', invalidText = 'Not yet valid' }) {
+  return (
+    <span
+      className={`mbe-field-check${valid ? ' is-valid' : ''}`}
+      role="img"
+      aria-label={valid ? validText : invalidText}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M4 8.5l2.5 2.5L12 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
   const isEditing = !!editingExamId;
   const initialDraftRef = useRef(isEditing ? null : readExamCreateDraft());
@@ -176,6 +191,30 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     const mins = diffMins % 60;
     return `${hrs} hours ${mins} minutes`;
   }, [form.startDateTime, form.endDateTime]);
+
+  // Re-check schedule validity as time passes (a start time can slip into the past)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ─── Details field checks (grey → green once valid) ────────────────────────
+  // Schedule rules mirror the server's publish checks: start in the future, end after start.
+  const startTime = form.startDateTime ? new Date(form.startDateTime).getTime() : NaN;
+  const endTime = form.endDateTime ? new Date(form.endDateTime).getTime() : NaN;
+  const timeLimit = form.timeLimitMinutes === '' ? NaN : Number(form.timeLimitMinutes);
+  const threshold = form.passingThreshold === '' ? NaN : Number(form.passingThreshold);
+  const fieldValid = {
+    name: (form.name || '').trim() !== '',
+    program: Boolean(programId),
+    start: Number.isFinite(startTime) && startTime > now,
+    end: Number.isFinite(startTime) && Number.isFinite(endTime) && endTime > startTime && endTime > now,
+    timeLimit: Number.isFinite(timeLimit) && timeLimit >= 1,
+    passingThreshold: Number.isFinite(threshold) && threshold >= 0 && threshold <= 100,
+    description: (form.description || '').trim() !== '',
+    instructions: (form.instructions || '').trim() !== '',
+  };
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -625,9 +664,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const selectedProgram = programs.find(p => String(p._id) === String(programId));
 
   // ─── Tab completion indicators ──────────────────────────────────────────────
-  const detailsComplete = form.name && programId && form.startDateTime && form.endDateTime;
+  // Details is complete when every field shown on the tab is valid (time limit only for timed alumni exams)
+  const detailsComplete = Object.entries(fieldValid).every(([field, valid]) => (
+    field === 'timeLimit' && !(isAlumniExam && form.isTimed) ? true : valid
+  ));
   const subjectsComplete = selectedTagIds.length > 0;
   const questionsComplete = selectedQuestions.length > 0;
+  const reviewComplete = detailsComplete && subjectsComplete && questionsComplete;
 
   // ─── Audience hero config ───────────────────────────────────────────────────
   const audienceConfig = isAlumniExam
@@ -671,11 +714,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
         <div className="mbe-tab-bar" role="tablist" aria-label="Exam creation steps">
           {[
-            { key: 'details', label: 'Details', badge: detailsComplete ? 'Done' : null },
-            { key: 'subjects', label: 'Subjects', badge: selectedTagIds.length > 0 ? selectedTagIds.length : null },
-            { key: 'questions', label: 'Questions', badge: selectedQuestions.length > 0 ? selectedQuestions.length : null },
-            { key: 'review', label: 'Review & Save', badge: null },
-          ].map(({ key, label, badge }) => (
+            { key: 'details', label: 'Details', complete: detailsComplete, badge: null },
+            { key: 'subjects', label: 'Subjects', complete: subjectsComplete, badge: selectedTagIds.length > 0 ? selectedTagIds.length : null },
+            { key: 'questions', label: 'Questions', complete: questionsComplete, badge: selectedQuestions.length > 0 ? selectedQuestions.length : null },
+            { key: 'review', label: 'Review & Save', complete: reviewComplete, badge: null },
+          ].map(({ key, label, complete, badge }) => (
             <button
               key={key}
               type="button"
@@ -684,6 +727,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               className={`mbe-tab-btn ${activeTab === key ? 'is-active' : ''}`}
               onClick={() => setActiveTab(key)}
             >
+              <FieldCheck valid={complete} validText="Complete" invalidText="Incomplete" />
               {label}
               {badge !== null && (
                 <span className={`mbe-tab-badge ${activeTab === key ? 'is-active' : ''}`}>{badge}</span>
@@ -733,7 +777,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
             <div className="mbe-form-grid">
               <div className="mbe-field">
                 <label>
-                  Exam Name
+                  <span className="mbe-label-row">Exam Name <FieldCheck valid={fieldValid.name} /></span>
                   <input
                     className="mbe-input"
                     type="text"
@@ -746,7 +790,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <label>
-                  Program
+                  <span className="mbe-label-row">Program <FieldCheck valid={fieldValid.program} /></span>
                   <select
                     className="mbe-input"
                     value={programId}
@@ -770,7 +814,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <div className="mbe-field-heading">
-                  <label>Exam Start</label>
+                  <label><span className="mbe-label-row">Exam Start <FieldCheck valid={fieldValid.start} /></span></label>
                 </div>
                 <DateTimePicker
                   value={form.startDateTime}
@@ -780,7 +824,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <div className="mbe-field-heading">
-                  <label>Exam End</label>
+                  <label><span className="mbe-label-row">Exam End <FieldCheck valid={fieldValid.end} /></span></label>
                   <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
                     {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
                   </span>
@@ -814,7 +858,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
                     {form.isTimed ? (
                       <label className="mbe-timer-field">
-                        Time Limit (minutes)
+                        <span className="mbe-label-row">Time Limit (minutes) <FieldCheck valid={fieldValid.timeLimit} /></span>
                         <input
                           className="mbe-input"
                           type="number"
@@ -837,7 +881,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <label>
-                  Passing Threshold (%)
+                  <span className="mbe-label-row">Passing Threshold (%) <FieldCheck valid={fieldValid.passingThreshold} /></span>
                   <input
                     className="mbe-input"
                     type="number"
@@ -852,7 +896,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field mbe-field--full mbe-textarea-grid">
                 <label>
-                  Description
+                  <span className="mbe-label-row">Description <FieldCheck valid={fieldValid.description} /></span>
                   <textarea
                     className="mbe-input mbe-textarea"
                     rows="4"
@@ -862,7 +906,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   />
                 </label>
                 <label>
-                  Instructions
+                  <span className="mbe-label-row">Instructions <FieldCheck valid={fieldValid.instructions} /></span>
                   <textarea
                     className="mbe-input mbe-textarea"
                     rows="4"
