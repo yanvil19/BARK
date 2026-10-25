@@ -830,6 +830,10 @@
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(53, 64, 142, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .qp-btn-upload:hover:not(:disabled) {
@@ -913,8 +917,10 @@
 }
 
 .import-limit-icon {
-  font-size: 20px;
+  display: inline-flex;
+  flex-shrink: 0;
   line-height: 1;
+  color: #b45309;
 }
 
 .import-limit-text strong {
@@ -1061,6 +1067,12 @@
   font-weight: 700;
   color: #1e3a8a;
   font-family: var(--font-title);
+}
+
+.import-loading-title-icon {
+  vertical-align: -3px;
+  margin-right: 6px;
+  color: #16a34a;
 }
 
 /* Segmented bar: 1 2 3 ... 20 */

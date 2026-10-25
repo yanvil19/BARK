@@ -1,0 +1,58 @@
+/* Outer spacing is left to the page (pass a className). */
+.capsule-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.capsule-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1.5px solid rgba(53, 64, 142, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #5966ac;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.capsule-filter:hover {
+  background: #f9fafb;
+  border-color: rgba(53, 64, 142, 0.18);
+}
+
+.capsule-filter:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.capsule-filter--active,
+.capsule-filter--active:hover {
+  background: var(--primary-bg);
+  color: #fff;
+  border-color: var(--primary-bg);
+}
+
+.capsule-filter-count {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-yellow);
+  color: var(--primary-bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.capsule-filter--active .capsule-filter-count {
+  background: rgba(250, 210, 39, 0.95);
+}

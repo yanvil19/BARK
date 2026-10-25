@@ -861,8 +861,9 @@
 }
 
 .qf-group-notice-icon {
-  font-size: 15px;
+  display: inline-flex;
   flex-shrink: 0;
+  color: #b7791f;
 }
 
 /* Question block numbered header for grouped mode */

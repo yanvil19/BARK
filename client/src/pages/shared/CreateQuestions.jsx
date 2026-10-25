@@ -1121,7 +1121,14 @@ export default function CreateQuestions({ role, programId, programLabel, program
 
           {importLimits.isLimitReached && (
             <div className="import-limit-banner">
-              <div className="import-limit-icon">⏳</div>
+              <div className="import-limit-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 3h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M6 21h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M7 3v3a5 5 0 0 0 10 0V3" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <path d="M7 21v-3a5 5 0 0 1 10 0v3" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                </svg>
+              </div>
               <div className="import-limit-text">
                 <strong>Upload Limit Reached</strong>
                 <p>
@@ -1221,7 +1228,11 @@ export default function CreateQuestions({ role, programId, programLabel, program
                   <>
                     <div className="import-loading-header">
                       <h3 className="import-loading-title">
-                        ✅ {extractionProgress.current} question{extractionProgress.current === 1 ? '' : 's'} extracted successfully!
+                        <svg className="import-loading-title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <path d="M12 21a9 9 0 1 0-9-9 9 9 0 0 0 9 9Z" stroke="currentColor" strokeWidth="2" />
+                          <path d="m8 12 3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {extractionProgress.current} question{extractionProgress.current === 1 ? '' : 's'} extracted successfully!
                       </h3>
                     </div>
                     <span className="import-drop-zone-footnote">
@@ -1246,7 +1257,10 @@ export default function CreateQuestions({ role, programId, programLabel, program
                   onClick={triggerFileInput}
                   disabled={importLoading || importLimits.isLimitReached}
                 >
-                  📁 Choose File
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                  Choose File
                 </button>
                 <span className="import-drop-zone-footnote">
                   This feature uses AI to extract multiple-choice questions (max 20 questions per file).

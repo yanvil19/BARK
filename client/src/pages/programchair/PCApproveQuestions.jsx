@@ -6,12 +6,14 @@ import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
+const USED_IN_EXAM_FILTER = 'approved_used';
 
 const LOCK_STALE_MS = 10 * 60 * 1000;
 
@@ -819,27 +821,29 @@ export default function QuestionApprovals({ me }) {
         subtitle="Questions submitted by faculty for Program Chair review"
       />
 
-      <div className="ca-state-pills">
-        {STATE_FILTERS.map((state) => (
-          <button
-            key={state}
-            type="button"
-            className={`ca-state-pill ${filter === state && !(filter === 'approved' && examUseFilter === 'used') ? 'ca-state-pill--active' : ''}`}
-            onClick={() => { setFilter(state); setExamUseFilter('all'); }}
-          >
-            <span className="ca-state-pill-count">{counts[state] || 0}</span>
-            <span>{state === 'all' ? 'All' : getStatusLabel(state)}</span>
-          </button>
-        ))}
-        <button
-          type="button"
-          className={`ca-state-pill ${filter === 'approved' && examUseFilter === 'used' ? 'ca-state-pill--active' : ''}`}
-          onClick={() => { setFilter('approved'); setExamUseFilter('used'); }}
-        >
-          <span className="ca-state-pill-count">{counts._used || 0}</span>
-          <span>Used in Exam</span>
-        </button>
-      </div>
+      <CapsuleFilters
+        className="ca-state-pills"
+        ariaLabel="Filter questions by status"
+        options={[
+          ...STATE_FILTERS.map((state) => ({
+            value: state,
+            label: state === 'all' ? 'All' : getStatusLabel(state),
+            count: counts[state] || 0,
+          })),
+          { value: USED_IN_EXAM_FILTER, label: 'Used in Exam', count: counts._used || 0 },
+        ]}
+        value={filter === 'approved' && examUseFilter === 'used' ? USED_IN_EXAM_FILTER : filter}
+        onChange={(value) => {
+          // "Used in Exam" is approved questions narrowed by the exam-use sub-filter
+          if (value === USED_IN_EXAM_FILTER) {
+            setFilter('approved');
+            setExamUseFilter('used');
+          } else {
+            setFilter(value);
+            setExamUseFilter('all');
+          }
+        }}
+      />
 
 
 
