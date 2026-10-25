@@ -8,6 +8,7 @@ const AuditLog = require('../models/AuditLog');
 const MockBoardExam = require('../models/MockBoardExam');
 const Tag = require('../models/Tag');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
+const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 
 // @desc    Get counts for dashboard/landing page
 // @route   GET /api/stats/summary
@@ -636,7 +637,7 @@ const getExamActivityLogs = async (req, res) => {
       program: programId,
       status: { $in: ['published', 'ongoing', 'finished'] },
     })
-      .select('name startDateTime endDateTime status')
+      .select('name startDateTime endDateTime status targetAudience')
       .sort({ startDateTime: -1 })
       .lean();
 
@@ -660,17 +661,27 @@ const getExamActivityLogs = async (req, res) => {
 
     const examTotalQuestions = Array.isArray(examDoc?.questions) ? examDoc.questions.length : 0;
 
-    const rawAttempts = await StudentExamAttempt.find({ exam: examId })
-      .populate({
-        path: 'student',
-        select: 'name firstName lastName email program',
-        match: { program: programId },
-      })
-      .select('student startTime endTime status answers randomizedQuestions violations progressMilestones autoSubmitted')
-      .sort({ startTime: -1 })
-      .lean();
+    const [rawStudentAttempts, rawAlumniAttempts] = await Promise.all([
+      StudentExamAttempt.find({ exam: examId })
+        .populate({
+          path: 'student',
+          select: 'name firstName lastName email program role userType',
+          match: { program: programId },
+        })
+        .select('student startTime endTime status answers randomizedQuestions violations progressMilestones autoSubmitted')
+        .sort({ startTime: -1 })
+        .lean(),
+      AlumniExamAttempt.find({ exam: examId })
+        .populate({
+          path: 'alumni',
+          select: 'name firstName lastName email program role userType',
+        })
+        .select('alumni startTime endTime status answers randomizedQuestions attemptNumber score createdAt')
+        .sort({ startTime: -1 })
+        .lean(),
+    ]);
 
-    const attempts = rawAttempts
+    const normalizedStudentAttempts = (rawStudentAttempts || [])
       .filter((attempt) => attempt.student != null)
       .map((attempt) => {
         const totalQuestions = attempt.randomizedQuestions?.length || examTotalQuestions || 0;
@@ -696,11 +707,15 @@ const getExamActivityLogs = async (req, res) => {
           durationMs = now - new Date(attempt.startTime);
         }
 
+        const isAlumni = (attempt.student.role === 'alumni' || attempt.student.userType === 'alumni');
+
         return {
           attemptId: attempt._id,
           studentId: attempt.student._id,
           studentName: buildStudentDisplayName(attempt.student),
           studentEmail: attempt.student.email || '',
+          userType: isAlumni ? 'Alumni' : 'Student',
+          studentType: isAlumni ? 'alumni' : 'student',
           status: inferredStatus,
           startTime: attempt.startTime,
           endTime: attempt.endTime,
@@ -711,6 +726,44 @@ const getExamActivityLogs = async (req, res) => {
           events: buildAttemptEvents(attempt),
         };
       });
+
+    const normalizedAlumniAttempts = (rawAlumniAttempts || [])
+      .filter((attempt) => attempt.alumni != null)
+      .map((attempt) => {
+        const totalQuestions = attempt.randomizedQuestions?.length || examTotalQuestions || 0;
+        const answeredCount = countAnswered(attempt.answers);
+        const progressPercent = totalQuestions > 0
+          ? Math.round((answeredCount / totalQuestions) * 100)
+          : 0;
+
+        let durationMs = null;
+        if (attempt.endTime && attempt.startTime) {
+          durationMs = new Date(attempt.endTime) - new Date(attempt.startTime);
+        } else if (attempt.startTime) {
+          durationMs = now - new Date(attempt.startTime);
+        }
+
+        return {
+          attemptId: attempt._id,
+          studentId: attempt.alumni._id,
+          studentName: buildStudentDisplayName(attempt.alumni),
+          studentEmail: attempt.alumni.email || '',
+          userType: 'Alumni',
+          studentType: 'alumni',
+          status: attempt.status,
+          startTime: attempt.startTime,
+          endTime: attempt.endTime,
+          durationMs,
+          answeredCount,
+          totalQuestions,
+          progressPercent,
+          events: buildAttemptEvents(attempt),
+        };
+      });
+
+    const attempts = [...normalizedStudentAttempts, ...normalizedAlumniAttempts].sort(
+      (a, b) => new Date(b.startTime || 0) - new Date(a.startTime || 0)
+    );
 
     const examLive = Boolean(
       exam.startDateTime
