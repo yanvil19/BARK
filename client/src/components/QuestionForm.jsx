@@ -1,7 +1,9 @@
 import AuthImage from '../components/AuthImage.jsx';
-import { useState } from 'react';
+import AnswerImage from './AnswerImage.jsx';
+import { useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
+import { primeImage } from '../lib/authImageCache.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
 import { useToast } from './Toast.jsx';
@@ -10,29 +12,80 @@ import '../styles/components/QuestionForm.css';
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substring(2);
+}
+
+function getImageFileError(file) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return `File "${file.name}" is not an allowed type. Only JPG, PNG, and WEBP are accepted.`;
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return `File "${file.name}" exceeds the 5MB size limit.`;
+  }
+  return '';
+}
+
+// uid is a client-only key so uploads and row removals target the right answer
+function blankAnswer(isCorrect = false) {
+  return { uid: generateId(), text: '', isCorrect, image: null, uploading: false };
 }
 
 function blankQuestion(inheritTagId = '') {
   return {
     id: generateId(),
     description: '',
-    answers: [
-      { text: '', isCorrect: true },
-      { text: '', isCorrect: false },
-    ],
+    answers: [blankAnswer(true), blankAnswer(false)],
     tagId: inheritTagId,
     rationalization: '',
-    imagePreviews: [],
     uploadedUrls: [],
-    uploading: false,
+    uploadingCount: 0,
     error: '',
     aiFlags: [],
     image_required: false,
     image_note: null,
     image_flag_removed_by_user: false,
   };
+}
+
+// Brings saved, imported, or restored-draft data into the shape the form uses.
+// Drafts restored from localStorage can hold upload flags from an unfinished upload.
+function normalizeFormQuestion(q) {
+  const answers = (Array.isArray(q.answers) ? q.answers : []).map((a) => ({
+    ...(a._id ? { _id: a._id } : {}),
+    uid: a.uid || generateId(),
+    text: a.text || '',
+    isCorrect: !!a.isCorrect,
+    image: a.image || null,
+    uploading: false,
+  }));
+  if (answers.length === 0) answers.push(blankAnswer(true));
+  while (answers.length < 2) answers.push(blankAnswer(false));
+
+  const { imagePreviews, uploading, ...rest } = q;
+  return {
+    ...rest,
+    answers,
+    uploadedUrls: Array.isArray(q.uploadedUrls) ? q.uploadedUrls : [],
+    uploadingCount: 0,
+    error: '',
+  };
+}
+
+function toAnswerPayload(answers) {
+  return answers.map(({ _id, text, isCorrect, image }) => ({
+    ...(_id ? { _id } : {}),
+    text,
+    isCorrect,
+    image: image || null,
+  }));
+}
+
+function countAnswerImages(answers) {
+  return answers.filter((a) => a.image || a.uploading).length;
 }
 
 export default function QuestionForm({
@@ -48,6 +101,7 @@ export default function QuestionForm({
   isImportDraft = false,
   onFeedback,
   maxImages = 5,
+  maxAnswerImages = 5,
 }) {
   const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   
@@ -81,23 +135,14 @@ export default function QuestionForm({
   const [questionsData, setQuestionsData, clearQuestionsData] = useLocalStorage(draftKey, () => {
     // If grouped questions are provided for editing, pre-fill all of them
     if (Array.isArray(initialGroupQuestions) && initialGroupQuestions.length > 0) {
-      return initialGroupQuestions.map((q) => ({
+      return initialGroupQuestions.map((q) => normalizeFormQuestion({
         id: q._id || generateId(),
         _id: q._id,
         description: q.description || '',
-        answers: q.answers?.length >= 2 ? q.answers : [
-          { text: '', isCorrect: true },
-          { text: '', isCorrect: false },
-        ],
+        answers: q.answers,
         tagId: q.tag?._id || q.tag || '',
         rationalization: q.rationalization || '',
-        imagePreviews: (q.images || []).map((url) => ({
-          url: url.startsWith('/') ? `${BASE}${url}` : url,
-          file: null,
-          existing: true,
-        })),
         uploadedUrls: q.images || [],
-        uploading: false,
         aiFlags: [],
         image_required: q.image_required || false,
         image_note: q.image_note || null,
@@ -107,18 +152,13 @@ export default function QuestionForm({
 
     // If imported questions are provided, pre-fill all of them
     if (importedQuestions && importedQuestions.length > 0) {
-      return importedQuestions.map(q => ({
+      return importedQuestions.map(q => normalizeFormQuestion({
         id: generateId(),
         description: q.description || '',
-        answers: q.answers?.length >= 2 ? q.answers : [
-          { text: '', isCorrect: true },
-          { text: '', isCorrect: false },
-        ],
+        answers: q.answers,
         tagId: q.tagId || '',
         rationalization: q.rationalization || '',
-        imagePreviews: [],
         uploadedUrls: [],
-        uploading: false,
         aiFlags: q.flags || [],
         // [IMPORT REVIEW - FLAG SYSTEM]
         // Image requirement tracking
@@ -129,30 +169,58 @@ export default function QuestionForm({
     }
 
     // Default — single empty form or edit form
-    return [{
+    return [normalizeFormQuestion({
       id: initialData?._id || generateId(),
       _id: initialData?._id,
       description: initialData?.description || '',
-      answers: initialData?.answers || [
-        { text: '', isCorrect: true },
-        { text: '', isCorrect: false },
-      ],
+      answers: initialData?.answers,
       tagId: initialData?.tag?._id || initialData?.tag || '',
       rationalization: initialData?.rationalization || '',
-      imagePreviews: (initialData?.images || []).map((url) => ({
-        url: url.startsWith('/') ? `${BASE}${url}` : url,
-        file: null,
-        existing: true,
-      })),
       uploadedUrls: initialData?.images || [],
-      uploading: false,
       aiFlags: [],
       // [IMPORT REVIEW - FLAG SYSTEM]
       image_required: initialData?.image_required || false,
       image_note: initialData?.image_note || null,
       image_flag_removed_by_user: initialData?.image_flag_removed_by_user || false,
-    }];
+    })];
   });
+
+  // Drafts restored from localStorage skip the initializer above
+  useEffect(() => {
+    setQuestionsData((prev) => prev.map(normalizeFormQuestion));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Images already saved on the question(s) being edited. Removing one in the form
+  // only drops the reference; the server deletes it after the change is saved.
+  const [savedImageUrls] = useState(() => {
+    const saved = Array.isArray(initialGroupQuestions) && initialGroupQuestions.length > 0
+      ? initialGroupQuestions
+      : initialData ? [initialData] : [];
+    return new Set(saved.flatMap((q) => [
+      ...(q.images || []),
+      ...(q.answers || []).map((a) => a.image).filter(Boolean),
+    ]));
+  });
+
+  const latestQuestionsRef = useRef(questionsData);
+  latestQuestionsRef.current = questionsData;
+  const mountedRef = useRef(true);
+  const savedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Edits keep no local draft, so images uploaded but never saved would be orphaned
+      if (!draftKey && !readOnly && !savedRef.current) {
+        latestQuestionsRef.current
+          .flatMap((q) => [...q.uploadedUrls, ...q.answers.map((a) => a.image)])
+          .forEach(discardImage);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [saving, setSaving] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
@@ -244,17 +312,21 @@ export default function QuestionForm({
 
   function addAnswer(qId) {
     if (readOnly) return;
-    updateQuestion(qId, q => ({ ...q, answers: [...q.answers, { text: '', isCorrect: false }] }));
+    updateQuestion(qId, q => ({ ...q, answers: [...q.answers, blankAnswer(false)] }));
   }
 
   function removeAnswer(qId, idx) {
     if (readOnly) return;
+    const current = questionsData.find(q => q.id === qId);
+    if (!current || current.answers.length <= 2) return;
+    const removed = current.answers[idx];
     updateQuestion(qId, q => {
       if (q.answers.length <= 2) return q;
       const next = q.answers.filter((_, i) => i !== idx);
-      if (!next.some((a) => a.isCorrect)) next[0].isCorrect = true;
+      if (!next.some((a) => a.isCorrect)) next[0] = { ...next[0], isCorrect: true };
       return { ...q, answers: next };
     });
+    if (removed?.image) discardImage(removed.image);
   }
 
   function setCorrect(qId, idx) {
@@ -272,57 +344,72 @@ export default function QuestionForm({
     setDismissedFlags(prev => ({ ...prev, [flagKey]: true }));
   }
 
+  // Uploads image files and returns their URLs. The local files seed the
+  // in-memory image cache, so the previews show without downloading them again.
+  async function uploadImages(files) {
+    const fd = new FormData();
+    files.forEach((file) => fd.append('images', file));
+    const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
+    const urls = data.urls || [];
+    urls.forEach((url, i) => primeImage(url, files[i]));
+    return urls;
+  }
+
+  // Deletes an image that was uploaded in this form but never saved, so it is
+  // not left orphaned in storage. Saved images are only unlinked here; the
+  // server removes them once the question is saved without them.
+  async function discardImage(url) {
+    if (!url || savedImageUrls.has(url)) return;
+    const key = url.split('/image/')[1];
+    if (!key) return;
+    try {
+      await apiAuth(`${BASE}/api/questions/image/${key}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete image from storage:', err);
+    }
+  }
+
   async function handleImagePick(e, qId) {
     if (readOnly) return;
     const files = Array.from(e.target.files);
+    e.target.value = '';
     if (!files.length) return;
 
     let targetQ = questionsData.find(q => q.id === qId);
     if (!targetQ) return;
 
-    if (targetQ.imagePreviews.length + files.length > maxImages) {
+    if (targetQ.uploadedUrls.length + targetQ.uploadingCount + files.length > maxImages) {
       updateQuestion(qId, q => ({ ...q, error: `Maximum of ${maxImages} images allowed per question.` }));
-      e.target.value = '';
       return;
     }
 
-    const MAX_SIZE = 5 * 1024 * 1024;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        updateQuestion(qId, q => ({ ...q, error: `File "${file.name}" is not an allowed type. Only JPG, PNG, and WEBP are accepted.` }));
-        e.target.value = '';
-        return;
-      }
-      if (file.size > MAX_SIZE) {
-        updateQuestion(qId, q => ({ ...q, error: `File "${file.name}" exceeds the 5MB size limit.` }));
-        e.target.value = '';
+      const fileError = getImageFileError(file);
+      if (fileError) {
+        updateQuestion(qId, q => ({ ...q, error: fileError }));
         return;
       }
     }
 
-    const previews = files.map((file) => ({ url: URL.createObjectURL(file), file, existing: false }));
-    updateQuestion(qId, q => ({ ...q, imagePreviews: [...q.imagePreviews, ...previews], uploading: true, error: '' }));
+    updateQuestion(qId, q => ({ ...q, uploadingCount: q.uploadingCount + files.length, error: '' }));
 
     try {
-      const fd = new FormData();
-      files.forEach((file) => fd.append('images', file));
-      const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
-      updateQuestion(qId, q => ({ ...q, uploadedUrls: [...q.uploadedUrls, ...data.urls], uploading: false }));
+      const urls = await uploadImages(files);
+      if (!mountedRef.current || !latestQuestionsRef.current.some(q => q.id === qId)) {
+        urls.forEach(discardImage);
+        return;
+      }
+      updateQuestion(qId, q => ({ ...q, uploadedUrls: [...q.uploadedUrls, ...urls], uploadingCount: Math.max(0, q.uploadingCount - files.length) }));
     } catch (err) {
       updateQuestion(qId, q => ({
         ...q,
         error: `Image upload failed: ${err.message}`,
-        imagePreviews: q.imagePreviews.slice(0, q.imagePreviews.length - previews.length),
-        uploading: false
+        uploadingCount: Math.max(0, q.uploadingCount - files.length),
       }));
-    } finally {
-      e.target.value = '';
     }
   }
 
-  async function removeImage(qId, idx) {
+  function removeImage(qId, idx) {
     if (readOnly) return;
 
     const targetQ = questionsData.find(q => q.id === qId);
@@ -331,22 +418,63 @@ export default function QuestionForm({
 
     updateQuestion(qId, q => ({
       ...q,
-      imagePreviews: q.imagePreviews.filter((_, i) => i !== idx),
       uploadedUrls: q.uploadedUrls.filter((_, i) => i !== idx)
     }));
 
-    // Immediately delete the image from storage to prevent orphaned files
-    if (urlToRemove) {
-      try {
-        const parts = urlToRemove.split('/image/');
-        if (parts.length === 2) {
-          const key = parts[1];
-          await apiAuth(`${BASE}/api/questions/image/${key}`, { method: 'DELETE' });
-        }
-      } catch (err) {
-        console.error('Failed to delete image from storage:', err);
-      }
+    discardImage(urlToRemove);
+  }
+
+  function updateAnswer(qId, answerUid, updater) {
+    updateQuestion(qId, q => ({
+      ...q,
+      answers: q.answers.map((a) => (a.uid === answerUid ? updater(a) : a)),
+    }));
+  }
+
+  // One image per answer choice; the choice still needs its text
+  async function handleAnswerImagePick(e, qId, answerUid) {
+    if (readOnly) return;
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const targetQ = questionsData.find(q => q.id === qId);
+    if (!targetQ) return;
+
+    if (countAnswerImages(targetQ.answers) >= maxAnswerImages) {
+      showFeedback({ message: `Only ${maxAnswerImages} answer choice(s) per question can have an image.`, tone: 'danger' });
+      return;
     }
+
+    const fileError = getImageFileError(file);
+    if (fileError) {
+      showFeedback({ message: fileError, tone: 'danger' });
+      return;
+    }
+
+    updateAnswer(qId, answerUid, a => ({ ...a, uploading: true }));
+
+    try {
+      const [url] = await uploadImages([file]);
+      const stillInForm = mountedRef.current && latestQuestionsRef.current.some(
+        q => q.id === qId && q.answers.some(a => a.uid === answerUid)
+      );
+      if (!stillInForm) {
+        discardImage(url);
+        return;
+      }
+      updateAnswer(qId, answerUid, a => ({ ...a, image: url, uploading: false }));
+    } catch (err) {
+      updateAnswer(qId, answerUid, a => ({ ...a, uploading: false }));
+      showFeedback({ message: `Image upload failed: ${err.message}`, tone: 'danger' });
+    }
+  }
+
+  function removeAnswerImage(qId, answerUid) {
+    if (readOnly) return;
+    const answer = questionsData.find(q => q.id === qId)?.answers.find(a => a.uid === answerUid);
+    updateAnswer(qId, answerUid, a => ({ ...a, image: null }));
+    if (answer?.image) discardImage(answer.image);
   }
 
   // [IMPORT REVIEW - FLAG SYSTEM]
@@ -369,9 +497,7 @@ export default function QuestionForm({
    * Computes real-time flags for a question block
    */
   function getQuestionFlags(q) {
-    const hasAnyImage =
-      (Array.isArray(q.uploadedUrls) && q.uploadedUrls.length > 0) ||
-      (Array.isArray(q.imagePreviews) && q.imagePreviews.length > 0);
+    const hasAnyImage = q.uploadedUrls.length > 0 || q.uploadingCount > 0;
 
     const aiFlags = (q.aiFlags || []).filter((f) => {
       const msg = sanitizeFlagMessage(f?.message);
@@ -414,12 +540,33 @@ export default function QuestionForm({
       flags.push({ severity: 'ERROR', message: 'Maximum 5 options allowed for board exams.' });
     }
 
+    // Answer images are optional, but every choice needs its text
+    const imageOnlyIdx = q.answers.findIndex(a => a.image && !a.text.trim());
+    if (imageOnlyIdx !== -1) {
+      flags.push({ severity: 'BLOCKER', message: `Answer ${imageOnlyIdx + 1} has an image but no text.`, field: 'answers', type: 'answer_image_without_text' });
+    }
+
+    const answerImageCount = countAnswerImages(q.answers);
+    if (answerImageCount > maxAnswerImages) {
+      flags.push({
+        severity: 'ERROR',
+        message: maxAnswerImages === 0
+          ? 'Answer images are turned off. Remove the images from the answer choices.'
+          : `Only ${maxAnswerImages} answer choice(s) can have an image.`,
+        field: 'answers',
+        type: 'too_many_answer_images',
+      });
+    }
+
     // 3. Answer Consistency Flags
-    const correctCount = q.answers.filter(a => a.isCorrect).length;
-    if (correctCount === 0) {
+    const correctAnswers = q.answers.filter(a => a.isCorrect);
+    if (correctAnswers.length === 0) {
       flags.push({ severity: 'BLOCKER', message: 'No correct answer selected', field: 'correct', type: 'no_correct_answer' });
-    } else if (correctCount > 1) {
+    } else if (correctAnswers.length > 1) {
       flags.push({ severity: 'ERROR', message: 'Multiple correct answers selected.' });
+    } else if (!correctAnswers[0].text.trim() && !correctAnswers[0].image) {
+      // Empty rows are dropped on save, so an empty correct answer would leave none selected
+      flags.push({ severity: 'BLOCKER', message: 'The correct answer is empty.', field: 'correct', type: 'empty_correct_answer' });
     }
 
     // 4. Duplicate Answer Text
@@ -452,6 +599,13 @@ export default function QuestionForm({
       // Check if question prompt / body is entered
       if (!q.description || !q.description.trim()) {
         return `${prefix}Question prompt / description is required.`;
+      }
+
+      // The server rejects drafts over the answer image limit too
+      if (countAnswerImages(q.answers) > maxAnswerImages) {
+        return maxAnswerImages === 0
+          ? `${prefix}Answer images are turned off. Remove the images from the answer choices.`
+          : `${prefix}Only ${maxAnswerImages} answer choice(s) per question can have an image.`;
       }
 
       // Submissions always require resolving BLOCKERS (even in import mode)
@@ -518,7 +672,7 @@ export default function QuestionForm({
       if (isGrouped && !isEditing) {
         const questionsPayload = questionsData.map(q => ({
           description: q.description.trim(),
-          answers: q.answers,
+          answers: toAnswerPayload(q.answers),
           tagId: q.tagId,
           rationalization: q.rationalization?.trim() || '',
           images: q.uploadedUrls,
@@ -549,7 +703,7 @@ export default function QuestionForm({
         const questionsPayload = questionsData.map(q => ({
           _id: q._id,
           description: q.description.trim(),
-          answers: q.answers,
+          answers: toAnswerPayload(q.answers),
           tagId: q.tagId,
           rationalization: q.rationalization?.trim() || '',
           images: q.uploadedUrls,
@@ -578,7 +732,7 @@ export default function QuestionForm({
         for (const q of questionsData) {
           const body = {
             description: q.description.trim(),
-            answers: q.answers,
+            answers: toAnswerPayload(q.answers),
             tagId: q.tagId,
             rationalization: q.rationalization?.trim() || '',
             images: q.uploadedUrls,
@@ -614,6 +768,7 @@ export default function QuestionForm({
       if (clearQuestionsData) {
         clearQuestionsData();
       }
+      savedRef.current = true;
       onSaved(savedQuestions, !!initialData && questionsData.length === 1);
     } catch (err) {
       showFeedback({
@@ -640,7 +795,7 @@ export default function QuestionForm({
         for (const q of questionsData) {
           const body = {
             description: q.description.trim(),
-            answers: q.answers,
+            answers: toAnswerPayload(q.answers),
             tagId: q.tagId,
             rationalization: q.rationalization?.trim() || '',
             images: q.uploadedUrls,
@@ -667,6 +822,7 @@ export default function QuestionForm({
           clearQuestionsData();
         }
         window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+        savedRef.current = true;
         onSaved(savedQuestions, !!initialData && questionsData.length === 1);
       } catch (err) {
         notify(err.message || 'Failed to save question(s).', { variant: 'error' });
@@ -745,7 +901,7 @@ export default function QuestionForm({
     setCurrentQuestionIdx(0);
   }
 
-  const anyUploading = questionsData.some(q => q.uploading);
+  const anyUploading = questionsData.some(q => q.uploadingCount > 0 || q.answers.some(a => a.uploading));
 
   // Render a single question block (shared between single and grouped modes)
   function renderQuestionBlock(q, index) {
@@ -839,36 +995,89 @@ export default function QuestionForm({
           </div>
 
           <div className="qf-answer-list">
-            {q.answers.map((answer, idx) => (
-              <div key={idx} className="qf-answer-row">
-                <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
-                  <input
-                    className="qf-answer-radio"
-                    type="radio"
-                    checked={answer.isCorrect}
-                    onChange={() => setCorrect(q.id, idx)}
-                    title="Mark as correct"
-                    disabled={readOnly}
-                  />
-                </label>
+            {q.answers.map((answer, idx) => {
+              const canAddImage = !readOnly && !answer.image && !answer.uploading
+                && countAnswerImages(q.answers) < maxAnswerImages;
+              const fileInputId = `answer-file-${q.id}-${answer.uid}`;
 
-                <input
-                  className="qf-answer-input"
-                  type="text"
-                  placeholder={`Answer ${idx + 1}`}
-                  value={answer.text}
-                  onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
-                  disabled={readOnly}
-                />
+              return (
+                <div key={answer.uid || idx} className={`qf-answer-row ${answer.image ? 'qf-answer-row--has-image' : ''}`}>
+                  <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
+                    <input
+                      className="qf-answer-radio"
+                      type="radio"
+                      checked={answer.isCorrect}
+                      onChange={() => setCorrect(q.id, idx)}
+                      title="Mark as correct"
+                      disabled={readOnly}
+                    />
+                  </label>
 
-                {q.answers.length > 2 && !readOnly ? (
-                  <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-            ))}
+                  <div className="qf-answer-main">
+                    <input
+                      className="qf-answer-input"
+                      type="text"
+                      placeholder={`Answer ${idx + 1}`}
+                      value={answer.text}
+                      onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
+                      disabled={readOnly}
+                    />
+
+                    {answer.image ? (
+                      <div className="qf-answer-image">
+                        <AnswerImage src={answer.image} alt={`Answer ${idx + 1} image`} onZoom={setFullscreenImage} />
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            className="btn-remove-img"
+                            onClick={() => removeAnswerImage(q.id, answer.uid)}
+                            aria-label={`Remove image from answer ${idx + 1}`}
+                          >
+                            x
+                          </button>
+                        )}
+                      </div>
+                    ) : answer.uploading ? (
+                      <span className="qf-upload-note">Uploading image...</span>
+                    ) : null}
+                  </div>
+
+                  {!readOnly && (canAddImage || q.answers.length > 2) ? (
+                    <div className="qf-answer-actions">
+                      {canAddImage && (
+                        <>
+                          <input
+                            id={fileInputId}
+                            className="qf-file-input"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={(e) => handleAnswerImagePick(e, q.id, answer.uid)}
+                          />
+                          <button
+                            type="button"
+                            className="qf-secondary-btn"
+                            onClick={() => document.getElementById(fileInputId)?.click()}
+                          >
+                            Add Image
+                          </button>
+                        </>
+                      )}
+                      {q.answers.length > 2 && (
+                        <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
+          {!readOnly && maxAnswerImages > 0 && (
+            <p className="qf-upload-note qf-answer-image-note">
+              {`Answer text is required. You can add one optional image per answer (JPG, PNG, or WEBP, max 5MB), on up to ${maxAnswerImages} answer${maxAnswerImages === 1 ? '' : 's'}.`}
+            </p>
+          )}
         </section>
 
         {/* Rationalization Field */}
@@ -913,19 +1122,23 @@ export default function QuestionForm({
                 Choose Files
               </button>
               <span className="qf-upload-note">
-                {q.uploading ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
+                {q.uploadingCount > 0 ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
               </span>
             </div>
           )}
 
-          {q.imagePreviews.length > 0 ? (
+          {!readOnly && q.error ? (
+            <p className="qf-inline-note qf-inline-note--error">{q.error}</p>
+          ) : null}
+
+          {q.uploadedUrls.length > 0 || q.uploadingCount > 0 ? (
             <div className="image-previews">
-              {q.imagePreviews.map((img, idx) => (
-                <div key={idx} className="image-thumb">
+              {q.uploadedUrls.map((url, idx) => (
+                <div key={url} className="image-thumb">
                   <AuthImage
-                    src={img.url}
+                    src={url}
                     alt=""
-                    onClick={() => setFullscreenImage(img.url)}
+                    onClick={() => setFullscreenImage(url)}
                     title="Click to view full size"
                   />
                   {!readOnly && (
@@ -939,10 +1152,13 @@ export default function QuestionForm({
                   )}
                 </div>
               ))}
+              {Array.from({ length: q.uploadingCount }, (_, idx) => (
+                <div key={`uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+              ))}
             </div>
-          ) : !readOnly || q.imagePreviews.length > 0 ? null : (
+          ) : readOnly ? (
             <p className="qf-inline-note">No images attached.</p>
-          )}
+          ) : null}
         </section>
 
         {/* [IMPORT REVIEW - FLAG SYSTEM] */}
@@ -964,7 +1180,7 @@ export default function QuestionForm({
                         type="button"
                         className="qf-flag-action-btn qf-flag-action-upload"
                         onClick={() => document.getElementById(`file-${q.id}`)?.click()}
-                        disabled={q.uploading}
+                        disabled={q.uploadingCount > 0}
                       >
                         <span className="qf-btn-icon" aria-hidden="true">
                           <svg className="qf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
@@ -367,7 +368,10 @@ function QuestionReview({ questions, onZoomImage }) {
                       const correct = correctId === answerId || answer.isCorrect;
                       return (
                         <div key={answerId || answer.text} className={`aer-answer-row ${correct ? 'correct' : ''} ${selected ? 'selected' : ''}`}>
-                          <span>{answer.text || 'Untitled answer'}</span>
+                          <span>
+                            {answer.text || 'Untitled answer'}
+                            <AnswerImage src={answer.image} alt="Answer image" onZoom={onZoomImage} className="answer-image--block" />
+                          </span>
                           <div className="aer-answer-tags">
                             {selected && <em>Your answer</em>}
                             {correct && <strong>Correct answer</strong>}

@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
 import '../../styles/shared/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
@@ -134,6 +135,7 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
                   <div className="er-answer-copy">
                     <span className="er-answer-text">{answer.text || 'Untitled answer'}</span>
                     {answer.isCorrect && <span className="er-answer-correct-pill">Correct answer</span>}
+                    <AnswerImage src={answer.image} alt="Answer image" className="answer-image--block er-answer-image" />
                   </div>
                   <strong>{answer.count || 0}</strong>
                 </div>

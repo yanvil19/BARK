@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -169,7 +170,10 @@ export default function MockBoardExamPreview({ examId, onBack }) {
                     className={`mbep-option ${answer.isCorrect ? 'is-correct' : ''}`}
                   >
                     <div className="mbep-option-circle">{answer.optionLabel}</div>
-                    <div className="mbep-option-text">{answer.text}</div>
+                    <div className="mbep-option-text">
+                      {answer.text}
+                      <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -1203,7 +1204,10 @@ export default function QuestionApprovals({ me }) {
                           <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
                             {ans.isCorrect ? '✓' : '○'}
                           </div>
-                          <div className="ca-answer-text">{ans.text}</div>
+                          <div className="ca-answer-text">
+                            {ans.text}
+                            <AnswerImage src={ans.image} alt={`Answer ${i + 1} image`} onZoom={setFullscreenImage} className="answer-image--block" />
+                          </div>
                         </div>
                       ))}
                     </div>

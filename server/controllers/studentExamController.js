@@ -298,7 +298,7 @@ async function startExam(req, res) {
         const mappedAnswers = rq.answers.map(ansId => {
           const fullAns = fullQ.answers.find(a => String(a._id) === String(ansId));
           if (fullAns) {
-            return { _id: fullAns._id, text: fullAns.text }; // Exclude isCorrect
+            return { _id: fullAns._id, text: fullAns.text, image: fullAns.image || null }; // Exclude isCorrect
           }
           return null;
         }).filter(Boolean);

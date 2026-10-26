@@ -16,6 +16,8 @@ export function clearClientSessionStorage() {
   } catch {
     // Ignore storage access failures so auth redirects can still proceed.
   }
+  // Lets in-memory caches (e.g. decrypted question images) drop the session's data
+  window.dispatchEvent(new Event('session-cleared'));
 }
 
 export function buildAuthHeaders(headers = {}) {

@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
@@ -1282,6 +1283,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                                   </div>
                                   <div className="ambe-answer-body">
                                     <div className="ambe-answer-text">{answer.text}</div>
+                                    <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
                                     {answer.isCorrect && (
                                       <span className="ambe-answer-badge">Correct Answer</span>
                                     )}

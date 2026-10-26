@@ -174,7 +174,7 @@ async function startExam(req, res) {
       const mappedAnswers = rq.answers
         .map((ansId) => {
           const fullAns = fullQ.answers.find((a) => String(a._id) === String(ansId));
-          return fullAns ? { _id: fullAns._id, text: fullAns.text } : null;
+          return fullAns ? { _id: fullAns._id, text: fullAns.text, image: fullAns.image || null } : null;
         })
         .filter(Boolean);
 
@@ -467,7 +467,7 @@ async function getAttemptDetails(req, res) {
         const mappedAnswers = rq.answers
           .map((ansId) => {
             const fullAns = fullQ.answers.find((a) => String(a._id) === String(ansId));
-            return fullAns ? { _id: fullAns._id, text: fullAns.text, isCorrect: fullAns.isCorrect } : null;
+            return fullAns ? { _id: fullAns._id, text: fullAns.text, image: fullAns.image || null, isCorrect: fullAns.isCorrect } : null;
           })
           .filter(Boolean);
 

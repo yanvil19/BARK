@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -1245,7 +1246,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                       {(question.answers || []).map((answer) => (
                                         <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
                                           <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                          <span>{answer.text}</span>
+                                          <span>
+                                            {answer.text}
+                                            <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
+                                          </span>
                                           {answer.isCorrect ? <strong>Correct</strong> : null}
                                         </li>
                                       ))}
@@ -1402,7 +1406,10 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                               {(question.answers || []).map((answer) => (
                                                 <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
                                                   <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                                  <span>{answer.text}</span>
+                                                  <span>
+                                                    {answer.text}
+                                                    <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
+                                                  </span>
                                                   {answer.isCorrect ? <strong>Correct</strong> : null}
                                                 </li>
                                               ))}

@@ -1573,3 +1573,10 @@
 .er-ind-error {
   color: #b91c1c;
 }
+
+/* Answer image on its own line under the answer text */
+.er-answer-copy .er-answer-image {
+  flex-basis: 100%;
+  max-width: 132px;
+  margin-top: 0;
+}

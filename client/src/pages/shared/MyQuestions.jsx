@@ -121,6 +121,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [hasImportDraft, setHasImportDraft] = useState(false);
   const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
   const [maxImages, setMaxImages] = useState(5);
+  const [maxAnswerImages, setMaxAnswerImages] = useState(5);
   const itemsPerPage = 10;
 
   const fetchLimits = useCallback(async () => {
@@ -190,7 +191,10 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
 
   useEffect(() => {
     apiAuth('/api/admin/settings/public')
-      .then(res => setMaxImages(Number(res?.maxUploadImages ?? 5)))
+      .then(res => {
+        setMaxImages(Number(res?.maxUploadImages ?? 5));
+        setMaxAnswerImages(Number(res?.maxAnswerImages ?? 5));
+      })
       .catch(() => { });
   }, []);
 
@@ -987,6 +991,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
           initialData={editQuestion}
           initialGroupQuestions={editGroupQuestions}
           maxImages={maxImages}
+          maxAnswerImages={maxAnswerImages}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
           isImportDraft={isRestoringImportDraft}
           onFeedback={setFeedbackModal}

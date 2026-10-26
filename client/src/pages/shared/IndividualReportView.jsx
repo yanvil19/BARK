@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
@@ -193,6 +194,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
                 fontWeight: isActualCorrect ? '600' : '400' 
               }}>
                 {ans.text}
+                <AnswerImage src={ans.image} alt="Answer image" onZoom={onZoom} className="answer-image--block" />
               </span>
               {isActualCorrect && (
                 <span style={{ marginLeft: 'auto', fontSize: '0.875rem', color: '#10b981', fontWeight: '600' }}>

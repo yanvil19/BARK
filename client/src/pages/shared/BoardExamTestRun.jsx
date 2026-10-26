@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
@@ -275,7 +276,10 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
                       style={{ cursor: submitted ? 'default' : 'pointer' }}
                     >
                       <div className="mbep-option-circle">{answer.optionLabel}</div>
-                      <div className="mbep-option-text">{answer.text}</div>
+                      <div className="mbep-option-text">
+                        {answer.text}
+                        <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
+                      </div>
                       {showCorrect && <span style={{ marginLeft: 'auto', color: '#22c55e', fontWeight: 700, fontSize: '12px' }}>CORRECT</span>}
                       {showWrong && <span style={{ marginLeft: 'auto', color: '#dc2626', fontWeight: 700, fontSize: '12px' }}>YOUR ANSWER</span>}
                     </div>

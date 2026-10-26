@@ -26,6 +26,14 @@ const appSettingsSchema = new mongoose.Schema(
       min: 1,
       max: 50,
     },
+    // How many answer choices per question may carry an image (0 turns answer images off).
+    // Separate from maxUploadImages, which only counts the question's own images.
+    maxAnswerImages: {
+      type: Number,
+      default: 5,
+      min: 0,
+      max: 5,
+    },
   },
   { timestamps: true }
 );

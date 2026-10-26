@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -436,7 +437,10 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                         onClick={() => handleSelect(currentQuestion._id, answer._id)}
                       >
                         <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
-                        <div className="mbep-option-text">{answer.text}</div>
+                        <div className="mbep-option-text">
+                          {answer.text}
+                          <AnswerImage src={answer.image} alt={`Answer ${String.fromCharCode(97 + i)} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
+                        </div>
                       </div>
                     );
                   })}

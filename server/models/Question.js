@@ -4,6 +4,8 @@ const answerSchema = new mongoose.Schema(
   {
     text: { type: String, trim: true },
     isCorrect: { type: Boolean, default: false },
+    // Optional image for this choice (proxy URL, like question images). The text stays required.
+    image: { type: String, default: null },
   },
   { _id: true }
 );
@@ -81,5 +83,9 @@ const questionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Image access checks and cleanup look questions up by the images they reference
+questionSchema.index({ images: 1 });
+questionSchema.index({ 'answers.image': 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

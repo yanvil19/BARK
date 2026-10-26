@@ -8,6 +8,7 @@ const questionResultSchema = new mongoose.Schema({
   answerCounts: [{
     answerId: { type: mongoose.Schema.Types.ObjectId },
     text: { type: String, default: '' },
+    image: { type: String, default: null },
     count: { type: Number, default: 0, min: 0 },
     isCorrect: { type: Boolean, default: false },
   }],

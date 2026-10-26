@@ -1,4 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -124,6 +125,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                   onChange={() => handleSelect(question._id, answer._id)}
                 />{' '}
                 {answer.optionLabel} {answer.text}
+                <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
                 {submitted ? ` ${answer.isCorrect ? '(Correct Answer)' : checked ? '(Your Answer)' : ''}` : ''}
               </label>
             );
@@ -132,6 +134,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
           return (
             <div key={answer._id || `${question._id}-${index}`} style={{ marginBottom: '8px' }}>
               {answer.optionLabel} {answer.text}
+              <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
             </div>
           );
         })}

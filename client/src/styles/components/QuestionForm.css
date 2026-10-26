@@ -119,6 +119,53 @@
   align-items: center;
 }
 
+/* Rows with an answer image keep the radio and buttons level with the text input */
+.qf-answer-row--has-image {
+  align-items: start;
+}
+
+.qf-answer-row--has-image .qf-answer-radio-wrap {
+  margin-top: 9px;
+}
+
+.qf-answer-row--has-image .qf-answer-actions {
+  margin-top: 2px;
+}
+
+.qf-answer-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.qf-answer-main .qf-answer-input {
+  align-self: stretch;
+}
+
+.qf-answer-image {
+  position: relative;
+  display: inline-flex;
+}
+
+.qf-answer-image .btn-remove-img {
+  top: 14px;
+}
+
+.qf-answer-main > .qf-upload-note {
+  margin-top: 6px;
+}
+
+.qf-answer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qf-answer-image-note {
+  margin: 10px 0 0;
+}
+
 .qf-answer-radio-wrap {
   position: relative;
   display: inline-flex;
@@ -291,6 +338,14 @@
   cursor: pointer;
 }
 
+.image-thumb--uploading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b92bc;
+  font-size: 11px;
+}
+
 .btn-remove-img {
   position: absolute;
   top: 6px;
@@ -365,6 +420,15 @@
   .qf-remove-btn {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .qf-answer-actions {
+    grid-column: 2;
+    flex-wrap: wrap;
+  }
+
+  .qf-answer-row--has-image .qf-answer-actions {
+    margin-top: 0;
   }
 
   .qf-section-heading,

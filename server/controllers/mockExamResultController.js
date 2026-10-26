@@ -61,6 +61,7 @@ function buildQuestionRates(exam, attempts) {
       return {
         answerId: answer._id,
         text: answer.text || '',
+        image: answer.image || null,
         count,
         isCorrect: !!answer.isCorrect,
       };
@@ -279,6 +280,12 @@ exports.getResult = async (req, res) => {
           if (originalQ) {
             if (!sq.groupId && originalQ.groupId) sq.groupId = originalQ.groupId;
             if (!sq.groupContext && originalQ.groupContext) sq.groupContext = originalQ.groupContext;
+            // Results computed before answer images existed have no image on their answer counts
+            (sq.answerCounts || []).forEach(ac => {
+              if (ac.image) return;
+              const originalAnswer = (originalQ.answers || []).find(a => String(a._id) === String(ac.answerId));
+              if (originalAnswer?.image) ac.image = originalAnswer.image;
+            });
           }
         });
       });
@@ -533,6 +540,7 @@ exports.getStudentResults = async (req, res) => {
               const mappedAnswers = q.answers.map(a => ({
                 _id: a._id,
                 text: a.text,
+                image: a.image || null,
                 isCorrect: a.isCorrect
               }));
 
