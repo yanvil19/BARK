@@ -5,6 +5,7 @@ import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
+import FieldCheck from '../../components/FieldCheck.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -83,21 +84,6 @@ function truncateText(text, max = 100) {
   if (clean.length <= max) return clean;
 
   return `${clean.slice(0, max)}...`;
-}
-
-// Grey circle + check beside a field label or tab; turns green once valid / complete
-function FieldCheck({ valid, validText = 'Valid', invalidText = 'Not yet valid' }) {
-  return (
-    <span
-      className={`mbe-field-check${valid ? ' is-valid' : ''}`}
-      role="img"
-      aria-label={valid ? validText : invalidText}
-    >
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M4 8.5l2.5 2.5L12 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
 }
 
 export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {

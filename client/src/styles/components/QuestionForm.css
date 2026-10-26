@@ -28,6 +28,13 @@
   color: #4a57a2;
 }
 
+/* Label text + validity check circle */
+.qf-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .qf-field input,
 .qf-field select,
 .qf-field textarea,
@@ -116,20 +123,27 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: center;
-}
-
-/* Rows with an answer image keep the radio and buttons level with the text input */
-.qf-answer-row--has-image {
   align-items: start;
 }
 
-.qf-answer-row--has-image .qf-answer-radio-wrap {
-  margin-top: 9px;
+/* Answers can wrap onto several lines or carry an image, so the radio and buttons
+   stay level with the first line of the text box */
+.qf-answer-row .qf-answer-radio-wrap {
+  margin-top: 10px;
 }
 
-.qf-answer-row--has-image .qf-answer-actions {
-  margin-top: 2px;
+.qf-answer-row .qf-answer-actions {
+  margin-top: 3px;
+}
+
+/* Grows with its content (see AnswerTextInput) so long answers wrap */
+textarea.qf-answer-input {
+  display: block;
+  min-height: 42px;
+  line-height: 20px;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .qf-answer-main {
@@ -427,7 +441,7 @@
     flex-wrap: wrap;
   }
 
-  .qf-answer-row--has-image .qf-answer-actions {
+  .qf-answer-row .qf-answer-actions {
     margin-top: 0;
   }
 
@@ -967,38 +981,6 @@
   font-family: var(--font-title);
   color: var(--primary-bg);
   font-size: 15px;
-}
-
-/* Reorder arrows */
-.qf-reorder-btns {
-  display: flex;
-  gap: 4px;
-}
-
-.qf-reorder-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid #d0d6f0;
-  background: #fff;
-  color: #5966ac;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-  line-height: 1;
-}
-
-.qf-reorder-btn:hover:not(:disabled) {
-  background: #eef1fb;
-  border-color: #a0acda;
-}
-
-.qf-reorder-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 
 /* Group add question button */

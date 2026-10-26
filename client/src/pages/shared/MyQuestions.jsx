@@ -973,7 +973,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         <div className="qp-modal-copy">
           <p className="qp-modal-subtitle">
             {editGroupQuestions
-              ? `Update all ${editGroupQuestions.length} questions in this set, reorder positions, or update the scenario context.`
+              ? `Update all ${editGroupQuestions.length} questions in this set or update the scenario context.`
               : editQuestion
                 ? 'Update the question details and save your changes.'
                 : importedQuestions.length > 0

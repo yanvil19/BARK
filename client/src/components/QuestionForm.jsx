@@ -1,6 +1,7 @@
 import AuthImage from '../components/AuthImage.jsx';
 import AnswerImage from './AnswerImage.jsx';
-import { useEffect, useRef, useState } from 'react';
+import FieldCheck from './FieldCheck.jsx';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
 import { primeImage } from '../lib/authImageCache.js';
@@ -86,6 +87,51 @@ function toAnswerPayload(answers) {
 
 function countAnswerImages(answers) {
   return answers.filter((a) => a.image || a.uploading).length;
+}
+
+// Field checks (grey → green once valid). Answers turn green once there are 4 or 5
+// choices and every one has text; duplicates and the correct answer are still
+// covered by the flags under the question.
+function getFieldChecks(q) {
+  return {
+    subject: Boolean(q.tagId),
+    description: (q.description || '').trim() !== '',
+    answers: q.answers.length >= 4 && q.answers.length <= 5 && q.answers.every((a) => a.text.trim() !== ''),
+    rationalization: (q.rationalization || '').trim() !== '',
+    images: q.uploadedUrls.length > 0 && q.uploadingCount === 0,
+  };
+}
+
+// Answer text box that grows with its content, so long answers wrap onto new lines
+// instead of running off in one line. Answers stay single-line text: Enter is
+// ignored and pasted line breaks become spaces.
+function AnswerTextInput({ value, onChange, ...props }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const fit = () => {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\r?\n/g, ' '))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.preventDefault();
+      }}
+      {...props}
+    />
+  );
 }
 
 export default function QuestionForm({
@@ -861,27 +907,6 @@ export default function QuestionForm({
     }
   }
 
-  // [GROUPED QUESTIONS] reorder helpers
-  function moveQuestionUp(index) {
-    if (index === 0) return;
-    setQuestionsData(prev => {
-      const next = [...prev];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      setCurrentQuestionIdx(index - 1);
-      return next;
-    });
-  }
-
-  function moveQuestionDown(index) {
-    if (index === questionsData.length - 1) return;
-    setQuestionsData(prev => {
-      const next = [...prev];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      setCurrentQuestionIdx(index + 1);
-      return next;
-    });
-  }
-
   // When switching modes, reset to a fresh single/double-question state
   function handleModeChange(newMode) {
     if (newMode === mode || isEditing) return;
@@ -905,6 +930,10 @@ export default function QuestionForm({
 
   // Render a single question block (shared between single and grouped modes)
   function renderQuestionBlock(q, index) {
+    const checks = getFieldChecks(q);
+    // Images are optional unless the import flagged this question as needing one
+    const imageRequired = q.image_required && !q.image_flag_removed_by_user;
+
     return (
       <div key={q.id} className="qf-question-block">
         {/* ── Header ── */}
@@ -914,36 +943,15 @@ export default function QuestionForm({
               <span className="qf-group-q-number">{index + 1}</span>
               <h4>Question {index + 1}</h4>
             </div>
-            {!readOnly && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {/* Reorder arrows */}
-                <div className="qf-reorder-btns">
-                  <button
-                    type="button"
-                    className="qf-reorder-btn"
-                    title="Move up"
-                    disabled={index === 0}
-                    onClick={() => moveQuestionUp(index)}
-                  >↑</button>
-                  <button
-                    type="button"
-                    className="qf-reorder-btn"
-                    title="Move down"
-                    disabled={index === questionsData.length - 1}
-                    onClick={() => moveQuestionDown(index)}
-                  >↓</button>
-                </div>
-                {/* Remove — min 2 */}
-                {questionsData.length > 2 && (
-                  <button
-                    type="button"
-                    className="qf-remove-question-btn"
-                    onClick={() => removeQuestionBlock(q.id)}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+            {/* Remove — min 2 */}
+            {!readOnly && questionsData.length > 2 && (
+              <button
+                type="button"
+                className="qf-remove-question-btn"
+                onClick={() => removeQuestionBlock(q.id)}
+              >
+                Remove
+              </button>
             )}
           </div>
         ) : questionsData.length > 1 && !readOnly && !initialData ? (
@@ -955,7 +963,7 @@ export default function QuestionForm({
 
         <div className="qf-grid">
           <div className="qf-field">
-            <label>Subject *</label>
+            <label className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</label>
             <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
               <option value="">Select a subject</option>
               {tags.map((tag) => (
@@ -970,7 +978,7 @@ export default function QuestionForm({
           </div>
 
           <div className="qf-field qf-field--full">
-            <label>Question *</label>
+            <label className="qf-label-row">Question * {!readOnly && <FieldCheck valid={checks.description} />}</label>
             <textarea
               placeholder="Write the full question here..."
               value={q.description}
@@ -984,7 +992,75 @@ export default function QuestionForm({
         <section className="qf-section">
           <div className="qf-section-heading">
             <div>
-              <h3>Answers *</h3>
+              <h3 className="qf-label-row">
+                {imageRequired ? 'Images *' : 'Images'}
+                {!readOnly && imageRequired && <FieldCheck valid={checks.images} />}
+              </h3>
+              <p>
+                {readOnly
+                  ? 'Images attached to this question.'
+                  : `${imageRequired ? 'Required for this question' : 'Optional'}, maximum of ${maxImages} images.`}
+              </p>
+            </div>
+          </div>
+
+          {!readOnly && (
+            <div className="qf-upload-box">
+              <input
+                id={`file-${q.id}`}
+                className="qf-file-input"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleImagePick(e, q.id)}
+              />
+              <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
+                Choose Files
+              </button>
+              <span className="qf-upload-note">
+                {q.uploadingCount > 0 ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
+              </span>
+            </div>
+          )}
+
+          {!readOnly && q.error ? (
+            <p className="qf-inline-note qf-inline-note--error">{q.error}</p>
+          ) : null}
+
+          {q.uploadedUrls.length > 0 || q.uploadingCount > 0 ? (
+            <div className="image-previews">
+              {q.uploadedUrls.map((url, idx) => (
+                <div key={url} className="image-thumb">
+                  <AuthImage
+                    src={url}
+                    alt=""
+                    onClick={() => setFullscreenImage(url)}
+                    title="Click to view full size"
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeImage(q.id, idx)}
+                      className="btn-remove-img"
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+              ))}
+              {Array.from({ length: q.uploadingCount }, (_, idx) => (
+                <div key={`uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+              ))}
+            </div>
+          ) : readOnly ? (
+            <p className="qf-inline-note">No images attached.</p>
+          ) : null}
+        </section>
+
+        <section className="qf-section">
+          <div className="qf-section-heading">
+            <div>
+              <h3 className="qf-label-row">Answers * {!readOnly && <FieldCheck valid={checks.answers} />}</h3>
               <p>{readOnly ? 'The correct answer is marked with a selected radio button.' : 'Select the radio button to mark the correct answer.'}</p>
             </div>
             {!readOnly && (
@@ -1001,7 +1077,7 @@ export default function QuestionForm({
               const fileInputId = `answer-file-${q.id}-${answer.uid}`;
 
               return (
-                <div key={answer.uid || idx} className={`qf-answer-row ${answer.image ? 'qf-answer-row--has-image' : ''}`}>
+                <div key={answer.uid || idx} className="qf-answer-row">
                   <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
                     <input
                       className="qf-answer-radio"
@@ -1014,12 +1090,11 @@ export default function QuestionForm({
                   </label>
 
                   <div className="qf-answer-main">
-                    <input
+                    <AnswerTextInput
                       className="qf-answer-input"
-                      type="text"
                       placeholder={`Answer ${idx + 1}`}
                       value={answer.text}
-                      onChange={(e) => setAnswerText(q.id, idx, e.target.value)}
+                      onChange={(text) => setAnswerText(q.id, idx, text)}
                       disabled={readOnly}
                     />
 
@@ -1084,7 +1159,7 @@ export default function QuestionForm({
         <section className="qf-section qf-section--rationalization">
           <div className="qf-section-heading">
             <div>
-              <h3>Rationalization *</h3>
+              <h3 className="qf-label-row">Rationalization * {!readOnly && <FieldCheck valid={checks.rationalization} />}</h3>
               <p>{readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}</p>
             </div>
           </div>
@@ -1098,67 +1173,6 @@ export default function QuestionForm({
               disabled={readOnly}
             />
           </div>
-        </section>
-
-        <section className="qf-section">
-          <div className="qf-section-heading">
-            <div>
-              <h3>Images</h3>
-              <p>{readOnly ? 'Images attached to this question.' : `Optional, maximum of ${maxImages} images.`}</p>
-            </div>
-          </div>
-
-          {!readOnly && (
-            <div className="qf-upload-box">
-              <input
-                id={`file-${q.id}`}
-                className="qf-file-input"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handleImagePick(e, q.id)}
-              />
-              <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
-                Choose Files
-              </button>
-              <span className="qf-upload-note">
-                {q.uploadingCount > 0 ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
-              </span>
-            </div>
-          )}
-
-          {!readOnly && q.error ? (
-            <p className="qf-inline-note qf-inline-note--error">{q.error}</p>
-          ) : null}
-
-          {q.uploadedUrls.length > 0 || q.uploadingCount > 0 ? (
-            <div className="image-previews">
-              {q.uploadedUrls.map((url, idx) => (
-                <div key={url} className="image-thumb">
-                  <AuthImage
-                    src={url}
-                    alt=""
-                    onClick={() => setFullscreenImage(url)}
-                    title="Click to view full size"
-                  />
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => removeImage(q.id, idx)}
-                      className="btn-remove-img"
-                    >
-                      x
-                    </button>
-                  )}
-                </div>
-              ))}
-              {Array.from({ length: q.uploadingCount }, (_, idx) => (
-                <div key={`uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
-              ))}
-            </div>
-          ) : readOnly ? (
-            <p className="qf-inline-note">No images attached.</p>
-          ) : null}
         </section>
 
         {/* [IMPORT REVIEW - FLAG SYSTEM] */}
