@@ -605,6 +605,11 @@
   flex-wrap: wrap;
 }
 
+/* All / Single / Group capsules above the approved question filters */
+.mbe-type-pills {
+  margin-bottom: 12px;
+}
+
 .mbe-question-filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) minmax(180px, 220px);
@@ -1028,35 +1033,43 @@
    GROUPED QUESTION SET — header card + child card divider
 ════════════════════════════════════════════════════════════════════ */
 
-/* Bordered container grouping the entire set (header + child questions) */
+/* Bordered container grouping the entire set (header + child questions).
+   Same colors as a single question card: white when not added, audience tint once added. */
 .mbe-group-set-box {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border: 1.5px solid rgba(99, 102, 241, 0.35);
-  border-radius: 14px;
-  background: #f8faff;
-  padding: 14px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #d8def2;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .mbe-group-set-box:hover {
-  border-color: #818cf8;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.08);
+  transform: translateY(-1px);
+  border-color: #bec7ef;
+  box-shadow: 0 8px 18px rgba(53, 64, 142, 0.09);
 }
 
-.mbe-group-set-box.is-collapsed {
-  background: #ffffff;
-  padding: 0;
-  border: none;
-  box-shadow: none;
+.mbe-group-set-box.is-selected {
+  background: var(--mbe-audience-soft, #f5f7ff);
+  border-color: var(--mbe-audience, var(--primary-bg));
+  box-shadow: 0 8px 20px var(--mbe-audience-shadow, rgba(53, 64, 142, 0.14));
 }
 
-/* Wrapper that groups the child question cards */
+.mbe-group-set-box.is-bulk-selected {
+  background: #f0f3ff;
+  border-color: var(--mbe-audience, var(--primary-bg));
+  box-shadow: 0 4px 14px rgba(53, 64, 142, 0.12);
+}
+
+/* Opens below the header, inside the same card, like a dropdown */
 .mbe-group-set-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 14px;
 }
 
 /* Header checkbox in group set */
@@ -1064,28 +1077,20 @@
   margin-right: 4px;
 }
 
-/* The banner that sits above a grouped question set */
+/* Dropdown header of a question set: the top edge of the set card. Click to open / close */
 .mbe-group-header-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 12px 18px;
-  background: linear-gradient(135deg, #f0f2ff 0%, #eef0fc 100%);
-  border: 1.5px solid rgba(99, 102, 241, 0.3);
-  border-radius: 10px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.mbe-group-header-card:hover {
-  background: linear-gradient(135deg, #e8ebff 0%, #e5e8fa 100%);
-  border-color: rgba(99, 102, 241, 0.5);
-}
-
-.mbe-group-header-card.is-collapsed {
-  border-radius: 10px;
+/* Divider between the header and the opened questions (same as a single card's details) */
+.mbe-group-header-card:not(.is-collapsed) {
+  border-bottom: 1px solid #e5e9f6;
 }
 
 /* Left cluster: icon + title + badge */
@@ -1139,9 +1144,12 @@
   white-space: nowrap;
 }
 
-/* Right: Add Set / Remove Set button */
+/* Right: Add Set / Remove Set button + open / closed arrow */
 .mbe-group-header-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* Variant for the group-level toggle button */
@@ -1162,26 +1170,29 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+/* The set card shows added / not added, so the question inside stays neutral */
 .mbe-question-card.is-grouped:hover {
-  border-color: #6366f1;
-  background: #fcfdff;
+  transform: none;
+  border-color: #dce2f5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
-.mbe-question-card.is-grouped.is-selected {
-  border-color: var(--mbe-audience, var(--primary-bg));
-  background: var(--mbe-audience-soft, #f5f7ff);
+/* Shared passage shown above each question of a set; keeps the passage's line breaks */
+.mbe-question-panel--passage {
+  background: #f5f6ff;
+  border-color: #c7cdf5;
 }
 
-/* "Part N" chip on individual grouped child cards */
-.mbe-part-badge {
-  flex-shrink: 0;
-  padding: 2px 9px;
-  background: #e0e7ff;
-  color: #3730a3;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
+.mbe-question-panel--passage .mbe-question-description {
+  white-space: pre-wrap;
+}
+
+/* Numbered bubbles that switch between the questions of an open set */
+.mbe-group-set-body .import-review-bubble-wrapper {
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 14px;
+  background: #ffffff;
 }
 
 /* ─── Select / Add button ───────────────────────────────────────── */

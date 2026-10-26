@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import FieldCheck from '../../components/FieldCheck.jsx';
+import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -109,9 +111,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [questionFilterTagId, setQuestionFilterTagId] = useState('');
   const [approvedSelectionFilter, setApprovedSelectionFilter] = useState('all');
+  // 'all' | 'single' | 'group' — capsule filter above the approved questions
+  const [questionTypeFilter, setQuestionTypeFilter] = useState('all');
   const [questionStateFilter, setQuestionStateFilter] = useState('all');
   const [selectedQuestionFilterTagId, setSelectedQuestionFilterTagId] = useState('');
-  const [expandedQuestionIds, setExpandedQuestionIds] = useState({});
+  // Approved questions open like an accordion, one dropdown at a time:
+  // 'question:<id>' or 'group:<groupId>', null when all are closed
+  const [openDropdownKey, setOpenDropdownKey] = useState(null);
   const [returnModal, setReturnModal] = useState(null);
   const [returnNote, setReturnNote] = useState('');
   const [returnSubmitting, setReturnSubmitting] = useState(false);
@@ -119,7 +125,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
   const [feedbackModal, setFeedbackModal] = useState(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState(new Set());
   const [filteredBulkModal, setFilteredBulkModal] = useState(null); // 'add' | 'remove' | null
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  // groupId -> index of the question shown behind the set's numbered bubbles
+  const [activeGroupIdx, setActiveGroupIdx] = useState({});
   // Subject search + pagination
   const [subjectSearch, setSubjectSearch] = useState('');
   const [subjectPage, setSubjectPage] = useState(1);
@@ -342,7 +349,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
   const filteredApprovedQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
-    return approvedQuestions
+    const filtered = approvedQuestions
       .map((question) => organizeQuestionAnswers(question))
       .filter((question) => {
         const matchesSearch = !needle || [question.description, question.tag?.name, question.createdBy?.name]
@@ -360,8 +367,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           (approvedSelectionFilter === 'unselected' && !isSelected);
 
         const matchesState = questionStateFilter === 'all' || question.state === questionStateFilter;
+        const matchesType =
+          questionTypeFilter === 'all' ||
+          (questionTypeFilter === 'single' && !question.groupId) ||
+          (questionTypeFilter === 'group' && Boolean(question.groupId));
 
-        return matchesSearch && matchesTag && matchesSelection && matchesState;
+        return matchesSearch && matchesTag && matchesSelection && matchesState && matchesType;
       });
 
     // Keep questions belonging to the same group contiguous and ordered by groupOrder
@@ -391,7 +402,13 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
 
     return finalQuestions;
-  }, [approvedQuestions, approvedSelectionFilter, questionFilterTagId, searchQuery, selectedQuestionIds, questionStateFilter]);
+  }, [approvedQuestions, approvedSelectionFilter, questionFilterTagId, searchQuery, selectedQuestionIds, questionStateFilter, questionTypeFilter]);
+
+  // Capsule counts are question counts across every loaded approved question
+  const questionTypeCounts = useMemo(() => {
+    const group = approvedQuestions.filter((question) => question.groupId).length;
+    return { all: approvedQuestions.length, single: approvedQuestions.length - group, group };
+  }, [approvedQuestions]);
 
   const filteredSubjectOptions = useMemo(
     () => subjectOptions.filter((tag) => selectedTagIds.includes(String(tag._id))),
@@ -529,6 +546,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       if (tag) parts.push(tag.name);
     }
     if (approvedSelectionFilter === 'unselected') parts.push('not selected yet');
+    if (questionTypeFilter === 'single') parts.push('single questions');
+    if (questionTypeFilter === 'group') parts.push('grouped questions');
     return parts.length > 0 ? parts.join(', ') : null;
   }
 
@@ -538,11 +557,9 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     setReturnError('');
   }
 
-  function toggleQuestionExpanded(questionId) {
-    setExpandedQuestionIds((prev) => ({
-      ...prev,
-      [questionId]: !prev[questionId],
-    }));
+  // Opening a dropdown closes the one that was open; clicking the open one closes it
+  function toggleDropdown(key) {
+    setOpenDropdownKey((prev) => (prev === key ? null : key));
   }
 
   async function submitReturnQuestion() {
@@ -1024,6 +1041,21 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                     </div>
                   )}
 
+                  <CapsuleFilters
+                    className="mbe-type-pills"
+                    ariaLabel="Filter questions by type"
+                    options={[
+                      { value: 'all', label: 'All', count: questionTypeCounts.all },
+                      { value: 'single', label: 'Single', count: questionTypeCounts.single },
+                      { value: 'group', label: 'Group', count: questionTypeCounts.group },
+                    ]}
+                    value={questionTypeFilter}
+                    onChange={(value) => {
+                      setQuestionTypeFilter(value);
+                      setQuestionPage(1);
+                    }}
+                  />
+
                   <div className="mbe-question-filters">
                     <input
                       className="mbe-input mbe-search"
@@ -1099,7 +1131,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   </div>
 
               {loadingQuestions ? <p className="mbe-empty-message">Loading approved questions...</p> : null}
-              {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the selected subjects.</p> : null}
+              {!loadingQuestions && filteredApprovedQuestions.length === 0 ? <p className="mbe-empty-message">No approved questions match the current filters.</p> : null}
               {!loadingQuestions && filteredApprovedQuestions.length > 0 ? (() => {
                                 const totalQPages = Math.max(1, Math.ceil(filteredApprovedQuestions.length / QUESTIONS_PER_PAGE));
                 const safeQPage = Math.min(questionPage, totalQPages);
@@ -1139,7 +1171,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                           const isSelected = selectedQuestionIds.has(String(question._id));
                           const imageCount = question.images?.length || 0;
                           const answerCount = question.answers?.length || 0;
-                          const isExpanded = !!expandedQuestionIds[question._id];
+                          const isExpanded = openDropdownKey === `question:${question._id}`;
 
                           return (
                             <article
@@ -1158,7 +1190,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                 <button
                                   type="button"
                                   className="mbe-question-copy mbe-question-toggle"
-                                  onClick={() => toggleQuestionExpanded(question._id)}
+                                  onClick={() => toggleDropdown(`question:${question._id}`)}
                                   aria-expanded={isExpanded}
                                 >
                                   <div className="mbe-question-meta-row">
@@ -1258,21 +1290,27 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                         const firstQ = item.questions[0];
                         const groupSiblings = approvedQuestions.filter(q => q.groupId === item.groupId);
                         const groupTitle = firstQ.groupContext?.trim() ? truncateText(firstQ.groupContext.trim(), 90) : `Question Set (${groupSiblings.length} questions)`;
-                        const isGroupCollapsed = collapsedGroups.has(item.groupId);
+                        const isGroupCollapsed = openDropdownKey !== `group:${item.groupId}`;
                         const isGroupSelected = groupSiblings.length > 0 && groupSiblings.every(q => selectedQuestionIds.has(String(q._id)));
                         const isAllGroupBulkSelected = groupSiblings.length > 0 && groupSiblings.every(q => bulkSelectedIds.has(q._id));
                         const isSomeGroupBulkSelected = groupSiblings.some(q => bulkSelectedIds.has(q._id));
+                        // Every question in the set, in set order; one is shown at a time
+                        const groupMembers = [...groupSiblings]
+                          .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
+                          .map((question) => organizeQuestionAnswers(question));
+                        const activeIdx = Math.min(activeGroupIdx[item.groupId] || 0, groupMembers.length - 1);
+                        const activeGroupQuestion = groupMembers[activeIdx];
+                        // The set's shared passage, repeated above whichever question is shown
+                        const groupPassage = (activeGroupQuestion?.groupContext || firstQ.groupContext || '').trim();
 
                         return (
-                          <div key={item.groupId} className={`mbe-group-set-box ${isGroupCollapsed ? 'is-collapsed' : ''}`}>
+                          <div
+                            key={item.groupId}
+                            className={`mbe-group-set-box ${isGroupCollapsed ? 'is-collapsed' : ''} ${isGroupSelected ? 'is-selected' : ''} ${isAllGroupBulkSelected ? 'is-bulk-selected' : ''}`}
+                          >
                             <div
                               className={`mbe-group-header-card ${isGroupCollapsed ? 'is-collapsed' : ''}`}
-                              onClick={() => setCollapsedGroups(prev => {
-                                const next = new Set(prev);
-                                if (next.has(item.groupId)) next.delete(item.groupId);
-                                else next.add(item.groupId);
-                                return next;
-                              })}
+                              onClick={() => toggleDropdown(`group:${item.groupId}`)}
                               title="Click to collapse / expand question set"
                               style={{ cursor: 'pointer' }}
                             >
@@ -1304,115 +1342,109 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                 >
                                   {isGroupSelected ? 'Remove Set' : 'Add Set'}
                                 </button>
+                                <span className={`mbe-expand-icon ${!isGroupCollapsed ? 'is-open' : ''}`} aria-hidden="true">▾</span>
                               </div>
                             </div>
 
-                            {!isGroupCollapsed && (
+                            {!isGroupCollapsed && activeGroupQuestion && (
                               <div className="mbe-group-set-body">
-                                {item.questions.map((question) => {
-                                  const isSelected = selectedQuestionIds.has(String(question._id));
-                                  const imageCount = question.images?.length || 0;
-                                  const answerCount = question.answers?.length || 0;
-                                  const isExpanded = !!expandedQuestionIds[question._id];
+                                {/* One numbered bubble per question in the set, as in the question form and approvals */}
+                                {groupMembers.length > 1 && (
+                                  <ImportReviewBubbles
+                                    questions={groupMembers}
+                                    currentIdx={activeIdx}
+                                    onSelectQuestion={(idx) => setActiveGroupIdx(prev => ({ ...prev, [item.groupId]: idx }))}
+                                    readOnly
+                                  />
+                                )}
 
-                                  return (
-                                    <article
-                                      key={question._id}
-                                      className={`mbe-question-card mbe-question-card--stack ${isSelected ? 'is-selected' : ''} ${bulkSelectedIds.has(question._id) ? 'is-bulk-selected' : ''} is-grouped`}
-                                    >
-                                      <div className="mbe-question-main">
-                                        <button
-                                          type="button"
-                                          className="mbe-question-copy mbe-question-toggle"
-                                          onClick={() => toggleQuestionExpanded(question._id)}
-                                          aria-expanded={isExpanded}
-                                        >
-                                          <div className="mbe-question-meta-row">
-                                            <span className="mbe-subject-pill">{question.tag?.name || 'No subject'}</span>
-                                            <span className="mbe-part-badge">Part {(question.groupOrder ?? 0) + 1}</span>
-                                            <span className="mbe-meta-text">{answerCount} answers | {imageCount} images</span>
-                                            {question.createdBy?.name ? (
-                                              <span className="mbe-meta-text">By {question.createdBy.name}</span>
-                                            ) : null}
-                                            <span className={`mbe-expand-icon ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">▾</span>
-                                          </div>
-
-                                          {!isExpanded && (
-                                            <div className="mbe-question-headline mbe-question-headline--compact">
-                                              {truncateText(question.description, 100)}
-                                            </div>
-                                          )}
-                                        </button>
-
-                                        <div className="mbe-question-actions">
-                                          {!question.is_used_in_exam && (
-                                            <button
-                                              className="mbe-btn mbe-btn-ghost mbe-btn-small"
-                                              type="button"
-                                              onClick={() => handleReturnQuestion(question)}
-                                            >
-                                              Return
-                                            </button>
-                                          )}
-                                        </div>
+                                <article
+                                  key={activeGroupQuestion._id}
+                                  className="mbe-question-card mbe-question-card--stack is-grouped"
+                                >
+                                  <div className="mbe-question-main">
+                                    <div className="mbe-question-copy">
+                                      <div className="mbe-question-meta-row">
+                                        <span className="mbe-subject-pill">{activeGroupQuestion.tag?.name || 'No subject'}</span>
+                                        <span className="mbe-meta-text">{activeGroupQuestion.answers?.length || 0} answers | {activeGroupQuestion.images?.length || 0} images</span>
+                                        {activeGroupQuestion.createdBy?.name ? (
+                                          <span className="mbe-meta-text">By {activeGroupQuestion.createdBy.name}</span>
+                                        ) : null}
                                       </div>
+                                    </div>
 
-                                      {isExpanded ? (
-                                        <div className="mbe-question-details">
-                                          <section className="mbe-question-panel">
-                                            <p className="mbe-panel-label">Question</p>
-                                            <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
-                                          </section>
+                                    <div className="mbe-question-actions">
+                                      {!activeGroupQuestion.is_used_in_exam && (
+                                        <button
+                                          className="mbe-btn mbe-btn-ghost mbe-btn-small"
+                                          type="button"
+                                          onClick={() => handleReturnQuestion(activeGroupQuestion)}
+                                        >
+                                          Return
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
 
-                                          {imageCount > 0 ? (
-                                            <section className="mbe-question-panel">
-                                              <p className="mbe-panel-label">Images</p>
-                                              <div className="mbe-preview-images">
-                                                {question.images.map((image, index) => (
-                                                  <button
-                                                    key={index}
-                                                    type="button"
-                                                    className="mbe-preview-image-link"
-                                                    onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                                  >
-                                                    <AuthImage
-                                                      className="mbe-preview-image"
-                                                      src={resolveImageUrl(image)}
-                                                      alt={`Question image ${index + 1}`}
-                                                    />
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </section>
-                                          ) : null}
+                                  <div className="mbe-question-details">
+                                    {groupPassage ? (
+                                      <section className="mbe-question-panel mbe-question-panel--passage">
+                                        <p className="mbe-panel-label">Shared Passage</p>
+                                        <p className="mbe-question-description">{groupPassage}</p>
+                                      </section>
+                                    ) : null}
 
-                                          <section className="mbe-question-panel">
-                                            <p className="mbe-panel-label">Answers</p>
-                                            <ul className="mbe-answer-list mbe-answer-list--cards">
-                                              {(question.answers || []).map((answer) => (
-                                                <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                                  <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                                  <span>
-                                                    {answer.text}
-                                                    <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
-                                                  </span>
-                                                  {answer.isCorrect ? <strong>Correct</strong> : null}
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          </section>
+                                    <section className="mbe-question-panel">
+                                      <p className="mbe-panel-label">Question</p>
+                                      <p className="mbe-question-description">{activeGroupQuestion.description || 'No description provided.'}</p>
+                                    </section>
 
-                                          {question.rationalization && (
-                                            <section className="mbe-question-panel">
-                                              <p className="mbe-panel-label">Rationalization</p>
-                                              <p className="mbe-question-description">{question.rationalization}</p>
-                                            </section>
-                                          )}
+                                    {activeGroupQuestion.images?.length > 0 ? (
+                                      <section className="mbe-question-panel">
+                                        <p className="mbe-panel-label">Images</p>
+                                        <div className="mbe-preview-images">
+                                          {activeGroupQuestion.images.map((image, index) => (
+                                            <button
+                                              key={index}
+                                              type="button"
+                                              className="mbe-preview-image-link"
+                                              onClick={() => setFullscreenImage(resolveImageUrl(image))}
+                                            >
+                                              <AuthImage
+                                                className="mbe-preview-image"
+                                                src={resolveImageUrl(image)}
+                                                alt={`Question image ${index + 1}`}
+                                              />
+                                            </button>
+                                          ))}
                                         </div>
-                                      ) : null}
-                                    </article>
-                                  );
-                                })}
+                                      </section>
+                                    ) : null}
+
+                                    <section className="mbe-question-panel">
+                                      <p className="mbe-panel-label">Answers</p>
+                                      <ul className="mbe-answer-list mbe-answer-list--cards">
+                                        {(activeGroupQuestion.answers || []).map((answer) => (
+                                          <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
+                                            <span className="mbe-answer-label">{answer.optionLabel}</span>
+                                            <span>
+                                              {answer.text}
+                                              <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
+                                            </span>
+                                            {answer.isCorrect ? <strong>Correct</strong> : null}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </section>
+
+                                    {activeGroupQuestion.rationalization && (
+                                      <section className="mbe-question-panel">
+                                        <p className="mbe-panel-label">Rationalization</p>
+                                        <p className="mbe-question-description">{activeGroupQuestion.rationalization}</p>
+                                      </section>
+                                    )}
+                                  </div>
+                                </article>
                               </div>
                             )}
                           </div>
