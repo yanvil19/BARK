@@ -71,3 +71,13 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* "…" between page numbers when maxPageButtons is set */
+.pg-pagination-gap,
+.el-pagination-gap {
+  min-width: 20px;
+  align-self: center;
+  text-align: center;
+  font-size: 12px;
+  color: #8b92bc;
+}

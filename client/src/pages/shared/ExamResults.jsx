@@ -3,9 +3,13 @@ import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
 import '../../styles/shared/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import Pagination from '../../components/Pagination.jsx';
 import ResultQuestionList from '../../components/ResultQuestionList.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
+
+const EXAMS_PER_PAGE = 5;
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -248,7 +252,9 @@ const ExamResults = ({ me }) => {
   const initialProgramId = isProgramChair && userProgramId ? String(userProgramId) : 'all';
   
   const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
-  const [selectedAudience, setSelectedAudience] = useState('student');
+  const [selectedAudience, setSelectedAudience] = useState('all');
+  const [examSearch, setExamSearch] = useState('');
+  const [sidebarPage, setSidebarPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overall');
   const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -416,6 +422,22 @@ const ExamResults = ({ me }) => {
     return next;
   }, [exams, selectedProgramId, selectedAudience]);
 
+  const searchedExams = useMemo(() => {
+    const query = examSearch.trim().toLowerCase();
+    if (!query) return filteredExams;
+    return filteredExams.filter((exam) => (exam.name || '').toLowerCase().includes(query));
+  }, [filteredExams, examSearch]);
+
+  useEffect(() => {
+    setSidebarPage(1);
+  }, [selectedProgramId, selectedAudience, examSearch]);
+
+  const pagedExams = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(searchedExams.length / EXAMS_PER_PAGE));
+    const page = Math.min(sidebarPage, totalPages);
+    return searchedExams.slice((page - 1) * EXAMS_PER_PAGE, page * EXAMS_PER_PAGE);
+  }, [searchedExams, sidebarPage]);
+
   const examStats = useMemo(() => {
     const total = filteredExams.length;
     const studentExams = filteredExams.filter((exam) => (exam.targetAudience || 'student') === 'student');
@@ -492,6 +514,16 @@ const ExamResults = ({ me }) => {
               </div>
             </div>
 
+            <div className="er-program-filter">
+              <span>Search</span>
+              <SearchBar
+                value={examSearch}
+                onChange={setExamSearch}
+                placeholder="Search exams by name..."
+                className="er-sidebar-search"
+              />
+            </div>
+
             <label className="er-program-filter">
               <span>Program</span>
               <select
@@ -514,9 +546,9 @@ const ExamResults = ({ me }) => {
                 value={selectedAudience}
                 onChange={(event) => setSelectedAudience(event.target.value)}
               >
+                <option value="all">All Audiences</option>
                 <option value="student">Student Exams</option>
                 <option value="alumni">Alumni Exams</option>
-                <option value="all">All Audiences</option>
               </select>
             </label>
 
@@ -530,7 +562,16 @@ const ExamResults = ({ me }) => {
                 />
               )}
 
-              {filteredExams.map((exam) => (
+              {!loading && filteredExams.length > 0 && searchedExams.length === 0 && (
+                <EmptyStatePanel
+                  compact
+                  eyebrow="No Matches"
+                  title="No exams match your search"
+                  message="Try another exam name, or clear the search to see every exam."
+                />
+              )}
+
+              {pagedExams.map((exam) => (
                 <SidebarExamItem
                   key={exam._id}
                   exam={exam}
@@ -539,6 +580,18 @@ const ExamResults = ({ me }) => {
                 />
               ))}
             </div>
+
+            {searchedExams.length > EXAMS_PER_PAGE && (
+              <Pagination
+                currentPage={sidebarPage}
+                totalItems={searchedExams.length}
+                pageSize={EXAMS_PER_PAGE}
+                onPageChange={setSidebarPage}
+                itemLabel="exams"
+                classPrefix="er-side"
+                maxPageButtons={5}
+              />
+            )}
           </div>
         </aside>
 
@@ -655,35 +708,62 @@ const ExamResults = ({ me }) => {
               </div>
               <div className="er-report-view">
                 <div className="er-report-header">
-                  <div className="er-report-title-group">
-                    <span className="er-report-kicker">
-                      {activeReport.targetAudience === 'alumni' ? 'Alumni Highest Score Report' : 'Computed Report'}
-                    </span>
-                    <h2 className="er-report-title">{activeReport.examName}</h2>
-                  </div>
-                <div className="er-report-meta">
-                  <span className="er-report-ts">Created by {selectedExam?.createdBy?.name || '-'} on {formatDateTime(selectedExam?.createdAt) || '-'}</span>
-                  <span className="er-divider">|</span>
-                  <span className="er-report-ts">Last computed: {summary.computedAt}</span>
-                  <span className="er-divider">|</span>
-                  <div className="er-threshold-badge">
-                    Threshold: {threshold}%
-                  </div>
-                  {activeReport.targetAudience === 'alumni' && (
-                    <>
-                      <span className="er-divider">|</span>
-                      <button 
-                        className="er-primary-btn" 
+                  <div className="er-report-title-row">
+                    <div className="er-report-title-group">
+                      <span className="er-report-kicker">
+                        {activeReport.targetAudience === 'alumni' ? 'Alumni Highest Score Report' : 'Computed Report'}
+                      </span>
+                      <h2 className="er-report-title">{activeReport.examName}</h2>
+                    </div>
+
+                    {activeReport.targetAudience === 'alumni' && (
+                      <button
+                        type="button"
+                        className="er-download-btn"
                         onClick={handleExportExcel}
                         disabled={exportingExcel}
-                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+                        title="Download the alumni results of this exam as an Excel file (.xlsx)"
                       >
-                        {exportingExcel ? 'Exporting...' : 'Export to Excel'}
+                        <svg className="er-download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                          <path d="M14 3v5h5" />
+                          <rect x="8" y="11" width="8" height="7" rx="0.6" />
+                          <path d="M8 14.5h8M12 11v7" />
+                        </svg>
+                        <span className="er-download-text">
+                          <span className="er-download-label">{exportingExcel ? 'Preparing file...' : 'Download Excel'}</span>
+                          <span className="er-download-hint">Alumni results (.xlsx)</span>
+                        </span>
+                        <span className="er-download-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 4v11" />
+                            <path d="m7 10 5 5 5-5" />
+                            <path d="M5 20h14" />
+                          </svg>
+                        </span>
                       </button>
-                    </>
-                  )}
+                    )}
+                  </div>
+
+                  <dl className="er-report-facts">
+                    <div className="er-report-fact">
+                      <dt>Created by</dt>
+                      <dd>{selectedExam?.createdBy?.name || '-'}</dd>
+                    </div>
+                    <div className="er-report-fact">
+                      <dt>Created on</dt>
+                      <dd>{formatDateTime(selectedExam?.createdAt) || '-'}</dd>
+                    </div>
+                    <div className="er-report-fact">
+                      <dt>Last computed</dt>
+                      <dd>{summary.computedAt || '-'}</dd>
+                    </div>
+                    <div className="er-report-fact">
+                      <dt>Passing threshold</dt>
+                      <dd><span className="er-threshold-badge">{threshold}%</span></dd>
+                    </div>
+                  </dl>
                 </div>
-              </div>
 
               {activeTab === 'overall' ? (
                 <>

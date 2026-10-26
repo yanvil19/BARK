@@ -137,6 +137,30 @@
   border-color: rgba(53, 64, 142, 0.32);
 }
 
+/* Shared SearchBar, in the look of the filter selects */
+.er-program-filter .er-sidebar-search {
+  min-width: 0;
+  min-height: 42px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.er-program-filter .er-sidebar-search:focus-within {
+  border-color: rgba(53, 64, 142, 0.32);
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.18);
+}
+
+.er-program-filter .er-sidebar-search .search-bar-input {
+  min-width: 0;
+  padding: 8px 10px;
+  color: var(--er-navy);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
 .er-summary-label {
   font-size: 11px;
   font-weight: 700;
@@ -288,6 +312,101 @@
   border-color: rgba(255, 255, 255, 0.18);
 }
 
+/* Sidebar pagination (shared Pagination with classPrefix "er-side"), stacked to fit
+   the narrow sidebar: the range, the page numbers, then Previous and Next */
+.er-side-pagination {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "info info"
+    "pages pages"
+    "prev next";
+  gap: 10px 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #edf1f8;
+}
+
+.er-side-pagination-controls {
+  display: contents;
+}
+
+.er-side-pagination-info {
+  grid-area: info;
+  font-size: 11.5px;
+  text-align: center;
+  color: #7a849f;
+}
+
+.er-side-pagination-pages {
+  grid-area: pages;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.er-side-pagination-btn:first-child {
+  grid-area: prev;
+}
+
+.er-side-pagination-btn:last-child {
+  grid-area: next;
+}
+
+.er-side-pagination-btn,
+.er-side-pagination-page {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--er-navy-soft);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.er-side-pagination-page {
+  min-width: 32px;
+  padding: 0 6px;
+}
+
+.er-side-pagination-btn:hover:not(:disabled),
+.er-side-pagination-page:hover {
+  background: #eef2ff;
+  border-color: rgba(53, 64, 142, 0.28);
+}
+
+.er-side-pagination-btn:focus-visible,
+.er-side-pagination-page:focus-visible {
+  outline: 3px solid rgba(53, 64, 142, 0.28);
+  outline-offset: 2px;
+}
+
+/* Same active page as the other paginations of the project */
+.er-side-pagination-page--active,
+.er-side-pagination-page--active:hover {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.er-side-pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.er-side-pagination-gap {
+  min-width: 18px;
+  align-self: center;
+  text-align: center;
+  color: #8b96bc;
+  font-size: 12px;
+}
+
 .er-content {
   min-width: 0;
   display: flex;
@@ -437,9 +556,16 @@
   overflow: hidden;
 }
 
+/* Report header: the title with its actions, then the exam facts under a line */
 .er-report-header {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.er-report-title-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -447,7 +573,6 @@
 
 .er-report-kicker {
   display: inline-block;
-  margin-bottom: 8px;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -461,19 +586,117 @@
   font-size: 28px;
   line-height: 1.1;
   color: var(--er-navy);
+  overflow-wrap: anywhere;
 }
 
-.er-report-meta {
-  display: flex;
+.er-report-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid #edf1f8;
+}
+
+.er-report-fact {
+  min-width: 0;
+}
+
+.er-report-fact dt {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b96bc;
+}
+
+.er-report-fact dd {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--er-navy);
+  overflow-wrap: anywhere;
+}
+
+.er-threshold-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--accent-yellow, #fad227);
+  color: var(--er-navy);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* Excel download, in the green of a spreadsheet */
+.er-download-btn {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
-  font-size: 13px;
+  min-height: 46px;
+  padding: 6px 12px;
+  border: 1px solid #1d6f42;
+  border-radius: 12px;
+  background: #1d6f42;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(29, 111, 66, 0.18);
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.er-report-ts {
+.er-download-btn:hover:not(:disabled) {
+  background: #185c37;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(29, 111, 66, 0.24);
+}
+
+.er-download-btn:focus-visible {
+  outline: 3px solid rgba(29, 111, 66, 0.35);
+  outline-offset: 2px;
+}
+
+.er-download-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.er-download-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.er-download-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.er-download-label {
   font-size: 13px;
-  color: var(--er-muted);
+  font-weight: 800;
+}
+
+.er-download-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.er-download-arrow {
+  display: inline-flex;
+  margin-left: auto;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.er-download-arrow svg {
+  width: 18px;
+  height: 18px;
 }
 
 .er-report-badge {
@@ -899,14 +1122,6 @@
     flex: 0 0 auto;
   }
 
-  .er-report-meta {
-    font-size: 12px;
-  }
-
-  .er-report-ts {
-    font-size: 10px;
-  }
-
   .er-hero-body {
     padding-bottom: 20px;
   }
@@ -1001,6 +1216,10 @@
   .er-metric-item:not(:last-child) {
     border-right: none;
   }
+
+  .er-download-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1036,7 +1255,8 @@
 .er-report-title-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .er-report-kicker-row {
@@ -1082,25 +1302,31 @@
 
 .er-ind-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: center;
 }
 
-.er-ind-search {
-  flex: 1;
+/* Shared SearchBar, in the look of the sort select next to it */
+.er-ind-controls .er-ind-search {
+  flex: 1 1 240px;
+  min-width: 0;
   min-height: 40px;
-  padding: 0 16px;
+  box-sizing: border-box;
   border: 1px solid var(--er-border-strong);
   border-radius: 12px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
+  background: #fff;
 }
 
-.er-ind-search:focus {
+.er-ind-controls .er-ind-search:focus-within {
   border-color: var(--er-navy-soft);
   box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
+}
+
+.er-ind-controls .er-ind-search .search-bar-input {
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: var(--font-body);
 }
 
 .er-ind-sort {
@@ -1133,48 +1359,55 @@
 .er-ind-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
+/* A person's card, in the colors of the question cards */
 .er-ind-student-card {
   background: #fff;
-  border: 1px solid var(--er-border);
-  border-radius: 16px;
+  border: 1px solid #d8def2;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(30, 45, 107, 0.04);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.er-ind-student-card:hover {
+  border-color: #bec7ef;
+  box-shadow: 0 8px 18px rgba(53, 64, 142, 0.09);
 }
 
 .er-ind-student-header {
   width: 100%;
   display: flex;
   align-items: center;
-  padding: 20px 24px;
+  gap: 20px;
+  padding: 16px 20px;
   background: #fff;
   border: none;
+  font: inherit;
   cursor: pointer;
   text-align: left;
-  gap: 20px;
   transition: background 0.2s;
 }
 .er-ind-student-header:hover {
   background: #fafcff;
 }
 
-.er-ind-student-chevron {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.er-ind-student-header:hover .er-chevron {
+  color: var(--er-navy);
 }
 
-.er-chevron-side {
-  transform: rotate(-90deg);
-}
-.er-chevron-side.expanded {
-  transform: rotate(0deg);
+/* Inside the card, which clips anything drawn outside it */
+.er-ind-student-header:focus-visible,
+.er-ind-student-body .er-topic-row:focus-visible {
+  outline: 3px solid rgba(53, 64, 142, 0.28);
+  outline-offset: -3px;
 }
 
 .er-ind-student-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1186,7 +1419,8 @@
   color: var(--er-navy);
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
 .er-ind-student-badge {
@@ -1201,6 +1435,7 @@
 .er-ind-student-email {
   font-size: 13px;
   color: var(--er-muted);
+  overflow-wrap: anywhere;
 }
 
 .er-ind-student-score {
@@ -1214,6 +1449,7 @@
   font-size: 18px;
   font-weight: 800;
   color: var(--er-navy);
+  white-space: nowrap;
 }
 
 .er-ind-student-status-badge {
@@ -1235,97 +1471,56 @@
   color: #b91c1c;
 }
 
-.er-ind-student-body {
-  border-top: 1px solid var(--er-border);
-  padding: 16px 24px;
-  background: #fbfcff;
+/* The open card: an alumni's attempts, then the subjects as topic rows
+   (Overall tab) split by lines, not boxes */
+.er-ind-student-body > * {
+  border-top: 1px solid #edf1f8;
+}
+
+.er-ind-student-body .er-topic-wrapper:not(:last-child) {
+  border-bottom: 0;
+}
+
+.er-ind-student-body .er-topic-row {
+  grid-template-columns: minmax(160px, 230px) minmax(0, 1fr) 56px 32px;
+  padding: 14px 20px;
+}
+
+.er-ind-student-body .er-topic-name {
+  font-size: 14px;
+}
+
+.er-ind-student-body .er-topic-pct {
+  font-size: 16px;
+}
+
+.er-ind-student-body .er-questions-list {
+  padding: 16px 20px;
+}
+
+.er-ind-attempt-bar {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 14px 20px;
 }
 
-.er-ind-sub-wrapper {
-  background: #fff;
-  border: 1px solid var(--er-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.er-ind-sub-row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) 100px 32px;
+.er-ind-attempt-meta {
+  display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
-.er-ind-sub-row:hover {
-  background: #f9fbff;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
-.er-ind-sub-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.er-ind-sub-name {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.er-ind-sub-meta-sm {
-  font-size: 11px;
-  color: var(--er-muted);
-}
-
-.er-ind-sub-bar-container {
-  width: 100%;
-}
-.er-ind-sub-bar-bg {
-  height: 8px;
-  background: #e5eaf7;
-  border-radius: 999px;
-  overflow: hidden;
-}
-.er-ind-sub-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.er-ind-sub-score {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.er-ind-sub-pct {
-  font-size: 15px;
+.er-ind-attempt-name {
+  font-size: 13px;
   font-weight: 800;
+  color: var(--er-navy);
 }
 
-.er-ind-q-list {
-  padding: 16px 20px;
-  background: #f7f9fd;
-  border-top: 1px solid var(--er-border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.er-ind-q-list-title {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
+.er-ind-attempt-date {
+  font-size: 12px;
   color: var(--er-muted);
-  margin-bottom: 4px;
-  letter-spacing: 0.05em;
 }
 
 .er-ind-loading, .er-ind-error, .er-ind-empty {
@@ -1336,4 +1531,27 @@
 }
 .er-ind-error {
   color: #b91c1c;
+}
+
+@media (max-width: 720px) {
+  .er-ind-student-header {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .er-ind-student-pct {
+    font-size: 15px;
+  }
+
+  .er-ind-student-body .er-topic-row,
+  .er-ind-student-body .er-questions-list,
+  .er-ind-attempt-bar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .er-ind-student-body .er-questions-list {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
 }
