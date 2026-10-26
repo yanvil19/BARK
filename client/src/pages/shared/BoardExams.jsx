@@ -1,13 +1,13 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
-import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
+import { groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
@@ -105,9 +105,22 @@ function subjectKey(tag) {
   return String(tag?._id || tag?.name || '');
 }
 
-function resolveImageSrc(image) {
-  if (!image) return '';
-  return image.startsWith('/') ? `${BASE}${image}` : image;
+function toOneLine(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+// Number, subject and counts shown at the top of a question card
+function QuestionMeta({ question, questionNumber, children }) {
+  return (
+    <span className="ambe-question-meta-row">
+      <span className="ambe-question-number">Question {questionNumber}</span>
+      <span className="ambe-subject-pill">{question.tag?.name || 'No subject'}</span>
+      <span className="ambe-meta-text">
+        {formatCount(question.answers?.length, 'answer')} | {formatCount(question.images?.length, 'image')}
+      </span>
+      {children}
+    </span>
+  );
 }
 
 function renderConflictMessage(err) {
@@ -142,7 +155,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
-  const [expandedQuestionId, setExpandedQuestionId] = useState(null);
+  // Exam details: the one open question ('question:<id>') or question set ('group:<groupId>')
+  const [openDropdownKey, setOpenDropdownKey] = useState(null);
+  // Exam details: the question shown in each open set, by groupId
+  const [activeGroupIdx, setActiveGroupIdx] = useState({});
+  const [questionTypeFilter, setQuestionTypeFilter] = useState('all');
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [schedulingExamId, setSchedulingExamId] = useState(null);
   const [confirmationModal, setConfirmationModal] = useState(null);
@@ -231,7 +248,9 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }, [me]);
 
   useEffect(() => {
-    setExpandedQuestionId(null);
+    setOpenDropdownKey(null);
+    setActiveGroupIdx({});
+    setQuestionTypeFilter('all');
   }, [selectedExam?._id]);
 
 
@@ -265,7 +284,12 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       return;
     }
     setSelectedExam(null);
-    setExpandedQuestionId(null);
+    setOpenDropdownKey(null);
+  }
+
+  // Opening a question or question set closes the one that was open
+  function toggleQuestionDropdown(key) {
+    setOpenDropdownKey((prev) => (prev === key ? null : key));
   }
 
   function handleDelete(exam) {
@@ -632,6 +656,21 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const selectedExamQuestions = selectedExam?.questions || [];
   const selectedExamSubjects = selectedExam?.subjectTags || [];
 
+  // Single questions and question sets in exam order, numbered as in the exam
+  const selectedExamItems = useMemo(() => (
+    groupQuestionsForDisplay((selectedExam?.questions || []).map((question) => organizeQuestionAnswers(question)))
+  ), [selectedExam?.questions]);
+
+  const questionTypeCounts = useMemo(() => {
+    const questions = selectedExam?.questions || [];
+    const group = questions.filter((question) => question.groupId).length;
+    return { all: questions.length, single: questions.length - group, group };
+  }, [selectedExam?.questions]);
+
+  const visibleQuestionItems = questionTypeFilter === 'all'
+    ? selectedExamItems
+    : selectedExamItems.filter((item) => (item.type === 'group') === (questionTypeFilter === 'group'));
+
   const programExams = useMemo(() => {
     if (
       (me?.role === 'dean' || me?.role === 'program_chair') &&
@@ -712,6 +751,97 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     { label: 'Total Items', value: formatCount(selectedExamQuestions.length, 'item') },
     { label: 'Subjects', value: formatCount(selectedExamSubjects.length, 'subject') },
   ] : [];
+
+  function renderExamQuestion({ question, questionNumber }) {
+    const dropdownKey = `question:${question._id}`;
+    const isExpanded = openDropdownKey === dropdownKey;
+
+    return (
+      <article key={question._id} className={`ambe-question-card${isExpanded ? ' is-expanded' : ''}`}>
+        <button
+          type="button"
+          className="ambe-question-toggle"
+          onClick={() => toggleQuestionDropdown(dropdownKey)}
+          aria-expanded={isExpanded}
+        >
+          <QuestionMeta question={question} questionNumber={questionNumber}>
+            <span className={`ambe-expand-icon${isExpanded ? ' is-open' : ''}`} aria-hidden="true">▾</span>
+          </QuestionMeta>
+          {!isExpanded && (
+            <span className="ambe-question-headline">
+              {toOneLine(question.description) || 'No description provided.'}
+            </span>
+          )}
+        </button>
+
+        {isExpanded && <QuestionDetailPanels question={question} onZoom={setFullscreenImage} />}
+      </article>
+    );
+  }
+
+  function renderExamQuestionSet({ groupId, setNumber, questions: members }) {
+    const dropdownKey = `group:${groupId}`;
+    const isOpen = openDropdownKey === dropdownKey;
+    const activeIdx = Math.min(activeGroupIdx[groupId] || 0, members.length - 1);
+    const { question: activeQuestion, questionNumber: activeNumber } = members[activeIdx];
+    const firstQuestion = members[0].question;
+    const firstNumber = members[0].questionNumber;
+    const lastNumber = members[members.length - 1].questionNumber;
+    // The set's shared passage, repeated above whichever question is shown
+    const passage = (activeQuestion.groupContext || firstQuestion.groupContext || '').trim();
+    const passageImages = activeQuestion.groupContextImages || firstQuestion.groupContextImages || [];
+
+    return (
+      <section key={`question-set-${groupId}`} className={`ambe-question-set${isOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="ambe-question-set-header"
+          onClick={() => toggleQuestionDropdown(dropdownKey)}
+          aria-expanded={isOpen}
+        >
+          <span className="ambe-question-set-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="5" width="16" height="5" rx="1.5" />
+              <rect x="4" y="14" width="16" height="5" rx="1.5" />
+              <path d="M8 7.5h8M8 16.5h8" />
+            </svg>
+          </span>
+          <span className="ambe-question-number">
+            {members.length > 1 ? `Questions ${firstNumber}–${lastNumber}` : `Question ${firstNumber}`}
+          </span>
+          <span className="ambe-question-set-title">
+            {toOneLine(firstQuestion.groupContext) || `Question Set ${setNumber}`}
+          </span>
+          <span className="ambe-question-set-badge">{formatCount(members.length, 'question')}</span>
+          <span className={`ambe-expand-icon${isOpen ? ' is-open' : ''}`} aria-hidden="true">▾</span>
+        </button>
+
+        {isOpen && (
+          <div className="ambe-question-set-body">
+            {/* One numbered bubble per question in the set, as in Create Exams */}
+            {members.length > 1 && (
+              <ImportReviewBubbles
+                questions={members.map((member) => member.question)}
+                currentIdx={activeIdx}
+                onSelectQuestion={(idx) => setActiveGroupIdx((prev) => ({ ...prev, [groupId]: idx }))}
+                readOnly
+              />
+            )}
+
+            <article key={activeQuestion._id} className="ambe-question-card is-grouped">
+              <QuestionMeta question={activeQuestion} questionNumber={activeNumber} />
+              <QuestionDetailPanels
+                question={activeQuestion}
+                passage={passage}
+                passageImages={passageImages}
+                onZoom={setFullscreenImage}
+              />
+            </article>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   const examColumns = useMemo(
     () => [
@@ -1196,145 +1326,31 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             )}
 
             {selectedExamQuestions.length > 0 && (
-              <div className="ambe-question-list">
-                {groupQuestionsForDisplay(selectedExamQuestions).map((item) => {
-                  const renderQuestion = (question, index) => {
-                  const answers = organizeQuestionAnswers(question).answers || [];
-                  const questionImages = (question.images || []).map(resolveImageSrc).filter(Boolean);
-                  const isExpanded = String(expandedQuestionId) === String(question._id);
+              <>
+                <CapsuleFilters
+                  className="ambe-type-pills"
+                  ariaLabel="Filter questions by type"
+                  options={[
+                    { value: 'all', label: 'All', count: questionTypeCounts.all },
+                    { value: 'single', label: 'Single', count: questionTypeCounts.single },
+                    { value: 'group', label: 'Group', count: questionTypeCounts.group },
+                  ]}
+                  value={questionTypeFilter}
+                  onChange={setQuestionTypeFilter}
+                />
 
-                  return (
-                    <article key={question._id} className={`ambe-question-card ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
-                      <button
-                        type="button"
-                        className="ambe-question-toggle"
-                        onClick={() => setExpandedQuestionId((prev) => (String(prev) === String(question._id) ? null : question._id))}
-                        aria-expanded={isExpanded}
-                      >
-                        <div className="ambe-question-card-top">
-                          <div className="ambe-question-title-block">
-                            <span className="ambe-question-number">
-                              Question {String(index + 1).padStart(2, '0')}
-                              {getQuestionSetPart(question) ? ` · Part ${getQuestionSetPart(question)}` : ''}
-                            </span>
-                            <h4 className="ambe-question-title">
-                              {question.description ? question.description.replace(/[\r\n]+/g, ' ').trim() : `Question ${index + 1}`}
-                            </h4>
-                          </div>
-
-                          <div className="ambe-question-top-meta">
-                            {question.tag?.name ? (
-                              <span className="ambe-pill subject">{question.tag.name}</span>
-                            ) : (
-                              <span className="ambe-question-meta-fallback">No subject tag</span>
-                            )}
-                            {questionImages.length > 0 && (
-                              <span className="ambe-question-image-count">
-                                {formatCount(questionImages.length, 'image')}
-                              </span>
-                            )}
-                            <span className="ambe-question-chevron" aria-hidden="true" />
-                          </div>
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="ambe-question-content">
-                          <div className="ambe-question-main">
-                            <div className="ambe-question-copy">
-                              <span className="ambe-section-label">Prompt</span>
-                              <p className="ambe-question-text">
-                                {question.description || 'No question prompt provided.'}
-                              </p>
-                            </div>
-
-                            {questionImages.length > 0 && (
-                              <div className="ambe-question-gallery">
-                                <span className="ambe-section-label">Reference Images</span>
-                                <div className="ambe-question-thumbs">
-                                  {questionImages.map((image, imageIndex) => (
-                                    <button
-                                      key={`${question._id}-image-${imageIndex}`}
-                                      type="button"
-                                      className="ambe-question-image-button"
-                                      onClick={() => setFullscreenImage(image)}
-                                    >
-                                      <AuthImage
-                                        src={image}
-                                        alt={`Question ${index + 1} image ${imageIndex + 1}`}
-                                        className="ambe-question-thumb"
-                                      />
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="ambe-question-answers-panel">
-                            <span className="ambe-section-label">Answer Choices</span>
-                            <ul className="ambe-answers ambe-answers--styled">
-                              {answers.map((answer) => (
-                                <li
-                                  key={answer._id || `${answer.optionLabel}-${answer.text}`}
-                                  className={`ambe-answer-item ${answer.isCorrect ? 'is-correct' : ''}`}
-                                >
-                                  <div className="ambe-answer-left">
-                                    <span className="ambe-answer-label">{answer.optionLabel}</span>
-                                  </div>
-                                  <div className="ambe-answer-body">
-                                    <div className="ambe-answer-text">{answer.text}</div>
-                                    <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
-                                    {answer.isCorrect && (
-                                      <span className="ambe-answer-badge">Correct Answer</span>
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          {question.rationalization && (
-                            <div className="ambe-question-answers-panel" style={{ marginTop: '16px' }}>
-                              <span className="ambe-section-label">Rationalization</span>
-                              <p className="ambe-question-text" style={{ padding: '0 16px 16px' }}>
-                                {question.rationalization}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                  };
-
-                  if (item.type === 'question') {
-                    return renderQuestion(item.question, item.questionNumber - 1);
-                  }
-
-                  const firstQuestion = item.questions[0]?.question;
-                  return (
-                    <section className="ambe-question-set" key={`question-set-${item.groupId}`}>
-                      <header className="ambe-question-set-header">
-                        <strong>Question Set {item.setNumber}</strong>
-                        <span>{item.questions.length} parts</span>
-                      </header>
-                      {(firstQuestion?.groupContext || firstQuestion?.groupContextImages?.length > 0) && (
-                        <div className="ambe-question-set-context">
-                          <span>Shared passage / scenario</span>
-                          {firstQuestion.groupContext && <p>{firstQuestion.groupContext}</p>}
-                          <PassageImages images={firstQuestion.groupContextImages} onZoom={setFullscreenImage} />
-                        </div>
-                      )}
-                      <div className="ambe-question-set-list">
-                        {item.questions.map(({ question, questionNumber }) =>
-                          renderQuestion(question, questionNumber - 1)
-                        )}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
+                {visibleQuestionItems.length === 0 ? (
+                  <p className="ambe-muted">
+                    {questionTypeFilter === 'group' ? 'This exam has no grouped questions.' : 'This exam has no single questions.'}
+                  </p>
+                ) : (
+                  <div className="ambe-question-list">
+                    {visibleQuestionItems.map((item) => (
+                      item.type === 'group' ? renderExamQuestionSet(item) : renderExamQuestion(item)
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
           </section>

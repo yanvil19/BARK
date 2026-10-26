@@ -1,0 +1,138 @@
+/* Read-only question panels (QuestionDetailPanels), used where a question card
+   is opened: Create Exams and the board exam details. */
+.question-panels {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e9f6;
+}
+
+.question-panel {
+  border: 1px solid #dce1f2;
+  border-radius: 10px;
+  background: #f9faff;
+  padding: 14px;
+  min-width: 0;
+}
+
+/* Shared passage of a question set; keeps the passage's line breaks */
+.question-panel--passage {
+  background: #f5f6ff;
+  border-color: #c7cdf5;
+}
+
+.question-panel--passage .question-panel-text {
+  white-space: pre-wrap;
+}
+
+.question-panel-label {
+  margin: 0 0 10px;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b92bc;
+}
+
+.question-panel-text {
+  margin: 0;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.question-panel-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.question-panel-image-link {
+  display: block;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #dce1f2;
+  background: #ffffff;
+}
+
+button.question-panel-image-link {
+  cursor: zoom-in;
+}
+
+button.question-panel-image-link:focus-visible {
+  outline: 2px solid #5b6dd3;
+  outline-offset: 2px;
+}
+
+.question-panel-image {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.question-panel-answers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question-panel-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dce1f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.question-panel-answer.is-correct {
+  border-color: #bae0c5;
+  background: #eefaf1;
+  color: #21603a;
+}
+
+.question-panel-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.question-panel-answer-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.question-panel-correct {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dcf5e3;
+  color: #21603a;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

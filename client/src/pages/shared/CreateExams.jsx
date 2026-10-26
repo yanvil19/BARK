@@ -1,5 +1,4 @@
 import AuthImage from '../../components/AuthImage.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -8,7 +7,7 @@ import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import FieldCheck from '../../components/FieldCheck.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
+import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -441,10 +440,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     setSelectedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((item) => item !== tagId) : [...prev, tagId]
     );
-  }
-
-  function resolveImageUrl(image) {
-    return image?.startsWith('/') ? `${BASE}${image}` : image;
   }
 
   function handleQuestionToggle(question) {
@@ -1231,57 +1226,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                               </div>
 
                               {isExpanded ? (
-                                <div className="mbe-question-details">
-                                  <section className="mbe-question-panel">
-                                    <p className="mbe-panel-label">Question</p>
-                                    <p className="mbe-question-description">{question.description || 'No description provided.'}</p>
-                                  </section>
-
-                                  {imageCount > 0 ? (
-                                    <section className="mbe-question-panel">
-                                      <p className="mbe-panel-label">Images</p>
-                                      <div className="mbe-preview-images">
-                                        {question.images.map((image, index) => (
-                                          <button
-                                            key={index}
-                                            type="button"
-                                            className="mbe-preview-image-link"
-                                            onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                          >
-                                            <AuthImage
-                                              className="mbe-preview-image"
-                                              src={resolveImageUrl(image)}
-                                              alt={`Question image ${index + 1}`}
-                                            />
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </section>
-                                  ) : null}
-
-                                  <section className="mbe-question-panel">
-                                    <p className="mbe-panel-label">Answers</p>
-                                    <ul className="mbe-answer-list mbe-answer-list--cards">
-                                      {(question.answers || []).map((answer) => (
-                                        <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                          <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                          <span>
-                                            {answer.text}
-                                            <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
-                                          </span>
-                                          {answer.isCorrect ? <strong>Correct</strong> : null}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </section>
-
-                                  {question.rationalization && (
-                                    <section className="mbe-question-panel">
-                                      <p className="mbe-panel-label">Rationalization</p>
-                                      <p className="mbe-question-description">{question.rationalization}</p>
-                                    </section>
-                                  )}
-                                </div>
+                                <QuestionDetailPanels question={question} onZoom={setFullscreenImage} />
                               ) : null}
                             </article>
                           );
@@ -1388,65 +1333,12 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                     </div>
                                   </div>
 
-                                  <div className="mbe-question-details">
-                                    {groupPassage || groupPassageImages.length > 0 ? (
-                                      <section className="mbe-question-panel mbe-question-panel--passage">
-                                        <p className="mbe-panel-label">Shared Passage</p>
-                                        {groupPassage ? <p className="mbe-question-description">{groupPassage}</p> : null}
-                                        <PassageImages images={groupPassageImages} onZoom={setFullscreenImage} />
-                                      </section>
-                                    ) : null}
-
-                                    <section className="mbe-question-panel">
-                                      <p className="mbe-panel-label">Question</p>
-                                      <p className="mbe-question-description">{activeGroupQuestion.description || 'No description provided.'}</p>
-                                    </section>
-
-                                    {activeGroupQuestion.images?.length > 0 ? (
-                                      <section className="mbe-question-panel">
-                                        <p className="mbe-panel-label">Images</p>
-                                        <div className="mbe-preview-images">
-                                          {activeGroupQuestion.images.map((image, index) => (
-                                            <button
-                                              key={index}
-                                              type="button"
-                                              className="mbe-preview-image-link"
-                                              onClick={() => setFullscreenImage(resolveImageUrl(image))}
-                                            >
-                                              <AuthImage
-                                                className="mbe-preview-image"
-                                                src={resolveImageUrl(image)}
-                                                alt={`Question image ${index + 1}`}
-                                              />
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </section>
-                                    ) : null}
-
-                                    <section className="mbe-question-panel">
-                                      <p className="mbe-panel-label">Answers</p>
-                                      <ul className="mbe-answer-list mbe-answer-list--cards">
-                                        {(activeGroupQuestion.answers || []).map((answer) => (
-                                          <li key={answer._id || answer.text} className={answer.isCorrect ? 'is-correct' : ''}>
-                                            <span className="mbe-answer-label">{answer.optionLabel}</span>
-                                            <span>
-                                              {answer.text}
-                                              <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setFullscreenImage} className="answer-image--block" />
-                                            </span>
-                                            {answer.isCorrect ? <strong>Correct</strong> : null}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </section>
-
-                                    {activeGroupQuestion.rationalization && (
-                                      <section className="mbe-question-panel">
-                                        <p className="mbe-panel-label">Rationalization</p>
-                                        <p className="mbe-question-description">{activeGroupQuestion.rationalization}</p>
-                                      </section>
-                                    )}
-                                  </div>
+                                  <QuestionDetailPanels
+                                    question={activeGroupQuestion}
+                                    passage={groupPassage}
+                                    passageImages={groupPassageImages}
+                                    onZoom={setFullscreenImage}
+                                  />
                                 </article>
                               </div>
                             )}
