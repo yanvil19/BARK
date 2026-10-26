@@ -449,7 +449,7 @@ async function getMockBoardExam(req, res) {
       .populate('subjectTags', 'name')
       .populate({
         path: 'questions',
-        select: 'title description images answers tag state groupId groupOrder groupContext',
+        select: 'title description images answers tag state groupId groupOrder groupContext groupContextImages',
         populate: { path: 'tag', select: 'name' },
       })
       .populate('createdBy', 'name');

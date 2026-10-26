@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
@@ -18,7 +19,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
         flexDirection: 'column',
         gap: '8px'
       }}>
-        {question.groupContext && (
+        {(question.groupContext || question.groupContextImages?.length > 0) && (
           <div style={{
             background: '#f4f6fd',
             borderLeft: '4px solid #1e2d6b',
@@ -36,9 +37,12 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
             }}>
               Question Set Scenario / Shared Passage
             </div>
-            <div style={{ fontSize: '13px', color: '#2e3856', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
-              {question.groupContext}
-            </div>
+            {question.groupContext && (
+              <div style={{ fontSize: '13px', color: '#2e3856', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+                {question.groupContext}
+              </div>
+            )}
+            <PassageImages images={question.groupContextImages} onZoom={onZoom} />
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -106,7 +110,7 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
         </span>
       </div>
 
-      {question.groupContext && (
+      {(question.groupContext || question.groupContextImages?.length > 0) && (
         <div style={{
           background: '#f4f6fd',
           borderLeft: '4px solid #1e2d6b',
@@ -124,9 +128,12 @@ const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
           }}>
             Question Set Scenario / Shared Passage
           </div>
-          <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-            {question.groupContext}
-          </div>
+          {question.groupContext && (
+            <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+              {question.groupContext}
+            </div>
+          )}
+          <PassageImages images={question.groupContextImages} onZoom={onZoom} />
         </div>
       )}
       

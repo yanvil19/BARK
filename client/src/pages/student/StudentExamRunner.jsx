@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -386,12 +387,15 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                 )}
               </div>
               <div className="mbep-card-body">
-                {currentQuestion.groupContext && (
+                {(currentQuestion.groupContext || currentQuestion.groupContextImages?.length > 0) && (
                   <div className="mbep-group-context-box">
                     <div className="mbep-group-context-header">
                       <span>Question Set Scenario</span>
                     </div>
-                    <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                    {currentQuestion.groupContext && (
+                      <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                    )}
+                    <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
                   </div>
                 )}
 

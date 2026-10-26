@@ -200,7 +200,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const exam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag groupId groupOrder groupContext',
+      select: 'description images answers tag groupId groupOrder groupContext groupContextImages',
     });
 
     if (!exam) return res.status(404).json({ message: 'Exam not found' });
@@ -210,7 +210,7 @@ async function startExam(req, res) {
     await advanceExamStatuses({ _id: exam._id });
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag groupId groupOrder groupContext',
+      select: 'description images answers tag groupId groupOrder groupContext groupContextImages',
     });
 
     if (now < currentExam.startDateTime) {
@@ -312,6 +312,7 @@ async function startExam(req, res) {
           // a shared context/stem header above all questions in the same group.
           groupId: fullQ.groupId || null,
           groupContext: fullQ.groupContext || null,
+          groupContextImages: fullQ.groupContextImages || [],
         });
       }
     });

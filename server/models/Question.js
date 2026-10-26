@@ -80,6 +80,9 @@ const questionSchema = new mongoose.Schema(
     groupOrder: { type: Number, default: null },
     // Optional shared context/stem text shown above all questions in the group during an exam.
     groupContext: { type: String, default: null, trim: true },
+    // Images attached to the shared passage. Copied onto every question in the group,
+    // like groupContext. Limited by AppSettings.maxGroupContextImages.
+    groupContextImages: { type: [String], default: [] },
   },
   { timestamps: true }
 );
@@ -87,5 +90,6 @@ const questionSchema = new mongoose.Schema(
 // Image access checks and cleanup look questions up by the images they reference
 questionSchema.index({ images: 1 });
 questionSchema.index({ 'answers.image': 1 });
+questionSchema.index({ groupContextImages: 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

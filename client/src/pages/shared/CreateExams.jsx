@@ -8,6 +8,7 @@ import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import FieldCheck from '../../components/FieldCheck.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -1302,6 +1303,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                         const activeGroupQuestion = groupMembers[activeIdx];
                         // The set's shared passage, repeated above whichever question is shown
                         const groupPassage = (activeGroupQuestion?.groupContext || firstQ.groupContext || '').trim();
+                        const groupPassageImages = activeGroupQuestion?.groupContextImages || firstQ.groupContextImages || [];
 
                         return (
                           <div
@@ -1387,10 +1389,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                   </div>
 
                                   <div className="mbe-question-details">
-                                    {groupPassage ? (
+                                    {groupPassage || groupPassageImages.length > 0 ? (
                                       <section className="mbe-question-panel mbe-question-panel--passage">
                                         <p className="mbe-panel-label">Shared Passage</p>
-                                        <p className="mbe-question-description">{groupPassage}</p>
+                                        {groupPassage ? <p className="mbe-question-description">{groupPassage}</p> : null}
+                                        <PassageImages images={groupPassageImages} onZoom={setFullscreenImage} />
                                       </section>
                                     ) : null}
 

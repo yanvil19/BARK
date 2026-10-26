@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
@@ -328,12 +329,15 @@ function QuestionReview({ questions, onZoomImage }) {
 
               {isExpanded && (
                 <div className="aer-question-dropdown-body">
-                  {question.groupContext && (
+                  {(question.groupContext || question.groupContextImages?.length > 0) && (
                     <div className="mbep-group-context-box" style={{ marginTop: '16px', marginBottom: '16px' }}>
                       <div className="mbep-group-context-header">
                         <span>Question Set Scenario / Shared Passage</span>
                       </div>
-                      <div className="mbep-group-context-text">{question.groupContext}</div>
+                      {question.groupContext && (
+                        <div className="mbep-group-context-text">{question.groupContext}</div>
+                      )}
+                      <PassageImages images={question.groupContextImages} onZoom={onZoomImage} />
                     </div>
                   )}
 

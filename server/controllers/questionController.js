@@ -18,6 +18,7 @@ const {
   getAnswerSubmissionError,
 } = require('../utils/questionAnswers');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // Checks a question's image limits from AppSettings. Question images and answer
 // images have separate limits. Returns an error message or null.
@@ -38,9 +39,36 @@ function getImageLimitError({ images, answers }, settings, prefix = '') {
   return null;
 }
 
+const GROUP_SUBJECT_MESSAGE = 'All questions in a group must have the same subject';
+
+// A question group has one subject, so every member must carry the same tag
+// (or none yet, for drafts). Returns that tag id ('' for none), or null when they differ.
+function getGroupTagId(questionsPayload) {
+  const tagIds = new Set(questionsPayload.map((q) => String(q.tagId || q.tag?._id || q.tag || '')));
+  return tagIds.size === 1 ? [...tagIds][0] : null;
+}
+
+// Returns an error message when the subject can't be used in this program, else null
+async function getTagError(tagId, programId) {
+  if (!tagId) return null;
+  const tag = mongoose.isValidObjectId(tagId) ? await Tag.findById(tagId) : null;
+  if (!tag || !tag.isActive) return 'Invalid or inactive subject';
+  if (tag.program.toString() !== String(programId)) return 'Subject does not belong to this program';
+  return null;
+}
+
 function normalizeImagesInput(images) {
   if (!Array.isArray(images)) return [];
   return [...new Set(images.filter((url) => typeof url === 'string' && url.trim()).map((url) => url.trim()))];
+}
+
+// Shared passage images have their own limit, separate from each question's images
+function getGroupContextImagesError(images, settings) {
+  const maxImages = settings.maxGroupContextImages ?? 5;
+  if (images.length <= maxImages) return null;
+  return maxImages === 0
+    ? 'Shared passage images are disabled. Remove the images from the shared passage.'
+    : `Maximum of ${maxImages} shared passage image${maxImages === 1 ? '' : 's'} allowed`;
 }
 
 // Drops empty answer choices saved before blank rows were filtered out, so they
@@ -185,7 +213,7 @@ const listApprovals = async (req, res) => {
 // Creates multiple Question documents sharing the same groupId.
 const createQuestionGroup = async (req, res) => {
   try {
-    const { questions: questionsPayload, programId, groupContext } = req.body;
+    const { questions: questionsPayload, programId, groupContext, groupContextImages } = req.body;
 
     if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
       return res.status(400).json({ message: 'A group must have at least 2 questions' });
@@ -207,6 +235,11 @@ const createQuestionGroup = async (req, res) => {
 
     if (!resolvedProgramId) return res.status(400).json({ message: 'No program assigned' });
 
+    const groupTagId = getGroupTagId(questionsPayload);
+    if (groupTagId === null) return res.status(400).json({ message: GROUP_SUBJECT_MESSAGE });
+    const tagError = await getTagError(groupTagId, resolvedProgramId);
+    if (tagError) return res.status(400).json({ message: tagError });
+
     // Validate every member before creating any, so a bad member never leaves a partial group behind
     const members = [];
     for (let i = 0; i < questionsPayload.length; i++) {
@@ -221,19 +254,15 @@ const createQuestionGroup = async (req, res) => {
       const limitError = getImageLimitError(member, settings, prefix);
       if (limitError) return res.status(400).json({ message: limitError });
 
-      // Validate tag if provided
-      if (q.tagId) {
-        const tag = await Tag.findById(q.tagId);
-        if (!tag || !tag.isActive) return res.status(400).json({ message: `${prefix}invalid or inactive tag` });
-        if (tag.program.toString() !== resolvedProgramId)
-          return res.status(400).json({ message: `${prefix}tag does not belong to the specified program` });
-      }
-
       members.push(member);
     }
 
+    const passageImages = normalizeImagesInput(groupContextImages);
+    const passageError = getGroupContextImagesError(passageImages, settings);
+    if (passageError) return res.status(400).json({ message: passageError });
+
     const imageCheck = await validateImageReferences({
-      urls: members.flatMap(collectQuestionImageUrls),
+      urls: [...members.flatMap(collectQuestionImageUrls), ...passageImages],
       userId: req.user._id,
     });
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
@@ -249,7 +278,7 @@ const createQuestionGroup = async (req, res) => {
         images: q.images,
         answers: encryptAnswers(q.answers),
         rationalization: encryptText(q.rationalization?.trim() || ''),
-        tag: q.tagId || null,
+        tag: groupTagId || null,
         program: resolvedProgramId,
         createdBy: req.user._id,
         state: 'draft',
@@ -261,6 +290,7 @@ const createQuestionGroup = async (req, res) => {
         groupId,
         groupOrder: i,
         groupContext: groupContext?.trim() || null,
+        groupContextImages: passageImages,
       };
 
       const question = await Question.create(questionData);
@@ -344,6 +374,11 @@ const submitQuestionGroup = async (req, res) => {
       }
     }
 
+    // Groups saved before the one-subject rule may still mix subjects
+    if (new Set(questions.map((q) => String(q.tag))).size > 1) {
+      return res.status(400).json({ message: `${GROUP_SUBJECT_MESSAGE}. Edit the group and pick one subject before submitting.` });
+    }
+
     // Transition all questions to pending_chair
     const submittedQuestions = [];
     for (const question of questions) {
@@ -416,7 +451,7 @@ const deleteQuestionGroup = async (req, res) => {
 const updateQuestionGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { questions: questionsPayload, groupContext } = req.body;
+    const { questions: questionsPayload, groupContext, groupContextImages } = req.body;
 
     if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
       return res.status(400).json({ message: 'A question group must have at least 2 questions' });
@@ -437,6 +472,13 @@ const updateQuestionGroup = async (req, res) => {
     const settings = await AppSettings.getSingleton();
     const programId = existingQuestions[0].program;
 
+    const groupTagId = getGroupTagId(questionsPayload);
+    if (groupTagId === null) return res.status(400).json({ message: GROUP_SUBJECT_MESSAGE });
+    // A subject the group already uses stays valid, even if it was deactivated since
+    const keepsExistingTag = existingQuestions.some((q) => String(q.tag || '') === groupTagId);
+    const tagError = keepsExistingTag ? null : await getTagError(groupTagId, programId);
+    if (tagError) return res.status(400).json({ message: tagError });
+
     // Validate payloads
     const members = [];
     for (let i = 0; i < questionsPayload.length; i++) {
@@ -453,9 +495,18 @@ const updateQuestionGroup = async (req, res) => {
       members.push(member);
     }
 
+    // Passage images are kept as they are when the request leaves them out
+    const passageImages = groupContextImages !== undefined
+      ? normalizeImagesInput(groupContextImages)
+      : [...(existingQuestions[0].groupContextImages || [])];
+    if (groupContextImages !== undefined) {
+      const passageError = getGroupContextImagesError(passageImages, settings);
+      if (passageError) return res.status(400).json({ message: passageError });
+    }
+
     // Images already in this group stay valid; anything new must be the user's own upload
-    const previousUrls = existingQuestions.flatMap(collectQuestionImageUrls);
-    const nextUrls = members.flatMap(collectQuestionImageUrls);
+    const previousUrls = [...new Set(existingQuestions.flatMap(collectQuestionImageUrls))];
+    const nextUrls = [...new Set([...members.flatMap(collectQuestionImageUrls), ...passageImages])];
     const imageCheck = await validateImageReferences({
       urls: nextUrls,
       previousUrls,
@@ -477,10 +528,11 @@ const updateQuestionGroup = async (req, res) => {
         questionDoc.description = encryptText(qData.description.trim());
         questionDoc.rationalization = encryptText(qData.rationalization?.trim() || '');
         questionDoc.answers = encryptAnswers(qData.answers);
-        questionDoc.tag = qData.tagId || qData.tag?._id || qData.tag || null;
+        questionDoc.tag = groupTagId || null;
         questionDoc.images = qData.images;
         questionDoc.groupOrder = i;
         questionDoc.groupContext = groupContext?.trim() || null;
+        questionDoc.groupContextImages = passageImages;
         if (questionDoc.state === 'pending_chair' || questionDoc.state === 'restored') {
           questionDoc.state = 'draft';
           questionDoc.currentReviewer = null;
@@ -494,13 +546,14 @@ const updateQuestionGroup = async (req, res) => {
           images: qData.images,
           answers: encryptAnswers(qData.answers),
           rationalization: encryptText(qData.rationalization?.trim() || ''),
-          tag: qData.tagId || qData.tag?._id || qData.tag || null,
+          tag: groupTagId || null,
           program: programId,
           createdBy: req.user._id,
           state: 'draft',
           groupId,
           groupOrder: i,
           groupContext: groupContext?.trim() || null,
+          groupContextImages: passageImages,
         });
       }
 
@@ -619,6 +672,11 @@ const updateQuestion = async (req, res) => {
     const { description, answers, tagId, images, rationalization } = req.body;
     if (answers && !Array.isArray(answers))
       return res.status(400).json({ message: 'Answers must be an array' });
+
+    // A grouped question shares its subject with the rest of the group
+    if (question.groupId && tagId !== undefined && String(tagId || '') !== String(question.tag || '')) {
+      return res.status(400).json({ message: `${GROUP_SUBJECT_MESSAGE}. Change the subject for the whole group instead.` });
+    }
 
     const previousUrls = collectQuestionImageUrls(question);
     const next = {

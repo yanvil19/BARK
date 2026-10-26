@@ -69,11 +69,11 @@ function isProxyImageUrl(url) {
   return value.startsWith(IMAGE_URL_PREFIX) && isValidImageFilename(value.slice(IMAGE_URL_PREFIX.length));
 }
 
-// Every image a question references: its own images plus one per answer.
-// Works on Mongoose documents and plain payload objects alike.
+// Every image a question references: its own images, one per answer, and the
+// shared passage images of its group. Works on Mongoose documents and plain payload objects alike.
 function collectQuestionImageUrls(question) {
   if (!question) return [];
-  const urls = [...(question.images || [])];
+  const urls = [...(question.images || []), ...(question.groupContextImages || [])];
   for (const answer of question.answers || []) {
     if (answer?.image) urls.push(answer.image);
   }
@@ -81,7 +81,7 @@ function collectQuestionImageUrls(question) {
 }
 
 function imageReferenceFilter(imageUrl) {
-  return { $or: [{ images: imageUrl }, { 'answers.image': imageUrl }] };
+  return { $or: [{ images: imageUrl }, { 'answers.image': imageUrl }, { groupContextImages: imageUrl }] };
 }
 
 async function uploadQuestionImage(file, uploaderId) {

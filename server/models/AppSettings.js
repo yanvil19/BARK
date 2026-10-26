@@ -34,6 +34,14 @@ const appSettingsSchema = new mongoose.Schema(
       min: 0,
       max: 5,
     },
+    // Images on a question group's shared passage (0 turns them off).
+    // Separate from maxUploadImages, which counts each question's own images.
+    maxGroupContextImages: {
+      type: Number,
+      default: 5,
+      min: 0,
+      max: 50,
+    },
   },
   { timestamps: true }
 );

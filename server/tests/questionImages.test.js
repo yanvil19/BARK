@@ -402,3 +402,130 @@ describe('maxAnswerImages setting', () => {
     expect(valid.body.maxAnswerImages).toBe(2);
   });
 });
+
+describe('shared passage images', () => {
+  const groupMember = (overrides = {}) => ({
+    description: 'Based on the passage, which is correct?',
+    rationalization: 'Because.',
+    answers: fullAnswers(),
+    tagId: tag._id,
+    ...overrides,
+  });
+
+  function createGroup(cookie, body = {}) {
+    return request(app)
+      .post('/api/questions/group')
+      .set('Cookie', cookie)
+      .send({ questions: [groupMember(), groupMember()], groupContext: 'Read the passage.', ...body });
+  }
+
+  it('saves passage images on every question in the group, under their own limit', async () => {
+    await AppSettings.getSingleton();
+    await AppSettings.updateOne({ key: 'singleton' }, { maxUploadImages: 1, maxGroupContextImages: 2 });
+    const first = await uploadImage(profCookie);
+    const second = await uploadImage(profCookie);
+
+    const res = await createGroup(profCookie, { groupContextImages: [first, second] });
+    expect(res.status).toBe(201);
+
+    const saved = await Question.find({ groupId: res.body.groupId });
+    expect(saved).toHaveLength(2);
+    saved.forEach((q) => expect([...q.groupContextImages]).toEqual([first, second]));
+  });
+
+  it('rejects more passage images than the limit, and any when they are turned off', async () => {
+    await AppSettings.getSingleton();
+    await AppSettings.updateOne({ key: 'singleton' }, { maxGroupContextImages: 1 });
+    const urls = [await uploadImage(profCookie), await uploadImage(profCookie)];
+
+    const tooMany = await createGroup(profCookie, { groupContextImages: urls });
+    expect(tooMany.status).toBe(400);
+    expect(tooMany.body.message).toBe('Maximum of 1 shared passage image allowed');
+
+    await AppSettings.updateOne({ key: 'singleton' }, { maxGroupContextImages: 0 });
+    const off = await createGroup(profCookie, { groupContextImages: [urls[0]] });
+    expect(off.status).toBe(400);
+    expect(off.body.message).toMatch(/disabled/);
+    expect(await Question.countDocuments()).toBe(0);
+  });
+
+  it("rejects another user's upload as a passage image", async () => {
+    const othersImage = await uploadImage(otherProfCookie);
+    const res = await createGroup(profCookie, { groupContextImages: [othersImage] });
+    expect(res.status).toBe(400);
+    expect(await Question.countDocuments()).toBe(0);
+  });
+
+  it('lets students in the program view passage images of an approved group', async () => {
+    const url = await uploadImage(profCookie);
+    const created = await createGroup(profCookie, { groupContextImages: [url] });
+    await Question.updateMany({ groupId: created.body.groupId }, { state: 'approved' });
+    const { cookieHeader: studentCookie } = await createUserAndToken({
+      role: 'student', email: 'passage-student@example.com', department: dept._id, program: prog._id,
+    });
+    const { cookieHeader: outsiderCookie } = await createUserAndToken({
+      role: 'student', email: 'passage-outsider@example.com', department: dept._id, program: otherProg._id,
+    });
+
+    expect((await request(app).get(url).set('Cookie', studentCookie)).status).toBe(200);
+    expect((await request(app).get(url).set('Cookie', outsiderCookie)).status).toBe(403);
+  });
+
+  it('deletes a removed passage image after the update, and the rest with the group', async () => {
+    const keep = await uploadImage(profCookie);
+    const remove = await uploadImage(profCookie);
+    const created = await createGroup(profCookie, { groupContextImages: [keep, remove] });
+    const [first, second] = created.body.questions;
+
+    const updated = await request(app)
+      .put(`/api/questions/group/${created.body.groupId}`)
+      .set('Cookie', profCookie)
+      .send({
+        questions: [groupMember({ _id: first._id }), groupMember({ _id: second._id })],
+        groupContextImages: [keep],
+      });
+    expect(updated.status).toBe(200);
+    expect(r2Store.has(objectKey(remove))).toBe(false);
+    expect(r2Store.has(objectKey(keep))).toBe(true);
+
+    const deleted = await request(app)
+      .delete(`/api/questions/group/${created.body.groupId}`)
+      .set('Cookie', profCookie);
+    expect(deleted.status).toBe(200);
+    expect(r2Store.has(objectKey(keep))).toBe(false);
+  });
+
+  it('sends passage images to students taking the exam', async () => {
+    const url = await uploadImage(profCookie);
+    const created = await createGroup(profCookie, { groupContextImages: [url] });
+    await Question.updateMany({ groupId: created.body.groupId }, { state: 'approved' });
+    const { user: dean } = await createUserAndToken({ role: 'dean', email: 'passage-dean@example.com', department: dept._id });
+    const exam = await MockBoardExam.create({
+      name: 'Passage Exam', program: prog._id, department: dept._id,
+      questions: created.body.questions.map((q) => q._id),
+      startDateTime: pastDate(1), endDateTime: futureDate(1),
+      status: 'ongoing', createdBy: dean._id,
+    });
+    const { cookieHeader: studentCookie } = await createUserAndToken({
+      role: 'student', email: 'passage-taker@example.com', department: dept._id, program: prog._id,
+    });
+
+    const res = await request(app).post(`/api/student-exams/${exam._id}/start`).set('Cookie', studentCookie);
+    expect(res.status).toBe(200);
+    res.body.questions.forEach((q) => expect(q.groupContextImages).toEqual([url]));
+  });
+
+  it('exposes the passage image limit to faculty and validates it', async () => {
+    const { cookieHeader: adminCookie } = await createUserAndToken({ role: 'super_admin', email: 'passage-admin@example.com' });
+
+    const publicRes = await request(app).get('/api/admin/settings/public').set('Cookie', profCookie);
+    expect(publicRes.body).toMatchObject({ maxGroupContextImages: 5 });
+
+    const invalid = await request(app).patch('/api/admin/settings').set('Cookie', adminCookie).send({ maxGroupContextImages: 51 });
+    expect(invalid.status).toBe(400);
+
+    const valid = await request(app).patch('/api/admin/settings').set('Cookie', adminCookie).send({ maxGroupContextImages: 3 });
+    expect(valid.status).toBe(200);
+    expect(valid.body.maxGroupContextImages).toBe(3);
+  });
+});

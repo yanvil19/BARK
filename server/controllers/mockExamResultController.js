@@ -81,6 +81,7 @@ function buildQuestionRates(exam, attempts) {
       unansweredCount: Math.max(totalTakers - answeredCount, 0),
       groupId: question.groupId || null,
       groupContext: question.groupContext || null,
+      groupContextImages: question.groupContextImages || [],
     };
   });
 }
@@ -132,6 +133,7 @@ async function buildAlumniHighestScoreReport(exam, user) {
         unansweredCount: sq.unansweredCount,
         groupId: sq.groupId || null,
         groupContext: sq.groupContext || null,
+        groupContextImages: sq.groupContextImages || [],
       })),
     };
   });
@@ -280,6 +282,9 @@ exports.getResult = async (req, res) => {
           if (originalQ) {
             if (!sq.groupId && originalQ.groupId) sq.groupId = originalQ.groupId;
             if (!sq.groupContext && originalQ.groupContext) sq.groupContext = originalQ.groupContext;
+            if (!sq.groupContextImages?.length && originalQ.groupContextImages?.length) {
+              sq.groupContextImages = originalQ.groupContextImages;
+            }
             // Results computed before answer images existed have no image on their answer counts
             (sq.answerCounts || []).forEach(ac => {
               if (ac.image) return;
@@ -380,6 +385,7 @@ exports.computeResults = async (req, res) => {
           unansweredCount: sq.unansweredCount,
           groupId: sq.groupId || null,
           groupContext: sq.groupContext || null,
+          groupContextImages: sq.groupContextImages || [],
         }))
       };
     });
@@ -557,6 +563,7 @@ exports.getStudentResults = async (req, res) => {
                 rationalization: q.rationalization || null,
                 groupId: q.groupId || null,
                 groupContext: q.groupContext || null,
+                groupContextImages: q.groupContextImages || [],
               };
             });
 
@@ -650,6 +657,7 @@ exports.getStudentResults = async (req, res) => {
             points: isCorrect ? 1 : 0,
             groupId: q.groupId || null,
             groupContext: q.groupContext || null,
+            groupContextImages: q.groupContextImages || [],
           };
         });
 

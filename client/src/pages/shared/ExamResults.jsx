@@ -4,6 +4,7 @@ import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentRe
 import '../../styles/shared/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
@@ -98,7 +99,7 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
 
       {isExpanded && (
         <div className="er-question-details">
-          {question.groupContext && (
+          {(question.groupContext || question.groupContextImages?.length > 0) && (
             <div style={{
               background: '#f4f6fd',
               borderLeft: '4px solid var(--er-navy)',
@@ -116,9 +117,12 @@ const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
               }}>
                 Question Set Scenario / Shared Passage
               </div>
-              <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                {question.groupContext}
-              </div>
+              {question.groupContext && (
+                <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                  {question.groupContext}
+                </div>
+              )}
+              <PassageImages images={question.groupContextImages} />
             </div>
           )}
 

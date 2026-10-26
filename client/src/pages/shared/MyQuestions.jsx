@@ -122,6 +122,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
   const [maxImages, setMaxImages] = useState(5);
   const [maxAnswerImages, setMaxAnswerImages] = useState(5);
+  const [maxGroupContextImages, setMaxGroupContextImages] = useState(5);
   const itemsPerPage = 10;
 
   const fetchLimits = useCallback(async () => {
@@ -194,6 +195,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       .then(res => {
         setMaxImages(Number(res?.maxUploadImages ?? 5));
         setMaxAnswerImages(Number(res?.maxAnswerImages ?? 5));
+        setMaxGroupContextImages(Number(res?.maxGroupContextImages ?? 5));
       })
       .catch(() => { });
   }, []);
@@ -992,6 +994,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
           initialGroupQuestions={editGroupQuestions}
           maxImages={maxImages}
           maxAnswerImages={maxAnswerImages}
+          maxGroupContextImages={maxGroupContextImages}
           importedQuestions={importedQuestions.length > 0 ? importedQuestions : null}
           isImportDraft={isRestoringImportDraft}
           onFeedback={setFeedbackModal}

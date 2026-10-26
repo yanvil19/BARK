@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -1153,12 +1154,15 @@ export default function QuestionApprovals({ me }) {
               </div>
 
               <div className="ca-sidebar-content">
-                {isGroupedReview && selectedQuestion.groupContext && (
+                {isGroupedReview && (selectedQuestion.groupContext || selectedQuestion.groupContextImages?.length > 0) && (
                   <section className="ca-section" style={{ background: '#f8faff', border: '1px solid #dce4ff', borderRadius: '8px', padding: '12px' }}>
                     <h3 className="ca-section-label" style={{ color: '#3730a3' }}>Scenario / Shared Passage</h3>
-                    <p className="ca-question-detail-text" style={{ fontStyle: 'italic', color: '#1e293b' }}>
-                      {selectedQuestion.groupContext}
-                    </p>
+                    {selectedQuestion.groupContext && (
+                      <p className="ca-question-detail-text" style={{ fontStyle: 'italic', color: '#1e293b' }}>
+                        {selectedQuestion.groupContext}
+                      </p>
+                    )}
+                    <PassageImages images={selectedQuestion.groupContextImages} onZoom={setFullscreenImage} />
                   </section>
                 )}
 

@@ -14,7 +14,8 @@ const questionResultSchema = new mongoose.Schema({
   }],
   unansweredCount: { type: Number, default: 0, min: 0 },
   groupId: { type: String, default: null },
-  groupContext: { type: String, default: null, trim: true }
+  groupContext: { type: String, default: null, trim: true },
+  groupContextImages: { type: [String], default: [] },
 });
 
 const subjectResultSchema = new mongoose.Schema({

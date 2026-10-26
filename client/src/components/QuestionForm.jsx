@@ -102,6 +102,30 @@ function getFieldChecks(q) {
   };
 }
 
+// Picture with a plus in the corner, for the icon-only "add image" buttons
+function AddImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path d="M12.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="2" />
+      <path d="m21 15-4-4L6 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19 2v6M16 5h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Trash can, for the buttons that remove an image from the form
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Answer text box that grows with its content, so long answers wrap onto new lines
 // instead of running off in one line. Answers stay single-line text: Enter is
 // ignored and pasted line breaks become spaces.
@@ -148,6 +172,7 @@ export default function QuestionForm({
   onFeedback,
   maxImages = 5,
   maxAnswerImages = 5,
+  maxGroupContextImages = 5,
 }) {
   const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   
@@ -168,6 +193,17 @@ export default function QuestionForm({
       ? (initialGroupQuestions?.[0]?.groupContext || initialData?.groupContext || '')
       : ''
   );
+
+  // [GROUPED QUESTIONS] images on the shared passage; limited by maxGroupContextImages,
+  // separate from each question's own image limit
+  const [groupContextImages, setGroupContextImages] = useState(() => (
+    isEditingGroup
+      ? [...(initialGroupQuestions?.[0]?.groupContextImages || initialData?.groupContextImages || [])]
+      : []
+  ));
+  const [passageUploadingCount, setPassageUploadingCount] = useState(0);
+  const [passageImageError, setPassageImageError] = useState('');
+  const [passageFileInputId] = useState(() => `passage-file-${generateId()}`);
 
   let draftKey = null;
   if (!readOnly && !isEditing) {
@@ -246,11 +282,16 @@ export default function QuestionForm({
     return new Set(saved.flatMap((q) => [
       ...(q.images || []),
       ...(q.answers || []).map((a) => a.image).filter(Boolean),
+      ...(q.groupContextImages || []),
     ]));
   });
 
   const latestQuestionsRef = useRef(questionsData);
   latestQuestionsRef.current = questionsData;
+  const latestPassageImagesRef = useRef(groupContextImages);
+  latestPassageImagesRef.current = groupContextImages;
+  const isGroupedRef = useRef(isGrouped);
+  isGroupedRef.current = isGrouped;
   const mountedRef = useRef(true);
   const savedRef = useRef(false);
 
@@ -258,12 +299,16 @@ export default function QuestionForm({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (readOnly || savedRef.current) return;
       // Edits keep no local draft, so images uploaded but never saved would be orphaned
-      if (!draftKey && !readOnly && !savedRef.current) {
+      if (!draftKey) {
         latestQuestionsRef.current
           .flatMap((q) => [...q.uploadedUrls, ...q.answers.map((a) => a.image)])
           .forEach(discardImage);
       }
+      // The shared passage is never kept in the local draft, so its unsaved images
+      // would be orphaned for new groups too
+      latestPassageImagesRef.current.forEach(discardImage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -455,6 +500,52 @@ export default function QuestionForm({
     }
   }
 
+  // [GROUPED QUESTIONS] shared passage images
+  async function handlePassageImagePick(e) {
+    if (readOnly) return;
+    const files = Array.from(e.target.files);
+    e.target.value = '';
+    if (!files.length) return;
+
+    if (groupContextImages.length + passageUploadingCount + files.length > maxGroupContextImages) {
+      setPassageImageError(`Maximum of ${maxGroupContextImages} images allowed for the shared passage.`);
+      return;
+    }
+
+    for (const file of files) {
+      const fileError = getImageFileError(file);
+      if (fileError) {
+        setPassageImageError(fileError);
+        return;
+      }
+    }
+
+    setPassageImageError('');
+    setPassageUploadingCount((n) => n + files.length);
+
+    try {
+      const urls = await uploadImages(files);
+      // Discarded when the form closed or switched to a single question meanwhile
+      if (!mountedRef.current || !isGroupedRef.current) {
+        urls.forEach(discardImage);
+        return;
+      }
+      setGroupContextImages((prev) => [...prev, ...urls]);
+    } catch (err) {
+      if (mountedRef.current) setPassageImageError(`Image upload failed: ${err.message}`);
+    } finally {
+      if (mountedRef.current) setPassageUploadingCount((n) => Math.max(0, n - files.length));
+    }
+  }
+
+  function removePassageImage(idx) {
+    if (readOnly) return;
+    const removed = groupContextImages[idx];
+    setGroupContextImages((prev) => prev.filter((_, i) => i !== idx));
+    setPassageImageError('');
+    discardImage(removed);
+  }
+
   function removeImage(qId, idx) {
     if (readOnly) return;
 
@@ -638,6 +729,18 @@ export default function QuestionForm({
   }
 
   function validate(isSubmit = false) {
+    // [GROUPED QUESTIONS] the server rejects groups that mix subjects
+    if (isGrouped && !readOnly && new Set(questionsData.map((q) => q.tagId || '')).size > 1) {
+      return 'Pick one subject for the whole group.';
+    }
+
+    // [GROUPED QUESTIONS] the limit can be lowered after images were added
+    if (isGrouped && !readOnly && groupContextImages.length > maxGroupContextImages) {
+      return maxGroupContextImages === 0
+        ? 'Shared passage images are turned off. Remove the images from the shared passage.'
+        : `Only ${maxGroupContextImages} image(s) can be attached to the shared passage.`;
+    }
+
     for (let i = 0; i < questionsData.length; i++) {
       const q = questionsData[i];
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
@@ -733,6 +836,7 @@ export default function QuestionForm({
             questions: questionsPayload,
             programId,
             groupContext: groupContext.trim() || null,
+            groupContextImages,
           },
         });
 
@@ -763,6 +867,7 @@ export default function QuestionForm({
           body: {
             questions: questionsPayload,
             groupContext: groupContext.trim() || null,
+            groupContextImages,
           },
         });
 
@@ -912,21 +1017,37 @@ export default function QuestionForm({
     if (newMode === mode || isEditing) return;
     setMode(newMode);
     if (newMode === 'grouped') {
-      // Ensure at least 2 blocks when entering grouped mode
-      if (questionsData.length < 2) {
-        setQuestionsData([
-          questionsData[0] || blankQuestion(),
-          blankQuestion(questionsData[0]?.tagId || ''),
-        ]);
-      }
+      // Ensure at least 2 blocks when entering grouped mode. A group has one
+      // subject, so every block takes the first question's.
+      const tagId = questionsData[0]?.tagId || '';
+      const blocks = questionsData.length < 2
+        ? [questionsData[0] || blankQuestion(), blankQuestion(tagId)]
+        : questionsData;
+      setQuestionsData(blocks.map((q) => ({ ...q, tagId })));
     } else {
-      // Back to single — trim to first question only
+      // Back to single — trim to first question only. A single question has no
+      // shared passage, so its images would never be saved.
       setQuestionsData([questionsData[0] || blankQuestion()]);
+      groupContextImages.forEach(discardImage);
+      setGroupContextImages([]);
+      setPassageImageError('');
     }
     setCurrentQuestionIdx(0);
   }
 
-  const anyUploading = questionsData.some(q => q.uploadingCount > 0 || q.answers.some(a => a.uploading));
+  const anyUploading = passageUploadingCount > 0
+    || questionsData.some(q => q.uploadingCount > 0 || q.answers.some(a => a.uploading));
+
+  // [GROUPED QUESTIONS] one subject for the whole group, picked above the shared passage.
+  // Empty while the questions don't share one (e.g. a group saved before this rule).
+  const groupTagId = questionsData.length > 0 && questionsData.every((q) => q.tagId === questionsData[0].tagId)
+    ? questionsData[0].tagId || ''
+    : '';
+
+  function setGroupTag(tagId) {
+    if (readOnly) return;
+    setQuestionsData((prev) => prev.map((q) => ({ ...q, tagId })));
+  }
 
   // Render a single question block (shared between single and grouped modes)
   function renderQuestionBlock(q, index) {
@@ -962,20 +1083,23 @@ export default function QuestionForm({
         ) : null}
 
         <div className="qf-grid">
-          <div className="qf-field">
-            <label className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</label>
-            <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
-              <option value="">Select a subject</option>
-              {tags.map((tag) => (
-                <option key={tag._id} value={tag._id}>{tag.name}</option>
-              ))}
-            </select>
-            {tags.length === 0 && !readOnly ? (
-              <p className="qf-inline-note qf-inline-note--error">
-                No subjects available. Ask your Program Chair to create subjects first.
-              </p>
-            ) : null}
-          </div>
+          {/* Grouped questions share the group's subject, picked above the shared passage */}
+          {!isGrouped && (
+            <div className="qf-field">
+              <label className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</label>
+              <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
+                <option value="">Select a subject</option>
+                {tags.map((tag) => (
+                  <option key={tag._id} value={tag._id}>{tag.name}</option>
+                ))}
+              </select>
+              {tags.length === 0 && !readOnly ? (
+                <p className="qf-inline-note qf-inline-note--error">
+                  No subjects available. Ask your Program Chair to create subjects first.
+                </p>
+              ) : null}
+            </div>
+          )}
 
           <div className="qf-field qf-field--full">
             <label className="qf-label-row">Question * {!readOnly && <FieldCheck valid={checks.description} />}</label>
@@ -1042,8 +1166,10 @@ export default function QuestionForm({
                       type="button"
                       onClick={() => removeImage(q.id, idx)}
                       className="btn-remove-img"
+                      title="Remove image"
+                      aria-label={`Remove image ${idx + 1}`}
                     >
-                      x
+                      <TrashIcon />
                     </button>
                   )}
                 </div>
@@ -1106,9 +1232,10 @@ export default function QuestionForm({
                             type="button"
                             className="btn-remove-img"
                             onClick={() => removeAnswerImage(q.id, answer.uid)}
+                            title="Remove image"
                             aria-label={`Remove image from answer ${idx + 1}`}
                           >
-                            x
+                            <TrashIcon />
                           </button>
                         )}
                       </div>
@@ -1130,10 +1257,12 @@ export default function QuestionForm({
                           />
                           <button
                             type="button"
-                            className="qf-secondary-btn"
+                            className="qf-secondary-btn qf-icon-btn"
                             onClick={() => document.getElementById(fileInputId)?.click()}
+                            title="Add image"
+                            aria-label={`Add image to answer ${idx + 1}`}
                           >
-                            Add Image
+                            <AddImageIcon />
                           </button>
                         </>
                       )}
@@ -1282,6 +1411,33 @@ export default function QuestionForm({
         <>
           <div className="qf-group-context-section">
             <div className="qf-group-context-label">
+              <strong className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={Boolean(groupTagId)} />}</strong>
+              <span>
+                {readOnly
+                  ? 'Subject of every question in this group.'
+                  : 'A group has one subject. Every question in this group uses it.'}
+              </span>
+            </div>
+            <select
+              className="qf-group-subject-select"
+              value={groupTagId}
+              onChange={(e) => setGroupTag(e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select a subject</option>
+              {tags.map((tag) => (
+                <option key={tag._id} value={tag._id}>{tag.name}</option>
+              ))}
+            </select>
+            {tags.length === 0 && !readOnly ? (
+              <p className="qf-inline-note qf-inline-note--error">
+                No subjects available. Ask your Program Chair to create subjects first.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="qf-group-context-section">
+            <div className="qf-group-context-label">
               <strong>Group Context / Stem</strong>
               <span>
                 {readOnly
@@ -1297,6 +1453,67 @@ export default function QuestionForm({
               rows={3}
               disabled={readOnly}
             />
+
+            {/* Shared passage images: own limit, separate from each question's images */}
+            {!readOnly && maxGroupContextImages > 0 && (
+              <div className="qf-upload-box">
+                <input
+                  id={passageFileInputId}
+                  className="qf-file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePassageImagePick}
+                />
+                <button
+                  type="button"
+                  className="qf-secondary-btn qf-icon-btn"
+                  onClick={() => document.getElementById(passageFileInputId)?.click()}
+                  title="Add shared passage images"
+                  aria-label="Add shared passage images"
+                >
+                  <AddImageIcon />
+                </button>
+                <span className="qf-upload-note">
+                  {passageUploadingCount > 0
+                    ? 'Uploading images...'
+                    : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
+                </span>
+              </div>
+            )}
+
+            {!readOnly && passageImageError ? (
+              <p className="qf-inline-note qf-inline-note--error">{passageImageError}</p>
+            ) : null}
+
+            {groupContextImages.length > 0 || passageUploadingCount > 0 ? (
+              <div className="image-previews">
+                {groupContextImages.map((url, idx) => (
+                  <div key={url} className="image-thumb">
+                    <AuthImage
+                      src={url}
+                      alt={`Shared passage image ${idx + 1}`}
+                      onClick={() => setFullscreenImage(url)}
+                      title="Click to view full size"
+                    />
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => removePassageImage(idx)}
+                        className="btn-remove-img"
+                        title="Remove image"
+                        aria-label={`Remove shared passage image ${idx + 1}`}
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {Array.from({ length: passageUploadingCount }, (_, idx) => (
+                  <div key={`passage-uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="qf-group-notice">
             <span className="qf-group-notice-icon" aria-hidden="true">

@@ -222,6 +222,23 @@ textarea.qf-answer-input {
   color: #4b5ab0;
 }
 
+/* Icon-only "add image" button (picture with a plus). The extra class keeps it
+   square on small screens, where .qf-secondary-btn goes full width */
+.qf-secondary-btn.qf-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.qf-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .qf-remove-btn {
   padding: 9px 12px;
   border: 1px solid #e7bfd0;
@@ -360,19 +377,33 @@ textarea.qf-answer-input {
   font-size: 11px;
 }
 
+/* Trash button on an image thumbnail */
 .btn-remove-img {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
+  padding: 0;
   border: none;
   border-radius: 999px;
   background: rgba(28, 34, 72, 0.88);
   color: #fff;
-  font-size: 12px;
-  line-height: 1;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-remove-img svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-remove-img:hover,
+.btn-remove-img:focus-visible {
+  background: #b4436c;
 }
 
 .form-actions {
@@ -893,9 +924,31 @@ textarea.qf-answer-input {
   color: #4a57a2;
 }
 
-.qf-group-context-label span {
+/* Direct child only, so the check circle inside the label keeps its own colors */
+.qf-group-context-label > span {
   font-size: 12px;
   color: #8b92bc;
+}
+
+/* Group subject picker (above the shared passage) */
+.qf-group-subject-select {
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: 10px 13px;
+  border: 1px solid #c8d2f5;
+  border-radius: 7px;
+  background: #fff;
+  color: #4a57a2;
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.qf-group-subject-select:focus {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
 }
 
 .qf-group-context-textarea {

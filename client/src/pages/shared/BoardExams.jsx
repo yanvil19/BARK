@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
@@ -1318,10 +1319,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                         <strong>Question Set {item.setNumber}</strong>
                         <span>{item.questions.length} parts</span>
                       </header>
-                      {firstQuestion?.groupContext && (
+                      {(firstQuestion?.groupContext || firstQuestion?.groupContextImages?.length > 0) && (
                         <div className="ambe-question-set-context">
                           <span>Shared passage / scenario</span>
-                          <p>{firstQuestion.groupContext}</p>
+                          {firstQuestion.groupContext && <p>{firstQuestion.groupContext}</p>}
+                          <PassageImages images={firstQuestion.groupContextImages} onZoom={setFullscreenImage} />
                         </div>
                       )}
                       <div className="ambe-question-set-list">

@@ -85,7 +85,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag groupId groupOrder groupContext',
+      select: 'description images answers tag groupId groupOrder groupContext groupContextImages',
     });
 
     if (!currentExam) return res.status(404).json({ message: 'Exam not found' });
@@ -186,6 +186,7 @@ async function startExam(req, res) {
         // [GROUPED QUESTIONS] — pass group metadata for context display in exam player
         groupId: fullQ.groupId || null,
         groupContext: fullQ.groupContext || null,
+        groupContextImages: fullQ.groupContextImages || [],
       });
     });
 
@@ -446,7 +447,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'description images answers tag rationalization groupId groupContext',
+        select: 'description images answers tag rationalization groupId groupContext groupContextImages',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -485,6 +486,7 @@ async function getAttemptDetails(req, res) {
           rationalization: fullQ.rationalization || null,
           groupId: fullQ.groupId || null,
           groupContext: fullQ.groupContext || null,
+          groupContextImages: fullQ.groupContextImages || [],
         });
       });
     }
