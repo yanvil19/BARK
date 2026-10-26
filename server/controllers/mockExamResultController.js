@@ -45,6 +45,123 @@ function pickHighestAttemptByAlumni(attempts, exam) {
   return [...bestByAlumni.values()];
 }
 
+// A taker this many points or fewer under the threshold "nearly passed"
+const NEAR_MISS_POINTS = 5;
+
+// The takers' scores (percentages) as the results page summarizes them. Scores are
+// rounded first, as each person's own result is, so a 69.6% passes a 70% threshold
+// here and on their result alike
+function buildScoreSummary(percentages, passingThreshold) {
+  const scores = percentages.map((percentage) => Math.round(percentage));
+  const scoreDistribution = Array.from({ length: 10 }, (_, idx) => ({
+    min: idx * 10,
+    max: idx === 9 ? 100 : idx * 10 + 9,
+    below: 0,
+    passed: 0,
+  }));
+
+  scores.forEach((score) => {
+    const range = scoreDistribution[Math.min(9, Math.floor(score / 10))];
+    if (score >= passingThreshold) range.passed += 1;
+    else range.below += 1;
+  });
+
+  return {
+    overallAverageScore: percentages.length > 0
+      ? Math.round(percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length)
+      : 0,
+    highestScore: scores.length > 0 ? Math.max(...scores) : 0,
+    lowestScore: scores.length > 0 ? Math.min(...scores) : 0,
+    passedCount: scores.filter((score) => score >= passingThreshold).length,
+    nearMissCount: scores.filter(
+      (score) => score < passingThreshold && score >= passingThreshold - NEAR_MISS_POINTS
+    ).length,
+    scoreDistribution,
+  };
+}
+
+// Alumni who took the exam more than once, and how many of them beat their first score
+function buildRetakeSummary(attempts, exam) {
+  const attemptsByAlumni = new Map();
+  attempts.forEach((attempt) => {
+    const alumniId = String(attempt.alumni?._id || attempt.alumni);
+    if (!attemptsByAlumni.has(alumniId)) attemptsByAlumni.set(alumniId, []);
+    attemptsByAlumni.get(alumniId).push(attempt);
+  });
+
+  let retakers = 0;
+  let improved = 0;
+  attemptsByAlumni.forEach((alumniAttempts) => {
+    if (alumniAttempts.length < 2) return;
+    retakers += 1;
+    const scores = alumniAttempts
+      .slice()
+      .sort((a, b) => (a.attemptNumber || 0) - (b.attemptNumber || 0)
+        || new Date(a.endTime || a.createdAt || 0) - new Date(b.endTime || b.createdAt || 0))
+      .map((attempt) => Math.round(getAttemptPercentage(attempt, exam)));
+    if (Math.max(...scores.slice(1)) > scores[0]) improved += 1;
+  });
+
+  return { retakers, improved };
+}
+
+// When a student exam closes, the expiry job gives everyone who never took it an empty,
+// auto-submitted attempt (score 0). The proctoring stats call such an attempt "missed"
+// with this same check, and so do the individual results
+function isMissedAttempt(attempt) {
+  const answers = attempt.answers instanceof Map
+    ? [...attempt.answers.values()]
+    : Object.values(attempt.answers || {});
+  return attempt.status === 'submitted'
+    && Boolean(attempt.autoSubmitted)
+    && answers.filter(Boolean).length === 0
+    && !(attempt.progressMilestones?.length)
+    && !(attempt.violations?.length);
+}
+
+// Everyone who may take the exam: the active students (or alumni) of its program, the
+// same people the results count as eligible. A program chair only sees their program's
+async function findEligibleLearners(exam, role, user) {
+  if (user.role === 'program_chair' && String(exam.program) !== String(user.program)) return [];
+  return User.find({ program: exam.program, role, isActive: true })
+    .select('name email studentId alumniId')
+    .lean();
+}
+
+// An eligible person without a submitted attempt, listed with the ones who have one.
+// status is 'in_progress' while they are taking it, 'not_taken' otherwise
+function getNotTakenEntry(learner, status) {
+  return {
+    student: {
+      _id: learner._id,
+      name: learner.name,
+      email: learner.email,
+      studentId: learner.studentId || learner.alumniId,
+    },
+    status,
+    overallPercentage: null,
+    passed: null,
+    subjectBreakdowns: [],
+  };
+}
+
+// The eligible people missing from the results, with whether they are taking it now
+async function listNotTaken(exam, role, user, resultEntries, inProgressIds) {
+  const listed = new Set(resultEntries.map((entry) => String(entry.student._id)));
+  const inProgress = new Set(inProgressIds.map(String));
+  const learners = await findEligibleLearners(exam, role, user);
+  return learners
+    .filter((learner) => !listed.has(String(learner._id)))
+    .map((learner) => getNotTakenEntry(learner, inProgress.has(String(learner._id)) ? 'in_progress' : 'not_taken'));
+}
+
+// Submitted attempts of student accounts (alumni accounts are left out)
+async function findStudentAttempts(examId) {
+  const attempts = await StudentExamAttempt.find({ exam: examId, status: 'submitted' })
+    .populate('student', 'role');
+  return attempts.filter((attempt) => attempt.student && attempt.student.role === 'student');
+}
+
 // Exam numbers as the exam details show them: the questions of a set take
 // consecutive numbers where the set first appears, in their set order
 function numberExamQuestions(questions = []) {
@@ -236,10 +353,11 @@ async function buildAlumniHighestScoreReport(exam, user) {
     };
   });
 
-  const percentages = bestAttempts.map((attempt) => getAttemptPercentage(attempt, exam));
-  const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
-  const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
-  const totalPercent = percentages.reduce((sum, p) => sum + p, 0);
+  const passingThreshold = exam.passingThreshold ?? 70;
+  const scoreSummary = buildScoreSummary(
+    bestAttempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+    passingThreshold
+  );
 
   const latestSubmittedAt = bestAttempts.reduce((latest, attempt) => {
     const submittedAt = new Date(attempt.endTime || attempt.updatedAt || attempt.createdAt || 0);
@@ -258,14 +376,13 @@ async function buildAlumniHighestScoreReport(exam, user) {
     dateConducted: latestSubmittedAt,
     totalTakers,
     totalAttempts: scopedAttempts.length,
-    highestScore,
-    lowestScore,
+    ...scoreSummary,
+    retakes: buildRetakeSummary(scopedAttempts, exam),
     totalEligibleStudents,
-    passingThreshold: exam.passingThreshold ?? 70,
+    passingThreshold,
     status: 'computed',
     computedAt: new Date(),
     targetAudience: 'alumni',
-    overallAverageScore: Math.round(totalPercent / totalTakers),
     subjects: addQuestionContent(subjectsArray, decryptedExamForAlumni.questions || []),
   };
 }
@@ -371,6 +488,16 @@ exports.getResult = async (req, res) => {
       return res.json({ result: null, message: 'Result not yet computed' });
     }
 
+    // Results computed before the score summary was saved get it from the attempts
+    if (resultDoc.passedCount === undefined || !resultDoc.scoreDistribution?.length) {
+      const attempts = await findStudentAttempts(exam._id);
+      const { overallAverageScore, passedCount, nearMissCount, scoreDistribution } = buildScoreSummary(
+        attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+        resultDoc.passingThreshold ?? 70
+      );
+      Object.assign(resultDoc, { overallAverageScore, passedCount, nearMissCount, scoreDistribution });
+    }
+
     addQuestionContent(resultDoc.subjects, examQuestions);
 
     res.json({ result: resultDoc });
@@ -408,14 +535,7 @@ exports.computeResults = async (req, res) => {
     }
 
     // 3. FETCH ATTEMPTS (students only — exclude alumni accounts)
-    const rawAttempts = await StudentExamAttempt.find({ 
-      exam: examId, 
-      status: 'submitted' 
-    }).populate('student', 'role');
-
-    const attempts = rawAttempts.filter(
-      (a) => a.student && a.student.role === 'student'
-    );
+    const attempts = await findStudentAttempts(examId);
 
     if (attempts.length === 0) {
       return res.status(400).json({ 
@@ -472,12 +592,10 @@ exports.computeResults = async (req, res) => {
       ? exam.passingThreshold 
       : (passingThreshold !== undefined && passingThreshold !== null ? passingThreshold : 70);
 
-    const percentages = attempts.map((attempt) => getAttemptPercentage(attempt, exam));
-    const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
-    const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
-    const overallAverageScore = percentages.length > 0
-      ? Math.round(percentages.reduce((sum, p) => sum + p, 0) / percentages.length)
-      : 0;
+    const scoreSummary = buildScoreSummary(
+      attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+      finalThreshold
+    );
 
     const totalEligibleStudents = await User.countDocuments({
       program: exam.program,
@@ -490,9 +608,7 @@ exports.computeResults = async (req, res) => {
       examName: exam.name,
       dateConducted: exam.startDateTime,
       totalTakers,
-      highestScore,
-      lowestScore,
-      overallAverageScore,
+      ...scoreSummary,
       totalEligibleStudents,
       passingThreshold: finalThreshold,
       status: 'computed',
@@ -565,6 +681,8 @@ exports.getStudentResults = async (req, res) => {
     const decryptedExam = decryptExamQuestions(exam);
     const examQuestions = decryptedExam.questions || [];
     const questionContent = buildQuestionContentMap(examQuestions);
+    // Whether the ones who did not take it can still take it
+    const examEnded = Boolean(exam.endDateTime) && new Date(exam.endDateTime) < new Date();
 
     if ((exam.targetAudience || 'student') === 'alumni') {
       const attempts = await AlumniExamAttempt.find({ exam: examId, status: 'submitted' })
@@ -652,6 +770,7 @@ exports.getStudentResults = async (req, res) => {
 
         return {
           student: alumniRecord.student,
+          status: 'taken',
           attemptCount: formattedAttempts.length,
           attemptNumber: bestAttempt ? bestAttempt.attemptNumber : 1,
           attempts: formattedAttempts,
@@ -661,7 +780,15 @@ exports.getStudentResults = async (req, res) => {
         };
       });
 
-      return res.json({ students: alumniData, questions: questionContent, audience: 'alumni' });
+      const alumniInProgress = await AlumniExamAttempt.distinct('alumni', { exam: examId, status: 'in_progress' });
+      const alumniNotTaken = await listNotTaken(exam, 'alumni', req.user, alumniData, alumniInProgress);
+
+      return res.json({
+        students: [...alumniData, ...alumniNotTaken],
+        questions: questionContent,
+        audience: 'alumni',
+        examEnded,
+      });
     }
 
     // 2. Fetch attempts (students only — exclude alumni accounts)
@@ -671,7 +798,7 @@ exports.getStudentResults = async (req, res) => {
       .populate('subjectScores.tag', 'name');
 
     let filteredAttempts = attempts.filter(
-      (attempt) => attempt.student && attempt.student.role === 'student'
+      (attempt) => attempt.student && attempt.student.role === 'student' && !isMissedAttempt(attempt)
     );
 
     // Access Control: If program chair, restrict to their program
@@ -722,13 +849,17 @@ exports.getStudentResults = async (req, res) => {
           email: attempt.student.email,
           studentId: attempt.student.studentId || attempt.student.alumniId,
         },
+        status: 'taken',
         overallPercentage,
         passed,
         subjectBreakdowns
       };
     });
 
-    res.json({ students: studentsData, questions: questionContent });
+    const studentsInProgress = await StudentExamAttempt.distinct('student', { exam: examId, status: 'in_progress' });
+    const studentsNotTaken = await listNotTaken(exam, 'student', req.user, studentsData, studentsInProgress);
+
+    res.json({ students: [...studentsData, ...studentsNotTaken], questions: questionContent, examEnded });
   } catch (err) {
     console.error('getStudentResults Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

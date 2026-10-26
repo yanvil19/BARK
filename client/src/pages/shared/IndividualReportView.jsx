@@ -39,6 +39,9 @@ const renderSetScore = (questions) => (
 
 const getSelectionProps = (question) => ({ selectedAnswerId: question.userAnswer || null });
 
+// Whether the person has a result (the others are eligible but have not submitted it)
+const hasResult = (entry) => !entry.status || entry.status === 'taken';
+
 const ChevronIcon = ({ isExpanded }) => (
   <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -173,13 +176,40 @@ const StudentResultCard = memo(({ studentData, threshold, questionContent, isCar
   );
 });
 
+// Someone eligible without a result: nothing to open, only where they stand
+const PendingResultCard = memo(({ studentData, examEnded }) => {
+  const { student, status } = studentData;
+  const isTaking = status === 'in_progress';
+  let label = examEnded ? 'Did not take' : 'Not taken yet';
+  if (isTaking) label = 'In progress';
+
+  return (
+    <div className="er-ind-student-card is-pending">
+      <div className="er-ind-student-header">
+        <div className="er-ind-student-info">
+          <div className="er-ind-student-name">
+            {student.name}
+            {student.studentId && <span className="er-ind-student-badge">{student.studentId}</span>}
+          </div>
+          <div className="er-ind-student-email">{student.email}</div>
+        </div>
+        <div className={`er-ind-student-status-badge ${isTaking ? 'in-progress' : 'not-taken'}`}>{label}</div>
+        <span className="er-ind-chevron-spacer" aria-hidden="true" />
+      </div>
+    </div>
+  );
+});
+
 export default function IndividualReportView({ examId, threshold, audience = 'student' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [studentsData, setStudentsData] = useState([]);
   // Each question of the exam (text, images, answer choices), keyed by question id
   const [questionContent, setQuestionContent] = useState({});
+  // Whether the exam has closed, for the ones who have not taken it
+  const [examEnded, setExamEnded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [takenFilter, setTakenFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('name_asc');
   // One person open at a time
   const [openCardId, setOpenCardId] = useState(null);
@@ -191,6 +221,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
       const res = await getExamStudentResults(examId);
       setStudentsData(res.students || []);
       setQuestionContent(res.questions || {});
+      setExamEnded(Boolean(res.examEnded));
     } catch (err) {
       setError(err.message || 'Failed to fetch individual results.');
     } finally {
@@ -203,8 +234,13 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
 
+  const takenCount = useMemo(() => studentsData.filter(hasResult).length, [studentsData]);
+
   const filteredAndSorted = useMemo(() => {
     let filtered = studentsData;
+    if (takenFilter !== 'all') {
+      filtered = filtered.filter((entry) => hasResult(entry) === (takenFilter === 'taken'));
+    }
     if (searchQuery.trim()) {
       const lowerQ = searchQuery.trim().toLowerCase();
       filtered = filtered.filter(d =>
@@ -217,11 +253,13 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
     return filtered.slice().sort((a, b) => {
       if (sortOrder === 'name_asc') return a.student.name.localeCompare(b.student.name);
       if (sortOrder === 'name_desc') return b.student.name.localeCompare(a.student.name);
+      // No score to rank: after the ones with a result
+      if (hasResult(a) !== hasResult(b)) return hasResult(a) ? -1 : 1;
       if (sortOrder === 'score_asc') return a.overallPercentage - b.overallPercentage;
       if (sortOrder === 'score_desc') return b.overallPercentage - a.overallPercentage;
       return 0;
     });
-  }, [studentsData, searchQuery, sortOrder]);
+  }, [studentsData, searchQuery, takenFilter, sortOrder]);
 
   const audienceNoun = audience === 'alumni' ? 'alumni' : 'students';
 
@@ -230,6 +268,17 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
 
   return (
     <div className="er-ind-container">
+      <CapsuleFilters
+        ariaLabel={`Filter ${audienceNoun} by whether they took the exam`}
+        options={[
+          { value: 'all', label: 'All', count: studentsData.length },
+          { value: 'taken', label: 'Took the exam', count: takenCount },
+          { value: 'not_taken', label: 'Not taken', count: studentsData.length - takenCount },
+        ]}
+        value={takenFilter}
+        onChange={setTakenFilter}
+      />
+
       <div className="er-ind-controls">
         <SearchBar
           value={searchQuery}
@@ -257,6 +306,10 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
         ) : (
           filteredAndSorted.map(data => {
             const cardId = String(data.attemptId || data.student._id);
+
+            if (!hasResult(data)) {
+              return <PendingResultCard key={cardId} studentData={data} examEnded={examEnded} />;
+            }
 
             return (
               <StudentResultCard

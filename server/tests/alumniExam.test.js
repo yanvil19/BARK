@@ -287,8 +287,12 @@ describe('alumni exam attempts', () => {
       totalTakers: 2,
       totalAttempts: 3,
       overallAverageScore: 50,
+      passedCount: 1,
+      nearMissCount: 0,
+      retakes: { retakers: 1, improved: 1 },
       status: 'computed',
     });
+    expect(res.body.result.scoreDistribution).toHaveLength(10);
     expect(res.body.result.subjects[0].questions[0]).toMatchObject({
       label: 'Q1',
       correctRate: 50,
@@ -315,6 +319,7 @@ describe('alumni exam attempts', () => {
     expect(res.body.audience).toBe('alumni');
     expect(res.body.students).toHaveLength(1);
     expect(res.body.students[0]).toMatchObject({
+      status: 'taken',
       attemptNumber: 2,
       attemptCount: 2,
       overallPercentage: 100,
@@ -338,6 +343,31 @@ describe('alumni exam attempts', () => {
     expect(res.body.questions[String(question._id)]).toMatchObject({
       questionNumber: 1,
       description: 'Q1',
+    });
+  });
+
+  it('lists the eligible alumni who have not taken the exam', async () => {
+    const exam = await createAlumniExam();
+    const waiting = await createUserAndToken({
+      role: 'alumni',
+      userType: 'alumni',
+      department: dept._id,
+      program: prog._id,
+      alumniId: '2020-000003',
+      email: 'alumni3@example.com',
+    });
+    await submitAlumniAttempt(exam._id, alumniToken, question.answers[0]._id);
+
+    const res = await request(app)
+      .get(`/api/mock-exam-results/${exam._id}/students`)
+      .set('Cookie', `nu_board_token=${deanToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.students).toHaveLength(2);
+    expect(res.body.students.find((entry) => entry.student._id === String(waiting.user._id))).toMatchObject({
+      status: 'not_taken',
+      student: { studentId: '2020-000003' },
+      overallPercentage: null,
     });
   });
 });

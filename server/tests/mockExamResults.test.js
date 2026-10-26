@@ -106,6 +106,69 @@ describe('POST /api/mock-exam-results/:examId/compute', () => {
         expect.objectContaining({ text: 'B', count: 1, isCorrect: false }),
       ])
     );
+
+    // One taker at 100% and one at 0%, against the default 70% threshold
+    const summary = {
+      overallAverageScore: 50,
+      highestScore: 100,
+      lowestScore: 0,
+      passedCount: 1,
+      nearMissCount: 0,
+    };
+    expect(res.body.result).toMatchObject(summary);
+    expect(res.body.result.scoreDistribution).toHaveLength(10);
+    expect(res.body.result.scoreDistribution[0]).toEqual({ min: 0, max: 9, below: 1, passed: 0 });
+    expect(res.body.result.scoreDistribution[9]).toEqual({ min: 90, max: 100, below: 0, passed: 1 });
+
+    const stored = await request(app)
+      .get(`/api/mock-exam-results/${exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`);
+    expect(stored.body.result).toMatchObject(summary);
+    expect(stored.body.result.scoreDistribution).toEqual(res.body.result.scoreDistribution);
+  });
+
+  it('fills the score summary of a result computed before it was saved', async () => {
+    const tag = await require('../models/Tag').create({ name: 'Subject', program: prog._id, createdBy: deanUser._id, isActive: true });
+    const questions = await Question.create([1, 2, 3, 4, 5].map((n) => ({
+      description: `Q${n}`, answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id,
+    })));
+    const exam = await MockBoardExam.create({
+      name: 'Old result', program: prog._id, department: dept._id,
+      questions: questions.map((q) => q._id), startDateTime: pastDate(2), endDateTime: pastDate(1),
+      status: 'finished', createdBy: deanUser._id, passingThreshold: 70,
+    });
+    // 60%, 80% and 40% against a 70% threshold: one passes, none within 5 points of it
+    const scores = [3, 4, 2];
+    for (const [idx, score] of scores.entries()) {
+      const { user } = await createUserAndToken({
+        role: 'student', department: dept._id, program: prog._id,
+        email: `old-${idx}@example.com`, studentId: `2026-10000${idx}`,
+      });
+      await StudentExamAttempt.create({
+        exam: exam._id, student: user._id, status: 'submitted',
+        randomizedQuestions: questions.map((q) => q._id),
+        subjectScores: [{ tag: tag._id, correct: score, total: 5 }],
+        score, submittedAt: pastDate(1),
+      });
+    }
+    // Saved the way results were before: no average, pass count or distribution
+    await MockExamResult.collection.insertOne({
+      examId: exam._id, examName: exam.name, dateConducted: pastDate(2),
+      totalTakers: 3, highestScore: 80, lowestScore: 40, totalEligibleStudents: 3,
+      passingThreshold: 70, status: 'computed', computedAt: pastDate(1),
+      subjects: [], createdBy: deanUser._id, department: dept._id,
+    });
+
+    const res = await request(app)
+      .get(`/api/mock-exam-results/${exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.result).toMatchObject({ overallAverageScore: 60, passedCount: 1, nearMissCount: 0 });
+    const counts = res.body.result.scoreDistribution.map((range) => range.below + range.passed);
+    expect(counts).toEqual([0, 0, 0, 0, 1, 0, 1, 0, 1, 0]);
+    expect(res.body.result.scoreDistribution[8]).toMatchObject({ passed: 1, below: 0 });
   });
 });
 
@@ -212,6 +275,61 @@ describe('question content in faculty results', () => {
       points: 1,
     });
     expect(answersById.get(String(single._id))).toMatchObject({ userAnswer: null, isCorrect: false });
+  });
+});
+
+describe('people who have not taken the exam in the individual results', () => {
+  it('lists the eligible students without a result, and a missed exam as not taken', async () => {
+    const tag = await require('../models/Tag').create({ name: 'Subject', program: prog._id, createdBy: deanUser._id, isActive: true });
+    const q = await Question.create({
+      description: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id,
+    });
+    const exam = await MockBoardExam.create({
+      name: 'Finished', program: prog._id, department: dept._id,
+      questions: [q._id], startDateTime: pastDate(2), endDateTime: pastDate(1),
+      status: 'finished', createdBy: deanUser._id,
+    });
+    const makeStudent = async (name, extra = {}) => (await createUserAndToken({
+      role: 'student', department: dept._id, program: prog._id, name,
+      email: `${name.toLowerCase()}@example.com`, studentId: `ID-${name}`, ...extra,
+    })).user;
+    const took = await makeStudent('Took');
+    const missed = await makeStudent('Missed');
+    const absent = await makeStudent('Absent');
+    const taking = await makeStudent('Taking');
+    await makeStudent('Inactive', { isActive: false });
+    await createUserAndToken({ role: 'alumni', department: dept._id, program: prog._id, email: 'alum@example.com' });
+
+    await StudentExamAttempt.create({
+      exam: exam._id, student: took._id, status: 'submitted', randomizedQuestions: [q._id],
+      answers: new Map([[q._id.toString(), q.answers[0]._id]]),
+      subjectScores: [{ tag: tag._id, correct: 1, total: 1 }], score: 1, submittedAt: pastDate(1),
+    });
+    // What the expiry job saves for someone who missed the exam
+    await StudentExamAttempt.create({
+      exam: exam._id, student: missed._id, status: 'submitted', randomizedQuestions: [],
+      answers: {}, subjectScores: [{ tag: tag._id, correct: 0, total: 1 }], score: 0, autoSubmitted: true,
+    });
+    await StudentExamAttempt.create({
+      exam: exam._id, student: taking._id, status: 'in_progress', randomizedQuestions: [q._id],
+    });
+
+    const res = await request(app)
+      .get(`/api/mock-exam-results/${exam._id}/students`)
+      .set('Cookie', `nu_board_token=${deanToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.examEnded).toBe(true);
+    const statusByName = Object.fromEntries(res.body.students.map((entry) => [entry.student.name, entry.status]));
+    expect(statusByName).toEqual({ Took: 'taken', Missed: 'not_taken', Absent: 'not_taken', Taking: 'in_progress' });
+    expect(res.body.students.find((entry) => entry.student.name === 'Took')).toMatchObject({ overallPercentage: 100, passed: true });
+    expect(res.body.students.find((entry) => entry.student._id === String(absent._id))).toMatchObject({
+      student: { email: 'absent@example.com', studentId: 'ID-Absent' },
+      overallPercentage: null,
+      passed: null,
+      subjectBreakdowns: [],
+    });
   });
 });
 

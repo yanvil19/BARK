@@ -714,7 +714,7 @@
 .er-hero-card {
   position: relative;
   overflow: hidden;
-  padding: 22px 30px 0;
+  padding: 24px 30px 26px;
   border-radius: 24px;
   background: #24357d;
   color: #fff;
@@ -731,13 +731,9 @@
   pointer-events: none;
 }
 
-.er-hero-topline {
+/* Above the dotted pattern */
+.er-hero-card > * {
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  flex-wrap: wrap;
 }
 
 .er-hero-eyebrow {
@@ -749,122 +745,311 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
-.er-hero-threshold-pill {
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #fff;
-}
-
-.er-hero-body {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
-  padding: 12px 0 24px;
-}
-
-.er-circular-container {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  margin: 0 auto;
-}
-
-.er-circular-svg {
-  width: 180px;
-  height: 180px;
-  transform: rotate(-90deg);
-}
-
-.er-circular-bg {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
-  stroke-width: 10;
-}
-
-.er-circular-fill {
-  fill: none;
-  stroke: #f5c518;
-  stroke-width: 10;
-  stroke-linecap: round;
-  transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;
-}
-
-.er-circular-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.er-circular-text .big-pct {
-  font-size: 34px;
-  line-height: 1;
-  font-weight: 800;
-  color: #f5c518;
-}
-
-.er-circular-text .small-total {
-  margin-top: 4px;
-  font-size: 16px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.er-threshold-label {
-  margin-top: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.58);
-  letter-spacing: 0.04em;
-}
-
-.er-hero-metrics {
-  position: relative;
-  z-index: 1;
+/* Passed, average and turnout, split by lines */
+.er-hero-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.er-metric-item {
-  min-height: 112px;
-  padding: 22px 18px;
+.er-hero-stat {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 22px;
 }
 
-.er-metric-item:not(:last-child) {
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
+.er-hero-stat:first-child {
+  padding-left: 0;
 }
 
-.er-metric-item .m-value {
-  font-family: var(--font-title);
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 800;
-  color: #fff;
+.er-hero-stat + .er-hero-stat {
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.er-metric-item .m-label {
-  margin-top: 8px;
+.er-hero-stat-label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.72);
+}
+
+.er-hero-stat-value {
+  font-family: var(--font-title);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.er-hero-stat-sub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.er-hero-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.er-hero-delta svg {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+}
+
+.er-hero-delta.is-above {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+}
+
+.er-hero-delta.is-below {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fecaca;
+}
+
+/* Score distribution: one column per 10-point range on a 0-100 axis */
+.er-dist {
+  margin: 22px 0 0;
+}
+
+.er-dist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.er-dist-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.er-dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.er-dist-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.er-dist-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.er-dist-swatch.is-passed,
+.er-dist-seg.is-passed {
+  background: #f5c518;
+}
+
+.er-dist-swatch.is-below,
+.er-dist-seg.is-below {
+  background: #9aa6e0;
+}
+
+.er-dist-line-key {
+  height: 12px;
+  border-left: 2px dashed rgba(255, 255, 255, 0.85);
+}
+
+/* The top padding holds the count above the tallest bar */
+.er-dist-plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-rows: 100%;
+  height: 170px;
+  box-sizing: border-box;
+  padding-top: 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.er-dist-slot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  border-radius: 6px 6px 0 0;
+  outline: none;
+  transition: background 0.15s ease;
+}
+
+/* Above the other columns, so its tooltip is never covered */
+.er-dist-slot.is-active {
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.er-dist-slot:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+
+.er-dist-bar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(24px, 64%);
+}
+
+.er-dist-seg {
+  flex-basis: 0;
+  min-height: 2px;
+}
+
+/* Rounded at the data end, square at the baseline */
+.er-dist-seg:first-of-type {
+  border-radius: 4px 4px 0 0;
+}
+
+.er-dist-count {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: #24357d;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Behind the columns: a bar and its count cover the line where it crosses them */
+.er-dist-threshold {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.85);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+.er-dist-tooltip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.28);
+  color: #5b6478;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 6px));
+  pointer-events: none;
+}
+
+.er-dist-tooltip strong {
+  font-size: 14px;
+  color: var(--er-navy);
+}
+
+.er-dist-tooltip.is-start {
+  left: 0;
+  transform: translateY(calc(-100% - 6px));
+}
+
+.er-dist-tooltip.is-end {
+  left: auto;
+  right: 0;
+  transform: translateY(calc(-100% - 6px));
+}
+
+.er-dist-axis {
+  position: relative;
+  height: 16px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.er-dist-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.er-dist-axis span:first-child {
+  transform: none;
+}
+
+.er-dist-axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.er-dist-foot {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Takeaways under the chart */
+.er-hero-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  list-style: none;
+}
+
+.er-hero-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.er-hero-note svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: #f5c518;
+}
+
+.er-hero-note strong {
+  color: #fff;
 }
 
 .er-breakdown-card {
@@ -1121,14 +1306,6 @@
   .er-chevron {
     flex: 0 0 auto;
   }
-
-  .er-hero-body {
-    padding-bottom: 20px;
-  }
-
-  .er-hero-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 980px) {
@@ -1194,7 +1371,6 @@
   }
 
   .er-empty-meta-grid,
-  .er-hero-metrics,
   .er-sidebar-summary {
     grid-template-columns: 1fr;
   }
@@ -1203,18 +1379,27 @@
     grid-column: auto;
   }
 
-  .er-circular-container {
-    width: 164px;
-    height: 164px;
+  /* The three hero numbers stack, split by lines */
+  .er-hero-stats {
+    grid-template-columns: 1fr;
   }
 
-  .er-circular-svg {
-    width: 164px;
-    height: 164px;
+  .er-hero-stat,
+  .er-hero-stat:first-child {
+    padding: 14px 0;
   }
 
-  .er-metric-item:not(:last-child) {
-    border-right: none;
+  .er-hero-stat + .er-hero-stat {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .er-hero-stat-value {
+    font-size: 28px;
+  }
+
+  .er-dist-plot {
+    height: 150px;
   }
 
   .er-download-btn {
@@ -1246,6 +1431,11 @@
 
   .er-empty-chip-row {
     gap: 8px;
+  }
+
+  /* Every other score tick: 0, 20, ... 100 */
+  .er-dist-axis span:nth-child(even) {
+    display: none;
   }
 }
 
@@ -1469,6 +1659,39 @@
 .er-ind-student-status-badge.failed {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.er-ind-student-status-badge.not-taken {
+  background: #eef1f7;
+  color: #5b6478;
+}
+
+.er-ind-student-status-badge.in-progress {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Someone without a result: a flat card with nothing to open */
+.er-ind-student-card.is-pending,
+.er-ind-student-card.is-pending:hover {
+  border-color: #e3e7f3;
+  background: #fbfcff;
+  box-shadow: none;
+}
+
+.er-ind-student-card.is-pending .er-ind-student-header {
+  background: transparent;
+  cursor: default;
+}
+
+.er-ind-student-card.is-pending .er-ind-student-name {
+  color: #4a5268;
+}
+
+/* Keeps the badge in line with the ones of the cards that open */
+.er-ind-chevron-spacer {
+  flex-shrink: 0;
+  width: 20px;
 }
 
 /* The open card: an alumni's attempts, then the subjects as topic rows

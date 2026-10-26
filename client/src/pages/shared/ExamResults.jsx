@@ -10,6 +10,11 @@ import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
 
 const EXAMS_PER_PAGE = 5;
+// A taker this many points or fewer under the threshold "nearly passed" (same as the server)
+const NEAR_MISS_POINTS = 5;
+const SCORE_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -189,34 +194,131 @@ const SidebarExamItem = memo(({ exam, isActive, onSelect }) => {
   );
 });
 
-const CircularProgress = ({ percentage, threshold }) => {
-  const radius = 80;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percentage / 100) * circumference;
+// How far the average is from the passing threshold, told by an arrow and words, not color alone
+const ThresholdGap = ({ average, threshold }) => {
+  const gap = average - threshold;
+  if (gap === 0) return <span className="er-hero-delta is-above">Right at the threshold</span>;
 
+  const isAbove = gap > 0;
   return (
-    <div className="er-circular-container">
-      <svg className="er-circular-svg">
-        <circle className="er-circular-bg" cx="90" cy="90" r={radius} />
-        <circle
-          className="er-circular-fill"
-          cx="90"
-          cy="90"
-          r={radius}
-          style={{
-            strokeDasharray: circumference,
-            strokeDashoffset: offset
-          }}
-        />
+    <span className={`er-hero-delta ${isAbove ? 'is-above' : 'is-below'}`}>
+      <svg viewBox="0 0 12 12" aria-hidden="true">
+        <path d={isAbove ? 'M6 2 11 10H1z' : 'M6 10 1 2h10z'} fill="currentColor" />
       </svg>
-      <div className="er-circular-text">
-        <span className="big-pct">{percentage}%</span>
-        <span className="small-total">/ 100%</span>
-        <div className="er-threshold-label">Threshold: {threshold}%</div>
-      </div>
-    </div>
+      {Math.abs(gap)} {Math.abs(gap) === 1 ? 'pt' : 'pts'} {isAbove ? 'above' : 'below'} the threshold
+    </span>
   );
 };
+
+// Takers per 10-point score range. A range's bar is split into the takers who passed and
+// those below the threshold, and a dashed line marks the threshold on the score axis.
+// Each bar shows its count above it, and its range and split on hover or keyboard focus
+const ScoreDistribution = ({ ranges, threshold, lowest, highest }) => {
+  const [activeIdx, setActiveIdx] = useState(null);
+  if (!ranges?.length) return null;
+
+  const maxCount = Math.max(1, ...ranges.map((range) => range.below + range.passed));
+
+  return (
+    <figure className="er-dist">
+      <figcaption className="er-dist-head">
+        <span className="er-dist-title">Score distribution</span>
+        <span className="er-dist-legend">
+          <span className="er-dist-key"><span className="er-dist-swatch is-passed" />Passed</span>
+          <span className="er-dist-key"><span className="er-dist-swatch is-below" />Below threshold</span>
+          <span className="er-dist-key"><span className="er-dist-line-key" />Threshold {threshold}%</span>
+        </span>
+      </figcaption>
+
+      <div className="er-dist-plot">
+        {ranges.map((range, idx) => {
+          const count = range.below + range.passed;
+          const rangeLabel = `${range.min}–${range.max}%`;
+          const split = [
+            range.passed > 0 && `${range.passed} passed`,
+            range.below > 0 && `${range.below} below ${threshold}%`,
+          ].filter(Boolean).join(' · ');
+          let tooltipEdge = '';
+          if (idx < 2) tooltipEdge = ' is-start';
+          else if (idx > ranges.length - 3) tooltipEdge = ' is-end';
+
+          return (
+            <div
+              key={range.min}
+              className={`er-dist-slot${activeIdx === idx ? ' is-active' : ''}`}
+              tabIndex={0}
+              aria-label={`${rangeLabel}: ${plural(count, 'taker')}${split ? `, ${split}` : ''}`}
+              onMouseEnter={() => setActiveIdx(idx)}
+              onMouseLeave={() => setActiveIdx(null)}
+              onFocus={() => setActiveIdx(idx)}
+              onBlur={() => setActiveIdx(null)}
+            >
+              {count > 0 && (
+                <div className="er-dist-bar" style={{ height: `${(count / maxCount) * 100}%` }}>
+                  <b className="er-dist-count">{count}</b>
+                  {range.passed > 0 && <span className="er-dist-seg is-passed" style={{ flexGrow: range.passed }} />}
+                  {range.below > 0 && <span className="er-dist-seg is-below" style={{ flexGrow: range.below }} />}
+                </div>
+              )}
+              {activeIdx === idx && (
+                <div className={`er-dist-tooltip${tooltipEdge}`} role="tooltip">
+                  <strong>{plural(count, 'taker')}</strong>
+                  <span>{rangeLabel}</span>
+                  {split && <span>{split}</span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div
+          className="er-dist-threshold"
+          style={{ left: `${Math.min(100, Math.max(0, threshold))}%` }}
+          aria-hidden="true"
+        />
+      </div>
+
+      <div className="er-dist-axis" aria-hidden="true">
+        {SCORE_TICKS.map((tick) => (
+          <span key={tick} style={{ left: `${tick}%` }}>{tick}</span>
+        ))}
+      </div>
+      <div className="er-dist-foot">
+        <span>Score (%)</span>
+        <span>Lowest {lowest}% · Highest {highest}%</span>
+      </div>
+    </figure>
+  );
+};
+
+const NOTE_ICONS = {
+  nearMiss: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4" />
+    </>
+  ),
+  topics: (
+    <>
+      <path d="M12 4 21 19.5H3z" />
+      <path d="M12 10v4M12 16.8v.2" />
+    </>
+  ),
+  retakes: (
+    <>
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+      <path d="M19.5 4.5v4.5H15" />
+    </>
+  ),
+};
+
+const HeroNote = ({ icon, children }) => (
+  <li className="er-hero-note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {NOTE_ICONS[icon]}
+    </svg>
+    <span>{children}</span>
+  </li>
+);
 
 const ReportTabToggle = ({ activeTab, onChange, showIndividual = true }) => (
   <div className="er-report-tab-toggle">
@@ -272,13 +374,18 @@ const ExamResults = ({ me }) => {
       const maxAttempts = data.reduce((max, item) => Math.max(max, item.attemptCount || 0), 0);
 
       const exportData = data.map(item => {
+        // Eligible alumni without a submitted attempt have no score
+        const hasScore = !item.status || item.status === 'taken';
+        let status = item.passed ? 'Passed' : 'Failed';
+        if (!hasScore) status = item.status === 'in_progress' ? 'In progress' : 'Not taken';
+
         const row = {
           'Alumni Name': item.student?.name || 'N/A',
           'Alumni Email': item.student?.email || 'N/A',
           'Alumni ID': item.student?.alumniId || item.student?.studentId || 'N/A',
           'Attempt Count': item.attemptCount || 0,
-          'Highest Score (%)': item.overallPercentage || 0,
-          'Status': item.passed ? 'Passed' : 'Failed',
+          'Highest Score (%)': hasScore ? (item.overallPercentage || 0) : '',
+          'Status': status,
         };
 
         const sortedAttempts = (item.attempts || []).slice().sort((a, b) => {
@@ -467,22 +574,39 @@ const ExamResults = ({ me }) => {
   const summary = useMemo(() => {
     if (!activeReport) return null;
 
-    const avg = Math.round(
-      activeReport.subjects.reduce((acc, subject) => acc + subject.averageScore, 0) /
-      activeReport.subjects.length
-    );
+    const takers = activeReport.totalTakers || 0;
+    const totalEligible = activeReport.totalEligibleStudents || 0;
+    const passedCount = activeReport.passedCount || 0;
 
     return {
-      overallAvg: activeReport.overallAverageScore ?? avg,
+      overallAvg: activeReport.overallAverageScore ?? 0,
       highestScore: activeReport.highestScore ?? 0,
       lowestScore: activeReport.lowestScore ?? 0,
-      takers: activeReport.totalTakers,
-      totalEligible: activeReport.totalEligibleStudents ?? 0,
-      totalAttempts: activeReport.totalAttempts,
+      takers,
+      totalEligible,
+      // Share of the eligible students (or alumni) who took it, when the counts add up
+      participation: totalEligible > 0 && takers <= totalEligible ? Math.round((takers / totalEligible) * 100) : null,
+      passedCount,
+      passRate: takers > 0 ? Math.round((passedCount / takers) * 100) : 0,
+      nearMissCount: activeReport.nearMissCount || 0,
+      scoreDistribution: activeReport.scoreDistribution || [],
+      totalAttempts: activeReport.totalAttempts || 0,
+      retakes: activeReport.retakes || null,
       date: formatShortDate(activeReport.dateConducted),
       computedAt: formatDateTime(activeReport.computedAt)
     };
   }, [activeReport]);
+
+  // Topics under the threshold, lowest first
+  const weakSubjects = useMemo(
+    () => enrichedSubjects
+      .filter((subject) => subject.averageScore < threshold)
+      .sort((a, b) => a.averageScore - b.averageScore),
+    [enrichedSubjects, threshold]
+  );
+
+  const isAlumniReport = activeReport?.targetAudience === 'alumni';
+  const audienceNoun = isAlumniReport ? 'alumni' : 'students';
 
   return (
     <div className="er-page">
@@ -759,6 +883,10 @@ const ExamResults = ({ me }) => {
                       <dd>{summary.computedAt || '-'}</dd>
                     </div>
                     <div className="er-report-fact">
+                      <dt>{isAlumniReport ? 'Latest attempt' : 'Date conducted'}</dt>
+                      <dd>{summary.date}</dd>
+                    </div>
+                    <div className="er-report-fact">
                       <dt>Passing threshold</dt>
                       <dd><span className="er-threshold-badge">{threshold}%</span></dd>
                     </div>
@@ -770,45 +898,75 @@ const ExamResults = ({ me }) => {
                   <section className="er-hero-card">
                     <div className="er-hero-topline">
                       <span className="er-hero-eyebrow">
-                        {activeReport.targetAudience === 'alumni'
-                          ? "Average of each alumni's highest score"
-                          : 'Overall performance snapshot'}
+                        {isAlumniReport ? "Based on each alumni's highest score" : 'Overall performance snapshot'}
                       </span>
-                      <div className="er-hero-threshold-pill">Threshold {threshold}%</div>
                     </div>
 
-                    <div className="er-hero-body">
-                      <CircularProgress percentage={summary.overallAvg} threshold={threshold} />
+                    <div className="er-hero-stats">
+                      <div className="er-hero-stat">
+                        <span className="er-hero-stat-label">Passed</span>
+                        <strong className="er-hero-stat-value">{summary.passRate}%</strong>
+                        <span className="er-hero-stat-sub">{summary.passedCount} of {plural(summary.takers, 'taker')}</span>
+                      </div>
+                      <div className="er-hero-stat">
+                        <span className="er-hero-stat-label">Average score</span>
+                        <strong className="er-hero-stat-value">{summary.overallAvg}%</strong>
+                        <ThresholdGap average={summary.overallAvg} threshold={threshold} />
+                      </div>
+                      <div className="er-hero-stat">
+                        <span className="er-hero-stat-label">Took the exam</span>
+                        <strong className="er-hero-stat-value">
+                          {summary.participation !== null ? `${summary.participation}%` : summary.takers}
+                        </strong>
+                        <span className="er-hero-stat-sub">
+                          {summary.participation !== null
+                            ? `${summary.takers} of ${summary.totalEligible} eligible ${audienceNoun}`
+                            : `Eligible ${audienceNoun} count unavailable`}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="er-hero-metrics">
-                      <div className="er-metric-item">
-                        <span className="m-value">{summary.overallAvg}%</span>
-                        <span className="m-label">Average score</span>
-                      </div>
-                      <div className="er-metric-item">
-                        <span className="m-value">{summary.highestScore}%</span>
-                        <span className="m-label">Highest score</span>
-                      </div>
-                      <div className="er-metric-item">
-                        <span className="m-value">{summary.lowestScore}%</span>
-                        <span className="m-label">Lowest score</span>
-                      </div>
-                      <div className="er-metric-item">
-                        <span className="m-value">
-                          {activeReport.targetAudience === 'alumni'
-                            ? summary.totalAttempts
-                            : summary.takers}
-                        </span>
-                        <span className="m-label">
-                          {activeReport.targetAudience === 'alumni' ? 'Total attempts' : 'Total takers'}
-                        </span>
-                      </div>
-                      <div className="er-metric-item">
-                        <span className="m-value">{summary.date}</span>
-                        <span className="m-label">Date conducted</span>
-                      </div>
-                    </div>
+                    <ScoreDistribution
+                      ranges={summary.scoreDistribution}
+                      threshold={threshold}
+                      lowest={summary.lowestScore}
+                      highest={summary.highestScore}
+                    />
+
+                    <ul className="er-hero-notes">
+                      <HeroNote icon="nearMiss">
+                        {summary.nearMissCount > 0 ? (
+                          <>
+                            <strong>{plural(summary.nearMissCount, 'taker')}</strong>
+                            {summary.nearMissCount === 1 ? ' is' : ' are'} within {NEAR_MISS_POINTS} points of passing.
+                          </>
+                        ) : `No taker is within ${NEAR_MISS_POINTS} points of passing.`}
+                      </HeroNote>
+                      <HeroNote icon="topics">
+                        {weakSubjects.length > 0 ? (
+                          <>
+                            Needs attention:{' '}
+                            {weakSubjects.slice(0, 3).map((subject, idx) => (
+                              <React.Fragment key={subject.name}>
+                                {idx > 0 && ' · '}
+                                <strong>{subject.name}</strong> {subject.averageScore}%
+                              </React.Fragment>
+                            ))}
+                            {weakSubjects.length > 3 && ` · ${weakSubjects.length - 3} more below the threshold`}
+                          </>
+                        ) : 'Every topic is at or above the threshold.'}
+                      </HeroNote>
+                      {isAlumniReport && summary.retakes && (
+                        <HeroNote icon="retakes">
+                          {summary.retakes.retakers > 0 ? (
+                            <>
+                              <strong>{summary.retakes.improved} of {summary.retakes.retakers}</strong> alumni who retook it
+                              raised their score ({plural(summary.totalAttempts, 'attempt')} in all).
+                            </>
+                          ) : `No retakes yet (${plural(summary.totalAttempts, 'attempt')} in all).`}
+                        </HeroNote>
+                      )}
+                    </ul>
                   </section>
 
                   <section className="er-breakdown-card">

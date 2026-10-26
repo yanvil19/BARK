@@ -60,6 +60,28 @@ const mockExamResultSchema = new mongoose.Schema({
     max: 100,
     default: 0
   },
+  // The average of the takers' scores, how many reached the threshold, how many fell
+  // short of it by a few points, and the takers per 10-point score range
+  overallAverageScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  passedCount: {
+    type: Number,
+    min: 0
+  },
+  nearMissCount: {
+    type: Number,
+    min: 0
+  },
+  scoreDistribution: [{
+    _id: false,
+    min: Number,
+    max: Number,
+    below: Number,
+    passed: Number
+  }],
   totalEligibleStudents: {
     type: Number,
     min: 0,
