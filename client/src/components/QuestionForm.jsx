@@ -1082,219 +1082,243 @@ export default function QuestionForm({
           </div>
         ) : null}
 
-        <div className="qf-grid">
-          {/* Grouped questions share the group's subject, picked above the shared passage */}
-          {!isGrouped && (
-            <div className="qf-field">
-              <label className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</label>
-              <select value={q.tagId} onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))} disabled={readOnly}>
-                <option value="">Select a subject</option>
-                {tags.map((tag) => (
-                  <option key={tag._id} value={tag._id}>{tag.name}</option>
-                ))}
-              </select>
+        {/* Grouped questions share the group's subject, picked above the shared passage */}
+        {!isGrouped && (
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</h3>
+            </div>
+
+            <div className="qf-section-body">
+              <div className="qf-field qf-field--narrow">
+                <select
+                  aria-label="Subject"
+                  value={q.tagId}
+                  onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, tagId: e.target.value }))}
+                  disabled={readOnly}
+                >
+                  <option value="">Select a subject</option>
+                  {tags.map((tag) => (
+                    <option key={tag._id} value={tag._id}>{tag.name}</option>
+                  ))}
+                </select>
+              </div>
               {tags.length === 0 && !readOnly ? (
                 <p className="qf-inline-note qf-inline-note--error">
                   No subjects available. Ask your Program Chair to create subjects first.
                 </p>
               ) : null}
             </div>
-          )}
-
-          <div className="qf-field qf-field--full">
-            <label className="qf-label-row">Question * {!readOnly && <FieldCheck valid={checks.description} />}</label>
-            <textarea
-              placeholder="Write the full question here..."
-              value={q.description}
-              onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
-              rows={5}
-              disabled={readOnly}
-            />
-          </div>
-        </div>
+          </section>
+        )}
 
         <section className="qf-section">
-          <div className="qf-section-heading">
-            <div>
-              <h3 className="qf-label-row">
-                {imageRequired ? 'Images *' : 'Images'}
-                {!readOnly && imageRequired && <FieldCheck valid={checks.images} />}
-              </h3>
-              <p>
-                {readOnly
-                  ? 'Images attached to this question.'
-                  : `${imageRequired ? 'Required for this question' : 'Optional'}, maximum of ${maxImages} images.`}
-              </p>
-            </div>
+          <div className="qf-section-header">
+            <h3 className="qf-section-title qf-label-row">Question * {!readOnly && <FieldCheck valid={checks.description} />}</h3>
           </div>
 
-          {!readOnly && (
-            <div className="qf-upload-box">
-              <input
-                id={`file-${q.id}`}
-                className="qf-file-input"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handleImagePick(e, q.id)}
+          <div className="qf-section-body">
+            <div className="qf-field">
+              <textarea
+                aria-label="Question"
+                placeholder="Write the full question here..."
+                value={q.description}
+                onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
+                rows={5}
+                disabled={readOnly}
               />
-              <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
-                Choose Files
-              </button>
-              <span className="qf-upload-note">
-                {q.uploadingCount > 0 ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
-              </span>
             </div>
-          )}
-
-          {!readOnly && q.error ? (
-            <p className="qf-inline-note qf-inline-note--error">{q.error}</p>
-          ) : null}
-
-          {q.uploadedUrls.length > 0 || q.uploadingCount > 0 ? (
-            <div className="image-previews">
-              {q.uploadedUrls.map((url, idx) => (
-                <div key={url} className="image-thumb">
-                  <AuthImage
-                    src={url}
-                    alt=""
-                    onClick={() => setFullscreenImage(url)}
-                    title="Click to view full size"
-                  />
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => removeImage(q.id, idx)}
-                      className="btn-remove-img"
-                      title="Remove image"
-                      aria-label={`Remove image ${idx + 1}`}
-                    >
-                      <TrashIcon />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {Array.from({ length: q.uploadingCount }, (_, idx) => (
-                <div key={`uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
-              ))}
-            </div>
-          ) : readOnly ? (
-            <p className="qf-inline-note">No images attached.</p>
-          ) : null}
+          </div>
         </section>
 
         <section className="qf-section">
-          <div className="qf-section-heading">
-            <div>
-              <h3 className="qf-label-row">Answers * {!readOnly && <FieldCheck valid={checks.answers} />}</h3>
-              <p>{readOnly ? 'The correct answer is marked with a selected radio button.' : 'Select the radio button to mark the correct answer.'}</p>
-            </div>
+          <div className="qf-section-header">
+            <h3 className="qf-section-title qf-label-row">
+              {imageRequired ? 'Images *' : 'Images'}
+              {!readOnly && imageRequired && <FieldCheck valid={checks.images} />}
+            </h3>
+          </div>
+
+          <div className="qf-section-body">
+            <p className="qf-section-hint">
+              {readOnly
+                ? 'Images attached to this question.'
+                : `${imageRequired ? 'Required for this question' : 'Optional'}, maximum of ${maxImages} images.`}
+            </p>
+
             {!readOnly && (
-              <button type="button" className="qf-secondary-btn" onClick={() => addAnswer(q.id)}>
+              <div className="qf-upload-box">
+                <input
+                  id={`file-${q.id}`}
+                  className="qf-file-input"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleImagePick(e, q.id)}
+                />
+                <button type="button" className="qf-secondary-btn" onClick={() => document.getElementById(`file-${q.id}`)?.click()}>
+                  Choose Files
+                </button>
+                <span className="qf-upload-note">
+                  {q.uploadingCount > 0 ? 'Uploading images...' : `JPG, PNG, or WEBP (Max 5MB each, ${maxImages} total)`}
+                </span>
+              </div>
+            )}
+
+            {!readOnly && q.error ? (
+              <p className="qf-inline-note qf-inline-note--error">{q.error}</p>
+            ) : null}
+
+            {q.uploadedUrls.length > 0 || q.uploadingCount > 0 ? (
+              <div className="image-previews">
+                {q.uploadedUrls.map((url, idx) => (
+                  <div key={url} className="image-thumb">
+                    <AuthImage
+                      src={url}
+                      alt=""
+                      onClick={() => setFullscreenImage(url)}
+                      title="Click to view full size"
+                    />
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => removeImage(q.id, idx)}
+                        className="btn-remove-img"
+                        title="Remove image"
+                        aria-label={`Remove image ${idx + 1}`}
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {Array.from({ length: q.uploadingCount }, (_, idx) => (
+                  <div key={`uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+                ))}
+              </div>
+            ) : readOnly ? (
+              <p className="qf-inline-note">No images attached.</p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="qf-section">
+          <div className="qf-section-header">
+            <h3 className="qf-section-title qf-label-row">Answers * {!readOnly && <FieldCheck valid={checks.answers} />}</h3>
+            {!readOnly && (
+              <button type="button" className="qf-secondary-btn qf-section-action" onClick={() => addAnswer(q.id)}>
                 + Add Answer
               </button>
             )}
           </div>
 
-          <div className="qf-answer-list">
-            {q.answers.map((answer, idx) => {
-              const canAddImage = !readOnly && !answer.image && !answer.uploading
-                && countAnswerImages(q.answers) < maxAnswerImages;
-              const fileInputId = `answer-file-${q.id}-${answer.uid}`;
+          <div className="qf-section-body">
+            <p className="qf-section-hint">
+              {readOnly ? 'The correct answer is marked with a selected radio button.' : 'Select the radio button to mark the correct answer.'}
+            </p>
 
-              return (
-                <div key={answer.uid || idx} className="qf-answer-row">
-                  <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
-                    <input
-                      className="qf-answer-radio"
-                      type="radio"
-                      checked={answer.isCorrect}
-                      onChange={() => setCorrect(q.id, idx)}
-                      title="Mark as correct"
-                      disabled={readOnly}
-                    />
-                  </label>
+            <div className="qf-answer-list">
+              {q.answers.map((answer, idx) => {
+                const canAddImage = !readOnly && !answer.image && !answer.uploading
+                  && countAnswerImages(q.answers) < maxAnswerImages;
+                const fileInputId = `answer-file-${q.id}-${answer.uid}`;
 
-                  <div className="qf-answer-main">
-                    <AnswerTextInput
-                      className="qf-answer-input"
-                      placeholder={`Answer ${idx + 1}`}
-                      value={answer.text}
-                      onChange={(text) => setAnswerText(q.id, idx, text)}
-                      disabled={readOnly}
-                    />
+                return (
+                  <div key={answer.uid || idx} className="qf-answer-row">
+                    <label className={`qf-answer-radio-wrap ${readOnly ? 'is-disabled' : ''}`}>
+                      <input
+                        className="qf-answer-radio"
+                        type="radio"
+                        checked={answer.isCorrect}
+                        onChange={() => setCorrect(q.id, idx)}
+                        title="Mark as correct"
+                        disabled={readOnly}
+                      />
+                    </label>
 
-                    {answer.image ? (
-                      <div className="qf-answer-image">
-                        <AnswerImage src={answer.image} alt={`Answer ${idx + 1} image`} onZoom={setFullscreenImage} />
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            className="btn-remove-img"
-                            onClick={() => removeAnswerImage(q.id, answer.uid)}
-                            title="Remove image"
-                            aria-label={`Remove image from answer ${idx + 1}`}
-                          >
-                            <TrashIcon />
+                    <div className="qf-answer-main">
+                      <AnswerTextInput
+                        className="qf-answer-input"
+                        placeholder={`Answer ${idx + 1}`}
+                        value={answer.text}
+                        onChange={(text) => setAnswerText(q.id, idx, text)}
+                        disabled={readOnly}
+                      />
+
+                      {answer.image ? (
+                        <div className="qf-answer-image">
+                          <AnswerImage src={answer.image} alt={`Answer ${idx + 1} image`} onZoom={setFullscreenImage} />
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              className="btn-remove-img"
+                              onClick={() => removeAnswerImage(q.id, answer.uid)}
+                              title="Remove image"
+                              aria-label={`Remove image from answer ${idx + 1}`}
+                            >
+                              <TrashIcon />
+                            </button>
+                          )}
+                        </div>
+                      ) : answer.uploading ? (
+                        <span className="qf-upload-note">Uploading image...</span>
+                      ) : null}
+                    </div>
+
+                    {!readOnly && (canAddImage || q.answers.length > 2) ? (
+                      <div className="qf-answer-actions">
+                        {canAddImage && (
+                          <>
+                            <input
+                              id={fileInputId}
+                              className="qf-file-input"
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              onChange={(e) => handleAnswerImagePick(e, q.id, answer.uid)}
+                            />
+                            <button
+                              type="button"
+                              className="qf-secondary-btn qf-icon-btn"
+                              onClick={() => document.getElementById(fileInputId)?.click()}
+                              title="Add image"
+                              aria-label={`Add image to answer ${idx + 1}`}
+                            >
+                              <AddImageIcon />
+                            </button>
+                          </>
+                        )}
+                        {q.answers.length > 2 && (
+                          <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
+                            Remove
                           </button>
                         )}
                       </div>
-                    ) : answer.uploading ? (
-                      <span className="qf-upload-note">Uploading image...</span>
                     ) : null}
                   </div>
-
-                  {!readOnly && (canAddImage || q.answers.length > 2) ? (
-                    <div className="qf-answer-actions">
-                      {canAddImage && (
-                        <>
-                          <input
-                            id={fileInputId}
-                            className="qf-file-input"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={(e) => handleAnswerImagePick(e, q.id, answer.uid)}
-                          />
-                          <button
-                            type="button"
-                            className="qf-secondary-btn qf-icon-btn"
-                            onClick={() => document.getElementById(fileInputId)?.click()}
-                            title="Add image"
-                            aria-label={`Add image to answer ${idx + 1}`}
-                          >
-                            <AddImageIcon />
-                          </button>
-                        </>
-                      )}
-                      {q.answers.length > 2 && (
-                        <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            {!readOnly && maxAnswerImages > 0 && (
+              <p className="qf-upload-note qf-answer-image-note">
+                {`Answer text is required. You can add one optional image per answer (JPG, PNG, or WEBP, max 5MB), on up to ${maxAnswerImages} answer${maxAnswerImages === 1 ? '' : 's'}.`}
+              </p>
+            )}
           </div>
-          {!readOnly && maxAnswerImages > 0 && (
-            <p className="qf-upload-note qf-answer-image-note">
-              {`Answer text is required. You can add one optional image per answer (JPG, PNG, or WEBP, max 5MB), on up to ${maxAnswerImages} answer${maxAnswerImages === 1 ? '' : 's'}.`}
-            </p>
-          )}
         </section>
 
         {/* Rationalization Field */}
-        <section className="qf-section qf-section--rationalization">
-          <div className="qf-section-heading">
-            <div>
-              <h3 className="qf-label-row">Rationalization * {!readOnly && <FieldCheck valid={checks.rationalization} />}</h3>
-              <p>{readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}</p>
-            </div>
+        <section className="qf-section">
+          <div className="qf-section-header">
+            <h3 className="qf-section-title qf-label-row">Rationalization * {!readOnly && <FieldCheck valid={checks.rationalization} />}</h3>
           </div>
-          <div className="qf-field qf-field--full">
+
+          <div className="qf-section-body">
+            <p className="qf-section-hint">
+              {readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}
+            </p>
             <textarea
               className="qf-rationalization-textarea"
+              aria-label="Rationalization"
               placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
               value={q.rationalization || ''}
               onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, rationalization: e.target.value }))}
@@ -1409,112 +1433,121 @@ export default function QuestionForm({
       {/* [GROUPED QUESTIONS] Group context/stem field */}
       {isGrouped && (
         <>
-          <div className="qf-group-context-section">
-            <div className="qf-group-context-label">
-              <strong className="qf-label-row">Subject * {!readOnly && <FieldCheck valid={Boolean(groupTagId)} />}</strong>
-              <span>
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title qf-label-row">Subject * {!readOnly && <FieldCheck valid={Boolean(groupTagId)} />}</h3>
+            </div>
+
+            <div className="qf-section-body">
+              <p className="qf-section-hint">
                 {readOnly
                   ? 'Subject of every question in this group.'
                   : 'A group has one subject. Every question in this group uses it.'}
-              </span>
-            </div>
-            <select
-              className="qf-group-subject-select"
-              value={groupTagId}
-              onChange={(e) => setGroupTag(e.target.value)}
-              disabled={readOnly}
-            >
-              <option value="">Select a subject</option>
-              {tags.map((tag) => (
-                <option key={tag._id} value={tag._id}>{tag.name}</option>
-              ))}
-            </select>
-            {tags.length === 0 && !readOnly ? (
-              <p className="qf-inline-note qf-inline-note--error">
-                No subjects available. Ask your Program Chair to create subjects first.
               </p>
-            ) : null}
-          </div>
+              <div className="qf-field qf-field--narrow">
+                <select
+                  aria-label="Group subject"
+                  value={groupTagId}
+                  onChange={(e) => setGroupTag(e.target.value)}
+                  disabled={readOnly}
+                >
+                  <option value="">Select a subject</option>
+                  {tags.map((tag) => (
+                    <option key={tag._id} value={tag._id}>{tag.name}</option>
+                  ))}
+                </select>
+              </div>
+              {tags.length === 0 && !readOnly ? (
+                <p className="qf-inline-note qf-inline-note--error">
+                  No subjects available. Ask your Program Chair to create subjects first.
+                </p>
+              ) : null}
+            </div>
+          </section>
 
-          <div className="qf-group-context-section">
-            <div className="qf-group-context-label">
-              <strong>Group Context / Stem</strong>
-              <span>
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title">Shared Passage</h3>
+            </div>
+
+            <div className="qf-section-body">
+              <p className="qf-section-hint">
                 {readOnly
                   ? 'Shared passage, scenario, or context shown above all questions in this group.'
                   : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.'}
-              </span>
-            </div>
-            <textarea
-              className="qf-group-context-textarea"
-              placeholder={readOnly ? 'No shared context provided.' : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."}
-              value={groupContext}
-              onChange={e => setGroupContext(e.target.value)}
-              rows={3}
-              disabled={readOnly}
-            />
-
-            {/* Shared passage images: own limit, separate from each question's images */}
-            {!readOnly && maxGroupContextImages > 0 && (
-              <div className="qf-upload-box">
-                <input
-                  id={passageFileInputId}
-                  className="qf-file-input"
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handlePassageImagePick}
+              </p>
+              <div className="qf-field">
+                <textarea
+                  aria-label="Shared passage"
+                  placeholder={readOnly ? 'No shared context provided.' : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."}
+                  value={groupContext}
+                  onChange={e => setGroupContext(e.target.value)}
+                  rows={3}
+                  disabled={readOnly}
                 />
-                <button
-                  type="button"
-                  className="qf-secondary-btn qf-icon-btn"
-                  onClick={() => document.getElementById(passageFileInputId)?.click()}
-                  title="Add shared passage images"
-                  aria-label="Add shared passage images"
-                >
-                  <AddImageIcon />
-                </button>
-                <span className="qf-upload-note">
-                  {passageUploadingCount > 0
-                    ? 'Uploading images...'
-                    : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
-                </span>
               </div>
-            )}
+              {/* Shared passage images: own limit, separate from each question's images */}
+              {!readOnly && maxGroupContextImages > 0 && (
+                <div className="qf-upload-box">
+                  <input
+                    id={passageFileInputId}
+                    className="qf-file-input"
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handlePassageImagePick}
+                  />
+                  <button
+                    type="button"
+                    className="qf-secondary-btn qf-icon-btn"
+                    onClick={() => document.getElementById(passageFileInputId)?.click()}
+                    title="Add shared passage images"
+                    aria-label="Add shared passage images"
+                  >
+                    <AddImageIcon />
+                  </button>
+                  <span className="qf-upload-note">
+                    {passageUploadingCount > 0
+                      ? 'Uploading images...'
+                      : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
+                  </span>
+                </div>
+              )}
 
-            {!readOnly && passageImageError ? (
-              <p className="qf-inline-note qf-inline-note--error">{passageImageError}</p>
-            ) : null}
+              {!readOnly && passageImageError ? (
+                <p className="qf-inline-note qf-inline-note--error">{passageImageError}</p>
+              ) : null}
 
-            {groupContextImages.length > 0 || passageUploadingCount > 0 ? (
-              <div className="image-previews">
-                {groupContextImages.map((url, idx) => (
-                  <div key={url} className="image-thumb">
-                    <AuthImage
-                      src={url}
-                      alt={`Shared passage image ${idx + 1}`}
-                      onClick={() => setFullscreenImage(url)}
-                      title="Click to view full size"
-                    />
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => removePassageImage(idx)}
-                        className="btn-remove-img"
-                        title="Remove image"
-                        aria-label={`Remove shared passage image ${idx + 1}`}
-                      >
-                        <TrashIcon />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {Array.from({ length: passageUploadingCount }, (_, idx) => (
-                  <div key={`passage-uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+              {groupContextImages.length > 0 || passageUploadingCount > 0 ? (
+                <div className="image-previews">
+                  {groupContextImages.map((url, idx) => (
+                    <div key={url} className="image-thumb">
+                      <AuthImage
+                        src={url}
+                        alt={`Shared passage image ${idx + 1}`}
+                        onClick={() => setFullscreenImage(url)}
+                        title="Click to view full size"
+                      />
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() => removePassageImage(idx)}
+                          className="btn-remove-img"
+                          title="Remove image"
+                          aria-label={`Remove shared passage image ${idx + 1}`}
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {Array.from({ length: passageUploadingCount }, (_, idx) => (
+                    <div key={`passage-uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
           <div className="qf-group-notice">
             <span className="qf-group-notice-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -45,6 +45,104 @@ function pickHighestAttemptByAlumni(attempts, exam) {
   return [...bestByAlumni.values()];
 }
 
+// Exam numbers as the exam details show them: the questions of a set take
+// consecutive numbers where the set first appears, in their set order
+function numberExamQuestions(questions = []) {
+  const numbers = new Map();
+  const numberedGroups = new Set();
+  let nextNumber = 1;
+
+  questions.forEach((question) => {
+    if (!question?._id) return;
+    if (!question.groupId) {
+      numbers.set(String(question._id), nextNumber++);
+      return;
+    }
+
+    const groupId = String(question.groupId);
+    if (numberedGroups.has(groupId)) return;
+    numberedGroups.add(groupId);
+    questions
+      .filter((member) => member?.groupId && String(member.groupId) === groupId)
+      .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
+      .forEach((member) => numbers.set(String(member._id), nextNumber++));
+  });
+
+  return numbers;
+}
+
+// What the faculty result views show of a question, from the live (decrypted) exam question
+function getQuestionContent(question, questionNumbers) {
+  return {
+    questionNumber: questionNumbers.get(String(question._id)) || null,
+    description: question.description || '',
+    images: question.images || [],
+    rationalization: question.rationalization || null,
+    groupId: question.groupId ? String(question.groupId) : null,
+    groupOrder: Number.isInteger(question.groupOrder) ? question.groupOrder : null,
+    groupContext: question.groupContext || null,
+    groupContextImages: question.groupContextImages || [],
+  };
+}
+
+// Fills in the question content a report needs but does not keep. Computed results only store
+// the analysis, so images and rationalizations are read from the exam questions each time
+function addQuestionContent(subjects = [], examQuestions = []) {
+  const questionsById = new Map(examQuestions.map((q) => [String(q._id), q]));
+  const questionNumbers = numberExamQuestions(examQuestions);
+
+  subjects.forEach((subject) => {
+    (subject.questions || []).forEach((sq) => {
+      const originalQ = questionsById.get(String(sq.questionId));
+      if (!originalQ) return;
+
+      Object.entries(getQuestionContent(originalQ, questionNumbers)).forEach(([key, value]) => {
+        const current = sq[key];
+        const isMissing = current === undefined || current === null || current === ''
+          || (Array.isArray(current) && current.length === 0);
+        if (isMissing) sq[key] = value;
+      });
+      // Results computed before answer images existed have no image on their answer counts
+      (sq.answerCounts || []).forEach((ac) => {
+        if (ac.image) return;
+        const originalAnswer = (originalQ.answers || []).find((a) => String(a._id) === String(ac.answerId));
+        if (originalAnswer?.image) ac.image = originalAnswer.image;
+      });
+    });
+  });
+
+  return subjects;
+}
+
+// One person's answer to a question. The question itself is sent once, in `questions`
+function getAnswerBreakdown(question, attempt) {
+  const qId = String(question._id);
+  const answerId = attempt.answers ? attempt.answers.get(qId) : null;
+  const correctOptionId = String(question.answers.find((a) => a.isCorrect)?._id);
+  const isCorrect = String(answerId) === correctOptionId;
+
+  return {
+    questionId: qId,
+    userAnswer: answerId ? String(answerId) : null,
+    isCorrect,
+    points: isCorrect ? 1 : 0,
+  };
+}
+
+// Every question of the exam with its answer choices, keyed by question id
+function buildQuestionContentMap(examQuestions = []) {
+  const questionNumbers = numberExamQuestions(examQuestions);
+  return Object.fromEntries(examQuestions.map((q) => [String(q._id), {
+    ...getQuestionContent(q, questionNumbers),
+    answers: (q.answers || []).map((a) => ({
+      _id: a._id,
+      text: a.text,
+      image: a.image || null,
+      isCorrect: !!a.isCorrect,
+    })),
+  }]));
+}
+
 function buildQuestionRates(exam, attempts) {
   const totalTakers = attempts.length;
 
@@ -168,7 +266,7 @@ async function buildAlumniHighestScoreReport(exam, user) {
     computedAt: new Date(),
     targetAudience: 'alumni',
     overallAverageScore: Math.round(totalPercent / totalTakers),
-    subjects: subjectsArray,
+    subjects: addQuestionContent(subjectsArray, decryptedExamForAlumni.questions || []),
   };
 }
 
@@ -273,28 +371,7 @@ exports.getResult = async (req, res) => {
       return res.json({ result: null, message: 'Result not yet computed' });
     }
 
-    // Enrich questions with groupContext and groupId from exam questions if missing
-    const qMap = new Map(examQuestions.map(q => [String(q._id), q]));
-    if (resultDoc.subjects) {
-      resultDoc.subjects.forEach(sub => {
-        (sub.questions || []).forEach(sq => {
-          const originalQ = qMap.get(String(sq.questionId));
-          if (originalQ) {
-            if (!sq.groupId && originalQ.groupId) sq.groupId = originalQ.groupId;
-            if (!sq.groupContext && originalQ.groupContext) sq.groupContext = originalQ.groupContext;
-            if (!sq.groupContextImages?.length && originalQ.groupContextImages?.length) {
-              sq.groupContextImages = originalQ.groupContextImages;
-            }
-            // Results computed before answer images existed have no image on their answer counts
-            (sq.answerCounts || []).forEach(ac => {
-              if (ac.image) return;
-              const originalAnswer = (originalQ.answers || []).find(a => String(a._id) === String(ac.answerId));
-              if (originalAnswer?.image) ac.image = originalAnswer.image;
-            });
-          }
-        });
-      });
-    }
+    addQuestionContent(resultDoc.subjects, examQuestions);
 
     res.json({ result: resultDoc });
   } catch (err) {
@@ -431,7 +508,10 @@ exports.computeResults = async (req, res) => {
       { upsert: true, returnDocument: 'after' }
     );
 
-    res.json({ result: finalResult });
+    const result = finalResult.toObject();
+    addQuestionContent(result.subjects, decryptedExamForCompute.questions || []);
+
+    res.json({ result });
   } catch (err) {
     console.error('Computation Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -484,6 +564,7 @@ exports.getStudentResults = async (req, res) => {
     // Decrypt all populated question fields before processing
     const decryptedExam = decryptExamQuestions(exam);
     const examQuestions = decryptedExam.questions || [];
+    const questionContent = buildQuestionContentMap(examQuestions);
 
     if ((exam.targetAudience || 'student') === 'alumni') {
       const attempts = await AlumniExamAttempt.find({ exam: examId, status: 'submitted' })
@@ -537,35 +618,7 @@ exports.getStudentResults = async (req, res) => {
             const tagIdStr = String(ss.tag._id || ss.tag);
             const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
 
-            const questionBreakdowns = subjectQuestions.map(q => {
-              const qId = String(q._id);
-              const alumniAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
-              const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
-              const isCorrect = String(alumniAnswerId) === correctOptionId;
-
-              const mappedAnswers = q.answers.map(a => ({
-                _id: a._id,
-                text: a.text,
-                image: a.image || null,
-                isCorrect: a.isCorrect
-              }));
-
-              return {
-                questionId: qId,
-                label: q.title || q.description || 'Question',
-                description: q.description || '',
-                images: q.images || [],
-                answers: mappedAnswers,
-                userAnswer: alumniAnswerId || null,
-                correctAnswer: correctOptionId || null,
-                isCorrect,
-                points: isCorrect ? 1 : 0,
-                rationalization: q.rationalization || null,
-                groupId: q.groupId || null,
-                groupContext: q.groupContext || null,
-                groupContextImages: q.groupContextImages || [],
-              };
-            });
+            const questionBreakdowns = subjectQuestions.map(q => getAnswerBreakdown(q, attempt));
 
             const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
 
@@ -608,7 +661,7 @@ exports.getStudentResults = async (req, res) => {
         };
       });
 
-      return res.json({ students: alumniData, audience: 'alumni' });
+      return res.json({ students: alumniData, questions: questionContent, audience: 'alumni' });
     }
 
     // 2. Fetch attempts (students only — exclude alumni accounts)
@@ -644,22 +697,7 @@ exports.getStudentResults = async (req, res) => {
         const tagIdStr = String(ss.tag._id || ss.tag);
         const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
         
-        const questionBreakdowns = subjectQuestions.map(q => {
-          const qId = String(q._id);
-          const studentAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
-          const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
-          const isCorrect = String(studentAnswerId) === correctOptionId;
-          
-          return {
-            questionId: qId,
-            label: q.title || q.description || 'Question',
-            isCorrect: isCorrect,
-            points: isCorrect ? 1 : 0,
-            groupId: q.groupId || null,
-            groupContext: q.groupContext || null,
-            groupContextImages: q.groupContextImages || [],
-          };
-        });
+        const questionBreakdowns = subjectQuestions.map(q => getAnswerBreakdown(q, attempt));
 
         const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
         
@@ -690,7 +728,7 @@ exports.getStudentResults = async (req, res) => {
       };
     });
 
-    res.json({ students: studentsData });
+    res.json({ students: studentsData, questions: questionContent });
   } catch (err) {
     console.error('getStudentResults Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

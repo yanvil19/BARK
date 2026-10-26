@@ -1042,31 +1042,20 @@
   font-size: 12px;
 }
 
-/* Child question cards that belong to a group */
-.mbe-question-card.is-grouped {
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #dce2f5;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+/* The question shown inside an open set is part of the set card, not a card of its own.
+   The set card shows added / not added, so the question stays neutral */
+.mbe-question-card.is-grouped,
+.mbe-question-card.is-grouped:hover {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .mbe-question-card.is-grouped .mbe-question-main {
   grid-template-columns: minmax(0, 1fr) auto;
-}
-
-/* The set card shows added / not added, so the question inside stays neutral */
-.mbe-question-card.is-grouped:hover {
-  transform: none;
-  border-color: #dce2f5;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
-
-/* Numbered bubbles that switch between the questions of an open set */
-.mbe-group-set-body .import-review-bubble-wrapper {
-  gap: 12px;
-  margin-bottom: 0;
-  padding: 14px;
-  background: #ffffff;
 }
 
 /* ─── Select / Add button ───────────────────────────────────────── */

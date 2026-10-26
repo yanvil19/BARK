@@ -1,0 +1,263 @@
+/* Result question cards (ResultQuestionList), same look as the question cards of
+   the Exam Details modal (BoardExams.css) */
+.rql-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rql-card {
+  padding: 16px 18px;
+  border: 1px solid #d8def2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rql-card:hover {
+  transform: translateY(-1px);
+  border-color: #bec7ef;
+  box-shadow: 0 8px 18px rgba(53, 64, 142, 0.09);
+}
+
+/* The question shown inside an open set is part of the set card, not a card of its own */
+.rql-card.is-grouped,
+.rql-card.is-grouped:hover {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.rql-toggle {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rql-toggle:focus-visible {
+  outline: 2px solid #8e99d1;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.rql-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rql-number {
+  display: inline-block;
+  font-family: var(--font-body, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5966ac;
+}
+
+.rql-meta-text {
+  color: #8b92bc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rql-expand-icon {
+  margin-left: auto;
+  color: #6b76b3;
+  font-size: 14px;
+  transition: transform 0.18s ease;
+}
+
+.rql-expand-icon.is-open {
+  transform: rotate(180deg);
+}
+
+/* Start of the question while the card is closed */
+.rql-headline {
+  display: -webkit-box;
+  margin-top: 10px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Question set: its header opens and closes the set, like a dropdown */
+.rql-set {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #d8def2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rql-set:hover {
+  transform: translateY(-1px);
+  border-color: #bec7ef;
+  box-shadow: 0 8px 18px rgba(53, 64, 142, 0.09);
+}
+
+.rql-set-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Inside the set card, which clips anything drawn outside it */
+.rql-set-header:focus-visible {
+  outline: 2px solid #8e99d1;
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+/* Divider between the header and the open set */
+.rql-set.is-open .rql-set-header {
+  border-bottom: 1px solid #e5e9f6;
+}
+
+.rql-set-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+
+.rql-set-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rql-set-header > .rql-number,
+.rql-set-header > .rql-meta-text {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.rql-set-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #312e81;
+  font-family: var(--font-title, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rql-set-badge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.14);
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rql-set-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+/* Full-size image */
+.rql-image-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 10001;
+}
+
+.rql-image-modal {
+  width: min(920px, 100%);
+  max-height: 90vh;
+  padding: 18px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rql-image-close {
+  align-self: flex-end;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 999px;
+  background: #f8faff;
+  color: #35408e;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rql-image-full {
+  width: 100%;
+  max-height: calc(90vh - 64px);
+  object-fit: contain;
+  border-radius: 18px;
+  background: #f8faff;
+}
+
+@media (max-width: 768px) {
+  .rql-card,
+  .rql-set-body {
+    padding: 14px;
+  }
+
+  .rql-set-header {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  /* The passage title gets its own line under the set number */
+  .rql-set-title {
+    order: 1;
+    flex-basis: 100%;
+  }
+}

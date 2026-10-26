@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
+import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
+import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -1154,18 +1154,6 @@ export default function QuestionApprovals({ me }) {
               </div>
 
               <div className="ca-sidebar-content">
-                {isGroupedReview && (selectedQuestion.groupContext || selectedQuestion.groupContextImages?.length > 0) && (
-                  <section className="ca-section" style={{ background: '#f8faff', border: '1px solid #dce4ff', borderRadius: '8px', padding: '12px' }}>
-                    <h3 className="ca-section-label" style={{ color: '#3730a3' }}>Scenario / Shared Passage</h3>
-                    {selectedQuestion.groupContext && (
-                      <p className="ca-question-detail-text" style={{ fontStyle: 'italic', color: '#1e293b' }}>
-                        {selectedQuestion.groupContext}
-                      </p>
-                    )}
-                    <PassageImages images={selectedQuestion.groupContextImages} onZoom={setFullscreenImage} />
-                  </section>
-                )}
-
                 {isGroupedReview && groupSiblingsReview.length > 1 && (
                   <ImportReviewBubbles
                     questions={groupSiblingsReview}
@@ -1175,55 +1163,12 @@ export default function QuestionApprovals({ me }) {
                   />
                 )}
 
-                <div className="ca-review-question-sections">
-                  <section className="ca-section">
-                    <h3 className="ca-section-label">
-                      {isGroupedReview ? `Question ${activeGroupIdx + 1} of ${groupSiblingsReview.length}` : 'Question'}
-                    </h3>
-                    <p className="ca-question-detail-text">{currentReviewQuestion.description}</p>
-                  </section>
-
-                  {currentReviewQuestion.images && currentReviewQuestion.images.length > 0 && (
-                    <section className="ca-section">
-                      <h3 className="ca-section-label">Images</h3>
-                      <div className="ca-images">
-                        {currentReviewQuestion.images.map((img, i) => (
-                          <AuthImage
-                            key={i}
-                            src={img.startsWith('/') ? `${BASE}${img}` : img}
-                            alt={`Question image ${i + 1}`}
-                            className="ca-image"
-                            onClick={() => setFullscreenImage(img.startsWith('/') ? `${BASE}${img}` : img)}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  <section className="ca-section">
-                    <h3 className="ca-section-label">Answers</h3>
-                    <div className="ca-answers">
-                      {currentReviewQuestion.answers.map((ans, i) => (
-                        <div key={i} className="ca-answer-item">
-                          <div className={`ca-answer-indicator ${ans.isCorrect ? 'is-correct' : ''}`}>
-                            {ans.isCorrect ? '✓' : '○'}
-                          </div>
-                          <div className="ca-answer-text">
-                            {ans.text}
-                            <AnswerImage src={ans.image} alt={`Answer ${i + 1} image`} onZoom={setFullscreenImage} className="answer-image--block" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  {currentReviewQuestion.rationalization && (
-                    <section className="ca-section">
-                      <h3 className="ca-section-label">Rationalization</h3>
-                      <p className="ca-question-detail-text">{currentReviewQuestion.rationalization}</p>
-                    </section>
-                  )}
-                </div>
+                <QuestionDetailPanels
+                  question={organizeQuestionAnswers(currentReviewQuestion)}
+                  passage={isGroupedReview ? (currentReviewQuestion.groupContext || selectedQuestion.groupContext || '').trim() : ''}
+                  passageImages={isGroupedReview ? (currentReviewQuestion.groupContextImages || selectedQuestion.groupContextImages || []) : []}
+                  onZoom={setFullscreenImage}
+                />
 
                 <section className="ca-section ca-review-metadata">
                   <div className="ca-meta-grid">

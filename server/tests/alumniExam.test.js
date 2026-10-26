@@ -328,6 +328,17 @@ describe('alumni exam attempts', () => {
       total: 1,
       percentage: 100,
     });
+    // Each attempt carries its answers; the question itself is sent once
+    const bestAttempt = res.body.students[0].attempts.find((attempt) => attempt.attemptNumber === 2);
+    expect(bestAttempt.subjectBreakdowns[0].questions[0]).toMatchObject({
+      questionId: String(question._id),
+      userAnswer: String(question.answers[0]._id),
+      isCorrect: true,
+    });
+    expect(res.body.questions[String(question._id)]).toMatchObject({
+      questionNumber: 1,
+      description: 'Q1',
+    });
   });
 });
 

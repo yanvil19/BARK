@@ -630,12 +630,12 @@
 
 .custom-modal--wide .custom-modal-header {
   padding: 16px 24px;
-  background: #f8faff;
-  border-bottom: 1px solid #dce2f5;
+  background: var(--primary-bg, #35408e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .custom-modal--wide .custom-modal-header h2 {
-  color: #1e2660;
+  color: #ffffff;
   font-family: 'Poppins', 'Nunito', sans-serif;
   font-size: 18px;
 }
@@ -643,13 +643,6 @@
 .custom-modal--wide .custom-modal-close {
   width: 34px;
   height: 34px;
-  background: #eef2ff;
-  border-color: #dce2f5;
-  color: #35408e;
-}
-
-.custom-modal--wide .custom-modal-close:hover {
-  background: #e3e9ff;
 }
 
 .ambe-details-header-new {
@@ -853,12 +846,7 @@
 }
 
 .ambe-questions-container {
-  margin: 18px 24px 24px;
-  padding: 18px;
-  border-radius: 10px;
-  background: #f1f3fb;
-  border: 1px solid #c7d2ee;
-  box-shadow: 0 4px 14px rgba(34, 41, 91, 0.06);
+  margin: 24px 24px 24px;
 }
 
 .ambe-questions-header {
@@ -926,13 +914,15 @@
   box-shadow: 0 8px 18px rgba(53, 64, 142, 0.09);
 }
 
-/* The question shown inside an open set; the set card carries the hover */
+/* The question shown inside an open set is part of the set card, not a card of its own */
 .ambe-question-card.is-grouped,
 .ambe-question-card.is-grouped:hover {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   transform: none;
-  border-color: #dce2f5;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .ambe-question-toggle {
@@ -1104,16 +1094,8 @@
 .ambe-question-set-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-}
-
-/* Numbered bubbles that switch between the questions of an open set */
-.ambe-question-set-body .import-review-bubble-wrapper {
-  gap: 12px;
-  margin-bottom: 0;
-  padding: 14px;
-  background: #ffffff;
+  gap: 16px;
+  padding: 16px 18px;
 }
 
 .ambe-image-overlay {
@@ -1223,8 +1205,7 @@
 
   .ambe-details-header-new,
   .ambe-detail-panels,
-  .ambe-stat-grid,
-  .ambe-questions-container {
+  .ambe-stat-grid {
     padding-left: 18px;
     padding-right: 18px;
   }
@@ -1252,8 +1233,6 @@
 
   .ambe-questions-container {
     margin: 20px 18px 18px;
-    padding: 18px;
-    border-radius: 20px;
   }
 
   .ambe-questions-header {
@@ -1265,6 +1244,10 @@
   }
 
   .ambe-question-card {
+    padding: 14px;
+  }
+
+  .ambe-question-set-body {
     padding: 14px;
   }
 
@@ -1300,8 +1283,6 @@
 
   .custom-modal--wide .ambe-questions-container {
     margin: 16px 18px 18px;
-    padding: 14px;
-    border-radius: 10px;
   }
 }
 

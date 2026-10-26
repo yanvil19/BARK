@@ -726,43 +726,14 @@
   gap: 24px;
 }
 
-.ca-review-question-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.ca-sidebar .ca-review-question-sections > .ca-section {
-  gap: 12px;
-  padding: 18px 20px;
-  border: 1px solid rgba(53, 64, 142, 0.12);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.ca-sidebar .ca-review-question-sections .ca-question-detail-text {
+/* Question panels in the review sidebar; spacing comes from the sidebar's gap */
+.ca-sidebar-content > .question-panels {
   margin-top: 0;
-  font-size: 15px;
-  line-height: 1.75;
 }
 
-.ca-sidebar .ca-review-question-sections .ca-section-label {
-  margin-bottom: 2px;
-}
-
-.ca-sidebar .ca-review-question-sections .ca-answers {
-  gap: 12px;
-}
-
-.ca-sidebar .ca-review-question-sections .ca-answer-item {
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 9px;
-}
-
-.ca-sidebar .ca-review-question-sections .ca-answer-text {
-  font-size: 14px;
-  line-height: 1.65;
+.ca-sidebar-content > .question-panels:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .ca-review-metadata {
@@ -800,16 +771,6 @@
   word-break: break-word;
 }
 
-.ca-question-detail-text {
-  margin: 4px 0 0;
-  font-size: 14px;
-  color: #4a5268;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
 .ca-meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -833,65 +794,12 @@
   word-break: break-word;
 }
 
-.ca-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .ca-image {
   max-width: 100%;
   max-height: 180px;
   border-radius: 8px;
   border: 1px solid rgba(53, 64, 142, 0.2);
   cursor: pointer;
-}
-
-.ca-answers {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ca-answer-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  background: #f9faff;
-  border-radius: 7px;
-  border: 1px solid rgba(53, 64, 142, 0.15);
-  min-width: 0;
-}
-
-.ca-answer-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid #d1d5db;
-  color: #9ca3af;
-  font-size: 12px;
-  flex-shrink: 0;
-  font-weight: 700;
-}
-
-.ca-answer-indicator.is-correct {
-  background: #10b981;
-  border-color: #10b981;
-  color: #fff;
-}
-
-.ca-answer-text {
-  font-size: 14px;
-  color: #1a1f4b;
-  flex: 1;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: pre-wrap;
 }
 
 .ca-section--note {
@@ -1560,15 +1468,6 @@
 }
 
 /* Sidebar Review Bubble Navigation */
-.ca-sidebar .import-review-bubble-wrapper {
-  margin-bottom: 18px;
-  padding: 14px 16px;
-  gap: 12px;
-  background: #f8faff;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 10px;
-}
-
 .ca-sidebar .import-review-nav-bubble {
   width: 32px;
   height: 32px;

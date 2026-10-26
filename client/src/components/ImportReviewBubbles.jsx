@@ -1,7 +1,9 @@
 import '../styles/components/ImportReviewBubbles.css';
 
 // [IMPORT REVIEW - BUBBLE NAVIGATION]
-// Bubble navigation system for import review - matches StudentExamRunner styling
+// Bubble navigation system for import review - matches StudentExamRunner styling.
+// A bordered section with the progress text in a header bar, like the sections
+// of QuestionDetailPanels.
 export default function ImportReviewBubbles({ questions, currentIdx, onSelectQuestion, getQuestionFlags, readOnly = false }) {
   const readyCount = questions.filter(q => {
     const flags = typeof getQuestionFlags === 'function' ? getQuestionFlags(q) : [];

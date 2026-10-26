@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
+import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { uploadDocumentForImport, submitImportedQuestions, getImportLimits, validateAndCountDocument, extractQuestionsFromToken } from '../../lib/importApi.js';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
@@ -11,6 +13,9 @@ import Table from '../../components/Table.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import ActionMenu from '../../components/ActionMenu.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import AuthImage from '../../components/AuthImage.jsx';
+import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import '../../styles/shared/MyQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -42,6 +47,11 @@ function formatResetTime(isoDateStr) {
   }
   const datePart = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   return `${datePart} at ${timePart}`;
+}
+
+function formatCount(value, singular) {
+  const total = Number(value) || 0;
+  return `${total} ${singular}${total === 1 ? '' : 's'}`;
 }
 
 function formatCountdown(seconds) {
@@ -90,6 +100,9 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [editGroupQuestions, setEditGroupQuestions] = useState(null);
   const [viewQuestion, setViewQuestion] = useState(null);
   const [viewGroupQuestions, setViewGroupQuestions] = useState(null);
+  // View modal: the question shown from a set, and the image opened full size
+  const [viewGroupIdx, setViewGroupIdx] = useState(0);
+  const [viewImage, setViewImage] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   // Import-related state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -505,6 +518,11 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   }
 
   function closeViewModal() {
+    // Escape closes an open image before the modal
+    if (viewImage) {
+      setViewImage(null);
+      return;
+    }
     setShowViewModal(false);
     setViewQuestion(null);
     setViewGroupQuestions(null);
@@ -592,6 +610,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   }
 
   function openViewModal(question) {
+    setViewGroupIdx(0);
+    setViewImage(null);
     if (question?.groupId) {
       const siblings = questions
         .filter((q) => q.groupId === question.groupId)
@@ -1023,16 +1043,69 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
           {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
         </div>
 
-        <QuestionForm
-          key={viewGroupQuestions ? `view-group-${viewGroupQuestions[0]?.groupId}` : viewQuestion ? `view-single-${viewQuestion._id}` : 'view'}
-          tags={tags}
-          initialData={viewQuestion}
-          initialGroupQuestions={viewGroupQuestions}
-          onFeedback={setFeedbackModal}
-          onClose={closeViewModal}
-          readOnly={true}
-        />
+        {viewQuestion && (() => {
+          const members = viewGroupQuestions || [viewQuestion];
+          const activeIdx = Math.min(viewGroupIdx, members.length - 1);
+          const activeQuestion = organizeQuestionAnswers(members[activeIdx]);
+
+          return (
+            <div className="qp-view">
+              {/* One numbered bubble per question in the set */}
+              {members.length > 1 && (
+                <ImportReviewBubbles
+                  questions={members}
+                  currentIdx={activeIdx}
+                  onSelectQuestion={setViewGroupIdx}
+                  readOnly
+                />
+              )}
+
+              <div className="qp-view-meta">
+                <span className="qp-badge qp-badge--subject">{activeQuestion.tag?.name || 'No subject'}</span>
+                <span className="qp-view-meta-text">
+                  {formatCount(activeQuestion.answers.length, 'answer')} | {formatCount(activeQuestion.images?.length, 'image')}
+                </span>
+              </div>
+
+              <QuestionDetailPanels
+                question={activeQuestion}
+                passage={viewGroupQuestions ? (activeQuestion.groupContext || '').trim() : ''}
+                passageImages={viewGroupQuestions ? activeQuestion.groupContextImages || [] : []}
+                onZoom={setViewImage}
+              />
+            </div>
+          );
+        })()}
+
+        <div className="modal-actions qp-view-actions">
+          <button type="button" className="modal-btn-cancel" onClick={closeViewModal}>
+            Close
+          </button>
+        </div>
       </Modal>
+
+      {viewImage && createPortal(
+        <div
+          className="qp-image-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setViewImage(null)}
+        >
+          <div className="qp-image-modal" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="qp-image-close"
+              onClick={() => setViewImage(null)}
+              aria-label="Close image preview"
+            >
+              Close
+            </button>
+            <AuthImage src={viewImage} alt="Preview" className="qp-image-full" />
+          </div>
+        </div>,
+        document.body
+      )}
 
       <ConfirmationModal
         open={!!questionToDelete}

@@ -3,29 +3,15 @@
   gap: 20px;
 }
 
-.qf-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 20px;
-}
-
 .qf-field {
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
 
-.qf-field--full {
-  grid-column: 1 / -1;
-}
-
-.qf-field label,
-.qf-section-heading h3 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 13px;
-  font-weight: 700;
-  color: #4a57a2;
+/* Subject pickers don't need the full width of the form */
+.qf-field--narrow {
+  max-width: 420px;
 }
 
 /* Label text + validity check circle */
@@ -92,23 +78,52 @@
   font-size: 13px;
 }
 
+/* Form section: bordered, with its title in a header bar (same look as the
+   sections of QuestionDetailPanels) */
 .qf-section {
-  padding: 18px;
+  border: 1px solid rgba(53, 64, 142, 0.15);
   border-radius: 10px;
-  background: #f7f8fd;
-  border: 1px solid #dbe0f4;
+  background: #ffffff;
 }
 
-.qf-section-heading {
+.qf-section-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 12px;
+  min-height: 24px; /* same height with or without a header button */
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 9px 9px 0 0;
+  background: #f9faff;
 }
 
-.qf-section-heading p {
-  margin: 4px 0 0;
+.qf-section-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary-bg);
+}
+
+/* A small button in the header bar, e.g. "+ Add Answer" */
+.qf-secondary-btn.qf-section-action {
+  padding: 4px 10px;
+  line-height: 1.2;
+  font-size: 12px;
+}
+
+.qf-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.qf-section-hint {
+  margin: 0;
   color: #8b92bc;
   font-size: 12px;
   line-height: 1.45;
@@ -177,7 +192,7 @@ textarea.qf-answer-input {
 }
 
 .qf-answer-image-note {
-  margin: 10px 0 0;
+  margin: 0;
 }
 
 .qf-answer-radio-wrap {
@@ -348,7 +363,6 @@ textarea.qf-answer-input {
 .image-previews {
   display: flex;
   gap: 10px;
-  margin-top: 14px;
   flex-wrap: wrap;
 }
 
@@ -454,10 +468,6 @@ textarea.qf-answer-input {
 }
 
 @media (max-width: 860px) {
-  .qf-grid {
-    grid-template-columns: 1fr;
-  }
-
   .qf-answer-row {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -476,7 +486,6 @@ textarea.qf-answer-input {
     margin-top: 0;
   }
 
-  .qf-section-heading,
   .form-actions {
     flex-direction: column;
     align-items: stretch;
@@ -487,6 +496,10 @@ textarea.qf-answer-input {
   .qf-draft-btn,
   .qf-secondary-btn {
     width: 100%;
+  }
+
+  .qf-secondary-btn.qf-section-action {
+    width: auto;
   }
 }
 
@@ -516,15 +529,17 @@ textarea.qf-answer-input {
   gap: 24px;
 }
 
+/* A question is its stack of sections, not a card of its own */
 .qf-question-block {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  background: #ffffff;
-  border: 1px solid #d5daf0;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(53, 64, 142, 0.05);
+  gap: 14px;
+}
+
+/* Questions listed one after another (editing a group) are split by a line */
+.qf-question-block + .qf-question-block {
+  padding-top: 24px;
+  border-top: 1px solid #dfe4f5;
 }
 
 .qf-question-header {
@@ -814,20 +829,6 @@ textarea.qf-answer-input {
   line-height: 1.6;
 }
 
-/* ─── Rationalization Section ───────────────────────────────── */
-.qf-section--rationalization {
-  background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-}
-
-.qf-section--rationalization .qf-section-heading h3 {
-  color: #4a57a2;
-}
-
-.qf-section--rationalization .qf-section-heading p {
-  color: #8b92bc;
-}
-
 .qf-rationalization-textarea {
   width: 100%;
   box-sizing: border-box;
@@ -898,83 +899,6 @@ textarea.qf-answer-input {
 .qf-mode-btn:hover:not(.qf-mode-btn--active) {
   background: rgba(255,255,255,0.55);
   color: var(--primary-bg);
-}
-
-/* Group context / stem field */
-.qf-group-context-section {
-  background: #f0f3ff;
-  border: 1.5px dashed #b4bfef;
-  border-radius: 12px;
-  padding: 20px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.qf-group-context-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.qf-group-context-label strong {
-  font-family: var(--font-title);
-  font-size: 13px;
-  font-weight: 700;
-  color: #4a57a2;
-}
-
-/* Direct child only, so the check circle inside the label keeps its own colors */
-.qf-group-context-label > span {
-  font-size: 12px;
-  color: #8b92bc;
-}
-
-/* Group subject picker (above the shared passage) */
-.qf-group-subject-select {
-  width: 100%;
-  max-width: 420px;
-  box-sizing: border-box;
-  padding: 10px 13px;
-  border: 1px solid #c8d2f5;
-  border-radius: 7px;
-  background: #fff;
-  color: #4a57a2;
-  font-family: var(--font-body);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.qf-group-subject-select:focus {
-  border-color: #8e99d1;
-  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
-}
-
-.qf-group-context-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 13px;
-  border: 1px solid #c8d2f5;
-  border-radius: 7px;
-  background: #fff;
-  color: #4a57a2;
-  font-family: var(--font-body);
-  font-size: 14px;
-  resize: vertical;
-  min-height: 72px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.qf-group-context-textarea::placeholder {
-  color: #b0b7d8;
-  font-style: italic;
-}
-
-.qf-group-context-textarea:focus {
-  border-color: #8e99d1;
-  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
 }
 
 /* Group "cannot randomize" notice banner */

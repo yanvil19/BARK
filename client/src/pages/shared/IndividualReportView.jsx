@@ -1,237 +1,37 @@
-import AuthImage from '../../components/AuthImage.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
 import React, { useEffect, useState, useMemo, memo } from 'react';
 import { getExamStudentResults } from '../../services/mockExamResultService';
-import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
+import ResultQuestionList from '../../components/ResultQuestionList.jsx';
 
-const QuestionBreakdownRow = memo(({ question, audience, onZoom }) => {
-  const isAlumni = audience === 'alumni';
-  
-  if (!isAlumni) {
-    return (
-      <div style={{
-        background: '#fff',
-        border: '1px solid rgba(30, 45, 107, 0.08)',
-        borderRadius: '8px',
-        padding: '12px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}>
-        {(question.groupContext || question.groupContextImages?.length > 0) && (
-          <div style={{
-            background: '#f4f6fd',
-            borderLeft: '4px solid #1e2d6b',
-            borderRadius: '0 6px 6px 0',
-            padding: '8px 12px',
-            marginBottom: '4px'
-          }}>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              color: '#1e2d6b',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '3px'
-            }}>
-              Question Set Scenario / Shared Passage
-            </div>
-            {question.groupContext && (
-              <div style={{ fontSize: '13px', color: '#2e3856', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
-                {question.groupContext}
-              </div>
-            )}
-            <PassageImages images={question.groupContextImages} onZoom={onZoom} />
-          </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div className="er-ind-q-prompt" style={{ margin: 0 }}>{question.label}</div>
-            {question.groupId && (
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                background: '#ede9fe',
-                color: '#5b21b6',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                letterSpacing: '0.04em'
-              }}>
-                {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
-              </span>
-            )}
-          </div>
-          <div className={`er-ind-q-points ${question.isCorrect ? 'correct' : 'incorrect'}`} style={{ flexShrink: 0 }}>
-            {question.points} point{question.points !== 1 ? 's' : ''}
-          </div>
-        </div>
-      </div>
-    );
-  }
+// Same colors as the topics of the Overall tab
+const getStatusClass = (avg, threshold) => {
+  if (avg >= threshold) return 'green';
+  if (avg >= threshold * 0.7) return 'orange';
+  return 'red';
+};
 
-  return (
-    <div className="ser-question-item" style={{ 
-      background: '#fff', 
-      border: '1px solid #e5e7eb', 
-      borderRadius: '0.5rem', 
-      padding: '1.5rem',
-      marginBottom: '1rem'
-    }}>
-      <div className="ser-question-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
-            {question.label}
-          </h3>
-          {question.groupId && (
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              background: '#ede9fe',
-              color: '#5b21b6',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              letterSpacing: '0.04em'
-            }}>
-              {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
-            </span>
-          )}
-        </div>
-        <span style={{ 
-          padding: '0.25rem 0.75rem', 
-          borderRadius: '9999px', 
-          fontSize: '0.875rem', 
-          fontWeight: '500',
-          backgroundColor: question.isCorrect ? '#dcfce7' : '#fee2e2',
-          color: question.isCorrect ? '#166534' : '#991b1b',
-          flexShrink: 0
-        }}>
-          {question.isCorrect ? 'Correct' : 'Incorrect'}
-        </span>
-      </div>
+// Whether the person got the question right, on its card
+const renderAnswerResult = (question) => {
+  if (!question.userAnswer) return <span className="er-q-tag tag-gray">No answer</span>;
+  return question.isCorrect
+    ? <span className="er-q-tag tag-green">Correct</span>
+    : <span className="er-q-tag tag-red">Incorrect</span>;
+};
 
-      {(question.groupContext || question.groupContextImages?.length > 0) && (
-        <div style={{
-          background: '#f4f6fd',
-          borderLeft: '4px solid #1e2d6b',
-          borderRadius: '0 8px 8px 0',
-          padding: '12px 16px',
-          marginBottom: '1rem'
-        }}>
-          <div style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            color: '#1e2d6b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '4px'
-          }}>
-            Question Set Scenario / Shared Passage
-          </div>
-          {question.groupContext && (
-            <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-              {question.groupContext}
-            </div>
-          )}
-          <PassageImages images={question.groupContextImages} onZoom={onZoom} />
-        </div>
-      )}
-      
-      {question.description && (
-        <p style={{ color: '#4b5563', marginBottom: '1rem' }}>{question.description}</p>
-      )}
-      
-      {question.images && question.images.length > 0 && (
-        <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {question.images.map((img, i) => (
-            <AuthImage
-              key={i}
-              src={img}
-              alt="Question figure"
-              style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.375rem', cursor: 'zoom-in' }}
-              onClick={() => onZoom && onZoom(img)}
-            />
-          ))}
-        </div>
-      )}
-      
-      <div className="ser-answers-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {question.answers && question.answers.map(ans => {
-          const isUserSelection = ans._id === question.userAnswer;
-          const isActualCorrect = ans._id === question.correctAnswer;
-          
-          let bg = '#f9fafb';
-          let border = '1px solid #e5e7eb';
-          
-          if (isActualCorrect) {
-            bg = '#ecfdf5';
-            border = '1px solid #34d399';
-          } else if (isUserSelection && !isActualCorrect) {
-            bg = '#fef2f2';
-            border = '1px solid #f87171';
-          }
+const renderSetScore = (questions) => (
+  <span className="rql-meta-text">
+    {questions.filter((question) => question.isCorrect).length}/{questions.length} correct
+  </span>
+);
 
-          return (
-            <div key={ans._id} style={{
-              padding: '1rem',
-              borderRadius: '0.375rem',
-              background: bg,
-              border: border,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
-            }}>
-              <div style={{
-                width: '1.25rem',
-                height: '1.25rem',
-                borderRadius: '50%',
-                border: '1px solid',
-                borderColor: isUserSelection ? (question.isCorrect ? '#10b981' : '#ef4444') : '#d1d5db',
-                background: isUserSelection ? (question.isCorrect ? '#10b981' : '#ef4444') : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {isUserSelection && (
-                  <div style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', background: '#fff' }} />
-                )}
-              </div>
-              <span style={{ 
-                color: '#374151',
-                fontWeight: isActualCorrect ? '600' : '400' 
-              }}>
-                {ans.text}
-                <AnswerImage src={ans.image} alt="Answer image" onZoom={onZoom} className="answer-image--block" />
-              </span>
-              {isActualCorrect && (
-                <span style={{ marginLeft: 'auto', fontSize: '0.875rem', color: '#10b981', fontWeight: '600' }}>
-                  ✓ Correct Answer
-                </span>
-              )}
-              {isUserSelection && !isActualCorrect && (
-                <span style={{ marginLeft: 'auto', fontSize: '0.875rem', color: '#ef4444', fontWeight: '600' }}>
-                  ✗ Your Answer
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+const getSelectionProps = (question) => ({ selectedAnswerId: question.userAnswer || null });
 
-      {question.rationalization && (
-        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0' }}>
-          <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Rationalization</h4>
-          <p style={{ margin: 0, color: '#475569', fontSize: '0.875rem', lineHeight: 1.5 }}>
-            {question.rationalization}
-          </p>
-        </div>
-      )}
-    </div>
+const SubjectBreakdownRow = memo(({ subject, threshold, questionContent, isExpanded, onToggle }) => {
+  const statusClass = getStatusClass(subject.percentage, threshold);
+  // The exam's question content, with this person's answer
+  const questions = useMemo(
+    () => (subject.questions || []).map((answer) => ({ ...questionContent[answer.questionId], ...answer })),
+    [subject.questions, questionContent]
   );
-});
-
-const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience, onZoom }) => {
-  const statusClass = subject.percentage >= 70 ? 'green' : (subject.percentage >= 50 ? 'orange' : 'red');
 
   return (
     <div className="er-ind-sub-wrapper">
@@ -247,7 +47,6 @@ const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience, onZ
         </div>
         <div className="er-ind-sub-score">
           <div className={`er-ind-sub-pct status-${statusClass}`}>{subject.percentage}%</div>
-          <div className="er-ind-sub-meta-sm">{subject.correct}/{subject.total} correct</div>
         </div>
         <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -258,33 +57,24 @@ const SubjectBreakdownRow = memo(({ subject, isExpanded, onToggle, audience, onZ
       {isExpanded && (
         <div className="er-ind-q-list">
           <div className="er-ind-q-list-title">Questions</div>
-          {groupQuestionsForDisplay(subject.questions).map((item) => (
-            item.type === 'group' ? (
-              <section className="er-question-set" key={item.groupId}>
-                <header className="er-question-set-header">
-                  <strong>Question Set {item.setNumber}</strong>
-                  <span>{item.questions.length} parts</span>
-                </header>
-                {item.questions.map(({ question }) => (
-                  <QuestionBreakdownRow key={question.questionId} question={question} audience={audience} onZoom={onZoom} />
-                ))}
-              </section>
-            ) : (
-              <QuestionBreakdownRow key={item.question.questionId} question={item.question} audience={audience} onZoom={onZoom} />
-            )
-          ))}
+          <ResultQuestionList
+            questions={questions}
+            renderMeta={renderAnswerResult}
+            renderSetMeta={renderSetScore}
+            getPanelProps={getSelectionProps}
+          />
         </div>
       )}
     </div>
   );
 });
 
-const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expandedSubjects, onToggleSubject, onZoom }) => {
+const AlumniAttemptRow = memo(({ attempt, threshold, questionContent, isExpanded, onToggle, expandedSubjects, onToggleSubject }) => {
   return (
     <div className="er-ind-sub-wrapper" style={{ marginTop: '0.5rem' }}>
-      <button 
-        type="button" 
-        className="er-ind-sub-row" 
+      <button
+        type="button"
+        className="er-ind-sub-row"
         onClick={onToggle}
         style={{ gridTemplateColumns: 'minmax(180px, 230px) minmax(0, 1fr) auto 32px' }}
       >
@@ -304,17 +94,17 @@ const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expand
           </svg>
         </div>
       </button>
-      
+
       {isExpanded && (
         <div className="er-ind-q-list">
           {attempt.subjectBreakdowns.map(subject => (
-            <SubjectBreakdownRow 
-              key={subject.subjectId} 
-              subject={subject} 
+            <SubjectBreakdownRow
+              key={subject.subjectId}
+              subject={subject}
+              threshold={threshold}
+              questionContent={questionContent}
               isExpanded={expandedSubjects.has(subject.subjectId)}
               onToggle={() => onToggleSubject(subject.subjectId)}
-              audience={audience}
-              onZoom={onZoom}
             />
           ))}
         </div>
@@ -323,7 +113,7 @@ const AlumniAttemptRow = memo(({ attempt, audience, isExpanded, onToggle, expand
   );
 });
 
-const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard, audience, expandedAttempts, onToggleAttempt, onZoom }) => {
+const StudentResultCard = memo(({ studentData, threshold, questionContent, expandedSubjects, onToggleSubject, isCardExpanded, onToggleCard, audience, expandedAttempts, onToggleAttempt }) => {
   const { student, overallPercentage, passed, subjectBreakdowns, attempts } = studentData;
   const isAlumni = audience === 'alumni';
   return (
@@ -358,25 +148,25 @@ const StudentResultCard = memo(({ studentData, expandedSubjects, onToggleSubject
       {isCardExpanded && (
         <div className="er-ind-student-body">
           {!isAlumni && subjectBreakdowns.map(subject => (
-            <SubjectBreakdownRow 
-              key={subject.subjectId} 
-              subject={subject} 
+            <SubjectBreakdownRow
+              key={subject.subjectId}
+              subject={subject}
+              threshold={threshold}
+              questionContent={questionContent}
               isExpanded={expandedSubjects.has(subject.subjectId)}
               onToggle={() => onToggleSubject(subject.subjectId)}
-              audience={audience}
-              onZoom={onZoom}
             />
           ))}
           {isAlumni && attempts && attempts.map(attempt => (
             <AlumniAttemptRow
               key={attempt.attemptId}
               attempt={attempt}
-              audience={audience}
+              threshold={threshold}
+              questionContent={questionContent}
               isExpanded={expandedAttempts.has(attempt.attemptId)}
               onToggle={() => onToggleAttempt(attempt.attemptId)}
               expandedSubjects={expandedSubjects[attempt.attemptId] || new Set()}
               onToggleSubject={(subId) => onToggleSubject(attempt.attemptId, subId)}
-              onZoom={onZoom}
             />
           ))}
         </div>
@@ -389,18 +179,13 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [studentsData, setStudentsData] = useState([]);
+  // Each question of the exam (text, images, answer choices), keyed by question id
+  const [questionContent, setQuestionContent] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('name_asc');
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [expandedAttempts, setExpandedAttempts] = useState(new Set());
   const [expandedSubjectsByCard, setExpandedSubjectsByCard] = useState({});
-  const [zoomedImage, setZoomedImage] = useState(null);
-
-  useEffect(() => {
-    const handleKey = (e) => { if (e.key === 'Escape') setZoomedImage(null); };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, []);
 
   const fetchResults = async () => {
     setLoading(true);
@@ -408,6 +193,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
     try {
       const res = await getExamStudentResults(examId);
       setStudentsData(res.students || []);
+      setQuestionContent(res.questions || {});
     } catch (err) {
       setError(err.message || 'Failed to fetch individual results.');
     } finally {
@@ -452,7 +238,7 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
     let filtered = studentsData;
     if (searchQuery.trim()) {
       const lowerQ = searchQuery.toLowerCase();
-      filtered = filtered.filter(d => 
+      filtered = filtered.filter(d =>
         d.student.name.toLowerCase().includes(lowerQ) ||
         (d.student.studentId && d.student.studentId.toLowerCase().includes(lowerQ)) ||
         d.student.email.toLowerCase().includes(lowerQ)
@@ -478,15 +264,15 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
   return (
     <div className="er-ind-container">
       <div className="er-ind-controls">
-        <input 
-          type="text" 
+        <input
+          type="text"
           placeholder={`Search ${audienceNoun}...`}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="er-ind-search"
         />
-        <select 
-          value={sortOrder} 
+        <select
+          value={sortOrder}
           onChange={e => setSortOrder(e.target.value)}
           className="er-ind-sort"
         >
@@ -504,11 +290,13 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
         ) : (
           filteredAndSorted.map(data => {
             const cardId = data.attemptId || data.student._id;
-            
+
             return (
-              <StudentResultCard 
+              <StudentResultCard
                 key={cardId}
                 studentData={data}
+                threshold={threshold}
+                questionContent={questionContent}
                 audience={audience}
                 isCardExpanded={expandedCards.has(cardId)}
                 onToggleCard={() => toggleCard(cardId)}
@@ -522,44 +310,11 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
                     toggleSubject(cardId, subIdOrAttemptId);
                   }
                 }}
-                onZoom={setZoomedImage}
               />
             );
           })
         )}
       </div>
-
-      {zoomedImage && (
-        <div
-          onClick={() => setZoomedImage(null)}
-          style={{
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 2000,
-          }}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); setZoomedImage(null); }}
-            style={{
-              position: 'absolute', top: '20px', left: '20px', zIndex: 4000,
-              background: '#1e2d6b', color: '#f5c842', border: 'none',
-              fontSize: '22px', fontWeight: 'bold', width: '40px', height: '40px',
-              borderRadius: '50%', cursor: 'pointer',
-            }}
-          >
-            ✕
-          </button>
-          <AuthImage
-            src={zoomedImage}
-            alt="Zoomed"
-            draggable={false}
-            style={{
-              maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',
-              borderRadius: '10px', boxShadow: '0 0 25px rgba(255,255,255,0.2)',
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }

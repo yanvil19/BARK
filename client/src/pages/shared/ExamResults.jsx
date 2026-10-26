@@ -3,11 +3,9 @@ import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
 import '../../styles/shared/ExamResults.css';
 import PageHeader from '../../components/PageHeader.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
+import ResultQuestionList from '../../components/ResultQuestionList.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
-import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 const getStatusClass = (avg, threshold) => {
   if (avg >= threshold) return 'green';
@@ -58,110 +56,47 @@ const getComputationTone = (exam) => {
 
 const getAudienceLabel = (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students');
 
-const QuestionRow = memo(({ question, isExpanded, onToggle }) => {
-  const tagInfo = getQuestionTagInfo(question.correctRate);
-  const answerCounts = question.answerCounts || [];
-  const totalAnswers = answerCounts.reduce((sum, answer) => sum + (answer.count || 0), 0) + (question.unansweredCount || 0);
-
-  return (
-    <div className="er-question-item">
-      <button type="button" className="er-question-row" onClick={onToggle}>
-        <div className="er-question-main">
-          <span className="er-q-label">{question.label}</span>
-          {question.groupId && (
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              background: '#ede9fe',
-              color: '#5b21b6',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              letterSpacing: '0.04em',
-              whiteSpace: 'nowrap'
-            }}>
-              {getQuestionSetPart(question) ? `Part ${getQuestionSetPart(question)}` : 'Question Set'}
-            </span>
-          )}
-          <div className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</div>
-        </div>
-
-        <div className="er-question-row-meta">
-          <span className="er-q-rate">{question.correctRate}% correct</span>
-          <span className="er-q-respondents">{totalAnswers} responses</span>
-        </div>
-
-        <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="er-question-details">
-          {(question.groupContext || question.groupContextImages?.length > 0) && (
-            <div style={{
-              background: '#f4f6fd',
-              borderLeft: '4px solid var(--er-navy)',
-              borderRadius: '0 8px 8px 0',
-              padding: '12px 16px',
-              marginBottom: '14px'
-            }}>
-              <div style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: 'var(--er-navy)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '4px'
-              }}>
-                Question Set Scenario / Shared Passage
-              </div>
-              {question.groupContext && (
-                <div style={{ fontSize: '14px', color: '#2e3856', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                  {question.groupContext}
-                </div>
-              )}
-              <PassageImages images={question.groupContextImages} />
-            </div>
-          )}
-
-          <div className="er-question-prompt-card">
-            <span className="er-question-detail-label">Question</span>
-            <p>{question.description || question.label}</p>
-          </div>
-
-          <div className="er-answer-breakdown">
-            <span className="er-question-detail-label">Answer choices</span>
-            {answerCounts.length > 0 ? (
-              answerCounts.map((answer) => (
-                <div key={answer.answerId || answer.text} className={`er-answer-row ${answer.isCorrect ? 'correct' : ''}`}>
-                  <div className="er-answer-copy">
-                    <span className="er-answer-text">{answer.text || 'Untitled answer'}</span>
-                    {answer.isCorrect && <span className="er-answer-correct-pill">Correct answer</span>}
-                    <AnswerImage src={answer.image} alt="Answer image" className="answer-image--block er-answer-image" />
-                  </div>
-                  <strong>{answer.count || 0}</strong>
-                </div>
-              ))
-            ) : (
-              <div className="er-answer-empty">No answer choices were stored for this question.</div>
-            )}
-            {(question.unansweredCount || 0) > 0 && (
-              <div className="er-answer-row muted">
-                <span className="er-answer-text">No answer submitted</span>
-                <strong>{question.unansweredCount}</strong>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+// A report question in the shape of the shared question views. Its answer choices
+// come from the answer counts
+const toReportQuestion = (question) => ({
+  ...question,
+  answers: (question.answerCounts || []).map((answer) => ({
+    _id: answer.answerId,
+    text: answer.text,
+    image: answer.image,
+    isCorrect: answer.isCorrect,
+  })),
 });
 
-const TopicRow = memo(({ subject, isExpanded, onToggle, expandedQuestionKey, onQuestionToggle }) => {
+// How the takers did on a question, on its card
+const renderQuestionRate = (question) => {
+  const tagInfo = getQuestionTagInfo(question.correctRate);
+  const takers = (question.answerCounts || []).reduce((sum, answer) => sum + (answer.count || 0), 0)
+    + (question.unansweredCount || 0);
+
+  return (
+    <>
+      <span className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</span>
+      <span className="rql-meta-text">{question.correctRate}% correct | {takers} takers</span>
+    </>
+  );
+};
+
+const renderSetRate = (questions) => {
+  const average = Math.round(questions.reduce((sum, question) => sum + (question.correctRate || 0), 0) / questions.length);
+  return <span className="rql-meta-text">{average}% correct</span>;
+};
+
+const getAnswerCountProps = (question) => ({
+  answerCounts: Object.fromEntries(
+    (question.answerCounts || []).map((answer) => [String(answer.answerId), answer.count || 0])
+  ),
+  unansweredCount: question.unansweredCount || 0,
+});
+
+const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
   const status = getStatusClass(subject.averageScore, subject.threshold);
+  const questions = useMemo(() => (subject.questions || []).map(toReportQuestion), [subject.questions]);
 
   return (
     <div className="er-topic-wrapper">
@@ -196,40 +131,12 @@ const TopicRow = memo(({ subject, isExpanded, onToggle, expandedQuestionKey, onQ
 
       {isExpanded && (
         <div className="er-questions-list">
-          {groupQuestionsForDisplay(subject.questions).map((item) => {
-            if (item.type === 'question') {
-              const question = item.question;
-              const key = question.questionId || `${subject.name}-${item.questionNumber}`;
-              return (
-                <QuestionRow
-                  key={key}
-                  question={question}
-                  isExpanded={expandedQuestionKey === `${subject.name}-${key}`}
-                  onToggle={() => onQuestionToggle(`${subject.name}-${key}`)}
-                />
-              );
-            }
-
-            return (
-              <section className="er-question-set" key={`${subject.name}-${item.groupId}`}>
-                <header className="er-question-set-header">
-                  <strong>Question Set {item.setNumber}</strong>
-                  <span>{item.questions.length} parts</span>
-                </header>
-                {item.questions.map(({ question }, index) => {
-                  const key = question.questionId || `${subject.name}-${item.setNumber}-${index}`;
-                  return (
-                    <QuestionRow
-                      key={key}
-                      question={question}
-                      isExpanded={expandedQuestionKey === `${subject.name}-${key}`}
-                      onToggle={() => onQuestionToggle(`${subject.name}-${key}`)}
-                    />
-                  );
-                })}
-              </section>
-            );
-          })}
+          <ResultQuestionList
+            questions={questions}
+            renderMeta={renderQuestionRate}
+            renderSetMeta={renderSetRate}
+            getPanelProps={getAnswerCountProps}
+          />
         </div>
       )}
     </div>
@@ -335,7 +242,6 @@ const ExamResults = ({ me }) => {
   const [computingId, setComputingId] = useState(null);
   const [threshold, setThreshold] = useState(70);
   const [expandedSubjectName, setExpandedSubjectName] = useState(null);
-  const [expandedQuestionKey, setExpandedQuestionKey] = useState(null);
   
   const isProgramChair = me?.role === 'program_chair';
   const userProgramId = me?.program?._id || me?.program;
@@ -434,7 +340,6 @@ const ExamResults = ({ me }) => {
       const data = await getExamResult(examId);
       setActiveReport(data.result || null);
       setExpandedSubjectName(null);
-      setExpandedQuestionKey(null);
       setActiveTab('overall');
     } catch (err) {
       setActiveReport(null);
@@ -526,7 +431,6 @@ const ExamResults = ({ me }) => {
       setSelectedExamId(null);
       setActiveReport(null);
       setExpandedSubjectName(null);
-      setExpandedQuestionKey(null);
     }
   }, [filteredExams, selectedExamId]);
 
@@ -839,15 +743,7 @@ const ExamResults = ({ me }) => {
                           key={idx}
                           subject={subject}
                           isExpanded={expandedSubjectName === subject.name}
-                          expandedQuestionKey={expandedQuestionKey}
-                          onToggle={() => {
-                            setExpandedSubjectName((prev) => {
-                              const next = prev === subject.name ? null : subject.name;
-                              if (next !== subject.name) setExpandedQuestionKey(null);
-                              return next;
-                            });
-                          }}
-                          onQuestionToggle={(questionKey) => setExpandedQuestionKey((prev) => (prev === questionKey ? null : questionKey))}
+                          onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
                         />
                       ))}
                     </div>

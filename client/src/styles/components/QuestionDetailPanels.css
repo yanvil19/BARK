@@ -1,39 +1,34 @@
-/* Read-only question panels (QuestionDetailPanels), used where a question card
-   is opened: Create Exams and the board exam details. */
+/* Read-only question panels (QuestionDetailPanels): each section is bordered,
+   with its title in a header bar like the question review sidebar's header */
 .question-panels {
   display: grid;
   gap: 14px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e9f6;
+  margin-top: 14px;
 }
 
 .question-panel {
-  border: 1px solid #dce1f2;
-  border-radius: 10px;
-  background: #f9faff;
-  padding: 14px;
   min-width: 0;
-}
-
-/* Shared passage of a question set; keeps the passage's line breaks */
-.question-panel--passage {
-  background: #f5f6ff;
-  border-color: #c7cdf5;
-}
-
-.question-panel--passage .question-panel-text {
-  white-space: pre-wrap;
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .question-panel-label {
-  margin: 0 0 10px;
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  background: #f9faff;
   font-family: var(--font-title);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #8b92bc;
+  color: var(--primary-bg);
+}
+
+.question-panel-body {
+  padding: 14px;
 }
 
 .question-panel-text {
@@ -42,6 +37,12 @@
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Passage images without passage text start at the top of the section */
+.question-panel-body > .passage-images:first-child {
+  margin-top: 0;
 }
 
 .question-panel-images {
@@ -76,32 +77,55 @@ button.question-panel-image-link:focus-visible {
   background: #ffffff;
 }
 
+/* Answer rows run edge to edge, so the correct answer's tint fills the whole row */
+.question-panel-body--answers {
+  padding: 0;
+}
+
 .question-panel-answers {
   display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Answer choices as plain rows split by lines; only the correct one is tinted */
 .question-panel-answer {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #dce1f2;
-  border-radius: 8px;
-  background: #ffffff;
+  padding: 10px 14px;
   color: #4a5268;
   font-size: 13px;
   line-height: 1.5;
   font-weight: 400;
 }
 
+.question-panel-answer + .question-panel-answer {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
 .question-panel-answer.is-correct {
-  border-color: #bae0c5;
   background: #eefaf1;
   color: #21603a;
+}
+
+/* Results: the answer a person picked, when it is wrong */
+.question-panel-answer.is-wrong {
+  background: #fdf1f1;
+  color: #8a2a2a;
+}
+
+/* Results: a blank answer */
+.question-panel-answer.is-blank {
+  color: #8b92bc;
+  font-style: italic;
+}
+
+.question-panel-answer.is-blank .question-panel-option {
+  background: #f1f3fb;
+  color: #8b92bc;
+  font-style: normal;
 }
 
 .question-panel-option {
@@ -123,16 +147,50 @@ button.question-panel-image-link:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.question-panel-correct {
+/* Pills on the right of an answer: selected, correct, and how many picked it */
+.question-panel-answer-tags {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+.question-panel-correct,
+.question-panel-selected,
+.question-panel-count {
+  display: inline-flex;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #dcf5e3;
-  color: #21603a;
   font-size: 11px;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.question-panel-correct,
+.question-panel-selected {
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.question-panel-correct {
+  background: #dcf5e3;
+  color: #21603a;
+}
+
+.question-panel-selected {
+  background: #e6e9fb;
+  color: var(--primary-bg);
+}
+
+.is-wrong .question-panel-selected {
+  background: #fadcdc;
+  color: #8a2a2a;
+}
+
+.question-panel-count {
+  background: #f1f3fb;
+  color: #4a5268;
+  font-style: normal;
 }
