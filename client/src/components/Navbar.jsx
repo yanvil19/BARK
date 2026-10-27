@@ -164,10 +164,10 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
                 </span>
               )}
             </button>
-            <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Logs</button>
             <button className={cls('pcMockBoardExam')} onClick={handle('pcMockBoardExam')}>Create Exams</button>
             <button className={cls('pcAvailableMockBoardExams')} onClick={handle('pcAvailableMockBoardExams')}>Board Exams</button>
             <button className={cls('pcExamResults')} onClick={handle('pcExamResults')}>Exam Results</button>
+            <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Logs</button>
           </>
         )}
 
