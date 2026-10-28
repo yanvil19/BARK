@@ -303,11 +303,7 @@
 /* Table skin comes from components/Table.css; only page-specific bits live here */
 .ambe-table {
   /* Matches the sum of EXAM_TABLE_COLUMN_WIDTHS in BoardExams.jsx */
-  min-width: 1560px;
-}
-
-.ambe-table td.ambe-num {
-  white-space: nowrap;
+  min-width: 1270px;
 }
 
 .ambe-td-name {
@@ -321,7 +317,7 @@
   color: var(--ambe-navy);
   font: inherit;
   font-weight: 700;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -330,24 +326,42 @@
   text-underline-offset: 3px;
 }
 
-.ambe-cell-soft {
-  color: var(--ambe-soft);
-}
-
-.ambe-date {
+/* Stacked cell: a main line with a smaller line below it */
+.ambe-stack {
   display: flex;
   flex-direction: column;
-  white-space: nowrap;
+  gap: 2px;
 }
 
-.ambe-date-main {
-  color: var(--ambe-soft);
+.ambe-stack-main {
+  color: var(--ambe-text);
 }
 
-.ambe-date-time {
+.ambe-stack-sub {
   font-size: 12px;
   line-height: 18px;
   color: var(--ambe-faint);
+}
+
+.ambe-nowrap {
+  white-space: nowrap;
+}
+
+.ambe-audience {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 5px;
+  color: var(--ambe-soft);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.ambe-audience-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
 }
 
 .ambe-subject-list {
@@ -360,6 +374,13 @@
   padding: 0;
   line-height: 20px;
   color: var(--ambe-text);
+}
+
+.ambe-subject-list li.ambe-subject-more {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ambe-faint);
+  cursor: default;
 }
 
 .ambe-muted {
@@ -1344,11 +1365,7 @@
   max-width: 100%;
   line-height: 1.45;
   overflow-wrap: anywhere;
-  text-align: left;
-}
-
-.ambe-date {
-  align-items: center;
+  text-align: center;
 }
 
 .ambe-subject-list li {

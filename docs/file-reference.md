@@ -701,7 +701,7 @@ client/src/pages/shared/BulkRegister.jsx
 ```
 client/src/pages/shared/BoardExams.jsx
 ```
--> Board exam listing page for deans and chairs to view exams filtered by program, status, audience, and subject.
+-> Board exam listing page for deans and chairs to view exams filtered by program, status, audience, and subject. The table view stacks related data in 8 columns: Exam (name + audience), Program, Created (creator + date), Subjects (first 2 + "+N more"), Schedule (date, times, and duration or alumni per-attempt limit), Activity (questions + submissions/attempts), Status (+ results release date), and Actions.
 
 ```
 client/src/pages/shared/CreateExams.jsx
@@ -1050,7 +1050,7 @@ client/src/styles/shared/AvailableExams.css
 ```
 client/src/styles/shared/BoardExams.css
 ```
--> Styles for the board exam faculty listing page with status filters and exam card grid.
+-> Styles for the board exam faculty listing page with status filters, the stacked-cell exam table (`.ambe-stack`), and exam card grid.
 
 ```
 client/src/styles/shared/BulkRegister.css
@@ -1183,7 +1183,7 @@ client/vite.config.js
 ```
 client/package.json
 ```
--> Node.js project manifest for the React/Vite frontend: lists dependencies (React, date-fns, react-datepicker, etc.) and build/dev/preview scripts.
+-> Node.js project manifest for the React/Vite frontend: lists dependencies (React, date-fns, Chart.js, etc.) and build/dev/preview scripts.
 
 ---
 
