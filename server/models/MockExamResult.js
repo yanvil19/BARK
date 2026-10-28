@@ -8,10 +8,14 @@ const questionResultSchema = new mongoose.Schema({
   answerCounts: [{
     answerId: { type: mongoose.Schema.Types.ObjectId },
     text: { type: String, default: '' },
+    image: { type: String, default: null },
     count: { type: Number, default: 0, min: 0 },
     isCorrect: { type: Boolean, default: false },
   }],
-  unansweredCount: { type: Number, default: 0, min: 0 }
+  unansweredCount: { type: Number, default: 0, min: 0 },
+  groupId: { type: String, default: null },
+  groupContext: { type: String, default: null, trim: true },
+  groupContextImages: { type: [String], default: [] },
 });
 
 const subjectResultSchema = new mongoose.Schema({
@@ -56,6 +60,28 @@ const mockExamResultSchema = new mongoose.Schema({
     max: 100,
     default: 0
   },
+  // The average of the takers' scores, how many reached the threshold, how many fell
+  // short of it by a few points, and the takers per 10-point score range
+  overallAverageScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  passedCount: {
+    type: Number,
+    min: 0
+  },
+  nearMissCount: {
+    type: Number,
+    min: 0
+  },
+  scoreDistribution: [{
+    _id: false,
+    min: Number,
+    max: Number,
+    below: Number,
+    passed: Number
+  }],
   totalEligibleStudents: {
     type: Number,
     min: 0,

@@ -1,7 +1,7 @@
 const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
-const { shuffleArray, calculateScore } = require('../utils/examAttemptUtils');
+const { shuffleArray, shuffleQuestionsGroupAware, calculateScore } = require('../utils/examAttemptUtils');
 
 const TIME_LIMIT_GRACE_MS = 10 * 1000;
 
@@ -85,7 +85,7 @@ async function startExam(req, res) {
     const examId = req.params.id;
     const currentExam = await MockBoardExam.findById(examId).populate({
       path: 'questions',
-      select: 'description images answers tag',
+      select: 'description images answers tag groupId groupOrder groupContext groupContextImages',
     });
 
     if (!currentExam) return res.status(404).json({ message: 'Exam not found' });
@@ -126,7 +126,8 @@ async function startExam(req, res) {
         exam: examId,
       }) + 1;
 
-      const shuffledQuestions = shuffleArray([...currentExam.questions]);
+      // [GROUPED QUESTIONS] Use group-aware shuffle so grouped questions stay together
+      const shuffledQuestions = shuffleQuestionsGroupAware([...currentExam.questions]);
       const randomizedStructure = shuffledQuestions.map((q) => {
         const shuffledAnswers = shuffleArray([...q.answers]);
         return {
@@ -173,7 +174,7 @@ async function startExam(req, res) {
       const mappedAnswers = rq.answers
         .map((ansId) => {
           const fullAns = fullQ.answers.find((a) => String(a._id) === String(ansId));
-          return fullAns ? { _id: fullAns._id, text: fullAns.text } : null;
+          return fullAns ? { _id: fullAns._id, text: fullAns.text, image: fullAns.image || null } : null;
         })
         .filter(Boolean);
 
@@ -182,6 +183,10 @@ async function startExam(req, res) {
         description: fullQ.description,
         images: fullQ.images,
         answers: mappedAnswers,
+        // [GROUPED QUESTIONS] — pass group metadata for context display in exam player
+        groupId: fullQ.groupId || null,
+        groupContext: fullQ.groupContext || null,
+        groupContextImages: fullQ.groupContextImages || [],
       });
     });
 
@@ -221,7 +226,7 @@ async function saveProgress(req, res) {
 
     const exam = await MockBoardExam.findById(attempt.exam);
     const deadline = getTimedDeadline(exam, attempt);
-    
+
     if (deadline && Date.now() > deadline.getTime() + TIME_LIMIT_GRACE_MS) {
       await submitExpiredTimedAttempt(attempt, exam, deadline);
       return res.status(403).json({ message: 'Exam window has closed. Your attempt was automatically submitted.' });
@@ -442,7 +447,7 @@ async function getAttemptDetails(req, res) {
       .populate('subjectScores.tag', 'name')
       .populate({
         path: 'randomizedQuestions.question',
-        select: 'description images answers tag rationalization',
+        select: 'description images answers tag rationalization groupId groupContext groupContextImages',
         populate: { path: 'tag', select: 'name' },
       });
 
@@ -463,7 +468,7 @@ async function getAttemptDetails(req, res) {
         const mappedAnswers = rq.answers
           .map((ansId) => {
             const fullAns = fullQ.answers.find((a) => String(a._id) === String(ansId));
-            return fullAns ? { _id: fullAns._id, text: fullAns.text, isCorrect: fullAns.isCorrect } : null;
+            return fullAns ? { _id: fullAns._id, text: fullAns.text, image: fullAns.image || null, isCorrect: fullAns.isCorrect } : null;
           })
           .filter(Boolean);
 
@@ -479,6 +484,9 @@ async function getAttemptDetails(req, res) {
           correctAnswer: correctAnswer || null,
           subjectName: fullQ.tag?.name || null,
           rationalization: fullQ.rationalization || null,
+          groupId: fullQ.groupId || null,
+          groupContext: fullQ.groupContext || null,
+          groupContextImages: fullQ.groupContextImages || [],
         });
       });
     }

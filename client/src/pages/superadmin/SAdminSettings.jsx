@@ -14,6 +14,8 @@ export default function AdminSettings() {
   const [emailCooldownDays, setEmailCooldownDays] = useState(30);
   const [passwordCooldownDays, setPasswordCooldownDays] = useState(7);
   const [maxUploadImages, setMaxUploadImages] = useState(5);
+  const [maxAnswerImages, setMaxAnswerImages] = useState(5);
+  const [maxGroupContextImages, setMaxGroupContextImages] = useState(5);
   const [originalSettings, setOriginalSettings] = useState(null);
 
   const [pendingStatus, setPendingStatus] = useState({ isPending: false });
@@ -32,6 +34,8 @@ export default function AdminSettings() {
         setEmailCooldownDays(Number(settings.emailCooldownDays ?? 30));
         setPasswordCooldownDays(Number(settings.passwordCooldownDays ?? 7));
         setMaxUploadImages(Number(settings.maxUploadImages ?? 5));
+        setMaxAnswerImages(Number(settings.maxAnswerImages ?? 5));
+        setMaxGroupContextImages(Number(settings.maxGroupContextImages ?? 5));
         setOriginalSettings(settings);
         setPendingStatus(pStatus || { isPending: false });
       } catch (err) {
@@ -73,6 +77,8 @@ export default function AdminSettings() {
     const emailDays = Number(emailCooldownDays);
     const passDays = Number(passwordCooldownDays);
     const maxImages = Number(maxUploadImages);
+    const maxAnswerImgs = Number(maxAnswerImages);
+    const maxPassageImgs = Number(maxGroupContextImages);
     
     if (!Number.isFinite(emailDays) || emailDays < 0 || emailDays > 365) {
       setError('Email cooldown days must be between 0 and 365.');
@@ -84,6 +90,14 @@ export default function AdminSettings() {
     }
     if (!Number.isFinite(maxImages) || maxImages < 1 || maxImages > 50) {
       setError('Max upload images must be between 1 and 50.');
+      return;
+    }
+    if (!Number.isFinite(maxAnswerImgs) || maxAnswerImgs < 0 || maxAnswerImgs > 5) {
+      setError('Max answer images must be between 0 and 5.');
+      return;
+    }
+    if (!Number.isFinite(maxPassageImgs) || maxPassageImgs < 0 || maxPassageImgs > 50) {
+      setError('Max shared passage images must be between 0 and 50.');
       return;
     }
 
@@ -102,6 +116,8 @@ export default function AdminSettings() {
           emailCooldownDays: Math.trunc(Number(emailCooldownDays)),
           passwordCooldownDays: Math.trunc(Number(passwordCooldownDays)),
           maxUploadImages: Math.trunc(Number(maxUploadImages)),
+          maxAnswerImages: Math.trunc(Number(maxAnswerImages)),
+          maxGroupContextImages: Math.trunc(Number(maxGroupContextImages)),
         },
       });
       setSuccess('Settings update pending. Will apply after countdown.');
@@ -129,7 +145,9 @@ export default function AdminSettings() {
   const hasChanges = originalSettings && (
     Number(emailCooldownDays) !== Number(originalSettings.emailCooldownDays ?? 30) ||
     Number(passwordCooldownDays) !== Number(originalSettings.passwordCooldownDays ?? 7) ||
-    Number(maxUploadImages) !== Number(originalSettings.maxUploadImages ?? 5)
+    Number(maxUploadImages) !== Number(originalSettings.maxUploadImages ?? 5) ||
+    Number(maxAnswerImages) !== Number(originalSettings.maxAnswerImages ?? 5) ||
+    Number(maxGroupContextImages) !== Number(originalSettings.maxGroupContextImages ?? 5)
   );
 
   return (
@@ -183,6 +201,34 @@ export default function AdminSettings() {
                 onChange={(e) => setMaxUploadImages(e.target.value)}
                 disabled={loading || saving || pendingStatus?.isPending}
               />
+              </div>
+
+              <div className="as-field">
+              <label htmlFor="maxAnswerImages">Max answers with an image per question</label>
+              <input
+                id="maxAnswerImages"
+                type="number"
+                min="0"
+                max="5"
+                value={maxAnswerImages}
+                onChange={(e) => setMaxAnswerImages(e.target.value)}
+                disabled={loading || saving || pendingStatus?.isPending}
+              />
+              <small className="as-field-hint">One image per answer, separate from the question image limit. 0 turns answer images off.</small>
+              </div>
+
+              <div className="as-field">
+              <label htmlFor="maxGroupContextImages">Max shared passage images per question group</label>
+              <input
+                id="maxGroupContextImages"
+                type="number"
+                min="0"
+                max="50"
+                value={maxGroupContextImages}
+                onChange={(e) => setMaxGroupContextImages(e.target.value)}
+                disabled={loading || saving || pendingStatus?.isPending}
+              />
+              <small className="as-field-hint">Images on a group's shared passage, separate from the per-question image limit. 0 turns them off.</small>
               </div>
             </div>
 

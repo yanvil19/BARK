@@ -19,7 +19,6 @@
     "@aws-sdk/client-s3": "^3.1052.0",
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
-    "bull": "^4.16.5",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
@@ -28,12 +27,10 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.12.0",
-    "mongodb": "^7.1.1",
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "pdf-parse": "^1.1.1",
-    "rate-limit-redis": "^4.3.1"
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "jest": "^30.4.2",

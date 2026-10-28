@@ -45,6 +45,221 @@ function pickHighestAttemptByAlumni(attempts, exam) {
   return [...bestByAlumni.values()];
 }
 
+// A taker this many points or fewer under the threshold "nearly passed"
+const NEAR_MISS_POINTS = 5;
+
+// The takers' scores (percentages) as the results page summarizes them. Scores are
+// rounded first, as each person's own result is, so a 69.6% passes a 70% threshold
+// here and on their result alike
+function buildScoreSummary(percentages, passingThreshold) {
+  const scores = percentages.map((percentage) => Math.round(percentage));
+  const scoreDistribution = Array.from({ length: 10 }, (_, idx) => ({
+    min: idx * 10,
+    max: idx === 9 ? 100 : idx * 10 + 9,
+    below: 0,
+    passed: 0,
+  }));
+
+  scores.forEach((score) => {
+    const range = scoreDistribution[Math.min(9, Math.floor(score / 10))];
+    if (score >= passingThreshold) range.passed += 1;
+    else range.below += 1;
+  });
+
+  return {
+    overallAverageScore: percentages.length > 0
+      ? Math.round(percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length)
+      : 0,
+    highestScore: scores.length > 0 ? Math.max(...scores) : 0,
+    lowestScore: scores.length > 0 ? Math.min(...scores) : 0,
+    passedCount: scores.filter((score) => score >= passingThreshold).length,
+    nearMissCount: scores.filter(
+      (score) => score < passingThreshold && score >= passingThreshold - NEAR_MISS_POINTS
+    ).length,
+    scoreDistribution,
+  };
+}
+
+// Alumni who took the exam more than once, and how many of them beat their first score
+function buildRetakeSummary(attempts, exam) {
+  const attemptsByAlumni = new Map();
+  attempts.forEach((attempt) => {
+    const alumniId = String(attempt.alumni?._id || attempt.alumni);
+    if (!attemptsByAlumni.has(alumniId)) attemptsByAlumni.set(alumniId, []);
+    attemptsByAlumni.get(alumniId).push(attempt);
+  });
+
+  let retakers = 0;
+  let improved = 0;
+  attemptsByAlumni.forEach((alumniAttempts) => {
+    if (alumniAttempts.length < 2) return;
+    retakers += 1;
+    const scores = alumniAttempts
+      .slice()
+      .sort((a, b) => (a.attemptNumber || 0) - (b.attemptNumber || 0)
+        || new Date(a.endTime || a.createdAt || 0) - new Date(b.endTime || b.createdAt || 0))
+      .map((attempt) => Math.round(getAttemptPercentage(attempt, exam)));
+    if (Math.max(...scores.slice(1)) > scores[0]) improved += 1;
+  });
+
+  return { retakers, improved };
+}
+
+// When a student exam closes, the expiry job gives everyone who never took it an empty,
+// auto-submitted attempt (score 0). The proctoring stats call such an attempt "missed"
+// with this same check, and so do the individual results
+function isMissedAttempt(attempt) {
+  const answers = attempt.answers instanceof Map
+    ? [...attempt.answers.values()]
+    : Object.values(attempt.answers || {});
+  return attempt.status === 'submitted'
+    && Boolean(attempt.autoSubmitted)
+    && answers.filter(Boolean).length === 0
+    && !(attempt.progressMilestones?.length)
+    && !(attempt.violations?.length);
+}
+
+// Everyone who may take the exam: the active students (or alumni) of its program, the
+// same people the results count as eligible. A program chair only sees their program's
+async function findEligibleLearners(exam, role, user) {
+  if (user.role === 'program_chair' && String(exam.program) !== String(user.program)) return [];
+  return User.find({ program: exam.program, role, isActive: true })
+    .select('name email studentId alumniId')
+    .lean();
+}
+
+// An eligible person without a submitted attempt, listed with the ones who have one.
+// status is 'in_progress' while they are taking it, 'not_taken' otherwise
+function getNotTakenEntry(learner, status) {
+  return {
+    student: {
+      _id: learner._id,
+      name: learner.name,
+      email: learner.email,
+      studentId: learner.studentId || learner.alumniId,
+    },
+    status,
+    overallPercentage: null,
+    passed: null,
+    subjectBreakdowns: [],
+  };
+}
+
+// The eligible people missing from the results, with whether they are taking it now
+async function listNotTaken(exam, role, user, resultEntries, inProgressIds) {
+  const listed = new Set(resultEntries.map((entry) => String(entry.student._id)));
+  const inProgress = new Set(inProgressIds.map(String));
+  const learners = await findEligibleLearners(exam, role, user);
+  return learners
+    .filter((learner) => !listed.has(String(learner._id)))
+    .map((learner) => getNotTakenEntry(learner, inProgress.has(String(learner._id)) ? 'in_progress' : 'not_taken'));
+}
+
+// Submitted attempts of student accounts (alumni accounts are left out)
+async function findStudentAttempts(examId) {
+  const attempts = await StudentExamAttempt.find({ exam: examId, status: 'submitted' })
+    .populate('student', 'role');
+  return attempts.filter((attempt) => attempt.student && attempt.student.role === 'student');
+}
+
+// Exam numbers as the exam details show them: the questions of a set take
+// consecutive numbers where the set first appears, in their set order
+function numberExamQuestions(questions = []) {
+  const numbers = new Map();
+  const numberedGroups = new Set();
+  let nextNumber = 1;
+
+  questions.forEach((question) => {
+    if (!question?._id) return;
+    if (!question.groupId) {
+      numbers.set(String(question._id), nextNumber++);
+      return;
+    }
+
+    const groupId = String(question.groupId);
+    if (numberedGroups.has(groupId)) return;
+    numberedGroups.add(groupId);
+    questions
+      .filter((member) => member?.groupId && String(member.groupId) === groupId)
+      .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
+      .forEach((member) => numbers.set(String(member._id), nextNumber++));
+  });
+
+  return numbers;
+}
+
+// What the faculty result views show of a question, from the live (decrypted) exam question
+function getQuestionContent(question, questionNumbers) {
+  return {
+    questionNumber: questionNumbers.get(String(question._id)) || null,
+    description: question.description || '',
+    images: question.images || [],
+    rationalization: question.rationalization || null,
+    groupId: question.groupId ? String(question.groupId) : null,
+    groupOrder: Number.isInteger(question.groupOrder) ? question.groupOrder : null,
+    groupContext: question.groupContext || null,
+    groupContextImages: question.groupContextImages || [],
+  };
+}
+
+// Fills in the question content a report needs but does not keep. Computed results only store
+// the analysis, so images and rationalizations are read from the exam questions each time
+function addQuestionContent(subjects = [], examQuestions = []) {
+  const questionsById = new Map(examQuestions.map((q) => [String(q._id), q]));
+  const questionNumbers = numberExamQuestions(examQuestions);
+
+  subjects.forEach((subject) => {
+    (subject.questions || []).forEach((sq) => {
+      const originalQ = questionsById.get(String(sq.questionId));
+      if (!originalQ) return;
+
+      Object.entries(getQuestionContent(originalQ, questionNumbers)).forEach(([key, value]) => {
+        const current = sq[key];
+        const isMissing = current === undefined || current === null || current === ''
+          || (Array.isArray(current) && current.length === 0);
+        if (isMissing) sq[key] = value;
+      });
+      // Results computed before answer images existed have no image on their answer counts
+      (sq.answerCounts || []).forEach((ac) => {
+        if (ac.image) return;
+        const originalAnswer = (originalQ.answers || []).find((a) => String(a._id) === String(ac.answerId));
+        if (originalAnswer?.image) ac.image = originalAnswer.image;
+      });
+    });
+  });
+
+  return subjects;
+}
+
+// One person's answer to a question. The question itself is sent once, in `questions`
+function getAnswerBreakdown(question, attempt) {
+  const qId = String(question._id);
+  const answerId = attempt.answers ? attempt.answers.get(qId) : null;
+  const correctOptionId = String(question.answers.find((a) => a.isCorrect)?._id);
+  const isCorrect = String(answerId) === correctOptionId;
+
+  return {
+    questionId: qId,
+    userAnswer: answerId ? String(answerId) : null,
+    isCorrect,
+    points: isCorrect ? 1 : 0,
+  };
+}
+
+// Every question of the exam with its answer choices, keyed by question id
+function buildQuestionContentMap(examQuestions = []) {
+  const questionNumbers = numberExamQuestions(examQuestions);
+  return Object.fromEntries(examQuestions.map((q) => [String(q._id), {
+    ...getQuestionContent(q, questionNumbers),
+    answers: (q.answers || []).map((a) => ({
+      _id: a._id,
+      text: a.text,
+      image: a.image || null,
+      isCorrect: !!a.isCorrect,
+    })),
+  }]));
+}
+
 function buildQuestionRates(exam, attempts) {
   const totalTakers = attempts.length;
 
@@ -61,6 +276,7 @@ function buildQuestionRates(exam, attempts) {
       return {
         answerId: answer._id,
         text: answer.text || '',
+        image: answer.image || null,
         count,
         isCorrect: !!answer.isCorrect,
       };
@@ -78,6 +294,9 @@ function buildQuestionRates(exam, attempts) {
       correctRate: totalTakers > 0 ? Math.round((correctCount / totalTakers) * 100) : 0,
       answerCounts,
       unansweredCount: Math.max(totalTakers - answeredCount, 0),
+      groupId: question.groupId || null,
+      groupContext: question.groupContext || null,
+      groupContextImages: question.groupContextImages || [],
     };
   });
 }
@@ -127,14 +346,18 @@ async function buildAlumniHighestScoreReport(exam, user) {
         correctRate: sq.correctRate,
         answerCounts: sq.answerCounts,
         unansweredCount: sq.unansweredCount,
+        groupId: sq.groupId || null,
+        groupContext: sq.groupContext || null,
+        groupContextImages: sq.groupContextImages || [],
       })),
     };
   });
 
-  const percentages = bestAttempts.map((attempt) => getAttemptPercentage(attempt, exam));
-  const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
-  const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
-  const totalPercent = percentages.reduce((sum, p) => sum + p, 0);
+  const passingThreshold = exam.passingThreshold ?? 70;
+  const scoreSummary = buildScoreSummary(
+    bestAttempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+    passingThreshold
+  );
 
   const latestSubmittedAt = bestAttempts.reduce((latest, attempt) => {
     const submittedAt = new Date(attempt.endTime || attempt.updatedAt || attempt.createdAt || 0);
@@ -153,15 +376,14 @@ async function buildAlumniHighestScoreReport(exam, user) {
     dateConducted: latestSubmittedAt,
     totalTakers,
     totalAttempts: scopedAttempts.length,
-    highestScore,
-    lowestScore,
+    ...scoreSummary,
+    retakes: buildRetakeSummary(scopedAttempts, exam),
     totalEligibleStudents,
-    passingThreshold: exam.passingThreshold ?? 70,
+    passingThreshold,
     status: 'computed',
     computedAt: new Date(),
     targetAudience: 'alumni',
-    overallAverageScore: Math.round(totalPercent / totalTakers),
-    subjects: subjectsArray,
+    subjects: addQuestionContent(subjectsArray, decryptedExamForAlumni.questions || []),
   };
 }
 
@@ -257,16 +479,28 @@ exports.getResult = async (req, res) => {
       return res.json({ result: report });
     }
 
-    const result = await MockExamResult.findOne({ 
+    const resultDoc = await MockExamResult.findOne({ 
       examId: req.params.examId,
       department: req.user.department 
-    });
+    }).lean();
 
-    if (!result) {
+    if (!resultDoc) {
       return res.json({ result: null, message: 'Result not yet computed' });
     }
 
-    res.json({ result });
+    // Results computed before the score summary was saved get it from the attempts
+    if (resultDoc.passedCount === undefined || !resultDoc.scoreDistribution?.length) {
+      const attempts = await findStudentAttempts(exam._id);
+      const { overallAverageScore, passedCount, nearMissCount, scoreDistribution } = buildScoreSummary(
+        attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+        resultDoc.passingThreshold ?? 70
+      );
+      Object.assign(resultDoc, { overallAverageScore, passedCount, nearMissCount, scoreDistribution });
+    }
+
+    addQuestionContent(resultDoc.subjects, examQuestions);
+
+    res.json({ result: resultDoc });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -301,14 +535,7 @@ exports.computeResults = async (req, res) => {
     }
 
     // 3. FETCH ATTEMPTS (students only — exclude alumni accounts)
-    const rawAttempts = await StudentExamAttempt.find({ 
-      exam: examId, 
-      status: 'submitted' 
-    }).populate('student', 'role');
-
-    const attempts = rawAttempts.filter(
-      (a) => a.student && a.student.role === 'student'
-    );
+    const attempts = await findStudentAttempts(examId);
 
     if (attempts.length === 0) {
       return res.status(400).json({ 
@@ -353,6 +580,9 @@ exports.computeResults = async (req, res) => {
           correctRate: sq.correctRate,
           answerCounts: sq.answerCounts,
           unansweredCount: sq.unansweredCount,
+          groupId: sq.groupId || null,
+          groupContext: sq.groupContext || null,
+          groupContextImages: sq.groupContextImages || [],
         }))
       };
     });
@@ -362,12 +592,10 @@ exports.computeResults = async (req, res) => {
       ? exam.passingThreshold 
       : (passingThreshold !== undefined && passingThreshold !== null ? passingThreshold : 70);
 
-    const percentages = attempts.map((attempt) => getAttemptPercentage(attempt, exam));
-    const highestScore = percentages.length > 0 ? Math.round(Math.max(...percentages)) : 0;
-    const lowestScore = percentages.length > 0 ? Math.round(Math.min(...percentages)) : 0;
-    const overallAverageScore = percentages.length > 0
-      ? Math.round(percentages.reduce((sum, p) => sum + p, 0) / percentages.length)
-      : 0;
+    const scoreSummary = buildScoreSummary(
+      attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+      finalThreshold
+    );
 
     const totalEligibleStudents = await User.countDocuments({
       program: exam.program,
@@ -380,9 +608,7 @@ exports.computeResults = async (req, res) => {
       examName: exam.name,
       dateConducted: exam.startDateTime,
       totalTakers,
-      highestScore,
-      lowestScore,
-      overallAverageScore,
+      ...scoreSummary,
       totalEligibleStudents,
       passingThreshold: finalThreshold,
       status: 'computed',
@@ -398,7 +624,10 @@ exports.computeResults = async (req, res) => {
       { upsert: true, returnDocument: 'after' }
     );
 
-    res.json({ result: finalResult });
+    const result = finalResult.toObject();
+    addQuestionContent(result.subjects, decryptedExamForCompute.questions || []);
+
+    res.json({ result });
   } catch (err) {
     console.error('Computation Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -451,6 +680,9 @@ exports.getStudentResults = async (req, res) => {
     // Decrypt all populated question fields before processing
     const decryptedExam = decryptExamQuestions(exam);
     const examQuestions = decryptedExam.questions || [];
+    const questionContent = buildQuestionContentMap(examQuestions);
+    // Whether the ones who did not take it can still take it
+    const examEnded = Boolean(exam.endDateTime) && new Date(exam.endDateTime) < new Date();
 
     if ((exam.targetAudience || 'student') === 'alumni') {
       const attempts = await AlumniExamAttempt.find({ exam: examId, status: 'submitted' })
@@ -504,30 +736,7 @@ exports.getStudentResults = async (req, res) => {
             const tagIdStr = String(ss.tag._id || ss.tag);
             const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
 
-            const questionBreakdowns = subjectQuestions.map(q => {
-              const qId = String(q._id);
-              const alumniAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
-              const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
-              const isCorrect = String(alumniAnswerId) === correctOptionId;
-
-              const mappedAnswers = q.answers.map(a => ({
-                _id: a._id,
-                text: a.text,
-                isCorrect: a.isCorrect
-              }));
-
-              return {
-                questionId: qId,
-                label: q.title || q.description || 'Question',
-                description: q.description || '',
-                images: q.images || [],
-                answers: mappedAnswers,
-                userAnswer: alumniAnswerId || null,
-                correctAnswer: correctOptionId || null,
-                isCorrect,
-                points: isCorrect ? 1 : 0,
-              };
-            });
+            const questionBreakdowns = subjectQuestions.map(q => getAnswerBreakdown(q, attempt));
 
             const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
 
@@ -561,6 +770,7 @@ exports.getStudentResults = async (req, res) => {
 
         return {
           student: alumniRecord.student,
+          status: 'taken',
           attemptCount: formattedAttempts.length,
           attemptNumber: bestAttempt ? bestAttempt.attemptNumber : 1,
           attempts: formattedAttempts,
@@ -570,7 +780,15 @@ exports.getStudentResults = async (req, res) => {
         };
       });
 
-      return res.json({ students: alumniData, audience: 'alumni' });
+      const alumniInProgress = await AlumniExamAttempt.distinct('alumni', { exam: examId, status: 'in_progress' });
+      const alumniNotTaken = await listNotTaken(exam, 'alumni', req.user, alumniData, alumniInProgress);
+
+      return res.json({
+        students: [...alumniData, ...alumniNotTaken],
+        questions: questionContent,
+        audience: 'alumni',
+        examEnded,
+      });
     }
 
     // 2. Fetch attempts (students only — exclude alumni accounts)
@@ -580,7 +798,7 @@ exports.getStudentResults = async (req, res) => {
       .populate('subjectScores.tag', 'name');
 
     let filteredAttempts = attempts.filter(
-      (attempt) => attempt.student && attempt.student.role === 'student'
+      (attempt) => attempt.student && attempt.student.role === 'student' && !isMissedAttempt(attempt)
     );
 
     // Access Control: If program chair, restrict to their program
@@ -606,19 +824,7 @@ exports.getStudentResults = async (req, res) => {
         const tagIdStr = String(ss.tag._id || ss.tag);
         const subjectQuestions = examQuestions.filter(q => String(q.tag) === tagIdStr);
         
-        const questionBreakdowns = subjectQuestions.map(q => {
-          const qId = String(q._id);
-          const studentAnswerId = attempt.answers ? attempt.answers.get(qId) : null;
-          const correctOptionId = String(q.answers.find(a => a.isCorrect)?._id);
-          const isCorrect = String(studentAnswerId) === correctOptionId;
-          
-          return {
-            questionId: qId,
-            label: q.title || q.description || 'Question',
-            isCorrect: isCorrect,
-            points: isCorrect ? 1 : 0
-          };
-        });
+        const questionBreakdowns = subjectQuestions.map(q => getAnswerBreakdown(q, attempt));
 
         const percentage = ss.total > 0 ? Math.round((ss.correct / ss.total) * 100) : 0;
         
@@ -643,13 +849,17 @@ exports.getStudentResults = async (req, res) => {
           email: attempt.student.email,
           studentId: attempt.student.studentId || attempt.student.alumniId,
         },
+        status: 'taken',
         overallPercentage,
         passed,
         subjectBreakdowns
       };
     });
 
-    res.json({ students: studentsData });
+    const studentsInProgress = await StudentExamAttempt.distinct('student', { exam: examId, status: 'in_progress' });
+    const studentsNotTaken = await listNotTaken(exam, 'student', req.user, studentsData, studentsInProgress);
+
+    res.json({ students: [...studentsData, ...studentsNotTaken], questions: questionContent, examEnded });
   } catch (err) {
     console.error('getStudentResults Error:', err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });

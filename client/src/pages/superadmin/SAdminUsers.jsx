@@ -49,6 +49,19 @@ function PasswordToggle({ shown, onToggle, label, disabled }) {
   );
 }
 
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 3 minutes
+
+function getUserOnlineStatus(lastActiveAt) {
+  if (!lastActiveAt) return { isOnline: false, label: 'Offline' };
+  const lastActiveTime = new Date(lastActiveAt).getTime();
+  if (Number.isNaN(lastActiveTime)) return { isOnline: false, label: 'Offline' };
+
+  const isOnline = Date.now() - lastActiveTime <= ONLINE_THRESHOLD_MS;
+  return {
+    isOnline,
+    label: isOnline ? 'Online' : 'Offline',
+  };
+}
 
 export default function AdminUsers({ me }) {
   const { notify } = useToast();
@@ -613,8 +626,8 @@ export default function AdminUsers({ me }) {
                   <col style={{ width: '11%' }} />
                 </colgroup>
                 <thead>
-                <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th>Status</th><th>Email Opt-In ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
-              </thead>
+                  <tr><th>User</th><th>ID</th><th>Role</th><th>Department</th><th>Program</th><th className="um-th-center">Status</th><th>Email Opt-In ({emailsEnabledCount}/{emailsTotalCount} users)</th><th>Actions</th></tr>
+                </thead>
                 <tbody>
                   {paginatedUsers.length === 0 ? <tr><td colSpan={8} className="um-empty">No users found.</td></tr> : (
                     paginatedUsers.map((u) => (
@@ -627,7 +640,25 @@ export default function AdminUsers({ me }) {
                         <td><span className={`um-badge um-badge--${u.role}`}>{formatRoleLabel(u.role)}</span></td>
                         <td>{u.department?.code ? <span className="um-badge um-badge--dept">{u.department.code}</span> : <span className="um-none">(none)</span>}</td>
                         <td>{u.program?.code ? <span className="um-badge um-badge--dept">{u.program.code}</span> : <span className="um-none">(none)</span>}</td>
-                        <td><span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>● {u.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td className="um-td-center">
+                          <div className="um-status-group">
+                            <span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
+                              ● {u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                            {(() => {
+                              const { isOnline, label } = getUserOnlineStatus(u.last_active_at);
+                              return (
+                                <span
+                                  className={`um-presence-pill ${isOnline ? 'um-presence--online' : 'um-presence--offline'}`}
+                                  title={u.last_active_at ? `Last active: ${new Date(u.last_active_at).toLocaleString()}` : 'Never active'}
+                                >
+                                  <span className="um-presence-dot" />
+                                  {label}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </td>
                         <td>
                           {u._id === me?._id ? <span className="um-none">(you)</span> : (
                             <div className="um-email-cell">
@@ -811,8 +842,8 @@ export default function AdminUsers({ me }) {
             </div>
             <div className="um-form-group">
               <label>Program</label>
-              <select 
-                value={createForm.programId} 
+              <select
+                value={createForm.programId}
                 onChange={(e) => setCreateForm((f) => ({ ...f, programId: e.target.value }))}
                 disabled={!createForm.departmentId}
               >
@@ -886,8 +917,8 @@ export default function AdminUsers({ me }) {
                 </div>
                 <div className="um-form-group">
                   <label>Program</label>
-                  <select 
-                    value={editForm.programId} 
+                  <select
+                    value={editForm.programId}
                     onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
                     disabled={!editForm.departmentId}
                   >

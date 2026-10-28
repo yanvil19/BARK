@@ -1,0 +1,43 @@
+/* Shared passage images, shown under the passage text of a question group */
+.passage-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.passage-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 180px;
+  max-width: 100%;
+  height: 130px;
+  padding: 0;
+  border: 1px solid #dbe0f4;
+  border-radius: 8px;
+  background: #eef1fb;
+  overflow: hidden;
+}
+
+.passage-image--zoomable {
+  cursor: zoom-in;
+}
+
+.passage-image--zoomable:focus-visible {
+  outline: 2px solid #5b6dd3;
+  outline-offset: 2px;
+}
+
+.passage-image-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.passage-image .auth-image-loading,
+.passage-image .auth-image-error {
+  font-size: 11px;
+}

@@ -1,0 +1,41 @@
+.answer-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 132px;
+  max-width: 100%;
+  height: 96px;
+  margin-top: 8px;
+  padding: 0;
+  border: 1px solid #dbe0f4;
+  border-radius: 8px;
+  background: #eef1fb;
+  overflow: hidden;
+}
+
+.answer-image--zoomable {
+  cursor: zoom-in;
+}
+
+.answer-image--zoomable:focus-visible {
+  outline: 2px solid #5b6dd3;
+  outline-offset: 2px;
+}
+
+.answer-image-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.answer-image .auth-image-loading,
+.answer-image .auth-image-error {
+  font-size: 11px;
+}
+
+/* Sits on its own line below the answer text */
+.answer-image--block {
+  display: flex;
+}

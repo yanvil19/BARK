@@ -1,12 +1,15 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const Question = require('../models/Question');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const {
   listQuestions,
   listApprovals,
   createQuestion,
+  createQuestionGroup,
+  getQuestionGroup,
+  updateQuestionGroup,
+  submitQuestionGroup,
+  deleteQuestionGroup,
   updateQuestion,
   deleteQuestion,
   submitQuestion,
@@ -14,23 +17,24 @@ const {
   deanReturnApprovedQuestion,
   lockQuestion,
   unlockQuestion,
-  deleteQuestionImagesFromR2,
   markQuestionRead,
 } = require('../controllers/questionController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const AppSettings = require('../models/AppSettings');
+const {
+  isStorageConfigured,
+  isValidImageFilename,
+  toImageUrl,
+  imageReferenceFilter,
+  uploadQuestionImage,
+  getImageUploader,
+  readQuestionImage,
+  deleteImageObject,
+  canViewQuestionImage,
+} = require('../services/questionImageService');
 
 const router = express.Router();
 const FACULTY = ['professor', 'program_chair', 'dean'];
-
-const r2 = new S3Client({
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  region: 'auto',
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-});
 
 // Allow up to 50 files at the multer level; real limit enforced dynamically from AppSettings
 const upload = multer({
@@ -46,6 +50,12 @@ const upload = multer({
 router.get('/', protect, authorizeRoles(...FACULTY), listQuestions);
 router.get('/approvals', protect, authorizeRoles('program_chair', 'dean'), listApprovals);
 router.post('/', protect, authorizeRoles(...FACULTY), createQuestion);
+// [GROUPED QUESTIONS] — must be before /:id routes so 'group' isn't treated as an ID
+router.post('/group', protect, authorizeRoles(...FACULTY), createQuestionGroup);
+router.get('/group/:groupId', protect, authorizeRoles(...FACULTY), getQuestionGroup);
+router.put('/group/:groupId', protect, authorizeRoles(...FACULTY), updateQuestionGroup);
+router.post('/group/:groupId/submit', protect, authorizeRoles(...FACULTY), submitQuestionGroup);
+router.delete('/group/:groupId', protect, authorizeRoles(...FACULTY), deleteQuestionGroup);
 router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
 router.patch('/:id/mark-read', protect, authorizeRoles(...FACULTY), markQuestionRead);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
@@ -55,75 +65,66 @@ router.post('/:id/dean-return', protect, authorizeRoles('program_chair', 'dean')
 router.patch('/:id/lock', protect, authorizeRoles('program_chair', 'dean'), lockQuestion);
 router.patch('/:id/unlock', protect, authorizeRoles('program_chair', 'dean'), unlockQuestion);
 
-const { encryptBuffer, decryptBuffer } = require('../services/encryptionService');
-const { GetObjectCommand } = require('@aws-sdk/client-s3');
+// Decrypted images are confidential: no browser, proxy or CDN may keep a copy.
+function setNoStoreHeaders(res) {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
 
-// [New] Fetch and decrypt image
+// Fetch and decrypt a question or answer image
 router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULTY), async (req, res) => {
+  setNoStoreHeaders(res);
+
   try {
-    const key = req.params.key;
-    const imageUrl = `/api/questions/image/${key}`;
-
-    // 1. Find the question this image belongs to
-    const question = await Question.findOne({ images: imageUrl })
-      .select('state createdBy program')
-      .lean();
-
-    if (!question) {
+    const filename = req.params.key;
+    if (!isValidImageFilename(filename)) {
       return res.status(404).json({ message: 'Image not found' });
     }
 
-    // 2. Determine if this user is allowed to view it
-    const isFaculty = FACULTY.includes(req.user.role);
-    const isOwner = String(question.createdBy) === String(req.user._id);
-    const isApproved = question.state === 'approved';
-
-    // Faculty can see their own question's images regardless of state.
-    // Non-owning faculty and students/alumni can only see approved (released) questions.
-    if (!isOwner && !isApproved) {
-      return res.status(403).json({ message: 'Not authorized to view this image' });
-    }
-
-    // Optional: scope students/alumni to their own program, if that's a rule in your app
-    // if (!isFaculty && String(question.program) !== String(req.user.program)) {
-    //   return res.status(403).json({ message: 'Not authorized to view this image' });
-    // }
-
-    // 3. Only now fetch + decrypt from R2
-    const bucket = process.env.R2_BUCKET_NAME;
-    if (!bucket) {
+    if (!isStorageConfigured()) {
       return res.status(500).json({ message: 'R2 is not configured' });
     }
 
-    const obj = await r2.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: `question-images/${key}`,
-      })
-    );
+    // Check access before anything is read from storage
+    const access = await canViewQuestionImage(req.user, filename);
+    if (!access.allowed) {
+      return access.status === 403
+        ? res.status(403).json({ message: 'Not authorized to view this image' })
+        : res.status(404).json({ message: 'Image not found' });
+    }
 
-    const chunks = [];
-    for await (const chunk of obj.Body) chunks.push(chunk);
-    const encryptedBlob = Buffer.concat(chunks);
+    const { buffer, contentType } = await readQuestionImage(filename);
 
-    const decrypted = decryptBuffer(encryptedBlob);
-
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.send(decrypted);
+    res.setHeader('Content-Type', contentType);
+    return res.send(buffer);
   } catch (err) {
     return res.status(404).json({ message: 'Image not found or failed to load' });
   }
 });
 
-// [New] Delete image explicitly
+// Discard an uploaded image that was never saved to a question. Images that a
+// question uses are removed by the server once the question change is saved.
 router.delete('/image/:key', protect, authorizeRoles(...FACULTY), async (req, res) => {
   try {
-    // Reconstruct the URL format expected by deleteQuestionImagesFromR2
-    const fakeUrl = `http://dummy.local/question-images/${req.params.key}`;
-    await deleteQuestionImagesFromR2([fakeUrl]);
-    res.json({ message: 'Image deleted from storage' });
+    const filename = req.params.key;
+    if (!isValidImageFilename(filename) || !isStorageConfigured()) {
+      return res.status(404).json({ message: 'Image not found' });
+    }
+
+    if (await Question.exists(imageReferenceFilter(toImageUrl(filename)))) {
+      return res.status(409).json({ message: 'Image is used by a saved question' });
+    }
+
+    const uploader = await getImageUploader(filename);
+    if (!uploader || uploader !== String(req.user._id)) {
+      return res.status(404).json({ message: 'Image not found' });
+    }
+
+    await deleteImageObject(filename);
+    return res.json({ message: 'Image deleted from storage' });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to delete image' });
+    return res.status(500).json({ message: 'Failed to delete image' });
   }
 });
 
@@ -139,9 +140,7 @@ router.post(
       const settings = await AppSettings.getSingleton();
       const maxAllowed = settings.maxUploadImages ?? 5;
 
-      const bucket = process.env.R2_BUCKET_NAME;
-
-      if (!bucket) {
+      if (!isStorageConfigured()) {
         return res.status(500).json({ message: 'R2 is not configured' });
       }
 
@@ -153,28 +152,8 @@ router.post(
         return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed per question.` });
       }
 
-      const urls = await Promise.all(
-        req.files.map(async (file) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          const ext = path.extname(file.originalname);
-          const filename = `${unique}${ext}`;
-          const key = `question-images/${filename}`;
-
-          const encryptedBlob = encryptBuffer(file.buffer);
-
-          await r2.send(
-            new PutObjectCommand({
-              Bucket: bucket,
-              Key: key,
-              Body: encryptedBlob,
-              ContentType: 'application/octet-stream', // Store as encrypted binary blob
-            })
-          );
-
-          // Return the API path to the new decryption route, NOT the R2 public URL
-          return `/api/questions/image/${filename}`;
-        })
-      );
+      // Returns the API path to the decrypting image route, NOT an R2 URL
+      const urls = await Promise.all(req.files.map((file) => uploadQuestionImage(file, req.user._id)));
 
       return res.json({ urls });
     } catch (err) {

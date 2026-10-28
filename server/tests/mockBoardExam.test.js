@@ -5,6 +5,7 @@ const Department = require('../models/Department');
 const Program = require('../models/Program');
 const MockBoardExam = require('../models/MockBoardExam');
 const Question = require('../models/Question');
+const { encryptText } = require('../services/encryptionService');
 
 let dept, prog, deanToken, deanUser;
 
@@ -83,6 +84,25 @@ describe('GET /api/mock-board-exams/:id', () => {
       .get(`/api/mock-board-exams/${exam._id}`)
       .set('Cookie', `nu_board_token=${deanToken}`);
     expect(res.status).toBe(200);
+  });
+
+  it("includes each question's rationalization for the exam details view", async () => {
+    const question = await Question.create({
+      description: encryptText('Q1'),
+      answers: [{ text: encryptText('1'), isCorrect: true }],
+      rationalization: encryptText('Because one is correct'),
+      program: prog._id, state: 'approved', createdBy: deanUser._id,
+    });
+    const exam = await MockBoardExam.create({
+      name: 'Details Exam', program: prog._id, department: dept._id,
+      questions: [question._id], startDateTime: futureDate(1), endDateTime: futureDate(2),
+      status: 'draft', createdBy: deanUser._id,
+    });
+    const res = await request(app)
+      .get(`/api/mock-board-exams/${exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.exam.questions[0].rationalization).toBe('Because one is correct');
   });
 
   it('should return 404 for unknown ID', async () => {

@@ -1,10 +1,13 @@
 import AuthImage from '../../components/AuthImage.jsx';
+import AnswerImage from '../../components/AnswerImage.jsx';
+import PassageImages from '../../components/PassageImages.jsx';
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import '../../styles/shared/MockBoardExamPreview.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -257,6 +260,11 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
   if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
+  const currentQuestionSet = currentQuestion?.groupId
+    ? groupQuestionsForDisplay(questions).find(
+        (item) => item.type === 'group' && item.groupId === String(currentQuestion.groupId)
+      )
+    : null;
   const answeredCount = Object.values(answers).filter(Boolean).length;
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
@@ -362,10 +370,35 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
         <main className="mbep-content">
           {currentQuestion ? (
             <article className="mbep-card">
-              <div className="mbep-card-top">
+              <div className="mbep-card-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4>Question {currentIdx + 1}</h4>
+                {currentQuestion.groupId && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: '#ede9fe',
+                    color: '#5b21b6',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    letterSpacing: '0.04em'
+                  }}>
+                    {`Question Set ${currentQuestionSet?.setNumber || ''}${getQuestionSetPart(currentQuestion) ? ` · Part ${getQuestionSetPart(currentQuestion)}` : ''}`}
+                  </span>
+                )}
               </div>
               <div className="mbep-card-body">
+                {(currentQuestion.groupContext || currentQuestion.groupContextImages?.length > 0) && (
+                  <div className="mbep-group-context-box">
+                    <div className="mbep-group-context-header">
+                      <span>Question Set Scenario</span>
+                    </div>
+                    {currentQuestion.groupContext && (
+                      <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                    )}
+                    <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
+                  </div>
+                )}
+
                 <div className="mbep-question-title">
                   {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
                 </div>
@@ -408,7 +441,10 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                         onClick={() => handleSelect(currentQuestion._id, answer._id)}
                       >
                         <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
-                        <div className="mbep-option-text">{answer.text}</div>
+                        <div className="mbep-option-text">
+                          {answer.text}
+                          <AnswerImage src={answer.image} alt={`Answer ${String.fromCharCode(97 + i)} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
+                        </div>
                       </div>
                     );
                   })}

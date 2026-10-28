@@ -1,17 +1,46 @@
-import AuthImage from '../../components/AuthImage.jsx';
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useState } from 'react';
+import AuthImage from '../../components/AuthImage.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
+import { groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import { Modal } from '../../components/Modal.jsx';
 import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import Table from '../../components/Table.jsx';
+import ActionMenu from '../../components/ActionMenu.jsx';
 import '../../styles/shared/BoardExams.css';
 
 const BASE = import.meta.env.VITE_API_URL;
+
+const EXAM_TABLE_COLUMN_WIDTHS = [150, 120, 110, 110, 150, 110, 110, 96, 110, 124, 90, 110, 170];
+
+const STATUS_TABS = [
+  { value: '', label: 'All' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'published', label: 'Published' },
+  { value: 'ongoing', label: 'Ongoing' },
+  { value: 'finished', label: 'Finished' },
+  { value: 'archived', label: 'Archived' },
+];
+
+// Dot tone for the table status cell (.ui-table-status in Table.css)
+const EXAM_STATUS_TONES = {
+  draft: 'hollow',
+  published: 'blue',
+  ongoing: 'live',
+  active: 'live',
+  finished: 'green',
+  archived: 'muted',
+};
 
 function formatDateTime(value) {
   if (!value) return '-';
@@ -22,6 +51,21 @@ function formatDateTime(value) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function renderDateCell(value) {
+  if (!value) return <span className="ambe-muted">-</span>;
+  const date = new Date(value);
+  return (
+    <div className="ambe-date">
+      <span className="ambe-date-main">
+        {date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+      </span>
+      <span className="ambe-date-time">
+        {date.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
+      </span>
+    </div>
+  );
 }
 
 function formatDuration(minutes) {
@@ -57,9 +101,26 @@ function sameExamId(a, b) {
   return String(a) === String(b);
 }
 
-function resolveImageSrc(image) {
-  if (!image) return '';
-  return image.startsWith('/') ? `${BASE}${image}` : image;
+function subjectKey(tag) {
+  return String(tag?._id || tag?.name || '');
+}
+
+function toOneLine(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+// Number, subject and counts shown at the top of a question card
+function QuestionMeta({ question, questionNumber, children }) {
+  return (
+    <span className="ambe-question-meta-row">
+      <span className="ambe-question-number">Question {questionNumber}</span>
+      <span className="ambe-subject-pill">{question.tag?.name || 'No subject'}</span>
+      <span className="ambe-meta-text">
+        {formatCount(question.answers?.length, 'answer')} | {formatCount(question.images?.length, 'image')}
+      </span>
+      {children}
+    </span>
+  );
 }
 
 function renderConflictMessage(err) {
@@ -94,7 +155,11 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
-  const [expandedQuestionId, setExpandedQuestionId] = useState(null);
+  // Exam details: the one open question ('question:<id>') or question set ('group:<groupId>')
+  const [openDropdownKey, setOpenDropdownKey] = useState(null);
+  // Exam details: the question shown in each open set, by groupId
+  const [activeGroupIdx, setActiveGroupIdx] = useState({});
+  const [questionTypeFilter, setQuestionTypeFilter] = useState('all');
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [schedulingExamId, setSchedulingExamId] = useState(null);
   const [confirmationModal, setConfirmationModal] = useState(null);
@@ -104,15 +169,34 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedAudience, setSelectedAudience] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!selectedExam) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [Boolean(selectedExam)]);
 
   function triggerCalendarRefresh() {
     setCalendarRefreshKey((prev) => prev + 1);
   }
 
+  function clearFilters() {
+    setSearchQuery('');
+    setSelectedStatus('');
+    setSelectedAudience('');
+    setSelectedSubject('');
+  }
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedProgramId, selectedStatus, selectedAudience]);
+  }, [searchQuery, selectedProgramId, selectedStatus, selectedAudience, selectedSubject]);
 
   useEffect(() => {
     async function fetchExams() {
@@ -164,8 +248,12 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }, [me]);
 
   useEffect(() => {
-    setExpandedQuestionId(null);
+    setOpenDropdownKey(null);
+    setActiveGroupIdx({});
+    setQuestionTypeFilter('all');
   }, [selectedExam?._id]);
+
+
 
   function closeConfirmationModal() {
     if (modalBusy) return;
@@ -188,6 +276,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     }
 
     triggerCalendarRefresh();
+  }
+
+  function closeExamDetails() {
+    if (fullscreenImage) {
+      setFullscreenImage(null);
+      return;
+    }
+    setSelectedExam(null);
+    setOpenDropdownKey(null);
+  }
+
+  // Opening a question or question set closes the one that was open
+  function toggleQuestionDropdown(key) {
+    setOpenDropdownKey((prev) => (prev === key ? null : key));
   }
 
   function handleDelete(exam) {
@@ -483,12 +585,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   async function handleView(examId) {
     if (selectedExam?._id === examId) {
-      setSelectedExam(null);
+      closeExamDetails();
       return;
     }
 
     try {
       const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+      setFullscreenImage(null);
       setSelectedExam(data.exam || null);
     } catch (err) {
       setFeedbackModal({
@@ -499,31 +602,140 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     }
   }
 
+  function getMenuItems(exam) {
+    const isAlumni = (exam.targetAudience || 'student') === 'alumni';
+    const normal = [];
+    const danger = [];
+
+    if (exam.status === 'draft') {
+      normal.push({
+        key: 'view',
+        label: selectedExam?._id === exam._id ? 'Hide details' : 'View details',
+        onClick: () => handleView(exam._id),
+      });
+    }
+
+    if (exam.status === 'draft' || exam.status === 'published') {
+      normal.push({ key: 'edit', label: 'Edit', onClick: () => handleEdit(exam) });
+    }
+
+    if (exam.status !== 'ongoing' && exam.status !== 'finished' && exam.status !== 'archived') {
+      normal.push({ key: 'testRun', label: 'Test run', onClick: () => onEditExam(exam._id, 'testRun') });
+    }
+
+    if (canScheduleResultsRelease(exam)) {
+      normal.push({
+        key: 'schedule',
+        label: exam.resultsReleaseDate ? 'Reschedule results' : 'Schedule results',
+        onClick: () => setSchedulingExamId(exam._id),
+      });
+    }
+
+    normal.push({ key: 'copy', label: 'Create copy', onClick: () => handleCopy(exam) });
+
+    if (exam.status === 'finished' || (isAlumni && exam.status === 'published')) {
+      normal.push({ key: 'archive', label: 'Archive', onClick: () => handleArchive(exam) });
+    }
+
+    if (exam.status === 'ongoing') {
+      danger.push({ key: 'endEarly', label: 'End exam early', danger: true, onClick: () => handleEndEarly(exam) });
+    }
+
+    if (exam.status === 'archived' || exam.status === 'draft') {
+      danger.push({ key: 'delete', label: 'Delete exam', danger: true, onClick: () => handleDelete(exam) });
+    }
+
+    if (normal.length > 0 && danger.length > 0) {
+      return [...normal, { key: 'divider', divider: true }, ...danger];
+    }
+    return [...normal, ...danger];
+  }
+
+
+
   const selectedExamQuestions = selectedExam?.questions || [];
   const selectedExamSubjects = selectedExam?.subjectTags || [];
-  const visibleExams = useMemo(() => {
-    let filtered = exams;
+
+  // Single questions and question sets in exam order, numbered as in the exam
+  const selectedExamItems = useMemo(() => (
+    groupQuestionsForDisplay((selectedExam?.questions || []).map((question) => organizeQuestionAnswers(question)))
+  ), [selectedExam?.questions]);
+
+  const questionTypeCounts = useMemo(() => {
+    const questions = selectedExam?.questions || [];
+    const group = questions.filter((question) => question.groupId).length;
+    return { all: questions.length, single: questions.length - group, group };
+  }, [selectedExam?.questions]);
+
+  const visibleQuestionItems = questionTypeFilter === 'all'
+    ? selectedExamItems
+    : selectedExamItems.filter((item) => (item.type === 'group') === (questionTypeFilter === 'group'));
+
+  const programExams = useMemo(() => {
     if (
       (me?.role === 'dean' || me?.role === 'program_chair') &&
       selectedProgramId &&
       selectedProgramId !== 'all'
     ) {
-      filtered = filtered.filter((exam) =>
+      return exams.filter((exam) =>
         String(exam.program?._id || exam.program) === String(selectedProgramId)
       );
     }
+    return exams;
+  }, [exams, me?.role, selectedProgramId]);
+
+  const subjectOptions = useMemo(() => {
+    const byKey = new Map();
+    programExams.forEach((exam) => {
+      (exam.subjectTags || []).forEach((tag) => {
+        const key = subjectKey(tag);
+        if (key && !byKey.has(key)) byKey.set(key, tag.name);
+      });
+    });
+    return Array.from(byKey, ([id, name]) => ({ id, name }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+  }, [programExams]);
+
+  useEffect(() => {
+    if (selectedSubject && !subjectOptions.some((option) => option.id === selectedSubject)) {
+      setSelectedSubject('');
+    }
+  }, [subjectOptions, selectedSubject]);
+
+  const filteredExceptStatus = useMemo(() => {
+    let filtered = programExams;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((exam) => exam.name?.toLowerCase().includes(q));
     }
-    if (selectedStatus) {
-      filtered = filtered.filter((exam) => exam.status === selectedStatus);
-    }
     if (selectedAudience) {
       filtered = filtered.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
     }
+    if (selectedSubject) {
+      filtered = filtered.filter((exam) =>
+        (exam.subjectTags || []).some((tag) => subjectKey(tag) === selectedSubject)
+      );
+    }
     return filtered;
-  }, [exams, me?.role, selectedProgramId, searchQuery, selectedStatus, selectedAudience]);
+  }, [programExams, searchQuery, selectedAudience, selectedSubject]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: filteredExceptStatus.length };
+    filteredExceptStatus.forEach((exam) => {
+      counts[exam.status] = (counts[exam.status] || 0) + 1;
+    });
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const visibleExams = useMemo(() => (
+    selectedStatus
+      ? filteredExceptStatus.filter((exam) => exam.status === selectedStatus)
+      : filteredExceptStatus
+  ), [filteredExceptStatus, selectedStatus]);
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || selectedStatus || selectedAudience || selectedSubject
+  );
 
   const paginatedExams = useMemo(() => {
     const start = (currentPage - 1) * 10;
@@ -540,6 +752,249 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     { label: 'Subjects', value: formatCount(selectedExamSubjects.length, 'subject') },
   ] : [];
 
+  function renderExamQuestion({ question, questionNumber }) {
+    const dropdownKey = `question:${question._id}`;
+    const isExpanded = openDropdownKey === dropdownKey;
+
+    return (
+      <article key={question._id} className={`ambe-question-card${isExpanded ? ' is-expanded' : ''}`}>
+        <button
+          type="button"
+          className="ambe-question-toggle"
+          onClick={() => toggleQuestionDropdown(dropdownKey)}
+          aria-expanded={isExpanded}
+        >
+          <QuestionMeta question={question} questionNumber={questionNumber}>
+            <span className={`ambe-expand-icon${isExpanded ? ' is-open' : ''}`} aria-hidden="true">▾</span>
+          </QuestionMeta>
+          {!isExpanded && (
+            <span className="ambe-question-headline">
+              {toOneLine(question.description) || 'No description provided.'}
+            </span>
+          )}
+        </button>
+
+        {isExpanded && <QuestionDetailPanels question={question} onZoom={setFullscreenImage} />}
+      </article>
+    );
+  }
+
+  function renderExamQuestionSet({ groupId, setNumber, questions: members }) {
+    const dropdownKey = `group:${groupId}`;
+    const isOpen = openDropdownKey === dropdownKey;
+    const activeIdx = Math.min(activeGroupIdx[groupId] || 0, members.length - 1);
+    const { question: activeQuestion, questionNumber: activeNumber } = members[activeIdx];
+    const firstQuestion = members[0].question;
+    const firstNumber = members[0].questionNumber;
+    const lastNumber = members[members.length - 1].questionNumber;
+    // The set's shared passage, repeated above whichever question is shown
+    const passage = (activeQuestion.groupContext || firstQuestion.groupContext || '').trim();
+    const passageImages = activeQuestion.groupContextImages || firstQuestion.groupContextImages || [];
+
+    return (
+      <section key={`question-set-${groupId}`} className={`ambe-question-set${isOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="ambe-question-set-header"
+          onClick={() => toggleQuestionDropdown(dropdownKey)}
+          aria-expanded={isOpen}
+        >
+          <span className="ambe-question-set-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="5" width="16" height="5" rx="1.5" />
+              <rect x="4" y="14" width="16" height="5" rx="1.5" />
+              <path d="M8 7.5h8M8 16.5h8" />
+            </svg>
+          </span>
+          <span className="ambe-question-number">
+            {members.length > 1 ? `Questions ${firstNumber}–${lastNumber}` : `Question ${firstNumber}`}
+          </span>
+          <span className="ambe-question-set-title">
+            {toOneLine(firstQuestion.groupContext) || `Question Set ${setNumber}`}
+          </span>
+          <span className="ambe-question-set-badge">{formatCount(members.length, 'question')}</span>
+          <span className={`ambe-expand-icon${isOpen ? ' is-open' : ''}`} aria-hidden="true">▾</span>
+        </button>
+
+        {isOpen && (
+          <div className="ambe-question-set-body">
+            {/* One numbered bubble per question in the set, as in Create Exams */}
+            {members.length > 1 && (
+              <ImportReviewBubbles
+                questions={members.map((member) => member.question)}
+                currentIdx={activeIdx}
+                onSelectQuestion={(idx) => setActiveGroupIdx((prev) => ({ ...prev, [groupId]: idx }))}
+                readOnly
+              />
+            )}
+
+            <article key={activeQuestion._id} className="ambe-question-card is-grouped">
+              <QuestionMeta question={activeQuestion} questionNumber={activeNumber} />
+              <QuestionDetailPanels
+                question={activeQuestion}
+                passage={passage}
+                passageImages={passageImages}
+                onZoom={setFullscreenImage}
+              />
+            </article>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  const examColumns = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: 'Exam Name',
+        width: EXAM_TABLE_COLUMN_WIDTHS[0],
+        className: 'ambe-td-name ui-table-cell-lead',
+        render: (exam) => {
+          const isViewing = selectedExam?._id === exam._id;
+          return (
+            <button
+              type="button"
+              className="ambe-name-link"
+              onClick={() => handleView(exam._id)}
+              title={isViewing ? 'Hide exam details' : 'View exam details'}
+            >
+              {exam.name}
+            </button>
+          );
+        },
+      },
+      {
+        key: 'program',
+        label: 'Program',
+        width: EXAM_TABLE_COLUMN_WIDTHS[1],
+        render: (exam) => exam.program?.name || exam.program?.code || '-',
+      },
+      {
+        key: 'creator',
+        label: 'Creator',
+        width: EXAM_TABLE_COLUMN_WIDTHS[2],
+        className: 'ambe-cell-soft',
+        render: (exam) => exam.createdBy?.name || '-',
+      },
+      {
+        key: 'createdAt',
+        label: 'Created Date',
+        width: EXAM_TABLE_COLUMN_WIDTHS[3],
+        render: (exam) => renderDateCell(exam.createdAt),
+      },
+      {
+        key: 'subjects',
+        label: 'Subjects',
+        width: EXAM_TABLE_COLUMN_WIDTHS[4],
+        render: (exam) => {
+          const subjects = exam.subjectTags || [];
+          return subjects.length > 0 ? (
+            <ul className="ambe-subject-list">
+              {subjects.map((tag) => (
+                <li key={tag._id || tag.name}>{tag.name}</li>
+              ))}
+            </ul>
+          ) : (
+            <span className="ambe-muted">-</span>
+          );
+        },
+      },
+      {
+        key: 'startDateTime',
+        label: 'Exam Start',
+        width: EXAM_TABLE_COLUMN_WIDTHS[5],
+        render: (exam) => renderDateCell(exam.startDateTime),
+      },
+      {
+        key: 'endDateTime',
+        label: 'Exam End',
+        width: EXAM_TABLE_COLUMN_WIDTHS[6],
+        render: (exam) => renderDateCell(exam.endDateTime),
+      },
+      {
+        key: 'duration',
+        label: 'Duration',
+        width: EXAM_TABLE_COLUMN_WIDTHS[7],
+        className: 'ambe-cell-soft',
+        render: (exam) => formatExamDuration(exam),
+      },
+      {
+        key: 'questions',
+        label: 'Questions',
+        width: EXAM_TABLE_COLUMN_WIDTHS[8],
+        headerClassName: 'ambe-num',
+        className: 'ambe-num',
+        render: (exam) => exam.questions?.length || 0,
+      },
+      {
+        key: 'submissions',
+        label: 'Submissions',
+        width: EXAM_TABLE_COLUMN_WIDTHS[9],
+        headerClassName: 'ambe-num',
+        className: 'ambe-num',
+        render: (exam) =>
+          (exam.targetAudience || 'student') === 'alumni'
+            ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
+            : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`,
+      },
+      {
+        key: 'audience',
+        label: 'Audience',
+        width: EXAM_TABLE_COLUMN_WIDTHS[10],
+        className: 'ambe-cell-soft',
+        render: (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students'),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        width: EXAM_TABLE_COLUMN_WIDTHS[11],
+        render: (exam) => (
+          <>
+            <span className={`ui-table-status ui-table-status--${EXAM_STATUS_TONES[exam.status] || 'default'}`}>{exam.status}</span>
+            {exam.resultsReleaseDate && exam.status !== 'archived' && (
+              <div className="ambe-release-date">
+                Release: {formatDateTime(exam.resultsReleaseDate)}
+              </div>
+            )}
+          </>
+        ),
+      },
+      {
+        key: 'actions',
+        label: 'Actions',
+        width: EXAM_TABLE_COLUMN_WIDTHS[12],
+        render: (exam) => {
+          const isViewing = selectedExam?._id === exam._id;
+          return (
+            <div className="ambe-actions">
+              {exam.status === 'draft' ? (
+                <button
+                  type="button"
+                  className="ambe-btn publish"
+                  onClick={() => handlePublish(exam)}
+                >
+                  Publish
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ambe-btn view"
+                  onClick={() => handleView(exam._id)}
+                >
+                  {isViewing ? 'Hide Details' : 'View Details'}
+                </button>
+              )}
+
+              <ActionMenu items={getMenuItems(exam)} ariaLabel={`More actions for ${exam.name}`} />
+            </div>
+          );
+        },
+      },
+    ],
+    [selectedExam?._id, formatExamDuration, renderDateCell, formatDateTime, handleView, handlePublish, getMenuItems]
+  );
+
   return (
     <main className="ambe-page">
       <PageHeader
@@ -547,6 +1002,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         title="Available Mock Board Exams"
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />
+
+      {(viewMode === 'list' || viewMode === 'cards') && (me?.role === 'dean' || me?.role === 'program_chair') && (
+        <CapsuleFilters
+          className="ambe-status-tabs"
+          ariaLabel="Filter exams by status"
+          options={STATUS_TABS.map((tab) => ({
+            value: tab.value,
+            label: tab.label,
+            count: tab.value ? (statusCounts[tab.value] || 0) : statusCounts.all,
+          }))}
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+        />
+      )}
 
       {(me?.role === 'dean' || me?.role === 'program_chair') && (
         <section className="ambe-view-controls" aria-label="Board exam view controls">
@@ -578,20 +1047,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
             <select
               className="ambe-filter-select"
-              value={selectedStatus}
-              onChange={(event) => setSelectedStatus(event.target.value)}
-              aria-label="Filter exams by status"
-            >
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="finished">Finished</option>
-              <option value="archived">Archived</option>
-            </select>
-
-            <select
-              className="ambe-filter-select"
               value={selectedAudience}
               onChange={(event) => setSelectedAudience(event.target.value)}
               aria-label="Filter exams by audience"
@@ -600,6 +1055,20 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               <option value="student">Student Exams</option>
               <option value="alumni">Alumni Exams</option>
             </select>
+
+            <select
+              className="ambe-filter-select"
+              value={selectedSubject}
+              onChange={(event) => setSelectedSubject(event.target.value)}
+              aria-label="Filter exams by subject"
+            >
+              <option value="">All Subjects</option>
+              {subjectOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="ambe-view-toggle">
@@ -607,15 +1076,25 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               type="button"
               className={viewMode === 'list' ? 'is-active' : ''}
               onClick={() => setViewMode('list')}
+              aria-pressed={viewMode === 'list'}
             >
-              List View
+              Table
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'cards' ? 'is-active' : ''}
+              onClick={() => setViewMode('cards')}
+              aria-pressed={viewMode === 'cards'}
+            >
+              Cards
             </button>
             <button
               type="button"
               className={viewMode === 'calendar' ? 'is-active' : ''}
               onClick={() => setViewMode('calendar')}
+              aria-pressed={viewMode === 'calendar'}
             >
-              Calendar View
+              Calendar
             </button>
           </div>
         </section>
@@ -631,206 +1110,159 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         />
       </div>
 
-      <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
-
-        {loading && <p className="ambe-loading">Loading mock board exams...</p>}
+      <div className="ambe-list-view" style={{ display: viewMode === 'list' || viewMode === 'cards' ? 'block' : 'none' }}>
+        {loading && (
+          <div className="ui-table-card ambe-table-card ambe-skeleton" aria-busy="true" aria-label="Loading mock board exams">
+            {[0, 1, 2, 3, 4].map((row) => (
+              <div key={row} className="ambe-skeleton-row">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((cell) => (
+                  <span key={cell} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
 
         {!loading && visibleExams.length === 0 && (
-          <p className="ambe-empty">No mock board exams found matching your criteria.</p>
+          <div className="ambe-empty">
+            <p className="ambe-empty-title">
+              {exams.length === 0 ? 'No mock board exams yet' : 'No exams match your filters'}
+            </p>
+            <p className="ambe-empty-text">
+              {exams.length === 0
+                ? 'Exams created for your programs will appear here.'
+                : 'Try a different search, or clear the filters to see everything.'}
+            </p>
+            {exams.length > 0 && hasActiveFilters && (
+              <button type="button" className="ambe-btn view" onClick={clearFilters}>
+                Clear filters
+              </button>
+            )}
+          </div>
         )}
 
         {!loading && visibleExams.length > 0 && (
           <>
-            <div className="ambe-table-card">
-              <div className="ambe-scroll-x">
-                <table className="ambe-table">
-                  <thead>
-                    <tr>
-                      <th>Exam Name</th>
-                      <th>Program</th>
-                      <th>Creator</th>
-                      <th>Created Date</th>
-                      <th>Subjects</th>
-                      <th>Exam Start</th>
-                      <th>Exam End</th>
-                      <th>Duration</th>
-                      <th>Questions</th>
-                      <th>Submissions</th>
-                      <th>Audience</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedExams.map((exam) => (
-                      <tr key={exam._id}>
-                        <td>{exam.name}</td>
-                        <td>
-                          <span className="ambe-pill program">
-                            {exam.program?.name || exam.program?.code || '-'}
-                          </span>
-                        </td>
-                        <td>{exam.createdBy?.name || '-'}</td>
-                        <td className="ambe-muted">{formatDateTime(exam.createdAt)}</td>
-                        <td>
-                          {(exam.subjectTags || []).length > 0 ? (
-                            <div className="ambe-table-subjects">
-                              {exam.subjectTags.map((tag) => (
-                                <span key={tag._id || tag.name} className="ambe-pill subject">
-                                  {tag.name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="ambe-muted">-</span>
-                          )}
-                        </td>
-                        <td className="ambe-muted">{formatDateTime(exam.startDateTime)}</td>
-                        <td className="ambe-muted">{formatDateTime(exam.endDateTime)}</td>
-                        <td className="ambe-muted">{formatExamDuration(exam)}</td>
-                        <td>{exam.questions?.length || 0}</td>
-                        <td>
-                          {(exam.targetAudience || 'student') === 'alumni'
-                            ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
-                            : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`}
-                        </td>
-                        <td>
-                          <span className="ambe-pill program">
-                            {(exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`ambe-status ${exam.status}`}>
-                            {exam.status}
-                          </span>
-                          {exam.resultsReleaseDate && exam.status !== 'archived' && (
-                            <div className="ambe-release-date">
-                              Release: {formatDateTime(exam.resultsReleaseDate)}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div className="ambe-actions">
-                            <button
-                              type="button"
-                              className="ambe-btn view"
-                              onClick={() => handleView(exam._id)}
-                            >
-                              {selectedExam?._id === exam._id ? 'Hide Details' : 'View Details'}
-                            </button>
+            {viewMode === 'cards' ? (
+              <div className="ambe-card-view-grid" aria-label="Board exams cards">
+                {paginatedExams.map((exam) => {
+                  const subjects = exam.subjectTags || [];
+                  const isViewing = selectedExam?._id === exam._id;
+                  const isAlumni = (exam.targetAudience || 'student') === 'alumni';
+                  const start = exam.startDateTime ? new Date(exam.startDateTime) : null;
+                  const end = exam.endDateTime ? new Date(exam.endDateTime) : null;
+                  const status = exam.status || 'draft';
+                  const submissions = isAlumni
+                    ? `${exam.alumniSubmissionCount || 0} attempt${Number(exam.alumniSubmissionCount || 0) === 1 ? '' : 's'}`
+                    : `${exam.submissionCount || 0}/${exam.totalStudents || 0}`;
 
-                            {exam.status === 'draft' && (
-                              <button
-                                type="button"
-                                className="ambe-btn publish"
-                                onClick={() => handlePublish(exam)}
-                              >
-                                Publish
-                              </button>
-                            )}
+                  return (
+                    <article key={exam._id} className="ambe-card-view-item">
+                      <div className="ambe-card-view-banner">
+                        <div className="ambe-card-view-banner-topline">
+                          <span className="ambe-card-view-program-code">{exam.program?.code || 'Board exam'}</span>
+                          <span className={`ambe-card-view-status ambe-card-view-status--${status}`}>{status}</span>
+                        </div>
+                        <h3 className="ambe-card-view-title" title={exam.name}>{exam.name}</h3>
+                        <p className="ambe-card-view-program">{exam.program?.name || exam.program?.code || 'No program assigned'}</p>
+                      </div>
 
-                            {exam.status !== 'ongoing' && exam.status !== 'finished' && exam.status !== 'archived' && (
-                              <button
-                                type="button"
-                                className="ambe-btn primary"
-                                onClick={() => onEditExam(exam._id, 'testRun')}
-                              >
-                                Test Run
-                              </button>
-                            )}
+                      <div className="ambe-card-view-body">
+                        <div className="ambe-card-view-subjects" aria-label="Subjects">
+                          <span className="ambe-card-view-section-label">Subjects</span>
+                          {subjects.length > 0 ? subjects.slice(0, 3).map((tag) => (
+                            <span key={tag._id || tag.name} className="ambe-card-view-subject">{tag.name}</span>
+                          )) : <span className="ambe-card-view-no-subject">No subjects added</span>}
+                          {subjects.length > 3 && <span className="ambe-card-view-subject ambe-card-view-subject--more">+{subjects.length - 3} more</span>}
+                        </div>
 
-                            {(exam.status === 'draft' || exam.status === 'published') && (
-                              <button
-                                type="button"
-                                className="ambe-btn primary"
-                                onClick={() => handleEdit(exam)}
-                              >
-                                Edit
-                              </button>
-                            )}
+                        <div className="ambe-card-view-record-meta">
+                          <div><span>Creator</span><strong>{exam.createdBy?.name || '-'}</strong></div>
+                          <div><span>Created Date</span><strong>{formatDateTime(exam.createdAt)}</strong></div>
+                        </div>
 
-                            {canScheduleResultsRelease(exam) && (
-                              <button
-                                type="button"
-                                className="ambe-btn primary"
-                                onClick={() => setSchedulingExamId(exam._id)}
-                                disabled={schedulingExamId === exam._id}
-                              >
-                                {exam.resultsReleaseDate ? 'Reschedule Results' : 'Schedule Results'}
-                              </button>
-                            )}
-
-                            {(exam.status === 'finished' || ((exam.targetAudience || 'student') === 'alumni' && exam.status === 'published')) && (
-                              <button
-                                type="button"
-                                className="ambe-btn archive"
-                                onClick={() => handleArchive(exam)}
-                              >
-                                Archive
-                              </button>
-                            )}
-
-                            {exam.status === 'ongoing' && (
-                              <button
-                                type="button"
-                                className="ambe-btn delete"
-                                onClick={() => handleEndEarly(exam)}
-                              >
-                                End Exam Early
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="ambe-btn publish"
-                              onClick={() => handleCopy(exam)}
-                            >
-                              Create Copy
-                            </button>
-
-                            {(exam.status === 'archived' || exam.status === 'draft') && (
-                              <button
-                                type="button"
-                                className="ambe-btn delete ambe-btn-icon"
-                                onClick={() => handleDelete(exam)}
-                                title="Delete exam"
-                                aria-label="Delete exam"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="3 6 5 6 21 6"></polyline>
-                                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                                  <path d="M10 11v6"></path>
-                                  <path d="M14 11v6"></path>
-                                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-                                </svg>
-                              </button>
-                            )}
+                        <div className="ambe-card-view-schedule">
+                          <div className="ambe-card-view-date-block">
+                            <span className="ambe-card-view-date-label">Exam Start</span>
+                            <strong>{start ? start.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</strong>
+                            {start && <span>{start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <div className="ambe-card-view-date-block">
+                            <span className="ambe-card-view-date-label">Exam End</span>
+                            <strong>{end ? end.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}</strong>
+                            {end && <span>{end.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>}
+                          </div>
+                        </div>
+
+                        <div className="ambe-card-view-stats">
+                          <div><strong>{formatExamDuration(exam)}</strong><span>Duration</span></div>
+                          <div><strong>{exam.questions?.length || 0}</strong><span>Questions</span></div>
+                          <div><strong>{submissions}</strong><span>Submissions</span></div>
+                          <div><strong>{isAlumni ? 'Alumni' : 'Students'}</strong><span>Audience</span></div>
+                        </div>
+
+                        {exam.resultsReleaseDate && exam.status !== 'archived' && (
+                          <p className="ambe-card-view-release">Results release: {formatDateTime(exam.resultsReleaseDate)}</p>
+                        )}
+
+                        <div className="ambe-card-view-actions">
+                          {exam.status === 'draft' ? (
+                            <button type="button" className="ambe-btn publish" onClick={() => handlePublish(exam)}>Publish exam</button>
+                          ) : (
+                            <button type="button" className="ambe-btn view" onClick={() => handleView(exam._id)}>
+                              {isViewing ? 'Hide details' : 'View details'}
+                            </button>
+                          )}
+                          <ActionMenu
+                            items={getMenuItems(exam)}
+                            ariaLabel={`More actions for ${exam.name}`}
+                          />
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            </div>
-            <div className="ambe-pagination-footer">
-              <Pagination
-                currentPage={currentPage}
-                totalItems={visibleExams.length}
-                pageSize={10}
-                onPageChange={setCurrentPage}
-                itemLabel="exams"
-              />
-            </div>
+            ) : (
+            <Table
+              wrapperClassName="ambe-table-card"
+              className="ambe-table"
+              columns={examColumns}
+              data={paginatedExams}
+              keyField="_id"
+            />
+            )}
+            {(viewMode !== 'cards' || visibleExams.length > 10) && (
+              <div className={`ui-table-footer ambe-pagination-footer${viewMode === 'cards' ? ' ambe-card-pagination' : ''}`}>
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={visibleExams.length}
+                  pageSize={10}
+                  onPageChange={setCurrentPage}
+                  itemLabel="exams"
+                />
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {selectedExam && (
-        <section className="ambe-details">
+
+
+      <Modal
+        open={!!selectedExam}
+        onClose={closeExamDetails}
+        title="Exam Details"
+        size="wide"
+        bodyClassName="ambe-details-modal-body"
+      >
+        {selectedExam && (
+          <section className="ambe-details">
           <div className="ambe-details-header-new">
             <div className="ambe-details-header-copy">
-              <span className="ambe-details-eyebrow">Exam Details</span>
+              <span className="ambe-details-audience">
+                {selectedExam.targetAudience === 'alumni' ? 'Alumni exam' : 'Student exam'}
+              </span>
               <h2 className="ambe-details-name">{selectedExam.name}</h2>
               <p className="ambe-details-program">
                 {selectedExam.program?.name || selectedExam.program?.code || 'No program assigned'}
@@ -894,133 +1326,58 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             )}
 
             {selectedExamQuestions.length > 0 && (
-              <div className="ambe-question-list">
-                {selectedExamQuestions.map((question, index) => {
-                  const answers = organizeQuestionAnswers(question).answers || [];
-                  const questionImages = (question.images || []).map(resolveImageSrc).filter(Boolean);
-                  const isExpanded = String(expandedQuestionId) === String(question._id);
+              <>
+                <CapsuleFilters
+                  className="ambe-type-pills"
+                  ariaLabel="Filter questions by type"
+                  options={[
+                    { value: 'all', label: 'All', count: questionTypeCounts.all },
+                    { value: 'single', label: 'Single', count: questionTypeCounts.single },
+                    { value: 'group', label: 'Group', count: questionTypeCounts.group },
+                  ]}
+                  value={questionTypeFilter}
+                  onChange={setQuestionTypeFilter}
+                />
 
-                  return (
-                    <article key={question._id} className={`ambe-question-card ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
-                      <button
-                        type="button"
-                        className="ambe-question-toggle"
-                        onClick={() => setExpandedQuestionId((prev) => (String(prev) === String(question._id) ? null : question._id))}
-                        aria-expanded={isExpanded}
-                      >
-                        <div className="ambe-question-card-top">
-                          <div className="ambe-question-title-block">
-                            <span className="ambe-question-number">
-                              Question {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <h4 className="ambe-question-title">
-                              {question.description ? question.description.replace(/[\r\n]+/g, ' ').trim() : `Question ${index + 1}`}
-                            </h4>
-                          </div>
-
-                          <div className="ambe-question-top-meta">
-                            {question.tag?.name ? (
-                              <span className="ambe-pill subject">{question.tag.name}</span>
-                            ) : (
-                              <span className="ambe-question-meta-fallback">No subject tag</span>
-                            )}
-                            {questionImages.length > 0 && (
-                              <span className="ambe-question-image-count">
-                                {formatCount(questionImages.length, 'image')}
-                              </span>
-                            )}
-                            <span className="ambe-question-chevron" aria-hidden="true" />
-                          </div>
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="ambe-question-content">
-                          <div className="ambe-question-main">
-                            <div className="ambe-question-copy">
-                              <span className="ambe-section-label">Prompt</span>
-                              <p className="ambe-question-text">
-                                {question.description || 'No question prompt provided.'}
-                              </p>
-                            </div>
-
-                            {questionImages.length > 0 && (
-                              <div className="ambe-question-gallery">
-                                <span className="ambe-section-label">Reference Images</span>
-                                <div className="ambe-question-thumbs">
-                                  {questionImages.map((image, imageIndex) => (
-                                    <button
-                                      key={`${question._id}-image-${imageIndex}`}
-                                      type="button"
-                                      className="ambe-question-image-button"
-                                      onClick={() => setFullscreenImage(image)}
-                                    >
-                                      <AuthImage
-                                        src={image}
-                                        alt={`Question ${index + 1} image ${imageIndex + 1}`}
-                                        className="ambe-question-thumb"
-                                      />
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="ambe-question-answers-panel">
-                            <span className="ambe-section-label">Answer Choices</span>
-                            <ul className="ambe-answers ambe-answers--styled">
-                              {answers.map((answer) => (
-                                <li
-                                  key={answer._id || `${answer.optionLabel}-${answer.text}`}
-                                  className={`ambe-answer-item ${answer.isCorrect ? 'is-correct' : ''}`}
-                                >
-                                  <div className="ambe-answer-left">
-                                    <span className="ambe-answer-label">{answer.optionLabel}</span>
-                                  </div>
-                                  <div className="ambe-answer-body">
-                                    <div className="ambe-answer-text">{answer.text}</div>
-                                    {answer.isCorrect && (
-                                      <span className="ambe-answer-badge">Correct Answer</span>
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          {question.rationalization && (
-                            <div className="ambe-question-answers-panel" style={{ marginTop: '16px' }}>
-                              <span className="ambe-section-label">Rationalization</span>
-                              <p className="ambe-question-text" style={{ padding: '0 16px 16px' }}>
-                                {question.rationalization}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
+                {visibleQuestionItems.length === 0 ? (
+                  <p className="ambe-muted">
+                    {questionTypeFilter === 'group' ? 'This exam has no grouped questions.' : 'This exam has no single questions.'}
+                  </p>
+                ) : (
+                  <div className="ambe-question-list">
+                    {visibleQuestionItems.map((item) => (
+                      item.type === 'group' ? renderExamQuestionSet(item) : renderExamQuestion(item)
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
-        </section>
-      )}
+          </section>
+        )}
+      </Modal>
 
-      {fullscreenImage && (
-        <div className="ambe-image-overlay" onClick={() => setFullscreenImage(null)}>
+      {fullscreenImage && createPortal(
+        <div
+          className="ambe-image-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setFullscreenImage(null)}
+        >
           <div className="ambe-image-modal" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               className="ambe-image-close"
               onClick={() => setFullscreenImage(null)}
+              aria-label="Close image preview"
             >
               Close
             </button>
             <AuthImage src={fullscreenImage} alt="Preview" className="ambe-image-full" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {schedulingExamId && (() => {

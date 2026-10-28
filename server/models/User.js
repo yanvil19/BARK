@@ -124,6 +124,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Most recent heartbeat/active timestamp for presence tracking
+    last_active_at: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

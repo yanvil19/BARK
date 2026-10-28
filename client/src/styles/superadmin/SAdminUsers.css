@@ -306,6 +306,58 @@
   color: #e03a3a;
 }
 
+.um-status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.um-th-center,
+.um-td-center {
+  text-align: center;
+}
+
+/* Presence Pill / Indicator */
+.um-presence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  width: fit-content;
+  line-height: 1.2;
+}
+
+.um-presence-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.um-presence--online {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.um-presence--online .um-presence-dot {
+  background: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+
+.um-presence--offline {
+  background: #f1f3f5;
+  color: #6c757d;
+}
+
+.um-presence--offline .um-presence-dot {
+  background: #adb5bd;
+}
+
 /* Action Buttons */
 .um-actions-cell {
   display: flex;

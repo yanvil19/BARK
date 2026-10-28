@@ -1,6 +1,11 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env.test') });
 
+// Mock Brevo email service so tests do not make real HTTP calls to Brevo
+jest.mock('../utils/emailService', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 

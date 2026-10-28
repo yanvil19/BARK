@@ -540,6 +540,59 @@
   flex-direction: column;
 }
 
+.aer-question-set {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 16px;
+  padding: 10px;
+  border: 1px solid #c7d2fe;
+  border-radius: 14px;
+  background: #f2f4ff;
+}
+
+.aer-question-set-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px;
+  color: var(--aer-navy);
+  font-size: 13px;
+}
+
+.aer-question-set-header span {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #dfe5ff;
+  color: #35408e;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.aer-question-set-list {
+  overflow: hidden;
+  border: 1px solid rgba(30, 45, 107, 0.1);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.aer-question-set-part {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #e4e9ff;
+  color: #35408e;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aer-question-set-list .aer-question-card:last-child {
+  border-bottom: 0;
+}
+
 .aer-attempt-row {
   border: 1px solid rgba(30, 45, 107, 0.1);
   border-radius: 16px;

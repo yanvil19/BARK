@@ -1,55 +1,85 @@
 const Question = require('../models/Question');
 const Tag = require('../models/Tag');
 const User = require('../models/User');
-const Program = require('../models/Program');
 const { logAudit } = require('../utils/auditLogger');
 const AppSettings = require('../models/AppSettings');
-const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { encryptText, decryptQuestion } = require('../services/encryptionService');
+const {
+  collectQuestionImageUrls,
+  validateImageReferences,
+  deleteUnreferencedImages,
+} = require('../services/questionImageService');
+const { getAccessibleProgramIds } = require('../utils/programAccess');
+const {
+  isFilledAnswer,
+  normalizeAnswersInput,
+  encryptAnswers,
+  countAnswerImages,
+  getAnswerSubmissionError,
+} = require('../utils/questionAnswers');
+const crypto = require('crypto');
+const mongoose = require('mongoose');
 
-const r2 = new S3Client({
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  region: 'auto',
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-});
-
-const deleteQuestionImagesFromR2 = async (images = []) => {
-  if (!images.length) return;
-
-  await Promise.all(
-    images.map(async (imageUrl) => {
-      try {
-        const key = new URL(imageUrl).pathname.replace(/^\/+/, '');
-
-        const result = await r2.send(
-          new DeleteObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
-            Key: key,
-          })
-        );
-
-      } catch (err) {
-        console.error('DELETE ERROR:', err);
-      }
-    })
-  );
-};
-
-// Helper: resolve program IDs accessible to the requesting user
-async function getAccessibleProgramIds(user) {
-  if (user.role === 'professor' || user.role === 'program_chair') {
-    if (!user.program) return [];
-    return [user.program.toString()];
+// Checks a question's image limits from AppSettings. Question images and answer
+// images have separate limits. Returns an error message or null.
+function getImageLimitError({ images, answers }, settings, prefix = '') {
+  const maxImages = settings.maxUploadImages ?? 5;
+  if (images.length > maxImages) {
+    return `${prefix}Maximum of ${maxImages} images allowed`;
   }
-  if (user.role === 'dean') {
-    if (!user.department) return [];
-    const programs = await Program.find({ department: user.department, isActive: true }).select('_id');
-    return programs.map((p) => p._id.toString());
+
+  const maxAnswerImages = settings.maxAnswerImages ?? 5;
+  const answerImageCount = countAnswerImages(answers);
+  if (answerImageCount > maxAnswerImages) {
+    return maxAnswerImages === 0
+      ? `${prefix}Answer images are disabled. Remove the images from the answer choices.`
+      : `${prefix}Only ${maxAnswerImages} answer choice${maxAnswerImages === 1 ? '' : 's'} per question can have an image`;
   }
-  return [];
+
+  return null;
+}
+
+const GROUP_SUBJECT_MESSAGE = 'All questions in a group must have the same subject';
+
+// A question group has one subject, so every member must carry the same tag
+// (or none yet, for drafts). Returns that tag id ('' for none), or null when they differ.
+function getGroupTagId(questionsPayload) {
+  const tagIds = new Set(questionsPayload.map((q) => String(q.tagId || q.tag?._id || q.tag || '')));
+  return tagIds.size === 1 ? [...tagIds][0] : null;
+}
+
+// Returns an error message when the subject can't be used in this program, else null
+async function getTagError(tagId, programId) {
+  if (!tagId) return null;
+  const tag = mongoose.isValidObjectId(tagId) ? await Tag.findById(tagId) : null;
+  if (!tag || !tag.isActive) return 'Invalid or inactive subject';
+  if (tag.program.toString() !== String(programId)) return 'Subject does not belong to this program';
+  return null;
+}
+
+function normalizeImagesInput(images) {
+  if (!Array.isArray(images)) return [];
+  return [...new Set(images.filter((url) => typeof url === 'string' && url.trim()).map((url) => url.trim()))];
+}
+
+// Shared passage images have their own limit, separate from each question's images
+function getGroupContextImagesError(images, settings) {
+  const maxImages = settings.maxGroupContextImages ?? 5;
+  if (images.length <= maxImages) return null;
+  return maxImages === 0
+    ? 'Shared passage images are disabled. Remove the images from the shared passage.'
+    : `Maximum of ${maxImages} shared passage image${maxImages === 1 ? '' : 's'} allowed`;
+}
+
+// Drops empty answer choices saved before blank rows were filtered out, so they
+// never reach an exam. Returns the decrypted, filled choices for validation.
+function keepFilledAnswers(question, decrypted) {
+  const filled = (decrypted.answers || []).filter(isFilledAnswer);
+  if (filled.length !== question.answers.length) {
+    const keptIds = new Set(filled.map((answer) => String(answer._id)));
+    question.answers = question.answers.filter((answer) => keptIds.has(String(answer._id)));
+  }
+  return filled;
 }
 
 const LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes
@@ -178,6 +208,382 @@ const listApprovals = async (req, res) => {
   }
 };
 
+
+// POST /api/questions/group
+// Creates multiple Question documents sharing the same groupId.
+const createQuestionGroup = async (req, res) => {
+  try {
+    const { questions: questionsPayload, programId, groupContext, groupContextImages } = req.body;
+
+    if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
+      return res.status(400).json({ message: 'A group must have at least 2 questions' });
+    }
+
+    const settings = await AppSettings.getSingleton();
+
+    const accessibleIds = await getAccessibleProgramIds(req.user);
+    let resolvedProgramId;
+
+    if (req.user.role === 'professor' || req.user.role === 'program_chair') {
+      resolvedProgramId = req.user.program?.toString();
+    } else if (req.user.role === 'dean') {
+      if (!programId) return res.status(400).json({ message: 'Dean must specify a program' });
+      if (!accessibleIds.includes(programId))
+        return res.status(403).json({ message: 'Access denied to this program' });
+      resolvedProgramId = programId;
+    }
+
+    if (!resolvedProgramId) return res.status(400).json({ message: 'No program assigned' });
+
+    const groupTagId = getGroupTagId(questionsPayload);
+    if (groupTagId === null) return res.status(400).json({ message: GROUP_SUBJECT_MESSAGE });
+    const tagError = await getTagError(groupTagId, resolvedProgramId);
+    if (tagError) return res.status(400).json({ message: tagError });
+
+    // Validate every member before creating any, so a bad member never leaves a partial group behind
+    const members = [];
+    for (let i = 0; i < questionsPayload.length; i++) {
+      const q = questionsPayload[i];
+      const prefix = `Question ${i + 1}: `;
+
+      if (!q.description?.trim()) {
+        return res.status(400).json({ message: `${prefix}Question prompt/description is required` });
+      }
+
+      const member = { ...q, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
+      const limitError = getImageLimitError(member, settings, prefix);
+      if (limitError) return res.status(400).json({ message: limitError });
+
+      members.push(member);
+    }
+
+    const passageImages = normalizeImagesInput(groupContextImages);
+    const passageError = getGroupContextImagesError(passageImages, settings);
+    if (passageError) return res.status(400).json({ message: passageError });
+
+    const imageCheck = await validateImageReferences({
+      urls: [...members.flatMap(collectQuestionImageUrls), ...passageImages],
+      userId: req.user._id,
+    });
+    if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
+
+    const groupId = crypto.randomUUID();
+    const createdQuestions = [];
+
+    for (let i = 0; i < members.length; i++) {
+      const q = members[i];
+
+      const questionData = {
+        description: encryptText(q.description.trim()),
+        images: q.images,
+        answers: encryptAnswers(q.answers),
+        rationalization: encryptText(q.rationalization?.trim() || ''),
+        tag: groupTagId || null,
+        program: resolvedProgramId,
+        createdBy: req.user._id,
+        state: 'draft',
+        // Image flags from import
+        image_required: q.image_required || false,
+        image_note: q.image_note || null,
+        image_flag_removed_by_user: q.image_flag_removed_by_user || false,
+        // Group metadata
+        groupId,
+        groupOrder: i,
+        groupContext: groupContext?.trim() || null,
+        groupContextImages: passageImages,
+      };
+
+      const question = await Question.create(questionData);
+      const populated = await question.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      createdQuestions.push(decryptQuestion(populated));
+    }
+
+    await logAudit(req.user._id, 'question_group_created', 'Question', null, {
+      groupId,
+      programId: resolvedProgramId,
+      questionCount: createdQuestions.length,
+    });
+
+    res.status(201).json({ questions: createdQuestions, groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// GET /api/questions/group/:groupId — fetch all questions in a group
+const getQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id })
+      .populate('tag', 'name')
+      .populate('program', 'name code')
+      .sort({ groupOrder: 1 });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Group not found or access denied' });
+    }
+
+    res.json({ questions: questions.map(decryptQuestion), groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// POST /api/questions/group/:groupId/submit — submit all questions in a group together
+const submitQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    if (questions.length < 2) {
+      return res.status(400).json({ message: 'A grouped question set must have at least 2 questions to submit' });
+    }
+
+    // Validate every question in the group against strict board exam rules
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (q.state !== 'draft' && q.state !== 'returned') {
+        return res.status(400).json({ message: `Question ${i + 1} is already ${q.state}` });
+      }
+
+      const decrypted = decryptQuestion(q);
+      const prefix = `Question ${i + 1}: `;
+
+      if (!decrypted.description?.trim()) {
+        return res.status(400).json({ message: `${prefix}Question text is required for submission` });
+      }
+      if (!decrypted.rationalization?.trim()) {
+        return res.status(400).json({ message: `${prefix}Rationalization is required for submission` });
+      }
+      if (!decrypted.tag) {
+        return res.status(400).json({ message: `${prefix}A subject tag must be assigned before submission` });
+      }
+
+      const answerError = getAnswerSubmissionError(keepFilledAnswers(q, decrypted));
+      if (answerError) {
+        return res.status(400).json({ message: `${prefix}${answerError}` });
+      }
+    }
+
+    // Groups saved before the one-subject rule may still mix subjects
+    if (new Set(questions.map((q) => String(q.tag))).size > 1) {
+      return res.status(400).json({ message: `${GROUP_SUBJECT_MESSAGE}. Edit the group and pick one subject before submitting.` });
+    }
+
+    // Transition all questions to pending_chair
+    const submittedQuestions = [];
+    for (const question of questions) {
+      question.state = 'pending_chair';
+      question.submittedAt = new Date();
+      question.revisionNote = null;
+      question.feedbackRead = false;
+      await question.save();
+
+      const populated = await question.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      submittedQuestions.push(decryptQuestion(populated));
+
+      await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
+        programId: question.program,
+        tagId: question.tag || null,
+        groupId,
+        state: question.state,
+      });
+    }
+
+    res.json({ questions: submittedQuestions, message: 'Question group submitted for review' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// DELETE /api/questions/group/:groupId — delete all questions in a group
+const deleteQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const questions = await Question.find({ groupId, createdBy: req.user._id });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    for (const q of questions) {
+      if (q.state !== 'draft' && q.state !== 'rejected') {
+        return res.status(400).json({ message: 'Only draft or rejected questions can be deleted' });
+      }
+      if (q.is_used_in_exam) {
+        return res.status(400).json({ message: 'Cannot delete questions that are currently used in an exam' });
+      }
+    }
+
+    for (const q of questions) {
+      await q.deleteOne();
+      await logAudit(req.user._id, 'question_deleted', 'Question', q._id, {
+        programId: q.program,
+        tagId: q.tag || null,
+        groupId,
+      });
+    }
+
+    // Images are removed only after the questions are gone
+    await deleteUnreferencedImages(questions.flatMap(collectQuestionImageUrls));
+
+    res.json({ message: 'Question group deleted', groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// PUT /api/questions/group/:groupId — update entire question group (reorder, edit text, choices, context)
+const updateQuestionGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { questions: questionsPayload, groupContext, groupContextImages } = req.body;
+
+    if (!Array.isArray(questionsPayload) || questionsPayload.length < 2) {
+      return res.status(400).json({ message: 'A question group must have at least 2 questions' });
+    }
+
+    const existingQuestions = await Question.find({ groupId, createdBy: req.user._id });
+    if (existingQuestions.length === 0) {
+      return res.status(404).json({ message: 'Question group not found' });
+    }
+
+    const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
+    for (const q of existingQuestions) {
+      if (!editableStates.includes(q.state)) {
+        return res.status(400).json({ message: 'Only draft, returned, pending, or restored question groups can be edited' });
+      }
+    }
+
+    const settings = await AppSettings.getSingleton();
+    const programId = existingQuestions[0].program;
+
+    const groupTagId = getGroupTagId(questionsPayload);
+    if (groupTagId === null) return res.status(400).json({ message: GROUP_SUBJECT_MESSAGE });
+    // A subject the group already uses stays valid, even if it was deactivated since
+    const keepsExistingTag = existingQuestions.some((q) => String(q.tag || '') === groupTagId);
+    const tagError = keepsExistingTag ? null : await getTagError(groupTagId, programId);
+    if (tagError) return res.status(400).json({ message: tagError });
+
+    // Validate payloads
+    const members = [];
+    for (let i = 0; i < questionsPayload.length; i++) {
+      const q = questionsPayload[i];
+      const prefix = `Question ${i + 1}: `;
+      if (!q.description?.trim()) {
+        return res.status(400).json({ message: `${prefix}Question prompt/description is required` });
+      }
+
+      const member = { ...q, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
+      const limitError = getImageLimitError(member, settings, prefix);
+      if (limitError) return res.status(400).json({ message: limitError });
+
+      members.push(member);
+    }
+
+    // Passage images are kept as they are when the request leaves them out
+    const passageImages = groupContextImages !== undefined
+      ? normalizeImagesInput(groupContextImages)
+      : [...(existingQuestions[0].groupContextImages || [])];
+    if (groupContextImages !== undefined) {
+      const passageError = getGroupContextImagesError(passageImages, settings);
+      if (passageError) return res.status(400).json({ message: passageError });
+    }
+
+    // Images already in this group stay valid; anything new must be the user's own upload
+    const previousUrls = [...new Set(existingQuestions.flatMap(collectQuestionImageUrls))];
+    const nextUrls = [...new Set([...members.flatMap(collectQuestionImageUrls), ...passageImages])];
+    const imageCheck = await validateImageReferences({
+      urls: nextUrls,
+      previousUrls,
+      userId: req.user._id,
+      excludeQuestionIds: existingQuestions.map((q) => q._id),
+    });
+    if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
+
+    const existingMap = new Map(existingQuestions.map(q => [String(q._id), q]));
+    const updatedQuestions = [];
+
+    // Update or create members
+    for (let i = 0; i < members.length; i++) {
+      const qData = members[i];
+      const qId = qData._id ? String(qData._id) : null;
+      let questionDoc = qId ? existingMap.get(qId) : null;
+
+      if (questionDoc) {
+        questionDoc.description = encryptText(qData.description.trim());
+        questionDoc.rationalization = encryptText(qData.rationalization?.trim() || '');
+        questionDoc.answers = encryptAnswers(qData.answers);
+        questionDoc.tag = groupTagId || null;
+        questionDoc.images = qData.images;
+        questionDoc.groupOrder = i;
+        questionDoc.groupContext = groupContext?.trim() || null;
+        questionDoc.groupContextImages = passageImages;
+        if (questionDoc.state === 'pending_chair' || questionDoc.state === 'restored') {
+          questionDoc.state = 'draft';
+          questionDoc.currentReviewer = null;
+          questionDoc.reviewStartedAt = null;
+        }
+        await questionDoc.save();
+        existingMap.delete(qId);
+      } else {
+        questionDoc = await Question.create({
+          description: encryptText(qData.description.trim()),
+          images: qData.images,
+          answers: encryptAnswers(qData.answers),
+          rationalization: encryptText(qData.rationalization?.trim() || ''),
+          tag: groupTagId || null,
+          program: programId,
+          createdBy: req.user._id,
+          state: 'draft',
+          groupId,
+          groupOrder: i,
+          groupContext: groupContext?.trim() || null,
+          groupContextImages: passageImages,
+        });
+      }
+
+      const populated = await questionDoc.populate([
+        { path: 'tag', select: 'name' },
+        { path: 'program', select: 'name code' },
+      ]);
+      updatedQuestions.push(decryptQuestion(populated));
+    }
+
+    // Delete any questions that were removed from the group during edit
+    for (const [, removedQ] of existingMap) {
+      await removedQ.deleteOne();
+    }
+
+    // Now that every change is saved, remove images the group no longer uses
+    await deleteUnreferencedImages(previousUrls.filter((url) => !nextUrls.includes(url)));
+
+    await logAudit(req.user._id, 'question_group_updated', 'Question', null, {
+      groupId,
+      questionCount: updatedQuestions.length,
+    });
+
+    res.json({ questions: updatedQuestions, groupId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 // POST /api/questions
 const createQuestion = async (req, res) => {
   try {
@@ -189,16 +595,12 @@ const createQuestion = async (req, res) => {
       });
     }
 
-    // Other fields are optional for drafts, but we still do basic structure checks if provided
-    if (Array.isArray(answers) && answers.length > 0) {
-      if (!answers.some((a) => a.isCorrect)) {
-        // We allow no correct answer in drafts, but if they provide answers, we just log a warning or let it pass
-      }
-    }
+    // Other fields are optional for drafts; empty answer rows are dropped
+    const draft = { images: normalizeImagesInput(images), answers: normalizeAnswersInput(answers) };
+
     const settings = await AppSettings.getSingleton();
-    const maxAllowed = settings.maxUploadImages ?? 5;
-    if (Array.isArray(images) && images.length > maxAllowed)
-      return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed` });
+    const limitError = getImageLimitError(draft, settings);
+    if (limitError) return res.status(400).json({ message: limitError });
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
     let resolvedProgramId;
@@ -222,10 +624,16 @@ const createQuestion = async (req, res) => {
         return res.status(400).json({ message: 'Tag does not belong to the specified program' });
     }
 
+    const imageCheck = await validateImageReferences({
+      urls: collectQuestionImageUrls(draft),
+      userId: req.user._id,
+    });
+    if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
+
     const questionData = {
       description: encryptText(description.trim()),
-      images: images || [],
-      answers: (answers || []).map(a => ({ ...a, text: encryptText(a.text) })),
+      images: draft.images,
+      answers: encryptAnswers(draft.answers),
       rationalization: encryptText(rationalization?.trim() || ''),
       tag: tagId || null,
       program: resolvedProgramId,
@@ -262,35 +670,41 @@ const updateQuestion = async (req, res) => {
       return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
 
     const { description, answers, tagId, images, rationalization } = req.body;
+    if (answers && !Array.isArray(answers))
+      return res.status(400).json({ message: 'Answers must be an array' });
+
+    // A grouped question shares its subject with the rest of the group
+    if (question.groupId && tagId !== undefined && String(tagId || '') !== String(question.tag || '')) {
+      return res.status(400).json({ message: `${GROUP_SUBJECT_MESSAGE}. Change the subject for the whole group instead.` });
+    }
+
+    const previousUrls = collectQuestionImageUrls(question);
+    const next = {
+      images: images !== undefined ? normalizeImagesInput(images) : question.images,
+      answers: answers ? normalizeAnswersInput(answers) : question.answers,
+    };
+
+    // Limits apply to what this request changes, so a text-only edit still saves after a limit is lowered
+    const settings = await AppSettings.getSingleton();
+    const limitError = getImageLimitError({
+      images: images !== undefined ? next.images : [],
+      answers: answers ? next.answers : [],
+    }, settings);
+    if (limitError) return res.status(400).json({ message: limitError });
+
+    const nextUrls = collectQuestionImageUrls(next);
+    const imageCheck = await validateImageReferences({
+      urls: nextUrls,
+      previousUrls,
+      userId: req.user._id,
+      excludeQuestionIds: [question._id],
+    });
+    if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
+
     if (description) question.description = encryptText(description.trim());
     if (rationalization !== undefined) question.rationalization = encryptText(rationalization.trim());
-    if (images !== undefined) {
-      const settings = await AppSettings.getSingleton();
-      const maxAllowed = settings.maxUploadImages ?? 5;
-
-      if (Array.isArray(images) && images.length > maxAllowed) {
-        return res.status(400).json({
-          message: `Maximum of ${maxAllowed} images allowed`
-        });
-      }
-
-      const oldImages = question.images || [];
-      const newImages = images || [];
-
-      const removedImages = oldImages.filter(
-        (img) => !newImages.includes(img)
-      );
-
-      await deleteQuestionImagesFromR2(removedImages);
-
-      question.images = newImages;
-    }
-    if (answers) {
-      // Basic structure check for updates
-      if (!Array.isArray(answers))
-        return res.status(400).json({ message: 'Answers must be an array' });
-      question.answers = answers.map(a => ({ ...a, text: encryptText(a.text) }));
-    }
+    if (images !== undefined) question.images = next.images;
+    if (answers) question.answers = encryptAnswers(next.answers);
     if (tagId !== undefined) question.tag = tagId || null;
 
     // If a submitted question is edited, pull it back to draft so it can be re-submitted.
@@ -301,6 +715,10 @@ const updateQuestion = async (req, res) => {
     }
 
     await question.save();
+
+    // Removed images are deleted only once the question has saved successfully
+    await deleteUnreferencedImages(previousUrls.filter((url) => !nextUrls.includes(url)));
+
     const populated = await question.populate([
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
@@ -329,8 +747,8 @@ const deleteQuestion = async (req, res) => {
     if (question.is_used_in_exam)
       return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
 
-    await deleteQuestionImagesFromR2(question.images);
     await question.deleteOne();
+    await deleteUnreferencedImages(collectQuestionImageUrls(question));
 
     await logAudit(req.user._id, 'question_deleted', 'Question', question._id, {
       programId: question.program,
@@ -360,26 +778,8 @@ const submitQuestion = async (req, res) => {
     if (!decrypted.rationalization?.trim()) return res.status(400).json({ message: 'Rationalization is required for submission' });
     if (!decrypted.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
 
-    const answers = decrypted.answers || [];
-    const filledOptions = answers.filter(a => a.text?.trim() !== '').length;
-
-    if (filledOptions < 4 || filledOptions > 5) {
-      return res.status(400).json({ message: 'Questions must have exactly 4 or 5 filled options for board exams' });
-    }
-
-    const correctCount = answers.filter(a => a.isCorrect).length;
-    if (correctCount === 0) {
-      return res.status(400).json({ message: 'No correct answer selected' });
-    } else if (correctCount > 1) {
-      return res.status(400).json({ message: 'Multiple correct answers selected' });
-    }
-
-    // Check for duplicates
-    const texts = answers.map(a => a.text?.trim().toLowerCase()).filter(t => t);
-    const uniqueTexts = new Set(texts);
-    if (uniqueTexts.size < texts.length) {
-      return res.status(400).json({ message: 'Duplicate answer choices detected' });
-    }
+    const answerError = getAnswerSubmissionError(keepFilledAnswers(question, decrypted));
+    if (answerError) return res.status(400).json({ message: answerError });
     // ------------------------------------
 
     question.state = 'pending_chair';
@@ -474,8 +874,8 @@ const reviewQuestion = async (req, res) => {
         if (!exists) return res.status(404).json({ message: 'Question not found' });
         return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
       }
-      await deleteQuestionImagesFromR2(question.images);
       await question.deleteOne();
+      await deleteUnreferencedImages(collectQuestionImageUrls(question));
 
       await logAudit(req.user._id, 'question_reviewed', 'Question', question._id, {
         reviewAction: action,
@@ -505,6 +905,33 @@ const reviewQuestion = async (req, res) => {
       return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
     }
 
+    // If this question belongs to a group, apply the same review action to all siblings in that group
+    let siblingQuestions = [];
+    if (updated.groupId) {
+      const siblingFilter = {
+        groupId: updated.groupId,
+        _id: { $ne: updated._id },
+        state: requiredState,
+      };
+      if (req.user.role === 'program_chair') {
+        siblingFilter.program = req.user.program;
+      } else if (req.user.role === 'dean') {
+        const accessibleIds = await getAccessibleProgramIds(req.user);
+        siblingFilter.program = { $in: accessibleIds };
+      }
+
+      await Question.updateMany(
+        siblingFilter,
+        { $set: updateSet, ...(action === 'restore' ? { $unset: { rejectionReason: 1 } } : {}) }
+      );
+
+      const updatedSiblings = await Question.find({ groupId: updated.groupId })
+        .populate('tag', 'name')
+        .populate('program', 'name code')
+        .populate('createdBy', 'name');
+      siblingQuestions = updatedSiblings.map(decryptQuestion);
+    }
+
     const populated = await updated.populate([
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
@@ -516,8 +943,12 @@ const reviewQuestion = async (req, res) => {
       programId: updated.program,
       note: note?.trim() || null,
       newState: updated.state,
+      groupId: updated.groupId || null,
     });
-    res.json({ question: decryptQuestion(populated) });
+    res.json({
+      question: decryptQuestion(populated),
+      groupQuestions: siblingQuestions.length > 0 ? siblingQuestions : undefined,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -608,6 +1039,11 @@ module.exports = {
   listQuestions,
   listApprovals,
   createQuestion,
+  createQuestionGroup,
+  getQuestionGroup,
+  updateQuestionGroup,
+  submitQuestionGroup,
+  deleteQuestionGroup,
   updateQuestion,
   deleteQuestion,
   submitQuestion,
@@ -615,6 +1051,5 @@ module.exports = {
   deanReturnApprovedQuestion,
   lockQuestion,
   unlockQuestion,
-  deleteQuestionImagesFromR2,
   markQuestionRead,
 };

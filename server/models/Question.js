@@ -4,6 +4,8 @@ const answerSchema = new mongoose.Schema(
   {
     text: { type: String, trim: true },
     isCorrect: { type: Boolean, default: false },
+    // Optional image for this choice (proxy URL, like question images). The text stays required.
+    image: { type: String, default: null },
   },
   { _id: true }
 );
@@ -71,8 +73,23 @@ const questionSchema = new mongoose.Schema(
     is_used_in_exam: { type: Boolean, default: false, index: true },
     // Tracks whether returned/rejected feedback has been viewed/read by the creator
     feedbackRead: { type: Boolean, default: false, index: true },
+    // [GROUPED QUESTIONS]
+    // Shared UUID string linking all questions in a group. null for solo questions.
+    groupId: { type: String, default: null, index: true },
+    // 0-based position of this question within the group.
+    groupOrder: { type: Number, default: null },
+    // Optional shared context/stem text shown above all questions in the group during an exam.
+    groupContext: { type: String, default: null, trim: true },
+    // Images attached to the shared passage. Copied onto every question in the group,
+    // like groupContext. Limited by AppSettings.maxGroupContextImages.
+    groupContextImages: { type: [String], default: [] },
   },
   { timestamps: true }
 );
+
+// Image access checks and cleanup look questions up by the images they reference
+questionSchema.index({ images: 1 });
+questionSchema.index({ 'answers.image': 1 });
+questionSchema.index({ groupContextImages: 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

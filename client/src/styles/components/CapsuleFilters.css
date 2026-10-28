@@ -1,0 +1,59 @@
+/* Outer spacing is left to the page (pass a className). */
+.capsule-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.capsule-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 13px;
+  border: 1px solid rgba(53, 64, 142, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #5966ac;
+  font-family: var(--font-body, inherit);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.capsule-filter:hover {
+  background: #f9faff;
+  border-color: rgba(53, 64, 142, 0.32);
+  color: var(--primary-bg, #35408e);
+}
+
+.capsule-filter:focus-visible {
+  outline: 2px solid var(--primary-bg, #35408e);
+  outline-offset: 2px;
+}
+
+.capsule-filter--active,
+.capsule-filter--active:hover {
+  background: var(--primary-bg, #35408e);
+  border-color: var(--primary-bg, #35408e);
+  color: #fff;
+}
+
+.capsule-filter-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-yellow, #fad227);
+  color: var(--primary-bg, #35408e);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.capsule-filter--active .capsule-filter-count {
+  background: rgba(250, 210, 39, 0.95);
+}

@@ -1,53 +1,34 @@
 import { useState, useEffect } from 'react';
-import { getStoredAuthToken } from '../lib/api';
+import { acquireImage, isProtectedImageUrl, resolveImageUrl } from '../lib/authImageCache';
 
-const BASE = import.meta.env.VITE_API_URL || '';
-
-export default function AuthImage({ src, alt, className, style, onClick }) {
-  const [objectUrl, setObjectUrl] = useState(null);
-  const [error, setError] = useState(false);
+// Shows a question/answer image. Protected images are fetched with the user's
+// credentials and kept only in the in-memory cache (see lib/authImageCache.js).
+export default function AuthImage({ src, alt, className, style, onClick, ...imgProps }) {
+  const isProtected = isProtectedImageUrl(src);
+  const [loaded, setLoaded] = useState({ src: null, url: null, error: false });
 
   useEffect(() => {
+    if (!src || !isProtected) return undefined;
+
     let active = true;
-    
-    // If it's a full external URL (like legacy R2), just use it directly
-    if (src && /^https?:\/\//i.test(src) && !src.includes('/api/questions/image/')) {
-      setObjectUrl(src);
-      return;
-    }
-
-    if (!src) return;
-
-    // Resolve relative path to absolute API path
-    const url = src.startsWith('/') ? `${BASE}${src}` : src;
-
-    const fetchImage = async () => {
-      try {
-        const token = getStoredAuthToken();
-        const res = await fetch(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        
-        if (!res.ok) throw new Error('Failed to fetch image');
-        
-        const blob = await res.blob();
-        if (active) {
-          setObjectUrl(URL.createObjectURL(blob));
-        }
-      } catch (err) {
-        if (active) setError(true);
-      }
-    };
-
-    fetchImage();
+    const { promise, release } = acquireImage(src);
+    promise
+      .then((url) => {
+        if (active) setLoaded({ src, url, error: false });
+      })
+      .catch(() => {
+        if (active) setLoaded({ src, url: null, error: true });
+      });
 
     return () => {
       active = false;
-      if (objectUrl && objectUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      release();
     };
-  }, [src]);
+  }, [src, isProtected]);
+
+  // Local previews (blob:/data:) and legacy public URLs are shown as they are
+  const objectUrl = isProtected ? (loaded.src === src ? loaded.url : null) : resolveImageUrl(src);
+  const error = isProtected && loaded.src === src && loaded.error;
 
   if (error) {
     return <div className={`auth-image-error ${className || ''}`} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', color: '#9ca3af' }}>Failed to load image</div>;
@@ -57,5 +38,5 @@ export default function AuthImage({ src, alt, className, style, onClick }) {
     return <div className={`auth-image-loading ${className || ''}`} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6' }}>Loading...</div>;
   }
 
-  return <img src={objectUrl} alt={alt} className={className} style={style} onClick={onClick} />;
+  return <img src={objectUrl} alt={alt} className={className} style={style} onClick={onClick} {...imgProps} />;
 }

@@ -62,63 +62,9 @@
   line-height: 1;
 }
 
-/* ── Status Pills ────────────────────────────────────────── */
+/* ── Status Pills (CapsuleFilters) ──────────────────────── */
 .ca-state-pills {
-  display: flex;
-  gap: 12px;
   padding: 16px 32px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.ca-state-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border: 1.5px solid rgba(53, 64, 142, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #5966ac;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ca-state-pill:hover {
-  background: #f9fafb;
-  border-color: rgba(53, 64, 142, 0.18);
-}
-
-.ca-state-pill--active {
-  background: var(--primary-bg);
-  color: #fff;
-  border-color: var(--primary-bg);
-}
-
-.ca-state-pill--active:hover {
-  background: var(--primary-bg);
-  border-color: var(--primary-bg);
-}
-
-.ca-state-pill-count {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-yellow);
-  color: var(--primary-bg);
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.ca-state-pill--active .ca-state-pill-count {
-  background: rgba(250, 210, 39, 0.95);
 }
 
 
@@ -169,8 +115,15 @@
 }
 
 @keyframes ca-fade-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ca-exam-use-label {
@@ -222,6 +175,7 @@
   color: #fff;
   border-color: var(--primary-bg);
 }
+
 .ca-exam-use-pill--active-all .ca-exam-use-pill-count {
   background: rgba(250, 210, 39, 0.9);
   color: var(--primary-bg);
@@ -233,6 +187,7 @@
   color: #fff;
   border-color: #1d4ed8;
 }
+
 .ca-exam-use-pill--active-used .ca-exam-use-pill-count {
   background: rgba(219, 234, 254, 0.4);
   color: #fff;
@@ -244,8 +199,9 @@
   color: #fff;
   border-color: #475569;
 }
+
 .ca-exam-use-pill--active-not_used .ca-exam-use-pill-count {
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
 
@@ -764,16 +720,35 @@
 .ca-sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+}
+
+/* Question panels in the review sidebar; spacing comes from the sidebar's gap */
+.ca-sidebar-content > .question-panels {
+  margin-top: 0;
+}
+
+.ca-sidebar-content > .question-panels:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ca-review-metadata {
+  padding-top: 20px;
+  border-top: 1px solid rgba(53, 64, 142, 0.14);
+}
+
+.ca-review-metadata .ca-meta-grid {
+  row-gap: 18px;
 }
 
 .ca-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ca-section-label {
@@ -792,15 +767,6 @@
   font-size: 15px;
   font-weight: 700;
   color: #1a1f4b;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.ca-question-detail-text {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #4a5268;
-  line-height: 1.5;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -828,63 +794,12 @@
   word-break: break-word;
 }
 
-.ca-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .ca-image {
   max-width: 100%;
   max-height: 180px;
   border-radius: 8px;
   border: 1px solid rgba(53, 64, 142, 0.2);
   cursor: pointer;
-}
-
-.ca-answers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ca-answer-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px;
-  background: #f9faff;
-  border-radius: 7px;
-  border: 1px solid rgba(53, 64, 142, 0.15);
-  min-width: 0;
-}
-
-.ca-answer-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid #d1d5db;
-  color: #9ca3af;
-  font-size: 12px;
-  flex-shrink: 0;
-  font-weight: 700;
-}
-
-.ca-answer-indicator.is-correct {
-  background: #10b981;
-  border-color: #10b981;
-  color: #fff;
-}
-
-.ca-answer-text {
-  font-size: 13px;
-  color: #1a1f4b;
-  flex: 1;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .ca-section--note {
@@ -1248,15 +1163,7 @@
 @media (max-width: 980px) {
 
   .ca-state-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
     padding: 0 16px;
-  }
-
-  .ca-state-pill {
-    width: auto;
-    flex: 0 0 auto;
   }
 
   .ca-filters {
@@ -1379,6 +1286,7 @@
 
 /* Show checkbox on card hover or when checked */
 .ca-question-card:hover .ca-card-checkbox-wrap,
+.ca-group-header-card:hover .ca-card-checkbox-wrap,
 .ca-card-checkbox-wrap.is-checked {
   opacity: 1;
 }
@@ -1434,8 +1342,15 @@
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ca-bulk-count {
@@ -1507,4 +1422,54 @@
 
 .ca-bulk-btn--clear:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* Question Grouping in Approvals */
+.ca-group-header-card {
+  background: #ffffff;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.ca-group-header-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+}
+
+.ca-group-header-card.is-active {
+  background: #f5f7ff;
+  border-color: var(--primary-bg);
+  box-shadow: 0 4px 18px rgba(53, 64, 142, 0.18);
+}
+
+.ca-group-header-card.is-checked {
+  background: #f8faff;
+  border-color: #6366f1;
+}
+
+.ca-group-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Sidebar Review Bubble Navigation */
+.ca-sidebar .import-review-nav-bubble {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
 }

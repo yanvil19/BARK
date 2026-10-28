@@ -220,10 +220,26 @@ async function validateExamPayload(user, body) {
       program: program._id,
       state: 'approved',
       tag: { $in: allowedTagIds },
-    }).select('_id title tag program state');
+    }).select('_id title tag program state groupId');
 
     if (questions.length !== questionIds.length) {
       errors.push('One or more selected questions are not approved or do not match the chosen subjects');
+    } else {
+      // Enforce full group selection: if any question from a group is chosen, all approved members must be included
+      const selectedGroupIds = [...new Set(questions.map(q => q.groupId).filter(Boolean))];
+      if (selectedGroupIds.length > 0) {
+        const allGroupMembers = await Question.find({
+          groupId: { $in: selectedGroupIds },
+          program: program._id,
+          state: 'approved',
+        }).select('_id groupId');
+
+        const selectedIdSet = new Set(questionIds.map(String));
+        const missingGroupMembers = allGroupMembers.filter(m => !selectedIdSet.has(String(m._id)));
+        if (missingGroupMembers.length > 0) {
+          errors.push('Grouped questions cannot be selected individually. All questions in the group must be included together in the exam.');
+        }
+      }
     }
   }
 
@@ -433,7 +449,7 @@ async function getMockBoardExam(req, res) {
       .populate('subjectTags', 'name')
       .populate({
         path: 'questions',
-        select: 'title description images answers tag state',
+        select: 'title description images answers rationalization tag state groupId groupOrder groupContext groupContextImages',
         populate: { path: 'tag', select: 'name' },
       })
       .populate('createdBy', 'name');

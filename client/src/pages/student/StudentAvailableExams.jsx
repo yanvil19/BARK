@@ -4,6 +4,7 @@ import '../../styles/shared/AvailableExams.css';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -147,40 +148,18 @@ export default function AvailableExams({ onTakeExam }) {
         subtitle="Browse and take available mock board exams for your program"
       />
 
-      <div className="ca-state-pills ae-state-pills" role="tablist" aria-label="Exam status filters">
-        <button
-          type="button"
-          className={`ca-state-pill${selectedStatus === 'all' ? ' ca-state-pill--active' : ''}`}
-          onClick={() => setSelectedStatus('all')}
-        >
-          <span className="ca-state-pill-count">{statusCounts.all}</span>
-          <span>All</span>
-        </button>
-        <button
-          type="button"
-          className={`ca-state-pill${selectedStatus === 'open' ? ' ca-state-pill--active' : ''}`}
-          onClick={() => setSelectedStatus('open')}
-        >
-          <span className="ca-state-pill-count">{statusCounts.open}</span>
-          <span>Open</span>
-        </button>
-        <button
-          type="button"
-          className={`ca-state-pill${selectedStatus === 'closing_soon' ? ' ca-state-pill--active' : ''}`}
-          onClick={() => setSelectedStatus('closing_soon')}
-        >
-          <span className="ca-state-pill-count">{statusCounts.closing_soon}</span>
-          <span>Closing Soon</span>
-        </button>
-        <button
-          type="button"
-          className={`ca-state-pill${selectedStatus === 'upcoming' ? ' ca-state-pill--active' : ''}`}
-          onClick={() => setSelectedStatus('upcoming')}
-        >
-          <span className="ca-state-pill-count">{statusCounts.upcoming}</span>
-          <span>Not Yet Open</span>
-        </button>
-      </div>
+      <CapsuleFilters
+        className="ae-state-pills"
+        ariaLabel="Exam status filters"
+        options={[
+          { value: 'all', label: 'All', count: statusCounts.all },
+          { value: 'open', label: 'Open', count: statusCounts.open },
+          { value: 'closing_soon', label: 'Closing Soon', count: statusCounts.closing_soon },
+          { value: 'upcoming', label: 'Not Yet Open', count: statusCounts.upcoming },
+        ]}
+        value={selectedStatus}
+        onChange={setSelectedStatus}
+      />
 
       <div className="ca-filters ae-filters">
         <SearchBar

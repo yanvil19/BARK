@@ -95,10 +95,12 @@ class SettingsManager {
 
       const settings = await AppSettings.getSingleton();
       
-      const { emailCooldownDays, passwordCooldownDays, maxUploadImages } = pending.settingsPayload;
+      const { emailCooldownDays, passwordCooldownDays, maxUploadImages, maxAnswerImages, maxGroupContextImages } = pending.settingsPayload;
       if (emailCooldownDays !== undefined) settings.emailCooldownDays = emailCooldownDays;
       if (passwordCooldownDays !== undefined) settings.passwordCooldownDays = passwordCooldownDays;
       if (maxUploadImages !== undefined) settings.maxUploadImages = maxUploadImages;
+      if (maxAnswerImages !== undefined) settings.maxAnswerImages = maxAnswerImages;
+      if (maxGroupContextImages !== undefined) settings.maxGroupContextImages = maxGroupContextImages;
 
       await settings.save();
       

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/AdminFacultyDashboard.css';
+import '../../styles/dean/DeanDashboard.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
 const DeanDashboard = ({ me }) => {
@@ -37,7 +38,7 @@ const DeanDashboard = ({ me }) => {
   const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
 
   return (
-    <main className="dashboard-pc-main">
+    <main className="dashboard-pc-main dashboard-dean-main">
       <PageHeader
         className="shared-page-header--bleed"
         title={`Good ${greeting}, Dean ${me?.firstName || ''}`}
@@ -48,7 +49,7 @@ const DeanDashboard = ({ me }) => {
         <div className="pc-loading">Loading dashboard data...</div>
       ) : (
         <>
-          <div className="dashboard-pc-stats-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="dashboard-pc-stats-row dashboard-dean-stats-row">
             <section className="dashboard-box">
               <div className="box-title">Approved Questions Available</div>
               <div className="box-content-vertical">
@@ -90,9 +91,9 @@ const DeanDashboard = ({ me }) => {
             </section>
           </div>
 
-          <section className="dashboard-box dashboard-pc-subject-box">
+          <section className="dashboard-box dashboard-pc-subject-box dashboard-dean-attention">
             <div className="box-title">Attention Needed</div>
-            <div className="pc-subject-grid">
+            <div className="pc-subject-grid dashboard-dean-attention-grid">
               {attentionItems.length > 0 ? (
                 attentionItems.map((item) => (
                   <div

@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   ActionMenu.css
+   Reusable 3-dot [...] action button and dropdown popover menu.
+════════════════════════════════════════════════════════════════════════ */
+
+.ui-action-menu-btn,
+.ambe-btn-icon,
+.ambe-btn-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px;
+  border: 1px solid rgba(53, 64, 142, 0.22);
+  background: #ffffff;
+  color: var(--primary-bg, #35408e);
+  cursor: pointer;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.ui-action-menu-btn:hover:not(:disabled),
+.ambe-btn-more:hover:not(:disabled) {
+  background: #f4f6ff;
+  border-color: rgba(53, 64, 142, 0.22);
+}
+
+.ui-action-menu-btn[aria-expanded='true'],
+.ambe-btn-more[aria-expanded='true'] {
+  background: #eef2ff;
+  border-color: #35408e;
+}
+
+.ui-action-menu-btn:disabled,
+.ambe-btn-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dropdown popover menu */
+.ui-action-menu-dropdown {
+  position: fixed;
+  z-index: 1100;
+  min-width: 190px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(34, 48, 96, 0.16);
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  animation: ui-menu-fade-in 0.12s ease-out;
+}
+
+@keyframes ui-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ui-action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1f2947;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.ui-action-menu-item:hover:not(:disabled),
+.ui-action-menu-item:focus-visible:not(:disabled) {
+  background: #f4f6ff;
+  color: var(--primary-bg, #35408e);
+  outline: none;
+}
+
+.ui-action-menu-item.danger {
+  color: #dc2626;
+}
+
+.ui-action-menu-item.danger:hover:not(:disabled),
+.ui-action-menu-item.danger:focus-visible:not(:disabled) {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.ui-action-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-action-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba(53, 64, 142, 0.1);
+}

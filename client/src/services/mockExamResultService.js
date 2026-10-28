@@ -17,12 +17,6 @@ export const computeExamResult = async (examId, passingThreshold = 70) => {
   });
 };
 
-export const deleteExamResult = async (examId) => {
-  return await apiAuth(`${BASE}/${examId}`, {
-    method: 'DELETE'
-  });
-};
-
 export const getExamStudentResults = async (examId) => {
   return await apiAuth(`${BASE}/${examId}/students`);
 };

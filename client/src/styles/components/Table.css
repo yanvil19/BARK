@@ -1,0 +1,388 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Table.css
+   Unified Table Component Styles (matches Board Exams design standard)
+════════════════════════════════════════════════════════════════════════ */
+
+.ui-table-card {
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.24);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  margin: 20px;
+}
+
+/* Card joins the footer (pagination) placed directly after it */
+.ui-table-card:has(+ .ui-table-footer) {
+  margin-bottom: 0;
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ui-table-footer {
+  margin: 0 20px 20px;
+  padding: 14px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.24);
+  border-top-color: #edf0f5;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.ui-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-table thead tr {
+  background-color: var(--primary-bg, #35408e);
+  border-bottom: 3px solid var(--accent-yellow, #fad227);
+}
+
+.ui-table th {
+  height: 64px;
+  padding: 13px 12px;
+  box-sizing: border-box;
+  background-color: var(--primary-bg, #35408e) !important;
+  border-bottom: 3px solid var(--accent-yellow, #fad227) !important;
+  color: #ffffff !important;
+  font-family: var(--font-body, 'Nunito', sans-serif) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: none !important;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ui-table td {
+  height: 64px;
+  padding: 12px 12px;
+  border-top: 1px solid #edf0f5;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 13px;
+  line-height: 20px;
+  color: #2b3552;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ui-table tbody tr:first-child td {
+  border-top: none;
+}
+
+.ui-table th:first-child,
+.ui-table td:first-child {
+  padding-left: 12px;
+}
+
+.ui-table th:last-child,
+.ui-table td:last-child {
+  padding-right: 12px;
+}
+
+/* Left-aligned lead column (e.g. exam / question name) */
+.ui-table td.ui-table-cell-lead {
+  padding-left: 20px;
+  text-align: left;
+}
+
+.ui-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.ui-table tbody tr:hover {
+  background-color: #f9faff;
+}
+
+.ui-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary-bg, #35408e);
+}
+
+.ui-table-row--clickable {
+  cursor: pointer;
+}
+
+.ui-table-empty {
+  padding: 36px 16px;
+  text-align: center;
+  color: #6b77b0;
+  font-size: 14px;
+}
+
+/* Status cell: coloured dot + label (Board Exams standard).
+   Pages map their statuses to a tone modifier below. */
+.ui-table-status {
+  --dot: #9ca3af;
+  --halo: rgba(156, 163, 175, 0.22);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #2b3552;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.ui-table-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: 0 0 0 3px var(--halo);
+  flex-shrink: 0;
+}
+
+.ui-table-status--hollow {
+  color: #5b6684;
+}
+
+.ui-table-status--hollow::before {
+  box-sizing: border-box;
+  background: transparent;
+  border: 1.5px solid #94a3b8;
+  box-shadow: none;
+}
+
+.ui-table-status--blue {
+  --dot: #3b82f6;
+  --halo: rgba(59, 130, 246, 0.2);
+}
+
+.ui-table-status--amber,
+.ui-table-status--live {
+  --dot: #f59e0b;
+  --halo: rgba(245, 158, 11, 0.24);
+}
+
+.ui-table-status--live::before {
+  animation: ui-table-status-live 2.2s ease-out infinite;
+}
+
+.ui-table-status--orange {
+  --dot: #f97316;
+  --halo: rgba(249, 115, 22, 0.22);
+}
+
+.ui-table-status--green {
+  --dot: #16a34a;
+  --halo: rgba(22, 163, 74, 0.2);
+}
+
+.ui-table-status--red {
+  --dot: #dc2626;
+  --halo: rgba(220, 38, 38, 0.2);
+}
+
+.ui-table-status--violet {
+  --dot: #8b5cf6;
+  --halo: rgba(139, 92, 246, 0.22);
+}
+
+.ui-table-status--muted {
+  --dot: #cbd5e1;
+  --halo: rgba(203, 213, 225, 0.35);
+  color: #8a94b0;
+}
+
+@keyframes ui-table-status-live {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-table-status--live::before {
+    animation: none;
+  }
+}
+
+/* Actions cell container */
+.ui-table-actions,
+.ambe-actions,
+.qp-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ui-table-actions-cell {
+  text-align: center;
+}
+
+/* Standardized table action buttons (matching Board Exams standard) */
+.ui-table-btn,
+.ambe-btn,
+.qp-btn-submit,
+.qp-btn-view,
+.qp-btn-edit,
+.qp-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.ui-table-btn:hover,
+.ambe-btn:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.ui-table-btn:disabled,
+.ambe-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Primary Navy Button */
+.ui-table-btn--primary,
+.ui-table-btn.primary,
+.ambe-btn.primary {
+  background: var(--primary-bg, #35408e);
+  color: #ffffff;
+  border-color: var(--primary-bg, #35408e);
+}
+
+.ui-table-btn--primary:hover,
+.ui-table-btn.primary:hover,
+.ambe-btn.primary:hover {
+  background: #2a3474;
+  border-color: #2a3474;
+}
+
+/* Secondary / View Details Button (Board Exams 1:1 match) */
+.ui-table-btn--secondary,
+.ui-table-btn.view,
+.ui-table-btn--view,
+.ambe-btn.view,
+.qp-btn-view {
+  background: #ffffff;
+  border: 1px solid rgba(53, 64, 142, 0.22);
+  color: var(--primary-bg, #35408e);
+}
+
+.ui-table-btn--secondary:hover,
+.ui-table-btn.view:hover,
+.ui-table-btn--view:hover,
+.ambe-btn.view:hover,
+.qp-btn-view:hover {
+  background: #f4f6ff;
+  border-color: rgba(53, 64, 142, 0.22);
+}
+
+/* Publish Green Button */
+.ui-table-btn.publish,
+.ambe-btn.publish {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #15803d;
+}
+
+.ui-table-btn.publish:hover,
+.ambe-btn.publish:hover {
+  background: #166534;
+  border-color: #166534;
+}
+
+/* Submit / Success Button */
+.ui-table-btn--success,
+.ui-table-btn.submit,
+.qp-btn-submit {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.ui-table-btn--success:hover,
+.ui-table-btn.submit:hover,
+.qp-btn-submit:hover {
+  background: #bbf7d0;
+  border-color: #86efac;
+}
+
+/* Danger / Delete Button */
+.ui-table-btn--danger,
+.ui-table-btn.delete,
+.ambe-btn.delete,
+.qp-btn-delete {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+.ui-table-btn--danger:hover,
+.ui-table-btn.delete:hover,
+.ambe-btn.delete:hover,
+.qp-btn-delete:hover {
+  background: #fecaca;
+}
+
+/* Neutral Edit Button */
+.qp-btn-edit {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.qp-btn-edit:hover {
+  background: #f3f4f6;
+}
+
+/* Icon-only square button override — must always be a 32×32 square, no horizontal padding */
+.ambe-btn-icon,
+.ambe-btn-more,
+.ui-action-menu-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+}
+
+/* Alignment utilities */
+.ui-table th.text-left,
+.ui-table td.text-left {
+  text-align: left;
+}
+
+.ui-table th.text-center,
+.ui-table td.text-center,
+.ui-table th.ui-table-th-actions {
+  text-align: center;
+}
+
+.ui-table th.text-right,
+.ui-table td.text-right {
+  text-align: right;
+}
