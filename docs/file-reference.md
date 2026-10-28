@@ -795,7 +795,17 @@ client/src/components/DropdownSelect.jsx
 ```
 client/src/components/DateTimePicker.jsx
 ```
--> Date and time picker component wrapping `react-datepicker` with custom styling for exam scheduling inputs.
+-> Date and time picker used for the exam schedule (Create Exams, `range` mode: start and end in one modal) and results release (Board Exams, single moment). Opens a modal with a month calendar that shows the program's scheduled exams as status dots, the chosen day's exams, and time inputs. In range mode the Starts/Ends cards pick which date the calendar sets, moving the start keeps the duration, and the days between are shaded. Overlapping exams are highlighted and warned about but never block Apply; a past start or an end before the start do.
+
+```
+client/src/components/TimeInput.jsx
+```
+-> 12-hour time input with one box per digit plus an AM/PM toggle (`[1][2] : [3][0] [AM]`). Clicking a box selects that digit, typing replaces it and moves to the next box, and arrow keys move between boxes or step the value. It only accepts valid times. Used by `DateTimePicker`.
+
+```
+client/src/components/CalendarIcons.jsx
+```
+-> Line icons shared by the exam calendar and the date & time picker (student, alumni, arrows, calendar).
 
 ```
 client/src/components/ExamCalendar.jsx
@@ -889,6 +899,11 @@ client/src/hooks/useLocalStorage.js
 ```
 -> Custom React hook that syncs a state value to `localStorage` with an optional write debounce delay, used to persist draft data across page reloads.
 
+```
+client/src/hooks/useCalendarExams.js
+```
+-> Custom React hook that loads the exams scheduled in a calendar month from the calendar endpoint for the user's role (dean, program chair, or learner). Used by `ExamCalendar` and `DateTimePicker`.
+
 ---
 
 ### Utils
@@ -896,7 +911,7 @@ client/src/hooks/useLocalStorage.js
 ```
 client/src/utils/calendarUtils.js
 ```
--> Helper functions for the calendar component: compute the visible date range (week/month view) using `date-fns` for fetching the correct exam window.
+-> Helper functions for the exam calendar and date & time picker: the visible month range, which exams fall on a day, exam time-range and date formatting, and schedule-conflict flags.
 
 ```
 client/src/utils/statusLabels.js
@@ -975,7 +990,12 @@ client/src/styles/components/DropdownSelect.css
 ```
 client/src/styles/components/DateTimePicker.css
 ```
--> Styles for the date-time picker wrapper to match application theme overriding `react-datepicker` defaults.
+-> Styles for the date & time picker: trigger field, calendar with exam dots and range shading, Starts/Ends cards with time inputs, day exam list, and overlap warnings.
+
+```
+client/src/styles/components/TimeInput.css
+```
+-> Styles for the per-digit time input: digit boxes (the focused one is filled navy), the colon, and the AM/PM toggle.
 
 ```
 client/src/styles/components/ExamCalendar.css

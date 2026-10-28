@@ -33,7 +33,6 @@ import Credits from './pages/Credits.jsx';
 import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
-import "react-datepicker/dist/react-datepicker.css";
 import { useHeartbeat } from './hooks/useHeartbeat.js';
 
 export default function App() {

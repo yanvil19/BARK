@@ -534,6 +534,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         ),
       });
     } catch (err) {
+      // Unmount the picker so "Schedule results" can open it again for this exam
+      setSchedulingExamId(null);
       setFeedbackModal({
         title: 'Scheduling Failed',
         tone: 'danger',
@@ -1398,6 +1400,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             key={schedulingExamId}
             value={schedulingExam.resultsReleaseDate}
             autoOpen
+            title={schedulingExam.resultsReleaseDate ? 'Reschedule Results Release' : 'Schedule Results Release'}
+            description={<>Choose when students can see the results of <strong>{schedulingExam.name}</strong>.</>}
+            role={me?.role}
+            programId={schedulingExam.program?._id || schedulingExam.program}
             onCancel={() => setSchedulingExamId(null)}
             onChange={(date) => handleScheduleResults(schedulingExamId, date)}
           />

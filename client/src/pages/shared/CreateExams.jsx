@@ -814,25 +814,43 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <div className="mbe-field-heading">
-                  <label><span className="mbe-label-row">Exam Start <FieldCheck valid={fieldValid.start} /></span></label>
-                </div>
-                <DateTimePicker
-                  value={form.startDateTime}
-                  onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
-                />
-              </div>
-
-              <div className="mbe-field">
-                <div className="mbe-field-heading">
-                  <label><span className="mbe-label-row">Exam End <FieldCheck valid={fieldValid.end} /></span></label>
+                  <label>
+                    <span className="mbe-label-row">
+                      Exam Schedule <FieldCheck valid={fieldValid.start && fieldValid.end} />
+                    </span>
+                  </label>
                   <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
                     {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
                   </span>
                 </div>
                 <DateTimePicker
-                  value={form.endDateTime}
-                  onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+                  range
+                  value={form.startDateTime}
+                  endValue={form.endDateTime}
+                  onChange={(start, end) => setForm((prev) => ({ ...prev, startDateTime: start, endDateTime: end }))}
+                  title="Exam Schedule"
+                  description="Pick when this exam starts and ends. Exams already scheduled for this program are shown on the calendar."
+                  placeholder="Select Start & End"
+                  role={me?.role}
+                  programId={programId}
+                  audience={form.targetAudience || 'student'}
+                  excludeExamId={editingExamId}
                 />
+              </div>
+
+              <div className="mbe-field">
+                <label>
+                  <span className="mbe-label-row">Passing Threshold (%) <FieldCheck valid={fieldValid.passingThreshold} /></span>
+                  <input
+                    className="mbe-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.passingThreshold}
+                    onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                    required
+                  />
+                </label>
               </div>
 
               {isAlumniExam && (
@@ -878,21 +896,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   </div>
                 </div>
               )}
-
-              <div className="mbe-field">
-                <label>
-                  <span className="mbe-label-row">Passing Threshold (%) <FieldCheck valid={fieldValid.passingThreshold} /></span>
-                  <input
-                    className="mbe-input"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.passingThreshold}
-                    onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
-                    required
-                  />
-                </label>
-              </div>
 
               <div className="mbe-field mbe-field--full mbe-textarea-grid">
                 <label>

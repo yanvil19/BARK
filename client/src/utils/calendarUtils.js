@@ -1,7 +1,10 @@
 import {
+  addDays,
   endOfMonth,
   endOfWeek,
   format,
+  isSameDay,
+  startOfDay,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
@@ -35,6 +38,25 @@ export function abbreviateExamTitle(title) {
 export function formatExamDateTime(value) {
   if (!value) return '-';
   return format(new Date(value), 'MMM d, yyyy h:mm a');
+}
+
+export function formatExamTimeRange(exam) {
+  const start = new Date(exam.startDateTime);
+  const end = new Date(exam.endDateTime);
+
+  if (isSameDay(start, end)) return `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`;
+  return `${format(start, 'MMM d, h:mm a')} – ${format(end, 'MMM d, h:mm a')}`;
+}
+
+// Exams whose schedule touches the day; multi-day alumni windows show on every day they cover
+export function getExamsForDay(exams, day) {
+  const dayStart = startOfDay(day);
+  const dayEnd = addDays(dayStart, 1);
+
+  return exams.filter((exam) => {
+    if (!exam.startDateTime || !exam.endDateTime) return false;
+    return new Date(exam.startDateTime) < dayEnd && new Date(exam.endDateTime) > dayStart;
+  });
 }
 
 export function getLearnerExamState(exam, now = new Date()) {
