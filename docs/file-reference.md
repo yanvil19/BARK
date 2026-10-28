@@ -800,7 +800,12 @@ client/src/components/DateTimePicker.jsx
 ```
 client/src/components/ExamCalendar.jsx
 ```
--> Calendar view component using `react-big-calendar` to display scheduled exams with conflict highlighting and click-to-detail modal.
+-> Exam calendar used on Board Exams (dean, program chair) and the Program Chair dashboard: loads the month's exams per role, applies the page's status/search filters, flags overlapping schedules, renders them with `ExamMonthGrid`, and opens the click-to-detail modal.
+
+```
+client/src/components/ExamMonthGrid.jsx
+```
+-> Custom month grid for the exam calendar: today badge, month navigation, status-colored exam chips with student/alumni icons, and a "N more" day list. Rendered by `ExamCalendar`.
 
 ```
 client/src/components/Pagination.jsx
@@ -975,7 +980,12 @@ client/src/styles/components/DateTimePicker.css
 ```
 client/src/styles/components/ExamCalendar.css
 ```
--> Styles for the calendar view: event color coding, conflict highlight, and toolbar layout.
+-> Styles for the exam details modal opened from the calendar.
+
+```
+client/src/styles/components/ExamMonthGrid.css
+```
+-> Styles for the custom exam month grid: header, legend, day boxes, status-colored chips, and the day list modal.
 
 ```
 client/src/styles/components/Pagination.css

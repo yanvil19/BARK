@@ -20,18 +20,6 @@ export function getCalendarRange(date, view) {
   };
 }
 
-export function getExamEventColor(status) {
-  const colors = {
-    draft: '#ca8a04',
-    published: '#16a34a',
-    ongoing: '#2563eb',
-    finished: '#8b5cf6',
-    archived: '#374151',
-  };
-
-  return colors[status] || '#2563eb';
-}
-
 export function abbreviateExamTitle(title) {
   if (!title || typeof title !== 'string') return title || '';
 

@@ -727,6 +727,13 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     return counts;
   }, [filteredExceptStatus]);
 
+  // The calendar loads its own exams per month, so search/audience/subject reach it as the matching ids
+  const calendarExamIds = useMemo(() => (
+    searchQuery.trim() || selectedAudience || selectedSubject
+      ? filteredExceptStatus.map((exam) => exam._id)
+      : null
+  ), [filteredExceptStatus, searchQuery, selectedAudience, selectedSubject]);
+
   const visibleExams = useMemo(() => (
     selectedStatus
       ? filteredExceptStatus.filter((exam) => exam.status === selectedStatus)
@@ -1003,7 +1010,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />
 
-      {(viewMode === 'list' || viewMode === 'cards') && (me?.role === 'dean' || me?.role === 'program_chair') && (
+      {(me?.role === 'dean' || me?.role === 'program_chair') && (
         <CapsuleFilters
           className="ambe-status-tabs"
           ariaLabel="Filter exams by status"
@@ -1107,6 +1114,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
           programs={programs}
           onProgramChange={setSelectedProgramId}
           refreshKey={calendarRefreshKey}
+          statusFilter={selectedStatus}
+          examIds={calendarExamIds}
         />
       </div>
 

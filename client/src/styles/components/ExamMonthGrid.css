@@ -1,0 +1,442 @@
+.emg-shell {
+  margin: 24px 32px 0;
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.16);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  color: #2b3552;
+  font-family: var(--font-body, sans-serif);
+}
+
+.emg-shell button,
+.emg-day-list button {
+  font-family: inherit;
+}
+
+.emg-shell button:focus-visible,
+.emg-day-list button:focus-visible {
+  outline: 2px solid #35408e;
+  outline-offset: -2px;
+}
+
+/* Status colors match the status tokens in BoardExams.css */
+.emg-status--draft {
+  --emg-bg: #ffffff;
+  --emg-border: #b6bfcf;
+  --emg-border-style: dashed;
+  --emg-text: #5b6684;
+  --emg-dot: #ffffff;
+  --emg-dot-border: #94a3b8;
+}
+
+.emg-status--published {
+  --emg-bg: #e8f0ff;
+  --emg-border: #bcd2fb;
+  --emg-text: #1d4ed8;
+  --emg-dot: #3b82f6;
+}
+
+.emg-status--ongoing,
+.emg-status--active {
+  --emg-bg: #fff3d6;
+  --emg-border: #f6d58a;
+  --emg-text: #a16207;
+  --emg-dot: #f59e0b;
+}
+
+.emg-status--finished {
+  --emg-bg: #e6f4f1;
+  --emg-border: #a9d9cf;
+  --emg-text: #0f766e;
+  --emg-dot: #0f766e;
+}
+
+.emg-status--archived {
+  --emg-bg: #eef0f4;
+  --emg-border: #d5dae3;
+  --emg-text: #6b7280;
+  --emg-dot: #cbd5e1;
+}
+
+/* Header: today badge, month title, month navigation */
+.emg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eceef4;
+}
+
+.emg-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.emg-today-badge {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 48px;
+  overflow: hidden;
+  border: 1px solid #e3e6ef;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.emg-today-badge span {
+  padding: 3px 0;
+  background: #f4f5f9;
+  color: #8a94b0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.emg-today-badge strong {
+  padding: 3px 0 5px;
+  color: #1a2342;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.emg-heading h2 {
+  margin: 0;
+  color: #1a2342;
+  font-family: var(--font-title, sans-serif);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.emg-heading p {
+  margin: 2px 0 0;
+  color: #8a94b0;
+  font-size: 13px;
+}
+
+.emg-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.emg-loading {
+  color: #8a94b0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.emg-nav {
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.2);
+  border-radius: 8px;
+}
+
+.emg-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  background: #ffffff;
+  color: #2b3552;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.emg-nav button + button {
+  border-left: 1px solid rgba(53, 64, 142, 0.2);
+}
+
+.emg-nav button:hover {
+  background: #f4f6fd;
+}
+
+.emg-nav-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Legend: status colors and audience icons */
+.emg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid #eceef4;
+  color: #5b6684;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.emg-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.emg-legend-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--emg-dot-border, var(--emg-dot));
+  border-radius: 999px;
+  background: var(--emg-dot);
+  box-sizing: border-box;
+}
+
+.emg-legend-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.emg-legend-divider {
+  width: 1px;
+  height: 14px;
+  background: #dfe3ec;
+}
+
+.emg-conflict {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.emg-error {
+  margin: 12px 20px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Month grid */
+.emg-scroll {
+  overflow-x: auto;
+}
+
+.emg-weekdays,
+.emg-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 720px;
+}
+
+.emg-weekday {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e8eaf1;
+  color: #5b6684;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.emg-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 132px;
+  padding: 6px;
+  border-right: 1px solid #eceef3;
+  border-bottom: 1px solid #eceef3;
+  box-sizing: border-box;
+}
+
+.emg-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.emg-day:nth-last-child(-n + 7) {
+  border-bottom: 0;
+}
+
+.emg-day.is-outside {
+  background: #f8f9fc;
+}
+
+.emg-day-number {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #2b3552;
+  font-size: 12px;
+  font-weight: 700;
+  box-sizing: border-box;
+}
+
+.emg-day.is-outside .emg-day-number {
+  color: #b3bacb;
+}
+
+.emg-day.is-today .emg-day-number {
+  background: #35408e;
+  color: #ffffff;
+}
+
+.emg-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px var(--emg-border-style, solid) var(--emg-border);
+  border-radius: 6px;
+  background: var(--emg-bg);
+  color: var(--emg-text);
+  font-size: 11.5px;
+  line-height: 1;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s;
+}
+
+.emg-chip:hover {
+  box-shadow: 0 2px 6px rgba(34, 48, 96, 0.12);
+}
+
+.emg-day.is-outside .emg-chip {
+  opacity: 0.55;
+}
+
+.emg-chip-icon {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+}
+
+.emg-chip-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emg-chip-time {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.emg-more {
+  align-self: flex-start;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: #6b7697;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.emg-more:hover {
+  color: #35408e;
+  text-decoration: underline;
+}
+
+/* "N more" day list (inside the shared Modal) */
+.emg-day-list {
+  display: grid;
+  gap: 8px;
+}
+
+.emg-day-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px var(--emg-border-style, solid) var(--emg-border);
+  border-radius: 8px;
+  background: var(--emg-bg);
+  color: var(--emg-text);
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.emg-day-list-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.emg-day-list-main {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.emg-day-list-main strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emg-day-list-main span {
+  color: #5b6684;
+  font-size: 12px;
+}
+
+.emg-day-list-status {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .emg-shell {
+    margin: 18px 14px 0;
+  }
+
+  .emg-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .emg-header-actions {
+    justify-content: space-between;
+  }
+
+  .emg-legend {
+    padding: 10px 14px;
+  }
+}
