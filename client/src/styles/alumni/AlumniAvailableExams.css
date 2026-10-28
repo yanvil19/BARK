@@ -6,9 +6,7 @@
   --aae-border: rgba(30, 45, 107, 0.12);
   --aae-muted: #7b86a5;
   --aae-shadow: 0 20px 40px rgba(30, 45, 107, 0.08);
-  margin: -20px;
   min-height: 100vh;
-  padding-bottom: 40px;
   background: var(--aae-bg);
 }
 
@@ -17,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 0 32px 24px;
+  padding: 0 0 24px;
 }
 
 .aae-search {
@@ -28,7 +26,6 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
-  padding: 0 32px;
 }
 
 .aae-card {
@@ -139,7 +136,6 @@
 }
 
 .aae-empty {
-  margin: 0 32px;
   padding: 56px 24px;
   border: 1px solid var(--aae-border);
   border-radius: 22px;
@@ -207,12 +203,8 @@
 }
 
 @media (max-width: 760px) {
-  .aae-page {
-    margin: -12px;
-  }
-
   .aae-toolbar {
-    padding: 0 16px 18px;
+    padding: 0 0 18px;
     align-items: stretch;
     flex-direction: column;
   }
@@ -223,10 +215,5 @@
 
   .aae-grid {
     grid-template-columns: 1fr;
-    padding: 0 16px;
-  }
-
-  .aae-empty {
-    margin: 0 16px;
   }
 }

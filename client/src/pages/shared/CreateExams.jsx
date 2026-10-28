@@ -684,9 +684,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       };
 
   return (
-    <main className="mbe-page" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+    <main className="mbe-page page-shell" data-audience={isAlumniExam ? 'alumni' : 'student'}>
       <PageHeader
-        className="shared-page-header--bleed"
         title="Mock Board Exam"
         subtitle={isEditing ? 'Edit an existing mock board exam.' : 'Create a new mock board exam for students or alumni.'}
       />

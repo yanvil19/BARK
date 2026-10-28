@@ -1,9 +1,5 @@
 /* Follows the same design system as QuestionsPage.css */
 
-.ct-page {
-  padding: 0;
-}
-
 /* Reusing qp- classes from global or shared context if possible,
    but since they are in QuestionsPage.css, we redefine the necessary ones here
    to ensure the Manage Subjects page looks identical. */
@@ -59,7 +55,6 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 0 20px;
   margin-bottom: 20px;
   gap: 16px;
 }
@@ -89,7 +84,7 @@
   border-radius: 8px;
   border: 1px solid #e4e7ec;
   overflow: hidden;
-  margin: 0 20px 16px;
+  margin: 0 0 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -292,7 +287,7 @@
 }
 
 .ct-helper-note {
-  margin: 0 20px 16px;
+  margin: 0 0 16px;
   color: #667085;
   font-size: 14px;
 }

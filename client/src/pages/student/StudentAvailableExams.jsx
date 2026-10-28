@@ -140,10 +140,9 @@ export default function AvailableExams({ onTakeExam }) {
   const hasResults = filteredExams.length > 0;
 
   return (
-    <main className="sae-page-container">
+    <main className="sae-page-container page-shell">
 
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Available Exams"
         subtitle="Browse and take available mock board exams for your program"
       />

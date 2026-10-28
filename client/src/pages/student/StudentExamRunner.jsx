@@ -256,8 +256,8 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
     submitFinal(answers, { autoSubmitted: true });
   };
 
-  if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
-  if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
+  if (loading) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
+  if (error) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
   const currentQuestionSet = currentQuestion?.groupId
@@ -332,9 +332,8 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
         message={feedbackModal?.message}
       />
 
-      <div className={`mbep-page ${isBlurred ? 'mbep-page-blurred' : 'mbep-page-secure'}`}>
+      <div className={`mbep-page page-shell ${isBlurred ? 'mbep-page-blurred' : 'mbep-page-secure'}`}>
         <PageHeader
-          className="shared-page-header--bleed-lr"
           title={examInfo?.name}
           subtitle={examInfo?.description || 'Mock Board Exam'}
         >

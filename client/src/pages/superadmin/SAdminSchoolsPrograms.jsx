@@ -241,10 +241,9 @@ export default function SchoolsPrograms() {
   }
 
   return (
-    <main className="um-page">
+    <main className="um-page page-shell">
       {/* ── Page Header ── */}
       <PageHeader
-        className="shared-page-header--bleed"
         title="Schools and Program"
         subtitle="Manage system-wide departments and programs"
       >
@@ -265,7 +264,7 @@ export default function SchoolsPrograms() {
 
       {error ? <p className="um-error" style={{ margin: '0 20px 16px' }}>{error}</p> : null}
 
-      <div style={{ padding: '0 20px' }}>
+      <div>
         {/* ── Departments Table ── */}
         <section className="um-table-wrap">
           <div className="table-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e4e7ec', background: '#fafbff' }}>

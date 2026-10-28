@@ -247,9 +247,8 @@ export default function ChairCheatingLogs() {
   }
 
   return (
-    <div className="el-page">
+    <div className="el-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title="Logs"
         subtitle="Monitor exam activity for your program — start, window focus, submission, and progress."
       >

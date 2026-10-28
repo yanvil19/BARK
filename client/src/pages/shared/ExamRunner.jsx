@@ -143,7 +143,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
   }
 
   return (
-    <main>
+    <main className="page-shell">
       <h1>{getModeTitle(mode)}</h1>
       <p>
         {mode === 'details'

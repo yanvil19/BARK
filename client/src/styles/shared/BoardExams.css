@@ -21,9 +21,6 @@
   --ambe-status-archived: #cbd5e1;
   --ambe-status-archived-text: #6b7280;
   --ambe-status-archived-bg: #e1e5ec;
-
-  margin: -20px;
-  padding-bottom: 32px;
 }
 
 .ambe-view-controls,
@@ -50,7 +47,7 @@
 
 .ambe-loading,
 .ambe-empty {
-  margin: 24px 32px 0;
+  margin: 24px 0 0;
   padding: 48px 24px;
   text-align: center;
   color: #6b7697;
@@ -65,7 +62,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 20px 32px 0;
+  margin: 24px 0 0;
   flex-wrap: wrap;
 }
 
@@ -179,7 +176,7 @@
 }
 
 .ambe-pagination-footer {
-  margin: 0 32px 16px;
+  margin: 0 0 16px;
 }
 
 .ambe-conflict-message {
@@ -218,11 +215,11 @@
 }
 
 .ambe-table-card {
-  margin: 24px 32px 0;
+  margin: 24px 0 0;
 }
 
 .ambe-details {
-  margin: 24px 32px 0;
+  margin: 24px 0 0;
   background: #ffffff;
   border: 1px solid rgba(53, 64, 142, 0.14);
   border-radius: 24px;
@@ -231,10 +228,6 @@
 }
 
 /* ---------- Status filters (CapsuleFilters) ---------- */
-
-.ambe-status-tabs {
-  margin: 0 32px;
-}
 
 .ambe-status-tabs ~ .ambe-table-card,
 .ambe-status-tabs ~ .ambe-empty,
@@ -1181,24 +1174,20 @@
 }
 
 @media (max-width: 768px) {
-  .ambe-page {
-    margin: -20px;
-  }
-
   .ambe-loading,
   .ambe-empty,
   .ambe-view-controls,
   .ambe-details {
-    margin: 16px;
+    margin: 16px 0;
     border-radius: 20px;
   }
 
   .ambe-table-card {
-    margin: 16px 16px 0;
+    margin: 16px 0 0;
   }
 
   .ambe-pagination-footer {
-    margin: 0 16px 16px;
+    margin: 0 0 16px;
   }
 
   .ambe-skeleton-row {
@@ -1312,7 +1301,6 @@
 .ambe-view-controls {
   align-items: center;
   gap: 12px;
-  margin: 24px 32px 0;
 }
 
 .ambe-controls-left {
@@ -1382,7 +1370,7 @@
 
 @media (max-width: 768px) {
   .ambe-view-controls {
-    margin: 24px 16px 0;
+    margin: 24px 0 0;
     padding: 12px;
   }
 
@@ -1404,7 +1392,6 @@
   }
 
   .capsule-filters.ambe-status-tabs {
-    margin: 0 16px;
     gap: 6px;
   }
 }
@@ -1416,7 +1403,7 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   align-items: stretch;
   gap: 20px;
-  margin: 24px 32px 0;
+  margin: 24px 0 0;
 }
 
 .ambe-card-view-item {
@@ -1668,5 +1655,5 @@
 .ambe-card-pagination .pg-pagination-info { display: none; }
 
 @media (max-width: 768px) {
-  .ambe-card-view-grid { grid-template-columns: 1fr; margin: 16px; gap: 14px; }
+  .ambe-card-view-grid { grid-template-columns: 1fr; margin: 16px 0; gap: 14px; }
 }

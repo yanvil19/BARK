@@ -334,8 +334,8 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
   const firstName = me?.firstName || me?.name?.split(' ')[0] || 'Student';
 
-  if (loading) return <div className="sd-loading">Loading dashboard...</div>;
-  if (error) return <div className="sd-error">{error}</div>;
+  if (loading) return <div className="sd-loading page-shell">Loading dashboard...</div>;
+  if (error) return <div className="sd-error page-shell">{error}</div>;
 
   const chartData = {
     labels: ['Total Exams', 'Passed', 'To Improve'],
@@ -438,11 +438,10 @@ const StudentDashboard = ({ me, onNavigate }) => {
 
 
   return (
-    <main className="s-dashboard-container">
+    <main className="s-dashboard-container page-shell">
 
       {/* ── HEADER ─────────────────────────────────────────────── */}
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title={`${greeting}, ${me?.firstName || 'Student'}`}
         subtitle={`${me?.program?.name || 'Program not assigned'} • ${me?.department?.name || 'Department'}`}
       />

@@ -133,8 +133,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
-  if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
+  if (loading) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
+  if (error) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
   const currentQuestionSet = currentQuestion?.groupId
@@ -196,9 +196,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
         message={feedbackModal?.message}
       />
 
-      <div className="mbep-page mbep-page-secure">
+      <div className="mbep-page mbep-page-secure page-shell">
         <PageHeader
-          className="shared-page-header--bleed-lr"
           title={examInfo?.name}
           subtitle={attemptNumber ? `Attempt ${attemptNumber}` : examInfo?.description || 'Alumni Exam'}
         />

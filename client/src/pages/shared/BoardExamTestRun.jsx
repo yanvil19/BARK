@@ -113,9 +113,9 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
     setShowSubmitConfirm(true);
   };
 
-  if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Test Run...</h3></div></div>;
-  if (error || (!exam && examId)) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
-  if (!exam) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Preparing Exam...</h3></div></div>;
+  if (loading) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Test Run...</h3></div></div>;
+  if (error || (!exam && examId)) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
+  if (!exam) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Preparing Exam...</h3></div></div>;
 
   const questions = exam.questions || [];
   const currentQuestion = questions[currentIdx];
@@ -128,7 +128,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
   return (
-    <div className="mbep-page">
+    <div className="mbep-page page-shell">
       <ConfirmationModal
         open={showSubmitConfirm}
         onClose={() => setShowSubmitConfirm(false)}
@@ -145,7 +145,6 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
       />
       {/* ── Header ─────────────────────────────────────────────── */}
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title={<>{exam.name} {submitted && <span style={{ color: '#22c55e' }}>(Result)</span>}</>}
         subtitle={exam.description || `Dean Test Run Mode • ${exam.program?.name}`}
       >

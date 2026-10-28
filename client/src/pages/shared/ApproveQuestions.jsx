@@ -820,9 +820,8 @@ export default function QuestionApprovals({ me }) {
     : -1;
 
   return (
-    <main className="ca-page">
+    <main className="ca-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Questions for Review and Approval"
         subtitle="Questions submitted by faculty for Program Chair review"
       />

@@ -1039,9 +1039,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   );
 
   return (
-    <main className="ambe-page">
+    <main className="ambe-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Available Mock Board Exams"
         subtitle="This page lists the mock board exams created by the dean for department programs."
       />

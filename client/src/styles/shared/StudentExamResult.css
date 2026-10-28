@@ -1,9 +1,8 @@
 .serc-page {
   position: relative;
   width: auto;
-  margin: -20px;
   min-height: calc(100vh - 120px);
-  padding: 24px 20px 40px;
+  padding-top: 24px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -374,9 +373,8 @@
 @media (max-width: 600px) {
   .serc-page {
     width: auto;
-    margin: -20px;
     min-height: calc(100vh - 96px);
-    padding: 16px 14px 24px;
+    padding-top: 16px;
   }
 
   .serc-card {

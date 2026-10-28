@@ -508,10 +508,9 @@ export default function AdminUsers({ me }) {
   const isEditingSuperAdmin = selectedUser?.role === 'super_admin' || editForm.role === 'super_admin';
 
   return (
-    <main className="um-page">
+    <main className="um-page page-shell">
       {/* ── Page Header ── */}
       <PageHeader
-        className="shared-page-header--bleed"
         title="User Management"
         subtitle="Create, edit, and manage all system users"
       >
@@ -527,7 +526,7 @@ export default function AdminUsers({ me }) {
         </button>
       </PageHeader>
 
-      <div style={{ padding: '0 20px' }}>
+      <div>
         {/* ── Filters ── */}
         <div className="um-filters">
           <input

@@ -60,7 +60,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
 
   if (loading) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <div style={{ padding: '80px', textAlign: 'center', color: '#9ba3cb' }}>
           <h3>Loading preview...</h3>
         </div>
@@ -70,7 +70,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
 
   if (error || (!exam && examId)) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <header className="mbep-header">
           <div className="mbep-header-info">
             <h1 className="mbep-title">Error</h1>
@@ -85,7 +85,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   }
   if (!exam) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <div style={{ padding: '80px', textAlign: 'center', color: '#9ba3cb' }}>
           <h3>Preparing preview...</h3>
         </div>
@@ -98,10 +98,9 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   const progressPercent = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
 
   return (
-    <div className="mbep-page">
+    <div className="mbep-page page-shell">
       {/* ── Header ─────────────────────────────────────────────── */}
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title={exam.name}
         subtitle={exam.description || exam.program?.name || 'Academic Program Preview'}
       >

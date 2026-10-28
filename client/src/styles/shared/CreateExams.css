@@ -10,7 +10,6 @@
 
 /* ── Page root ──────────────────────────────────────────────────────── */
 .mbe-page {
-  padding: 0 0 40px;
   font-family: 'Poppins', 'Nunito', sans-serif;
 }
 
@@ -37,7 +36,6 @@
 .mbe-form {
   display: grid;
   gap: 16px;
-  margin: 0 20px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1539,10 +1537,6 @@
 }
 
 @media (max-width: 768px) {
-  .mbe-form {
-    margin: 0 8px;
-  }
-
   .mbe-form-card,
   .mbe-table-card,
   .mbe-selection-card {

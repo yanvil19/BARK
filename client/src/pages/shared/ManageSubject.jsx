@@ -161,9 +161,8 @@ export default function ManageSubject({ me }) {
   const departmentLabel = me?.department?.name || 'Department';
 
   return (
-    <main className="qp-page ct-page">
+    <main className="qp-page ct-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title="Manage Subjects"
         subtitle={isDean
           ? 'Create and manage subjects for programs under your department. Professors will use these subjects to categorize their questions.'

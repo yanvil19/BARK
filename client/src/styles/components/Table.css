@@ -9,7 +9,7 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  margin: 20px;
+  margin: 20px 0;
 }
 
 /* Card joins the footer (pagination) placed directly after it */
@@ -21,7 +21,7 @@
 }
 
 .ui-table-footer {
-  margin: 0 20px 20px;
+  margin: 0 0 20px;
   padding: 14px 20px;
   background: #ffffff;
   border: 1px solid rgba(53, 64, 142, 0.24);

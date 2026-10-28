@@ -151,9 +151,8 @@ export default function AdminSettings() {
   );
 
   return (
-    <main className="as-page">
+    <main className="as-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title="Settings"
         subtitle="Configure system cooldowns for credential changes."
       />

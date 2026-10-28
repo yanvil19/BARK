@@ -36,11 +36,11 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
   }, [me?.role]);
 
   if (loading && me?.role === 'super_admin') {
-    return <div className="dashboard-loading">Loading dashboard...</div>;
+    return <div className="dashboard-loading page-shell">Loading dashboard...</div>;
   }
 
   if (error && me?.role === 'super_admin') {
-    return <div className="dashboard-loading">Something went wrong. Please try again.</div>;
+    return <div className="dashboard-loading page-shell">Something went wrong. Please try again.</div>;
   }
 
   // Route to appropriate dashboard based on user role
@@ -65,7 +65,7 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
     
     default:
       return (
-        <main>
+        <main className="page-shell">
           <h1>Welcome, {me?.firstName || 'User'}</h1>
           <p>Your role ({me?.role}) dashboard is not yet configured.</p>
         </main>

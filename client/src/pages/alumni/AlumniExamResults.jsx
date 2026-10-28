@@ -577,9 +577,8 @@ export default function AlumniExamResults({ examId }) {
   }, [isAttemptDetailOpen, selectedAttempt]);
 
   return (
-    <div className="aer-page">
+    <div className="aer-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Alumni Exam Results"
         subtitle="Review your attempts, scores, answers, and full question feedback."
       />

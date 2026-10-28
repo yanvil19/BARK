@@ -201,9 +201,8 @@ const AlumniDashboard = ({ me, onNavigate }) => {
 
   if (loading) {
     return (
-      <main className="ad-page">
+      <main className="ad-page page-shell">
         <PageHeader
-          className="shared-page-header--bleed-lr"
           title={`${greeting}, ${firstName}`}
           subtitle={`${programName} - ${departmentName}`}
         />
@@ -214,9 +213,8 @@ const AlumniDashboard = ({ me, onNavigate }) => {
 
   if (error) {
     return (
-      <main className="ad-page">
+      <main className="ad-page page-shell">
         <PageHeader
-          className="shared-page-header--bleed-lr"
           title={`${greeting}, ${firstName}`}
           subtitle={`${programName} - ${departmentName}`}
         />
@@ -226,9 +224,8 @@ const AlumniDashboard = ({ me, onNavigate }) => {
   }
 
   return (
-    <main className="ad-page">
+    <main className="ad-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title={`${greeting}, ${firstName}`}
         subtitle={`${programName} - ${departmentName}`}
       />

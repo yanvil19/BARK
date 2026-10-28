@@ -609,9 +609,8 @@ const ExamResults = ({ me }) => {
   const audienceNoun = isAlumniReport ? 'alumni' : 'students';
 
   return (
-    <div className="er-page">
+    <div className="er-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Mock Board Exam Results"
         subtitle="Review computed analytics, pending exams, and topic-level performance in one place."
       />

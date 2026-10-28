@@ -46,9 +46,8 @@ const ProgramChairDashboard = ({ me, onRoute }) => {
   const chairProgramId = me?.program?._id || (typeof me?.program === 'string' ? me?.program : '');
 
   return (
-    <main className="dashboard-pc-main">
+    <main className="dashboard-pc-main page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title={`${greeting}, Program Chair ${me?.firstName || ''}`}
         subtitle={me?.department?.school?.name || me?.department?.name || me?.school?.name || 'School not assigned'}
       />

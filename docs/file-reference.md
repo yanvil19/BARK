@@ -925,7 +925,7 @@ client/src/utils/statusLabels.js
 ```
 client/src/styles/global.css
 ```
--> Global CSS variables, resets, and base typography/color tokens applied across the entire application.
+-> Global CSS variables, resets, and base typography/color tokens applied across the entire application. Owns page spacing: `--page-gutter` (32px, 16px on phones) and `--page-end-space`, applied by the `.page-shell` class that every page root carries. `.page-content` itself has no padding.
 
 ```
 client/src/styles/LandingPage.css
@@ -1015,7 +1015,7 @@ client/src/styles/components/Pagination.css
 ```
 client/src/styles/components/PageHeader.css
 ```
--> Styles for the page title/subtitle header block used at the top of content pages.
+-> Styles for the page title/subtitle header block used at the top of content pages. As a direct child of `.page-shell` it spans the full page width, and its side padding uses `--page-gutter` so the title lines up with the page content.
 
 ```
 client/src/styles/components/Toast.css

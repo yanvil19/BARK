@@ -8,7 +8,6 @@
 }
 
 .sae-page-container {
-  margin: -20px;
   min-height: 100%;
   background: #e5e7f2;
   overflow-x: hidden;
@@ -36,7 +35,6 @@
 
 .ae-grid {
   display: grid;
-  padding: 0 16px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
 }
@@ -49,7 +47,6 @@
 
 @media (max-width: 640px) {
   .ae-grid {
-    padding: 0 16px;
     grid-template-columns: 1fr;
   }
 }
@@ -157,12 +154,12 @@
 /* Status filters (CapsuleFilters) */
 .ae-state-pills {
   margin-bottom: 16px;
-  padding: 14px 28px 0;
+  padding: 14px 0 0;
 }
 
 /* Minor spacing alignment with reused QuestionApprovals classes */
 .ae-filters.ca-filters {
-  padding: 12px 28px 20px;
+  padding: 12px 0 20px;
 
 }
 

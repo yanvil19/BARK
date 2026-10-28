@@ -1,5 +1,5 @@
 .emg-shell {
-  margin: 24px 32px 0;
+  margin: 24px 0 0;
   overflow: hidden;
   border: 1px solid rgba(53, 64, 142, 0.16);
   border-radius: 12px;
@@ -424,7 +424,7 @@
 
 @media (max-width: 760px) {
   .emg-shell {
-    margin: 18px 14px 0;
+    margin: 18px 0 0;
   }
 
   .emg-header {

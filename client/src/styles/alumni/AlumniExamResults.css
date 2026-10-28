@@ -7,8 +7,6 @@
   --aer-text: #1f2937;
   --aer-muted: #7b86a5;
   --aer-shadow: 0 20px 40px rgba(30, 45, 107, 0.08);
-  margin: -20px;
-  padding: 0 0 40px;
   min-height: 100vh;
   background: var(--aer-bg);
   font-family: var(--font-body);
@@ -18,7 +16,6 @@
   display: grid;
   grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
   gap: 24px;
-  padding: 0 32px;
   align-items: start;
 }
 
@@ -918,12 +915,7 @@
 }
 
 @media (max-width: 720px) {
-  .aer-page {
-    margin: -12px;
-  }
-
   .aer-layout {
-    padding: 0 14px;
     gap: 14px;
   }
 

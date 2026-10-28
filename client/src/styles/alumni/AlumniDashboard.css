@@ -9,15 +9,12 @@
   --ad-muted: #7b86a5;
   --ad-shadow: 0 18px 38px rgba(30, 45, 107, 0.08);
   min-height: 100vh;
-  margin: -20px;
-  padding-bottom: 40px;
   background: var(--ad-bg);
   font-family: var(--font-body);
   color: var(--ad-text);
 }
 
 .ad-shell {
-  padding: 0 32px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -450,12 +447,7 @@
 }
 
 @media (max-width: 760px) {
-  .ad-page {
-    margin: -12px;
-  }
-
   .ad-shell {
-    padding: 0 14px 24px;
     gap: 16px;
   }
 
