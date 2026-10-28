@@ -150,11 +150,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
                         cursor: 'zoom-in'
                       }}
                       onClick={() => {
-                        console.log("ZOOM IMAGE (RAW):", img);
-
                         const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
-                        console.log("ZOOM IMAGE (FINAL):", finalImage);
-
                         setZoomedImage(finalImage);
                       }}
                     />

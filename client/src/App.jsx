@@ -9,7 +9,6 @@ import StudentManager from './pages/shared/StudentRegister.jsx';
 import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
 import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
 import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
-import UserAccount from './pages/UserAccount.jsx';
 import ManageSubject from './pages/shared/ManageSubject.jsx';
 import QuestionApprovals from './pages/shared/ApproveQuestions.jsx';
 import ChairCheatingLogs from './pages/programchair/PCLogs.jsx';
@@ -292,7 +291,6 @@ export default function App() {
   }
   if (route === 'landing') page = <LandingPage onNavigate={setRoute} />;
   if (route === 'login') page = <Login onLogin={handleLogin} onNavigate={setRoute} />;
-  if (route === 'account') page = <UserAccount me={me} />;
   if (route === 'studentManager') page = <StudentManager me={me} onNavigate={setRoute} />;
   if (route === 'examResults') page = <ExamResults me={me} />;
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;

@@ -49,10 +49,3 @@ export const submitImportedQuestions = async (questions, programId) => {
         body: { questions, programId }
     });
 };
-
-/**
- * Poll job status
- */
-export const getImportJobStatus = async (jobId) => {
-    return apiAuth(`${BASE}/api/import/status/${jobId}`);
-};

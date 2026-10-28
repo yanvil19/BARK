@@ -241,7 +241,6 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                                 borderRadius: '8px'
                               }}
                               onClick={() => {
-                                console.log("ZOOM IMAGE:", image);
                                 const finalImage = image.startsWith('/') ? `${BASE}${image}` : image;
                                 setZoomedImage(finalImage);
                               }}
@@ -308,7 +307,6 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                                     borderRadius: '8px'
                                   }}
                                   onClick={() => {
-                                    console.log("ZOOM IMAGE:", image);
                                     const finalImage = image.startsWith('/') ? `${BASE}${image}` : image;
                                     setZoomedImage(finalImage);
                                   }}

@@ -49,11 +49,6 @@ export function formatExamDateTime(value) {
   return format(new Date(value), 'MMM d, yyyy h:mm a');
 }
 
-export function formatExamTime(value) {
-  if (!value) return '-';
-  return format(new Date(value), 'h:mm a');
-}
-
 export function getLearnerExamState(exam, now = new Date()) {
   const start = new Date(exam.startDateTime);
   const end = new Date(exam.endDateTime);
