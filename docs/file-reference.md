@@ -1163,7 +1163,7 @@ client/vite.config.js
 ```
 client/package.json
 ```
--> Node.js project manifest for the React/Vite frontend: lists dependencies (React, react-big-calendar, date-fns, etc.) and build/dev/preview scripts.
+-> Node.js project manifest for the React/Vite frontend: lists dependencies (React, date-fns, react-datepicker, etc.) and build/dev/preview scripts.
 
 ---
 
