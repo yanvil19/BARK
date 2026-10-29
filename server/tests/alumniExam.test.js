@@ -126,6 +126,25 @@ describe('alumni exam availability', () => {
     expect(res.body.exams[0].examCardStatus).toBe('available');
   });
 
+  it('includes who published the exam and when', async () => {
+    const publishedAt = new Date(Date.now() - 60 * 60 * 1000);
+    await createAlumniExam({
+      startDateTime: futureDate(1),
+      endDateTime: futureDate(2),
+      publishedBy: deanUser._id,
+      publishedAt,
+    });
+
+    const res = await request(app)
+      .get('/api/alumni-exams/available')
+      .set('Cookie', `nu_board_token=${alumniToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.exams[0].publishedByName).toBe('Test User');
+    expect(res.body.exams[0].publishedAt).toBe(publishedAt.toISOString());
+    expect(res.body.exams[0]).not.toHaveProperty('publishedBy');
+  });
+
   it('keeps student and alumni exam visibility separated', async () => {
     const alumniExam = await createAlumniExam();
     const studentExam = await MockBoardExam.create({

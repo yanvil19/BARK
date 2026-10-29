@@ -276,13 +276,31 @@ export default function App() {
     setRoute('Dashboard');
   }
 
+  // Exam start / result handlers shared by the available-exams pages and the learner dashboards
+  function startStudentExam(id) {
+    setStudentExamId(id);
+    setRoute('studentExamRunner');
+  }
+  function startAlumniExam(id) {
+    setAlumniExamId(id);
+    setAlumniResultExamId(id);
+    setRoute('alumniExamRunner');
+  }
+  function viewAlumniResults(id) {
+    setAlumniResultExamId(id);
+    setRoute('alumniExamResults');
+  }
+
   let page = null;
   if (route === 'Dashboard') {
     page = me ? (
       <Dashboard
         me={me}
-        onNavigate={setRoute}
-        onRoute={setRoute}
+        onNavigate={handleRoute}
+        onRoute={handleRoute}
+        onTakeExam={me.role === 'alumni' ? startAlumniExam : startStudentExam}
+        onViewResults={me.role === 'alumni' ? viewAlumniResults : () => setRoute('studentExamResults')}
+        onMeRefresh={refreshMe}
       />
     ) : (
       <LandingPage onNavigate={setRoute} />
@@ -432,12 +450,7 @@ export default function App() {
     );
   if (route === 'studentAvailableExams')
     page = (
-      <StudentAvailableExams
-        onTakeExam={(id) => {
-          setStudentExamId(id);
-          setRoute('studentExamRunner');
-        }}
-      />
+      <StudentAvailableExams onTakeExam={startStudentExam} />
     );
   if (route === 'studentExamRunner')
     page = (
@@ -455,17 +468,7 @@ export default function App() {
     page = <StudentExamResults />;
   if (route === 'alumniAvailableExams')
     page = (
-      <AlumniAvailableExams
-        onTakeExam={(id) => {
-          setAlumniExamId(id);
-          setAlumniResultExamId(id);
-          setRoute('alumniExamRunner');
-        }}
-        onViewResults={(id) => {
-          setAlumniResultExamId(id);
-          setRoute('alumniExamResults');
-        }}
-      />
+      <AlumniAvailableExams onTakeExam={startAlumniExam} onViewResults={viewAlumniResults} />
     );
   if (route === 'alumniExamRunner')
     page = (

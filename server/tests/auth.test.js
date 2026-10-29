@@ -91,6 +91,54 @@ describe('GET /api/auth/me', () => {
   });
 });
 
+describe('PATCH /api/auth/me/board-exam-countdown', () => {
+  const inDays = (days) => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  it('lets a student set and clear their board exam countdown', async () => {
+    const { token } = await createUserAndToken({ role: 'student', email: 'countdown@example.com' });
+    const targetAt = inDays(30);
+
+    const setRes = await request(app)
+      .patch('/api/auth/me/board-exam-countdown')
+      .set('Cookie', `nu_board_token=${token}`)
+      .send({ label: '  Criminology Licensure Exam  ', targetAt });
+    expect(setRes.status).toBe(200);
+    expect(setRes.body.boardExamCountdown).toEqual({ label: 'Criminology Licensure Exam', targetAt: targetAt.toISOString() });
+
+    const meRes = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', `nu_board_token=${token}`);
+    expect(meRes.body.boardExamCountdown.targetAt).toBe(targetAt.toISOString());
+
+    const clearRes = await request(app)
+      .patch('/api/auth/me/board-exam-countdown')
+      .set('Cookie', `nu_board_token=${token}`)
+      .send({ label: 'Ignored', targetAt: null });
+    expect(clearRes.status).toBe(200);
+    expect(clearRes.body.boardExamCountdown).toEqual({ label: '', targetAt: null });
+  });
+
+  it('rejects a date that has already passed', async () => {
+    const { token } = await createUserAndToken({ role: 'alumni', email: 'countdown-past@example.com' });
+
+    const res = await request(app)
+      .patch('/api/auth/me/board-exam-countdown')
+      .set('Cookie', `nu_board_token=${token}`)
+      .send({ label: 'Old exam', targetAt: inDays(-1) });
+    expect(res.status).toBe(400);
+  });
+
+  it('is only available to students and alumni', async () => {
+    const { token } = await createUserAndToken({ role: 'professor', email: 'countdown-prof@example.com' });
+
+    const res = await request(app)
+      .patch('/api/auth/me/board-exam-countdown')
+      .set('Cookie', `nu_board_token=${token}`)
+      .send({ targetAt: inDays(30) });
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('POST /api/auth/logout', () => {
   it('should clear the auth cookie with matching cross-site cookie options', async () => {
     const res = await request(app).post('/api/auth/logout');

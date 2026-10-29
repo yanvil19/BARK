@@ -56,20 +56,30 @@ async function getAvailableExams(req, res) {
         { endDateTime: null }
       ]
     })
-      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes startDateTime endDateTime')
+      .select('name status program subjectTags questions passingThreshold targetAudience isTimed timeLimitMinutes startDateTime endDateTime publishedBy publishedAt createdBy createdAt')
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
+      .populate('publishedBy', 'name')
+      .populate('createdBy', 'name')
       .sort({ updatedAt: -1 })
       .lean();
 
     const enriched = exams.map((exam) => {
       const questionCount = exam.questions?.length ?? 0;
+      // Exams published before publish tracking fall back to their creator and creation time
+      const publishedByName = (exam.publishedBy || exam.createdBy)?.name || null;
+      const publishedAt = exam.publishedAt || exam.createdAt || null;
       delete exam.questions;
+      delete exam.publishedBy;
+      delete exam.createdBy;
+      delete exam.createdAt;
       return {
         ...exam,
         questionCount,
         durationMinutes: exam.isTimed ? exam.timeLimitMinutes : null,
         examCardStatus: 'available',
+        publishedAt,
+        publishedByName,
       };
     });
 

@@ -1592,6 +1592,37 @@ const subscribeBulkRegisterEvents = (req, res) => {
   }
 };
 
+// @desc    Set or clear the board exam countdown on the learner dashboard (targetAt: null clears it)
+// @route   PATCH /api/auth/me/board-exam-countdown
+// @access  Private - Student / Alumni
+const updateBoardExamCountdown = async (req, res) => {
+  try {
+    const label = String(req.body?.label || '').trim();
+    const targetAt = req.body?.targetAt ? new Date(req.body.targetAt) : null;
+
+    if (targetAt && Number.isNaN(targetAt.getTime())) {
+      return res.status(400).json({ message: 'Please provide a valid date and time' });
+    }
+    if (targetAt && targetAt <= new Date()) {
+      return res.status(400).json({ message: 'The board exam date must be in the future' });
+    }
+    if (label.length > 120) {
+      return res.status(400).json({ message: 'Exam name must be 120 characters or fewer' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: { boardExamCountdown: { label: targetAt ? label : '', targetAt } } },
+      { returnDocument: 'after', runValidators: true }
+    ).select('boardExamCountdown');
+
+    return res.status(200).json({ boardExamCountdown: user.boardExamCountdown });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 // @desc    Update current user's heartbeat timestamp
 // @route   POST /api/auth/heartbeat
 // @access  Private
@@ -1632,5 +1663,6 @@ module.exports = {
   approveRegistrationRequest,
   rejectRegistrationRequest,
   heartbeat,
+  updateBoardExamCountdown,
 };
 

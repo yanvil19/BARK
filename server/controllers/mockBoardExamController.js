@@ -301,6 +301,8 @@ async function createMockBoardExam(req, res) {
       status: payload.status,
       passingThreshold: payload.passingThreshold,
       createdBy: req.user._id,
+      publishedBy: payload.status === 'published' ? req.user._id : null,
+      publishedAt: payload.status === 'published' ? new Date() : null,
     });
 
     // Mark all selected questions as in-use by an exam
@@ -529,6 +531,10 @@ async function updateMockBoardExam(req, res) {
     current.timeLimitMinutes = payload.timeLimitMinutes;
     current.status = oldStatus === 'published' ? 'draft' : payload.status;
     current.passingThreshold = payload.passingThreshold;
+    if (oldStatus !== 'published' && current.status === 'published') {
+      current.publishedBy = req.user._id;
+      current.publishedAt = new Date();
+    }
     await current.save();
 
     // Sync is_used_in_exam flag for added/removed questions

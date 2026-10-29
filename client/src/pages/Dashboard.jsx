@@ -3,11 +3,10 @@ import { apiAuth } from '../lib/api.js';
 import SuperAdminDashboard from './superadmin/SAdminDashboard.jsx';
 import DeanDashboard from './dean/DeanDashboard.jsx';
 import ProgramChairDashboard from './programchair/PCDashboard.jsx';
-import StudentDashboard from './student/StudentDashboard.jsx';
-import AlumniDashboard from './alumni/AlumniDashboard.jsx';
+import LearnerDashboard from './shared/LearnerDashboard.jsx';
 import ProfessorDashboard from './prof/ProfDashboard.jsx';
 
-const Dashboard = ({ me, onNavigate, onRoute }) => {
+const Dashboard = ({ me, onNavigate, onRoute, onTakeExam, onViewResults, onMeRefresh }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,10 +54,17 @@ const Dashboard = ({ me, onNavigate, onRoute }) => {
       return <ProgramChairDashboard me={me} onRoute={onRoute} />;
     
     case 'student':
-      return <StudentDashboard me={me} onNavigate={onNavigate || onRoute} />;
-
     case 'alumni':
-      return <AlumniDashboard me={me} onNavigate={onNavigate || onRoute} />;
+      return (
+        <LearnerDashboard
+          me={me}
+          audience={me.role}
+          onNavigate={onNavigate || onRoute}
+          onTakeExam={onTakeExam}
+          onViewResults={onViewResults}
+          onMeRefresh={onMeRefresh}
+        />
+      );
     
     case 'professor':
       return <ProfessorDashboard me={me} />;

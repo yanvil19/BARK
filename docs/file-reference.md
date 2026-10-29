@@ -34,7 +34,7 @@ server/config/db.js
 ```
 server/controllers/authController.js
 ```
--> Handles all authentication flows: user login with escalating lockout protection, password reset via OTP, bulk and individual registration, credential changes, and email/ID validation helpers.
+-> Handles all authentication flows: user login with escalating lockout protection, password reset via OTP, bulk and individual registration, credential changes, and email/ID validation helpers. `updateBoardExamCountdown` saves (or clears, with `targetAt: null`) the board exam countdown a student or alumni sets on their dashboard; the date must be in the future.
 -> Manages bulk registration batch sessions in memory and streams progress updates to the client via SSE.
 
 ```
@@ -56,7 +56,7 @@ server/controllers/importController.js
 ```
 server/controllers/mockBoardExamController.js
 ```
--> Handles mock board exam lifecycle: create, publish, archive, and delete exams; enforces schedule conflict checks; sends email announcements on publish; and exposes filtered exam lists for faculty, students, and alumni.
+-> Handles mock board exam lifecycle: create, publish, archive, and delete exams; enforces schedule conflict checks; sends email announcements on publish; and exposes filtered exam lists for faculty, students, and alumni. Records `publishedBy` / `publishedAt` whenever an exam goes from draft to published (on create or update).
 
 ```
 server/controllers/mockExamResultController.js
@@ -81,12 +81,12 @@ server/controllers/statsController.js
 ```
 server/controllers/studentExamController.js
 ```
--> Manages the full student exam attempt lifecycle: start, save progress, submit, auto-submit on time expiry, and retrieve individual attempt results with shuffled questions.
+-> Manages the full student exam attempt lifecycle: start, save progress, submit, auto-submit on time expiry, and retrieve individual attempt results with shuffled questions. The available-exams list includes `publishedAt` and `publishedByName` (falling back to the creator and creation time for exams published before publish tracking) for the dashboard announcements.
 
 ```
 server/controllers/alumniExamController.js
 ```
--> Mirrors the student exam controller for alumni users: start/submit unlimited attempts, retrieve per-attempt results, and expose alumni-specific attempt history and aggregate reporting.
+-> Mirrors the student exam controller for alumni users: start/submit unlimited attempts, retrieve per-attempt results, and expose alumni-specific attempt history and aggregate reporting. Its available-exams list carries the same `publishedAt` / `publishedByName` fields as the student one.
 
 ```
 server/controllers/tagController.js
@@ -100,7 +100,7 @@ server/controllers/tagController.js
 ```
 server/routes/authRoutes.js
 ```
--> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes.
+-> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes, plus `PATCH /me/board-exam-countdown` for students and alumni.
 
 ```
 server/routes/adminCatalogRoutes.js
@@ -174,12 +174,12 @@ server/routes/tagRoutes.js
 ```
 server/models/User.js
 ```
--> Mongoose schema for all user types (super_admin, dean, program_chair, professor, student, alumni) with hashed passwords, lockout fields, OTP fields, email/ID fields, and role-based department/program references.
+-> Mongoose schema for all user types (super_admin, dean, program_chair, professor, student, alumni) with hashed passwords, lockout fields, OTP fields, email/ID fields, role-based department/program references, and the learner's `boardExamCountdown` (`label`, `targetAt`).
 
 ```
 server/models/MockBoardExam.js
 ```
--> Mongoose schema for mock board exams: title, program, questions array, status lifecycle (draft → published → ongoing → finished/archived), schedule, target audience (student/alumni), and attempt counters.
+-> Mongoose schema for mock board exams: title, program, questions array, status lifecycle (draft → published → ongoing → finished/archived), schedule, target audience (student/alumni), attempt counters, and who last published it and when (`publishedBy`, `publishedAt`).
 
 ```
 server/models/Question.js
@@ -503,7 +503,7 @@ client/src/main.jsx
 ```
 client/src/App.jsx
 ```
--> Top-level application component: manages auth state, current route, and SSE subscription for system update warnings; renders `Navbar`, the active page, and global modals.
+-> Top-level application component: manages auth state, current route, and SSE subscription for system update warnings; renders `Navbar`, the active page, and global modals. Holds the shared exam handlers (`startStudentExam`, `startAlumniExam`, `viewAlumniResults`) used by the available-exams pages and the learner dashboard.
 
 ---
 
@@ -522,7 +522,7 @@ client/src/pages/Login.jsx
 ```
 client/src/pages/Dashboard.jsx
 ```
--> Role dispatcher that renders the correct dashboard component (SuperAdmin, Dean, ProgramChair, Professor, Student, Alumni) based on `me.role`.
+-> Role dispatcher that renders the correct dashboard component (SuperAdmin, Dean, ProgramChair, Professor) based on `me.role`; students and alumni both get `shared/LearnerDashboard.jsx` with `audience` set to their role and the exam take/result handlers from `App.jsx`.
 
 ```
 client/src/pages/UserAccount.jsx
@@ -614,11 +614,6 @@ client/src/pages/prof/ProfMyQuestions.jsx
 ### Pages — Student
 
 ```
-client/src/pages/student/StudentDashboard.jsx
-```
--> Student dashboard showing upcoming/available exams and a summary of past attempts.
-
-```
 client/src/pages/student/StudentAvailableExams.jsx
 ```
 -> Lists all currently available (published/ongoing) mock board exams for the student's program.
@@ -641,11 +636,6 @@ client/src/pages/student/StudentExamResults.jsx
 ---
 
 ### Pages — Alumni
-
-```
-client/src/pages/alumni/AlumniDashboard.jsx
-```
--> Alumni dashboard showing available exams and a summary of past attempts across unlimited retakes.
 
 ```
 client/src/pages/alumni/AlumniAvailableExams.jsx
@@ -697,6 +687,11 @@ client/src/pages/shared/StudentRegister.jsx
 client/src/pages/shared/BulkRegister.jsx
 ```
 -> Bulk registration form allowing authorized faculty to upload or manually enter a list of users for batch account creation.
+
+```
+client/src/pages/shared/LearnerDashboard.jsx
+```
+-> Dashboard shared by students and alumni (`audience` prop picks the endpoints, ID field and routes). Sections: a hero (greeting, initials, open-exam count, program, school, batch taken from the ID's year prefix, ID, links to available exams and results); Overview / Performance / Subjects / Today stat cards (Today is a live date and time); a score progress line chart (last 10 scored attempts with a labelled dashed passing mark); a distance-to-passing ring (average vs. the latest exam's passing mark) beside a "Do this next" card naming the subject with the most missed items; "New exams for you" (featured exam + up to 3 more, newest published first, "New" tag for exams published in the last 3 days, open/closing soon/upcoming/completed chips, attempts allowed, Take or Retake for alumni); subject accuracy (table always shown, bar chart in the full view; green at or above the latest passing mark, amber up to 10 points under, red below); and recent exam activity (last 5 attempts, release countdown for unreleased student results). A sidebar holds the board exam countdown (a date and exam name the learner sets, saved through `PATCH /api/auth/me/board-exam-countdown`), the exam calendar (a month grid with a dot per open/closing/upcoming/completed exam and the selected day's exams, with a jump to the next exam when the day is empty), and announcements ("<publisher> published <exam> · starts <time>", newest first). The calendar and announcements are built from the available-exams list, so they need no extra request. Students' unreleased attempts are shown as pending and left out of every score.
 
 ```
 client/src/pages/shared/BoardExams.jsx
@@ -795,7 +790,7 @@ client/src/components/DropdownSelect.jsx
 ```
 client/src/components/DateTimePicker.jsx
 ```
--> Date and time picker used for the exam schedule (Create Exams, `range` mode: start and end in one modal) and results release (Board Exams, single moment). Opens a modal with a month calendar that shows the program's scheduled exams as status dots, the chosen day's exams, and time inputs. In range mode the Starts/Ends cards pick which date the calendar sets, moving the start keeps the duration, and the days between are shaded. Overlapping exams are highlighted and warned about but never block Apply; a past start or an end before the start do.
+-> Date and time picker used for the exam schedule (Create Exams, `range` mode: start and end in one modal) and results release (Board Exams, single moment). Opens a modal with a month calendar that shows the program's scheduled exams as status dots, the chosen day's exams, and time inputs. In range mode the Starts/Ends cards pick which date the calendar sets, moving the start keeps the duration, and the days between are shaded. Overlapping exams are highlighted and warned about but never block Apply; a past start or an end before the start do. Without a `role` it loads no exams and hides the day panel (used for the learner board exam countdown).
 
 ```
 client/src/components/TimeInput.jsx
@@ -1053,6 +1048,11 @@ client/src/styles/shared/BoardExams.css
 -> Styles for the board exam faculty listing page with status filters, the stacked-cell exam table (`.ambe-stack`), and exam card grid.
 
 ```
+client/src/styles/shared/LearnerDashboard.css
+```
+-> Styles for the learner dashboard (`ld-` prefix): a navy hero that runs edge to edge like the page header (its side padding matches the page gutter), navy featured-exam card, stat cards with the yellow bottom border, headed cards matching the question UI section header, the CSS passing ring, status chips/pills and the "New" tag, the subject accuracy table, and the sidebar countdown (`.ld-countdown*` plus its form), exam calendar (`.ld-cal-*`) and announcements (`.ld-news*`). The page has no page header, so it sets its own top padding. At 1200px the sidebar drops below the main column (countdown and announcements side by side, calendar full width); stat cards go to two columns at 1100px; other sections stack at 900 / 720 / 560px.
+
+```
 client/src/styles/shared/BulkRegister.css
 ```
 -> Styles for the bulk registration page: file upload zone, user list table, and progress indicator.
@@ -1111,16 +1111,6 @@ client/src/styles/dean/DeanDashboard.css
 client/src/styles/programchair/PCLogs.css
 ```
 -> Styles for the audit log viewer page: log entry rows, action type badges, and timestamp display.
-
-```
-client/src/styles/student/StudentDashboard.css
-```
--> Styles for the student dashboard: upcoming exam card, attempt history summary, and welcome banner.
-
-```
-client/src/styles/alumni/AlumniDashboard.css
-```
--> Styles for the alumni dashboard layout and available-exam cards.
 
 ```
 client/src/styles/alumni/AlumniAvailableExams.css

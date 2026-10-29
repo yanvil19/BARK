@@ -84,7 +84,7 @@ function overlapsRange(exam, range) {
  * - range: pick a start and an end in the same modal; onChange(startIso, endIso)
  *   (without range: one moment; onChange(iso))
  * - value / endValue: current start (or single moment) and end
- * - role / programId: whose exams to load (no role = no exams shown)
+ * - role / programId: whose exams to load (no role = no exams and no day panel, e.g. the learner board exam countdown)
  * - audience: 'student' | 'alumni'; overlaps are checked against exams with the same audience
  * - excludeExamId: the exam being edited, left out of the list
  */
@@ -384,10 +384,12 @@ export default function DateTimePicker({
               </div>
             )}
 
-            <section className="dtp-day-panel">
-              <h3>{format(activeDate, 'EEEE, MMMM d')}</h3>
-              {renderDayPanelBody()}
-            </section>
+            {role ? (
+              <section className="dtp-day-panel">
+                <h3>{format(activeDate, 'EEEE, MMMM d')}</h3>
+                {renderDayPanelBody()}
+              </section>
+            ) : null}
           </div>
         </div>
 

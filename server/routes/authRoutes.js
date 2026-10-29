@@ -22,6 +22,7 @@ const {
   approveRegistrationRequest,
   rejectRegistrationRequest,
   heartbeat,
+  updateBoardExamCountdown,
 } = require('../controllers/authController');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/emailService');
@@ -148,6 +149,10 @@ router.post('/register', protect, authorizeRoles('super_admin'), registerUser);
 // @route   GET /api/auth/me
 // @access  Private
 router.get('/me', protect, getMe);
+
+// @route   PATCH /api/auth/me/board-exam-countdown
+// @access  Private - Student / Alumni
+router.patch('/me/board-exam-countdown', protect, authorizeRoles('student', 'alumni'), updateBoardExamCountdown);
 
 // @route   POST /api/auth/heartbeat
 // @access  Private
