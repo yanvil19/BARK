@@ -231,7 +231,6 @@
   min-width: 0;
   padding: 16px 18px;
   border: 1px solid var(--ld-line);
-  border-bottom: 3px solid var(--accent-yellow);
   border-radius: 12px;
   background: #fff;
 }
@@ -258,9 +257,10 @@
   font-size: 13px;
 }
 
+/* Only the navy card keeps the yellow bottom border */
 .ld-stat--featured {
   border-color: var(--primary-bg);
-  border-bottom-color: var(--accent-yellow);
+  border-bottom: 3px solid var(--accent-yellow);
   background: var(--primary-bg);
   color: #fff;
 }

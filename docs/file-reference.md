@@ -1050,7 +1050,7 @@ client/src/styles/shared/BoardExams.css
 ```
 client/src/styles/shared/LearnerDashboard.css
 ```
--> Styles for the learner dashboard (`ld-` prefix): a navy hero that runs edge to edge like the page header (its side padding matches the page gutter), navy featured-exam card, stat cards with the yellow bottom border, headed cards matching the question UI section header, the CSS passing ring, status chips/pills and the "New" tag, the subject accuracy table, and the sidebar countdown (`.ld-countdown*` plus its form), exam calendar (`.ld-cal-*`) and announcements (`.ld-news*`). The page has no page header, so it sets its own top padding. At 1200px the sidebar drops below the main column (countdown and announcements side by side, calendar full width); stat cards go to two columns at 1100px; other sections stack at 900 / 720 / 560px.
+-> Styles for the learner dashboard (`ld-` prefix): a navy hero that runs edge to edge like the page header (its side padding matches the page gutter), navy featured-exam card, stat cards (only the navy Overview card has the yellow bottom border), headed cards matching the question UI section header, the CSS passing ring, status chips/pills and the "New" tag, the subject accuracy table, and the sidebar countdown (`.ld-countdown*` plus its form), exam calendar (`.ld-cal-*`) and announcements (`.ld-news*`). The page has no page header, so it sets its own top padding. At 1200px the sidebar drops below the main column (countdown and announcements side by side, calendar full width); stat cards go to two columns at 1100px; other sections stack at 900 / 720 / 560px.
 
 ```
 client/src/styles/shared/BulkRegister.css
