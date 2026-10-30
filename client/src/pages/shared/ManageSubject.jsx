@@ -4,6 +4,9 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import Pagination from '../../components/Pagination.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
+import '../../styles/components/Table.css';
+import '../../styles/components/QuestionFilters.css';
 import '../../styles/shared/SubjectTags.css';
 import '../../styles/global.css';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -161,7 +164,7 @@ export default function ManageSubject({ me }) {
   const departmentLabel = me?.department?.name || 'Department';
 
   return (
-    <main className="qp-page ct-page page-shell">
+    <main className={`qp-page ct-page page-shell${isDean ? ' ct-page--dean' : ''}`}>
       <PageHeader
         title="Manage Subjects"
         subtitle={isDean
@@ -173,11 +176,20 @@ export default function ManageSubject({ me }) {
         </button>
       </PageHeader>
 
-      <div className="ct-controls-row">
+      <div className={`ct-controls-row${isDean ? ' ct-controls-row--dean' : ''}`}>
         {isDean ? (
-          <div className="st-dean-toolbar">
-            <select
-              className="st-dean-program-select"
+          <div className="qf-filters st-dean-toolbar">
+            <input
+              className="qf-search st-dean-search"
+              type="text"
+              placeholder="Search subjects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={!programId}
+            />
+
+            <DropdownSelect
+              className={`qf-filter-select--program st-dean-program-select ${programId ? 'is-selected' : 'is-placeholder'}`}
               value={programId}
               onChange={(e) => {
                 setProgramId(e.target.value);
@@ -185,22 +197,11 @@ export default function ManageSubject({ me }) {
                 setSearchQuery('');
               }}
               disabled={loadingPrograms}
-            >
-              <option value="">{`Select ${departmentLabel} Program`}</option>
-              {programs.map((program) => (
-                <option key={program._id} value={program._id}>
-                  {program.name} {program.code ? `(${program.code})` : ''}
-                </option>
-              ))}
-            </select>
-
-            <input
-              className="qp-search st-dean-search"
-              type="text"
-              placeholder="Search subjects..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={!programId}
+              placeholder={`Select ${departmentLabel}`}
+              options={programs.map((program) => ({
+                value: program._id,
+                label: `${program.name}${program.code ? ` (${program.code})` : ''}`,
+              }))}
             />
           </div>
         ) : (
@@ -214,27 +215,27 @@ export default function ManageSubject({ me }) {
         )}
       </div>
 
-      {isDean && !programId ? (
-        <p className="ct-helper-note">Select a program first before managing subjects.</p>
-      ) : null}
-
-      <div className="qp-table-wrap">
+      <div className={isDean ? 'ui-table-card ui-table-scroll ct-dean-subject-table-card' : 'qp-table-wrap'}>
         {loading ? (
           <p className="qp-loading">Loading subjects...</p>
         ) : (
           <>
-            <table className="qp-table">
+            <table className={isDean ? 'ui-table ct-dean-subject-table' : 'qp-table'}>
               <thead>
                 <tr>
                   <th style={{ width: '70%' }}>Subject Name</th>
-                  <th style={{ width: '30%' }}>Actions</th>
+                  <th className={isDean ? 'ui-table-th-actions' : undefined} style={{ width: '30%' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTags.length === 0 ? (
                   <tr>
-                    <td colSpan="2" className="qp-empty">
-                      {searchQuery ? `No subjects match "${searchQuery}"` : 'No subjects found. Create your first one!'}
+                    <td colSpan="2" className={isDean ? 'ui-table-empty' : 'qp-empty'}>
+                      {isDean && !programId
+                        ? 'Select a program first to view its subjects.'
+                        : searchQuery
+                          ? `No subjects match "${searchQuery}"`
+                          : 'No subjects found. Create your first one!'}
                     </td>
                   </tr>
                 ) : (
@@ -245,7 +246,7 @@ export default function ManageSubject({ me }) {
                         <td>
                           {isEditing ? (
                             <input
-                              className="ct-inline-edit"
+                              className={isDean ? 'ct-inline-edit ct-dean-inline-edit' : 'ct-inline-edit'}
                               value={editValues[tag._id]}
                               autoFocus
                               onChange={(e) =>
@@ -260,21 +261,37 @@ export default function ManageSubject({ me }) {
                               }}
                             />
                           ) : (
-                            <span className="qp-badge qp-badge--subject">{tag.name}</span>
+                            <span className={isDean ? 'ct-dean-subject-label' : 'qp-badge qp-badge--subject'}>
+                              {tag.name}
+                            </span>
                           )}
                         </td>
 
-                        <td className="qp-actions-cell">
+                        <td className={isDean ? 'ui-table-actions-cell' : 'qp-actions-cell'}>
                           {isEditing ? (
-                            <>
-                              <button className="qp-btn-submit" onClick={() => saveEdit(tag)}>Save</button>
-                              <button className="qp-btn-edit" onClick={() => cancelEdit(tag._id)}>Cancel</button>
-                            </>
+                            isDean ? (
+                              <div className="ui-table-actions">
+                                <button type="button" className="ui-table-btn ui-table-btn--success" onClick={() => saveEdit(tag)}>Save</button>
+                                <button type="button" className="ui-table-btn ui-table-btn--secondary" onClick={() => cancelEdit(tag._id)}>Cancel</button>
+                              </div>
+                            ) : (
+                              <>
+                                <button className="qp-btn-submit" onClick={() => saveEdit(tag)}>Save</button>
+                                <button className="qp-btn-edit" onClick={() => cancelEdit(tag._id)}>Cancel</button>
+                              </>
+                            )
                           ) : (
-                            <>
-                              <button className="qp-btn-edit" onClick={() => startEdit(tag)}>Edit</button>
-                              <button className="qp-btn-delete" onClick={() => handleDelete(tag)}>Delete</button>
-                            </>
+                            isDean ? (
+                              <div className="ui-table-actions">
+                                <button type="button" className="ui-table-btn ui-table-btn--secondary" onClick={() => startEdit(tag)}>Edit</button>
+                                <button type="button" className="ui-table-btn ui-table-btn--danger" onClick={() => handleDelete(tag)}>Delete</button>
+                              </div>
+                            ) : (
+                              <>
+                                <button className="qp-btn-edit" onClick={() => startEdit(tag)}>Edit</button>
+                                <button className="qp-btn-delete" onClick={() => handleDelete(tag)}>Delete</button>
+                              </>
+                            )
                           )}
                         </td>
                       </tr>
@@ -284,18 +301,31 @@ export default function ManageSubject({ me }) {
               </tbody>
             </table>
 
-            <div className="ct-pagination-wrap">
-              <Pagination
-                currentPage={currentPage}
-                totalItems={filteredTags.length}
-                pageSize={PAGE_SIZE}
-                onPageChange={setCurrentPage}
-                itemLabel="subjects"
-              />
-            </div>
+            {!isDean && (
+              <div className="ct-pagination-wrap">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredTags.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                  itemLabel="subjects"
+                />
+              </div>
+            )}
           </>
         )}
       </div>
+      {isDean && programId && !loading && !loadingPrograms && (
+        <div className="ui-table-footer ct-dean-subject-pagination">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredTags.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="subjects"
+          />
+        </div>
+      )}
 
       <Modal
         open={showAddModal}
