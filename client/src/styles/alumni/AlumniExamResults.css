@@ -2,12 +2,10 @@
   --aer-navy: #1e2d6b;
   --aer-navy-soft: #35408e;
   --aer-yellow: #f5c518;
-  --aer-bg: #f4f6fb;
   --aer-border: rgba(30, 45, 107, 0.12);
   --aer-text: #1f2937;
   --aer-muted: #7b86a5;
   min-height: 100vh;
-  background: var(--aer-bg);
   font-family: var(--font-body);
 }
 

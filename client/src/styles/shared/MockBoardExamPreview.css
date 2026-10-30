@@ -2,7 +2,6 @@
 
 .mbep-page {
   min-height: 100vh;
-  background-color: var(--content-bg);
   font-family: var(--font-body);
   display: flex;
   flex-direction: column;

@@ -2,13 +2,11 @@
   --er-navy: #1e2d6b;
   --er-navy-soft: #35408e;
   --er-yellow: #f5c518;
-  --er-bg: #f4f6fb;
   --er-border-strong: rgba(30, 45, 107, 0.2);
   --er-text: #1f2937;
   --er-muted: #7b86a5;
   min-height: 100vh;
   font-family: var(--font-body);
-  background: var(--er-bg);
   overflow-x: clip;
 }
 

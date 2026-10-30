@@ -2,10 +2,8 @@
   --aae-navy: #1e2d6b;
   --aae-navy-deep: #24357d;
   --aae-yellow: #f5c518;
-  --aae-bg: #f4f6fb;
   --aae-muted: #7b86a5;
   min-height: 100vh;
-  background: var(--aae-bg);
 }
 
 .aae-toolbar {

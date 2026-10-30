@@ -3,12 +3,10 @@
   --ae-yellow: #f5c518;
   --ae-border: rgba(30, 45, 107, 0.18);
   --ae-muted: #6b7280;
-  --ae-bg: #f2f4fb;
 }
 
 .sae-page-container {
   min-height: 100%;
-  background: #e5e7f2;
   overflow-x: hidden;
 }
 
