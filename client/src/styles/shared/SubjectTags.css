@@ -146,8 +146,7 @@
 }
 
 .qp-btn-edit,
-.qp-btn-submit,
-.qp-btn-delete {
+.qp-btn-submit {
   padding: 6px 16px;
   border-radius: 4px;
   background: #fff;
@@ -175,15 +174,6 @@
 
 .qp-btn-submit:hover {
   background: #f0fff8;
-}
-
-.qp-btn-delete {
-  border: 1px solid #fda29b;
-  color: #d92d20;
-}
-
-.qp-btn-delete:hover {
-  background: #fef3f2;
 }
 
 .qp-empty, .qp-loading {

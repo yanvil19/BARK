@@ -899,15 +899,19 @@
   border-color: #34d399;
 }
 
-.ca-btn--delete {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+/* Restore button with the trash button beside it, matching its height */
+.ca-sidebar-action-row {
+  display: flex;
+  gap: 10px;
 }
 
-.ca-btn--delete:hover {
-  background: #fecaca;
-  border-color: #fca5a5;
+.ca-sidebar-action-row .ca-btn {
+  flex: 1;
+}
+
+.ca-sidebar-action-row .trash-btn {
+  width: 40px;
+  height: auto;
 }
 
 /* ── Modal Overlay ───────────────────────────────────────– */

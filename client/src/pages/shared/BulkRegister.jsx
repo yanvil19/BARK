@@ -5,6 +5,7 @@ import SearchBar from '../../components/SearchBar';
 import DropdownSelect from '../../components/DropdownSelect';
 import Pagination from '../../components/Pagination';
 import PageHeader from '../../components/PageHeader';
+import TrashButton from '../../components/TrashButton';
 import '../../styles/shared/BulkRegister.css';
 
 const BULK_REGISTRATION_DRAFT_KEY = 'draft_bulk_registration';
@@ -510,16 +511,11 @@ export default function BulkRegister({ user }) {
                 </div>
               )}
               <div className="col-action">
-                <button
-                  type="button"
-                  className="br-btn-remove-row"
+                <TrashButton
+                  label="Remove row"
                   onClick={() => removeRow(index)}
                   disabled={entries.length === 1 || isSubmitting}
-                  title="Remove row"
-                  aria-label="Remove row"
-                >
-                  ✕
-                </button>
+                />
               </div>
             </div>
           ))}

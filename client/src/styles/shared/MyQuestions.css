@@ -392,8 +392,7 @@
 
 .qp-btn-edit,
 .qp-btn-view,
-.qp-btn-submit,
-.qp-btn-delete {
+.qp-btn-submit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -441,17 +440,6 @@
 
 .qp-btn-edit:hover {
   background: #f3f4f6;
-  transform: none;
-}
-
-.qp-btn-delete {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
-}
-
-.qp-btn-delete:hover {
-  background: #fecaca;
   transform: none;
 }
 

@@ -233,8 +233,7 @@
 .ambe-btn,
 .qp-btn-submit,
 .qp-btn-view,
-.qp-btn-edit,
-.qp-btn-delete {
+.qp-btn-edit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -331,19 +330,15 @@
 }
 
 /* Danger / Delete Button */
-.ui-table-btn--danger,
 .ui-table-btn.delete,
-.ambe-btn.delete,
-.qp-btn-delete {
+.ambe-btn.delete {
   background: #fee2e2;
   border: 1px solid #fca5a5;
   color: #991b1b;
 }
 
-.ui-table-btn--danger:hover,
 .ui-table-btn.delete:hover,
-.ambe-btn.delete:hover,
-.qp-btn-delete:hover {
+.ambe-btn.delete:hover {
   background: #fecaca;
 }
 

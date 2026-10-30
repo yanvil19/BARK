@@ -10,6 +10,7 @@ import '../../styles/components/QuestionFilters.css';
 import '../../styles/shared/SubjectTags.css';
 import '../../styles/global.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import TrashButton from '../../components/TrashButton.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
 const PAGE_SIZE = 10;
@@ -284,12 +285,12 @@ export default function ManageSubject({ me }) {
                             isDean ? (
                               <div className="ui-table-actions">
                                 <button type="button" className="ui-table-btn ui-table-btn--secondary" onClick={() => startEdit(tag)}>Edit</button>
-                                <button type="button" className="ui-table-btn ui-table-btn--danger" onClick={() => handleDelete(tag)}>Delete</button>
+                                <TrashButton label={`Delete ${tag.name}`} onClick={() => handleDelete(tag)} />
                               </div>
                             ) : (
                               <>
                                 <button className="qp-btn-edit" onClick={() => startEdit(tag)}>Edit</button>
-                                <button className="qp-btn-delete" onClick={() => handleDelete(tag)}>Delete</button>
+                                <TrashButton label={`Delete ${tag.name}`} onClick={() => handleDelete(tag)} />
                               </>
                             )
                           )}

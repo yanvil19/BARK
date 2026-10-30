@@ -5,6 +5,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
+import TrashButton from '../../components/TrashButton.jsx';
 
 function PasswordToggle({ shown, onToggle, label, disabled }) {
   function handleKeyDown(e) {
@@ -492,18 +493,6 @@ export default function AdminUsers({ me }) {
     return '(n/a)';
   }
 
-  function TrashIcon(props) {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-        <path d="M3 6h18" />
-        <path d="M8 6V4h8v2" />
-        <path d="M19 6l-1 14H6L5 6" />
-        <path d="M10 11v6" />
-        <path d="M14 11v6" />
-      </svg>
-    );
-  }
-
   const isEditingSelf = selectedUser?._id === me?._id;
   const isEditingSuperAdmin = selectedUser?.role === 'super_admin' || editForm.role === 'super_admin';
 
@@ -683,17 +672,13 @@ export default function AdminUsers({ me }) {
                           {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                             : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
                           {deleteMode ? (
-                            <button
-                              type="button"
+                            <TrashButton
                               className="um-btn-delete-icon"
+                              label={`Delete ${u.name || u.email}`}
                               onClick={() => startDelete(u)}
                               onMouseEnter={() => setHoveredDeleteUserId(u._id)}
                               onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
-                              aria-label={`Delete ${u.name || u.email}`}
-                              title="Delete user"
-                            >
-                              <TrashIcon className="um-delete-icon" />
-                            </button>
+                            />
                           ) : null}
                         </td>
                       </tr>
@@ -755,17 +740,13 @@ export default function AdminUsers({ me }) {
                         {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                           : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
                         {deleteMode ? (
-                          <button
-                            type="button"
+                          <TrashButton
                             className="um-btn-delete-icon"
+                            label={`Delete ${u.name || u.email}`}
                             onClick={() => startDelete(u)}
                             onMouseEnter={() => setHoveredDeleteUserId(u._id)}
                             onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
-                            aria-label={`Delete ${u.name || u.email}`}
-                            title="Delete user"
-                          >
-                            <TrashIcon className="um-delete-icon" />
-                          </button>
+                          />
                         ) : null}
                       </td>
                     </tr>

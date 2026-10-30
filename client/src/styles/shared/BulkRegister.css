@@ -430,36 +430,10 @@
   justify-content: center;
 }
 
-.br-btn-remove-row {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  border-radius: 6px;
-  color: #dc2626;
+/* Trash button sized to the row's 34px inputs */
+.col-action .trash-btn {
   width: 34px;
   height: 34px;
-  min-width: 34px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.br-btn-remove-row:hover:not(:disabled) {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #dc2626;
-}
-
-.br-btn-remove-row:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #9ca3af;
 }
 
 .br-btn-add-row-dashed {

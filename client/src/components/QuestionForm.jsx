@@ -10,6 +10,7 @@ import { primeImage } from '../lib/authImageCache.js';
 import { Modal } from './Modal.jsx';
 import ImportReviewBubbles from './ImportReviewBubbles.jsx';
 import { useToast } from './Toast.jsx';
+import TrashButton, { TrashIcon } from './TrashButton.jsx';
 import '../styles/components/QuestionForm.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -112,18 +113,6 @@ function AddImageIcon() {
       <circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="2" />
       <path d="m21 15-4-4L6 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M19 2v6M16 5h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// Trash can, for the buttons that remove an image from the form
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-      <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -1068,19 +1057,13 @@ export default function QuestionForm({
             </div>
             {/* Remove — min 2 */}
             {!readOnly && questionsData.length > 2 && (
-              <button
-                type="button"
-                className="qf-remove-question-btn"
-                onClick={() => removeQuestionBlock(q.id)}
-              >
-                Remove
-              </button>
+              <TrashButton label={`Remove question ${index + 1}`} onClick={() => removeQuestionBlock(q.id)} />
             )}
           </div>
         ) : questionsData.length > 1 && !readOnly && !initialData ? (
           <div className="qf-question-header">
             <h4>Question {index + 1}</h4>
-            <button type="button" className="qf-remove-question-btn" onClick={() => removeQuestionBlock(q.id)}>Remove Question</button>
+            <TrashButton label={`Remove question ${index + 1}`} onClick={() => removeQuestionBlock(q.id)} />
           </div>
         ) : null}
 
@@ -1293,9 +1276,7 @@ export default function QuestionForm({
                           </>
                         )}
                         {q.answers.length > 2 && (
-                          <button type="button" className="qf-remove-btn" onClick={() => removeAnswer(q.id, idx)}>
-                            Remove
-                          </button>
+                          <TrashButton label={`Remove answer ${idx + 1}`} onClick={() => removeAnswer(q.id, idx)} />
                         )}
                       </div>
                     ) : null}
