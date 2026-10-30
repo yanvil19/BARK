@@ -289,7 +289,7 @@ const createQuestionGroup = async (req, res) => {
         // Group metadata
         groupId,
         groupOrder: i,
-        groupContext: groupContext?.trim() || null,
+        groupContext: groupContext?.trim() ? encryptText(groupContext.trim()) : null,
         groupContextImages: passageImages,
       };
 
@@ -504,6 +504,10 @@ const updateQuestionGroup = async (req, res) => {
       if (passageError) return res.status(400).json({ message: passageError });
     }
 
+    const encryptedGroupContext = groupContext !== undefined
+      ? (groupContext?.trim() ? encryptText(groupContext.trim()) : null)
+      : existingQuestions[0].groupContext;
+
     // Images already in this group stay valid; anything new must be the user's own upload
     const previousUrls = [...new Set(existingQuestions.flatMap(collectQuestionImageUrls))];
     const nextUrls = [...new Set([...members.flatMap(collectQuestionImageUrls), ...passageImages])];
@@ -531,7 +535,7 @@ const updateQuestionGroup = async (req, res) => {
         questionDoc.tag = groupTagId || null;
         questionDoc.images = qData.images;
         questionDoc.groupOrder = i;
-        questionDoc.groupContext = groupContext?.trim() || null;
+        questionDoc.groupContext = encryptedGroupContext;
         questionDoc.groupContextImages = passageImages;
         if (questionDoc.state === 'pending_chair' || questionDoc.state === 'restored') {
           questionDoc.state = 'draft';
@@ -552,7 +556,7 @@ const updateQuestionGroup = async (req, res) => {
           state: 'draft',
           groupId,
           groupOrder: i,
-          groupContext: groupContext?.trim() || null,
+          groupContext: encryptedGroupContext,
           groupContextImages: passageImages,
         });
       }
