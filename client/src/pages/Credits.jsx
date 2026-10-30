@@ -15,7 +15,7 @@ export default function Credits({ onNavigate }) {
           <span className="credits-eyebrow">Project Credits</span>
           <h1>Built by the BARK development team.</h1>
           <p>
-            The individuals who contributed to the development of the Board Exam &amp; Review Kit 
+            The individuals who contributed to the development of the Board Assessment Review Kit
             for National University Laguna.
           </p>
           <button type="button" onClick={() => onNavigate?.('Dashboard')}>

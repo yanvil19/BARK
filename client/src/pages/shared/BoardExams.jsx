@@ -155,7 +155,9 @@ function subjectKey(tag) {
 }
 
 function toOneLine(text) {
-  return stripHtml(text || '');
+  return stripHtml(String(text || '').replace(/<br\s*\/?\s*>|<\/(?:p|div|li|h[1-6])\s*>/gi, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // Number, subject and counts shown at the top of a question card
@@ -205,7 +207,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState(null);
   // Exam details: the one open question ('question:<id>') or question set ('group:<groupId>')
-  const [openDropdownKey, setOpenDropdownKey] = useState(null);
+  const [openDropdownKeys, setOpenDropdownKeys] = useState(() => new Set());
   // Exam details: the question shown in each open set, by groupId
   const [activeGroupIdx, setActiveGroupIdx] = useState({});
   const [questionTypeFilter, setQuestionTypeFilter] = useState('all');
@@ -297,7 +299,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   }, [me]);
 
   useEffect(() => {
-    setOpenDropdownKey(null);
+    setOpenDropdownKeys(new Set());
     setActiveGroupIdx({});
     setQuestionTypeFilter('all');
   }, [selectedExam?._id]);
@@ -333,12 +335,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       return;
     }
     setSelectedExam(null);
-    setOpenDropdownKey(null);
+    setOpenDropdownKeys(new Set());
   }
 
-  // Opening a question or question set closes the one that was open
+  // Keep each question or question set's expanded state independent.
   function toggleQuestionDropdown(key) {
-    setOpenDropdownKey((prev) => (prev === key ? null : key));
+    setOpenDropdownKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   function handleDelete(exam) {
@@ -812,7 +819,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   function renderExamQuestion({ question, questionNumber }) {
     const dropdownKey = `question:${question._id}`;
-    const isExpanded = openDropdownKey === dropdownKey;
+    const isExpanded = openDropdownKeys.has(dropdownKey);
 
     return (
       <article key={question._id} className={`ambe-question-card${isExpanded ? ' is-expanded' : ''}`}>
@@ -839,7 +846,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   function renderExamQuestionSet({ groupId, setNumber, questions: members }) {
     const dropdownKey = `group:${groupId}`;
-    const isOpen = openDropdownKey === dropdownKey;
+    const isOpen = openDropdownKeys.has(dropdownKey);
     const activeIdx = Math.min(activeGroupIdx[groupId] || 0, members.length - 1);
     const { question: activeQuestion, questionNumber: activeNumber } = members[activeIdx];
     const firstQuestion = members[0].question;

@@ -857,7 +857,7 @@ const LandingPage = ({ onNavigate }) => {
               <span className="text-white">Review Platform</span>
             </h2>
             <p className="about-para">
-              Board Exam &amp; Review Kit (BARK), the Board Exam Reviewer for NU Laguna — is a
+              Board Assessment Review Kit (BARK), the Board Exam Reviewer for NU Laguna — is a
               web-based platform designed to help students prepare for their PRC licensure exams
               through quizzes, mock board exams, and progress tracking.
             </p>
