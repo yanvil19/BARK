@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import Pagination from '../../components/Pagination.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import '../../styles/programchair/PCLogs.css';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -264,12 +266,12 @@ export default function ChairCheatingLogs() {
         <aside className="el-sidebar" aria-label="Exam filter">
           <p className="el-sidebar-helper">Choose an exam to view activity logs</p>
 
-          <input
+          <SearchBar
             id="el-exam-search"
             className="el-sidebar-search"
             placeholder="Search exam..."
             value={examSearch}
-            onChange={(e) => setExamSearch(e.target.value)}
+            onChange={setExamSearch}
           />
 
           <div className="el-sidebar-label">Log Type</div>
@@ -331,24 +333,25 @@ export default function ChairCheatingLogs() {
         <section className="el-main">
           {selectedExamId && (
             <div className="el-filters">
-              <input
+              <SearchBar
                 className="el-search"
                 placeholder={studentType === 'alumni' ? 'Search alumni...' : 'Search students...'}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={setSearch}
               />
 
-              <select
+              <DropdownSelect
                 className="el-status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by status"
-              >
-                <option value="all">All statuses</option>
-                <option value="in_progress">In progress</option>
-                <option value="submitted">Submitted</option>
-                <option value="missed">Missed Exam</option>
-              </select>
+                ariaLabel="Filter by status"
+                options={[
+                  { value: 'all', label: 'All statuses' },
+                  { value: 'in_progress', label: 'In progress' },
+                  { value: 'submitted', label: 'Submitted' },
+                  { value: 'missed', label: 'Missed Exam' },
+                ]}
+              />
 
               <button type="button" className="el-btn-refresh" onClick={() => fetchLogs()}>
                 Refresh

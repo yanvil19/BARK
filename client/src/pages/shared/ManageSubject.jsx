@@ -5,6 +5,7 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
 import '../../styles/components/Table.css';
 import '../../styles/components/QuestionFilters.css';
 import '../../styles/shared/SubjectTags.css';
@@ -180,17 +181,16 @@ export default function ManageSubject({ me }) {
       <div className={`ct-controls-row${isDean ? ' ct-controls-row--dean' : ''}`}>
         {isDean ? (
           <div className="qf-filters st-dean-toolbar">
-            <input
+            <SearchBar
               className="qf-search st-dean-search"
-              type="text"
               placeholder="Search subjects..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={setSearchQuery}
               disabled={!programId}
             />
 
             <DropdownSelect
-              className={`qf-filter-select--program st-dean-program-select ${programId ? 'is-selected' : 'is-placeholder'}`}
+              className="qf-filter-select--program st-dean-program-select"
               value={programId}
               onChange={(e) => {
                 setProgramId(e.target.value);
@@ -206,12 +206,11 @@ export default function ManageSubject({ me }) {
             />
           </div>
         ) : (
-          <input
+          <SearchBar
             className="qp-search"
-            type="text"
             placeholder="Search subjects..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
           />
         )}
       </div>

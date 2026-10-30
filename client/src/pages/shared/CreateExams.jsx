@@ -12,6 +12,8 @@ import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import '../../styles/shared/CreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -951,12 +953,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               return (
                 <>
                   <div className="mbe-subject-search-row">
-                    <input
-                      className="mbe-input mbe-subject-search"
-                      type="text"
+                    <SearchBar
+                      className="mbe-subject-search"
                       placeholder="Search subjects..."
                       value={subjectSearch}
-                      onChange={(e) => { setSubjectSearch(e.target.value); setSubjectPage(1); }}
+                      onChange={(value) => { setSubjectSearch(value); setSubjectPage(1); }}
                     />
                   </div>
                   {filteredBySearch.length === 0 ? (
@@ -1055,34 +1056,31 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   />
 
                   <div className="mbe-question-filters">
-                    <input
-                      className="mbe-input mbe-search"
-                      type="text"
+                    <SearchBar
+                      className="mbe-search"
                       placeholder="Search approved question"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={setSearchQuery}
                     />
-                    <select
-                      className="mbe-input mbe-filter-select"
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={questionFilterTagId}
                       onChange={(e) => setQuestionFilterTagId(e.target.value)}
-                    >
-                      <option value="">All selected subjects</option>
-                      {filteredSubjectOptions.map((tag) => (
-                        <option key={tag._id} value={tag._id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="mbe-input mbe-filter-select"
+                      ariaLabel="Filter questions by subject"
+                      placeholder="All selected subjects"
+                      options={filteredSubjectOptions.map((tag) => ({ value: tag._id, label: tag.name }))}
+                    />
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={approvedSelectionFilter}
                       onChange={(e) => setApprovedSelectionFilter(e.target.value)}
-                    >
-                      <option value="all">All questions</option>
-                      <option value="selected">Selected only</option>
-                      <option value="unselected">Not selected yet</option>
-                    </select>
+                      ariaLabel="Filter questions by selection"
+                      options={[
+                        { value: 'all', label: 'All questions' },
+                        { value: 'selected', label: 'Selected only' },
+                        { value: 'unselected', label: 'Not selected yet' },
+                      ]}
+                    />
                   </div>
 
                   <div className="mbe-question-bulk-controls">
@@ -1379,18 +1377,14 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               {selectedQuestions.length > 0 ? (
                 <>
                   <div className="mbe-toolbar mbe-toolbar--selected">
-                    <select
-                      className="mbe-input mbe-filter-select"
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={selectedQuestionFilterTagId}
                       onChange={(e) => setSelectedQuestionFilterTagId(e.target.value)}
-                    >
-                      <option value="">All selected subjects</option>
-                      {filteredSubjectOptions.map((tag) => (
-                        <option key={tag._id} value={tag._id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
+                      ariaLabel="Filter selected questions by subject"
+                      placeholder="All selected subjects"
+                      options={filteredSubjectOptions.map((tag) => ({ value: tag._id, label: tag.name }))}
+                    />
                   </div>
 
                   <div className="mbe-table-wrap">

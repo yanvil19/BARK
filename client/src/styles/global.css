@@ -15,6 +15,16 @@
   --card-radius: 12px;
   --card-border: #d8def2;
   --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+  /* Control look shared by every search bar and dropdown */
+  --control-height: 40px;
+  --control-radius: 8px;
+  --control-border: rgba(53, 64, 142, 0.25);
+  --control-border-hover: rgba(53, 64, 142, 0.5);
+  --control-focus-ring: 0 0 0 3px rgba(53, 64, 142, 0.12);
+  --control-text: #1f2947;
+  --control-muted: #8b92bc;
+  --control-icon: #5a63a8;
 }
 
 @media (max-width: 768px) {

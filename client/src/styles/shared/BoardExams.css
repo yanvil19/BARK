@@ -103,78 +103,6 @@
   color: #ffffff;
 }
 
-.ambe-filter-select {
-  box-sizing: border-box;
-  height: 40px;
-  min-width: 160px;
-  max-width: 220px;
-  padding: 0 34px 0 12px;
-  border: 1.5px solid rgba(53, 64, 142, 0.25);
-  border-radius: 8px;
-  -webkit-appearance: none;
-  appearance: none;
-  background-color: #f9faff;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a63a8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  color: #5a63a8;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.ambe-filter-select:focus {
-  outline: none;
-  border-color: #35408e;
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  background-color: #fff;
-}
-
-.ambe-filter-select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.ambe-program-select {
-  min-height: 40px;
-  min-width: 200px;
-  padding: 0 12px;
-  border: 1px solid rgba(53, 64, 142, 0.18);
-  border-radius: 8px;
-  background: #ffffff;
-  color: #1f2947;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.ambe-search-bar {
-  box-sizing: border-box;
-  height: 40px;
-  flex: 1;
-  min-width: 180px;
-  max-width: 280px;
-  border: 1.5px solid rgba(53, 64, 142, 0.25) !important;
-  background-color: #f9faff !important;
-  border-radius: 8px;
-}
-
-.ambe-search-bar:focus-within {
-  border-color: #35408e !important;
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1) !important;
-  background: #fff !important;
-}
-
-.ambe-search-bar .search-bar-input {
-  font-size: 13px;
-  color: #1f2947;
-}
-
-.ambe-search-bar .search-bar-icon {
-  color: #9aa0b4;
-}
-
 .ambe-pagination-footer {
   margin: 0 0 16px;
 }
@@ -1260,8 +1188,7 @@
     flex-direction: column;
   }
 
-  .ambe-view-toggle,
-  .ambe-program-select {
+  .ambe-view-toggle {
     width: 100%;
   }
 
@@ -1365,25 +1292,14 @@
 
 .ambe-search-bar {
   flex: 1 1 240px;
+  min-width: 180px;
   max-width: 300px;
-  border-color: rgba(53, 64, 142, 0.26) !important;
-  background-color: #ffffff !important;
-  border-radius: 6px;
 }
 
 .ambe-filter-select {
   flex: 1 1 150px;
   min-width: 140px;
-  border: 1px solid rgba(53, 64, 142, 0.26);
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #4a57a2;
-  font-weight: 500;
-}
-
-.ambe-filter-select:focus {
-  border-color: #35408e;
-  background-color: #ffffff;
+  max-width: 220px;
 }
 
 .ambe-view-toggle {

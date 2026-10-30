@@ -1,10 +1,11 @@
 import '../styles/components/SearchBar.css';
 
-export default function SearchBar({ value, onChange, placeholder = 'Search...', className = '', ariaLabel }) {
+export default function SearchBar({ value, onChange, placeholder = 'Search...', className = '', ariaLabel, id, disabled = false }) {
   return (
-    <div className={`search-bar-wrapper ${className}`}>
+    <div className={`search-bar-wrapper ${disabled ? 'search-bar-wrapper--disabled' : ''} ${className}`}>
       <svg
         className="search-bar-icon"
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -17,14 +18,16 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
       <input
+        id={id}
         type="text"
         className="search-bar-input"
         placeholder={placeholder}
         aria-label={ariaLabel || placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
       />
-      {value && (
+      {value && !disabled && (
         <button
           type="button"
           className="search-bar-clear"

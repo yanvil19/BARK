@@ -5,6 +5,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 
 export default function SchoolsPrograms() {
   const [deptName, setDeptName] = useState('');
@@ -324,16 +325,14 @@ export default function SchoolsPrograms() {
           <div className="table-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e4e7ec', background: '#fafbff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="um-user-name" style={{ fontSize: '16px' }}>Academic Programs</h3>
             <div className="um-filters" style={{ marginBottom: 0 }}>
-              <select
+              <DropdownSelect
                 className="um-filter-select"
                 value={progDeptId}
                 onChange={(e) => setProgDeptId(e.target.value)}
-              >
-                <option value="">All Departments</option>
-                {departments.map((d) => (
-                  <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
-                ))}
-              </select>
+                ariaLabel="Filter programs by department"
+                placeholder="All Departments"
+                options={departments.map((d) => ({ value: d._id, label: `${d.code} - ${d.name}` }))}
+              />
             </div>
           </div>
           <div className="scroll-x">

@@ -16,6 +16,7 @@ import { Modal } from '../../components/Modal.jsx';
 import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import Table from '../../components/Table.jsx';
 import ActionMenu from '../../components/ActionMenu.jsx';
 import { AudienceIcon } from '../../components/CalendarIcons.jsx';
@@ -1077,48 +1078,41 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
               className="ambe-search-bar"
             />
 
-            <select
+            <DropdownSelect
               className="ambe-filter-select"
               value={selectedProgramId}
               onChange={(event) => setSelectedProgramId(event.target.value)}
-              aria-label="Filter exams by program"
+              ariaLabel="Filter exams by program"
               disabled={me?.role === 'program_chair'}
-            >
-              {me?.role === 'dean' && (
-                <option value="all">All Programs</option>
-              )}
+              options={[
+                ...(me?.role === 'dean' ? [{ value: 'all', label: 'All Programs' }] : []),
+                ...programs.map((program) => ({
+                  value: program._id,
+                  label: `${program.name}${program.code ? ` (${program.code})` : ''}`,
+                })),
+              ]}
+            />
 
-              {programs.map((program) => (
-                <option key={program._id} value={program._id}>
-                  {program.name} {program.code ? `(${program.code})` : ''}
-                </option>
-              ))}
-            </select>
-
-            <select
+            <DropdownSelect
               className="ambe-filter-select"
               value={selectedAudience}
               onChange={(event) => setSelectedAudience(event.target.value)}
-              aria-label="Filter exams by audience"
-            >
-              <option value="">All Audiences</option>
-              <option value="student">Student Exams</option>
-              <option value="alumni">Alumni Exams</option>
-            </select>
+              ariaLabel="Filter exams by audience"
+              placeholder="All Audiences"
+              options={[
+                { value: 'student', label: 'Student Exams' },
+                { value: 'alumni', label: 'Alumni Exams' },
+              ]}
+            />
 
-            <select
+            <DropdownSelect
               className="ambe-filter-select"
               value={selectedSubject}
               onChange={(event) => setSelectedSubject(event.target.value)}
-              aria-label="Filter exams by subject"
-            >
-              <option value="">All Subjects</option>
-              {subjectOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
+              ariaLabel="Filter exams by subject"
+              placeholder="All Subjects"
+              options={subjectOptions.map((option) => ({ value: option.id, label: option.name }))}
+            />
           </div>
 
           <div className="ambe-view-toggle">

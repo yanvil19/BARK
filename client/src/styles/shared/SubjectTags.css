@@ -62,21 +62,6 @@
 .qp-search {
   width: 100%;
   max-width: 400px;
-  padding: 10px 14px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: #333;
-  background-color: #fff;
-  transition: all 0.2s;
-  line-height: 1.2;
-}
-
-.qp-search:focus {
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  outline: none;
 }
 
 .qp-table-wrap {
@@ -256,32 +241,6 @@
   width: 320px;
   min-width: 320px;
   flex: 0 0 320px;
-}
-
-.st-dean-program-select .dd-select {
-  min-height: 40px;
-  padding-top: 9px;
-  padding-bottom: 9px;
-}
-
-.st-dean-program-select.is-placeholder .dd-select {
-  color: #8b92bc;
-  opacity: 0.72;
-}
-
-.st-dean-program-select.is-selected .dd-select {
-  color: #3b4580;
-  opacity: 1;
-}
-
-.st-dean-search {
-  box-sizing: border-box;
-  min-height: 40px;
-}
-
-.st-dean-search:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .st-dean-modal-select {
