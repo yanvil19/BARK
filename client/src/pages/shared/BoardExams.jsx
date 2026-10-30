@@ -4,6 +4,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
+import { stripHtml } from '../../components/SafeHtml.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -154,7 +155,7 @@ function subjectKey(tag) {
 }
 
 function toOneLine(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
+  return stripHtml(text || '');
 }
 
 // Number, subject and counts shown at the top of a question card

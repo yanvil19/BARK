@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
+import SafeHtml from '../../components/SafeHtml.jsx';
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -392,14 +393,14 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                       <span>Question Set Scenario</span>
                     </div>
                     {currentQuestion.groupContext && (
-                      <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                      <SafeHtml tag="div" className="mbep-group-context-text" html={currentQuestion.groupContext} />
                     )}
                     <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
                   </div>
                 )}
 
                 <div className="mbep-question-title">
-                  {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
+                  <SafeHtml html={currentQuestion.description || currentQuestion.title} fallback={`Question ${currentIdx + 1}`} />
                 </div>
 
                 {/* Images with zoom support (from Stud_ImageZoom) */}
@@ -441,7 +442,7 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
                       >
                         <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
                         <div className="mbep-option-text">
-                          {answer.text}
+                          <SafeHtml html={answer.text} />
                           <AnswerImage src={answer.image} alt={`Answer ${String.fromCharCode(97 + i)} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
                         </div>
                       </div>
