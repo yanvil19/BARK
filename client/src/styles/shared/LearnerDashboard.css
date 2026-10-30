@@ -230,9 +230,10 @@
   gap: 4px;
   min-width: 0;
   padding: 16px 18px;
-  border: 1px solid var(--ld-line);
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .ld-stat-label {
@@ -275,9 +276,10 @@
 .ld-card {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--ld-line);
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .ld-card-head {
@@ -417,8 +419,9 @@
 
 .ld-focus {
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   background: var(--primary-bg);
+  box-shadow: var(--card-shadow);
   color: #fff;
 }
 
@@ -466,8 +469,9 @@
   gap: 10px;
   min-width: 0;
   padding: 18px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   background: var(--primary-bg);
+  box-shadow: var(--card-shadow);
   color: #fff;
 }
 
@@ -799,8 +803,9 @@
 
 .ld-countdown {
   padding: 16px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   background: var(--primary-bg);
+  box-shadow: var(--card-shadow);
   color: #fff;
 }
 

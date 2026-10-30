@@ -48,9 +48,9 @@
   justify-content: space-between;
   gap: 16px;
   padding: 20px 28px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   background: var(--mbe-audience-gradient, linear-gradient(135deg, #35408e 0%, #1e2660 100%));
-  box-shadow: 0 6px 24px var(--mbe-audience-shadow, rgba(53, 64, 142, 0.2));
+  box-shadow: var(--card-shadow);
   color: #ffffff;
   transition: background 0.35s ease, box-shadow 0.35s ease;
   animation: mbe-bannerIn 0.3s ease;
@@ -127,10 +127,10 @@
   align-items: stretch;
   gap: 0;
   background: #ffffff;
-  border: 1px solid #d8ddf0;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 5px 6px;
-  box-shadow: 0 2px 8px rgba(34, 41, 91, 0.07);
+  box-shadow: var(--card-shadow);
   overflow-x: auto;
 }
 
@@ -192,9 +192,9 @@
 ════════════════════════════════════════════════════════════════════ */
 .mbe-card {
   background: #ffffff;
-  border: 1px solid #cfd6ee;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(34, 41, 91, 0.07);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   animation: mbe-tabIn 0.22s ease;
 }
@@ -301,9 +301,10 @@
   align-items: flex-start;
   gap: 6px;
   padding: 18px 20px;
-  border: 2px solid #d8ddf0;
-  border-radius: 12px;
+  border: 2px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #f9faff;
+  box-shadow: var(--card-shadow);
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   overflow: hidden;
@@ -425,8 +426,9 @@
   gap: 14px;
   padding: 18px;
   border: 1px solid var(--mbe-audience-border, #c7d2fe);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   background: var(--mbe-audience-soft, #eef2ff);
+  box-shadow: var(--card-shadow);
 }
 
 .mbe-alumni-settings h3 {
@@ -816,11 +818,11 @@
 }
 
 .mbe-question-card {
-  border: 1px solid #d8def2;
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #ffffff;
   padding: 18px 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--card-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -920,11 +922,11 @@
 .mbe-group-set-box {
   display: flex;
   flex-direction: column;
-  border: 1px solid #d8def2;
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #ffffff;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--card-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -1087,10 +1089,10 @@
 ════════════════════════════════════════════════════════════════════ */
 .mbe-table-wrap {
   background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e4e7ec;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--card-shadow);
 }
 
 .mbe-table {

@@ -33,9 +33,9 @@
 
 .dashboard-box {
   background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid rgba(53, 64, 142, 0.37);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   /* border: 1px solid red; */
@@ -79,9 +79,10 @@
 }
 
 .metric-card {
-  border: 1px solid #e1e3ed;
+  border: 1px solid var(--card-border);
   border-top-width: 5px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   text-align: center;
   padding: 12px 0;
 }
@@ -150,9 +151,9 @@
 /* TABLE SECTIONS */
 .dashboard-table-section {
   background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid rgba(53, 64, 142, 0.37);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   margin: 1em 0;
   overflow: hidden;
 }
@@ -326,12 +327,6 @@
   border-bottom: none;
 }
 
-.dashboard-pc-main .dashboard-box {
-  border: 1px solid rgba(53, 64, 142, 0.37);
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
 .dashboard-pc-header {
   margin: -20px -20px 20px;
   padding: 18px 32px 11px;
@@ -383,9 +378,10 @@
 }
 
 .question-count-card {
-  border: 1px solid #e1e3ed;
+  border: 1px solid var(--card-border);
   border-top-width: 5px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 12px 0;
   padding: 12px 0;
   background-color: #35408e;
@@ -661,7 +657,7 @@
   color: #8c96ae;
   border-top: 1px solid #f1f2f7;
   background: #fafbff;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
 }
 
 .pc-notice-link {

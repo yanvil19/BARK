@@ -81,8 +81,9 @@
   gap: 16px;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-list-header {
@@ -103,9 +104,10 @@
 
 .br-table-wrapper {
   overflow-x: auto;
-  border-radius: 6px;
-  border: 1px solid #dbe0f4;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .br-table {
@@ -257,8 +259,9 @@
   align-items: flex-end;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-controls .form-group {
@@ -355,8 +358,9 @@
   gap: 8px;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-entries-header {
@@ -645,10 +649,11 @@
   align-items: center;
   gap: 6px;
   padding: 16px 20px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   min-width: 110px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
 }
 
 .stat-card.success {

@@ -5,10 +5,10 @@
 
 .ui-table-card {
   background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.24);
-  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
   margin: 20px 0;
 }
 
@@ -24,10 +24,10 @@
   margin: 0 0 20px;
   padding: 14px 20px;
   background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.24);
+  border: 1px solid var(--card-border);
   border-top-color: #edf0f5;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .ui-table-scroll {

@@ -815,10 +815,10 @@
   flex-wrap: wrap;
   gap: 2px;
   background: #ffffff;
-  border: 1px solid #dce3f8;
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 8px 10px;
-  box-shadow: 0 2px 8px rgba(53, 64, 142, 0.08);
+  box-shadow: var(--card-shadow);
   width: 100%;
   box-sizing: border-box;
 }

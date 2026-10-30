@@ -2,7 +2,6 @@
   --ae-navy: #1e2d6b;
   --ae-yellow: #f5c518;
   --ae-border: rgba(30, 45, 107, 0.18);
-  --ae-shadow: 0 10px 26px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06);
   --ae-muted: #6b7280;
   --ae-bg: #f2f4fb;
 }
@@ -53,9 +52,9 @@
 
 .ae-card {
   background: #ffffff;
-  border: 1px solid rgba(30, 45, 107, 0.18);
-  border-radius: 8px;
-  box-shadow: var(--ae-shadow);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;

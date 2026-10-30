@@ -81,11 +81,11 @@
 
 .qp-table-wrap {
   background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e4e7ec;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
   overflow: hidden;
   margin: 0 0 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--card-shadow);
 }
 
 .qp-table {
