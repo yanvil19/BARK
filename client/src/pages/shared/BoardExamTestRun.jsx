@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
+import SafeHtml from '../../components/SafeHtml.jsx';
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
@@ -218,7 +219,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
                     <span>Question Set Scenario</span>
                   </div>
                   {currentQuestion.groupContext && (
-                    <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                    <SafeHtml tag="div" className="mbep-group-context-text" html={currentQuestion.groupContext} />
                   )}
                   <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
                 </div>
@@ -226,9 +227,11 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
               <div className="mbep-question-title">
                 Question {currentIdx + 1}
                 {currentQuestion.description && (
-                  <p style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}>
-                    {currentQuestion.description}
-                  </p>
+                  <SafeHtml
+                    tag="p"
+                    style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}
+                    html={currentQuestion.description}
+                  />
                 )}
               </div>
 
@@ -277,7 +280,7 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
                     >
                       <div className="mbep-option-circle">{answer.optionLabel}</div>
                       <div className="mbep-option-text">
-                        {answer.text}
+                        <SafeHtml html={answer.text} />
                         <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
                       </div>
                       {showCorrect && <span style={{ marginLeft: 'auto', color: '#22c55e', fontWeight: 700, fontSize: '12px' }}>CORRECT</span>}

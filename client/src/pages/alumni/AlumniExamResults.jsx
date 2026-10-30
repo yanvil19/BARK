@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
+import SafeHtml, { stripHtml } from '../../components/SafeHtml.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import '../../styles/shared/QuestionApprovals.css';
@@ -52,7 +53,8 @@ function getQuestionTitle(question, index) {
 }
 
 function getQuestionPreview(question, index) {
-  return question?.title || question?.description || `Question ${index + 1}`;
+  const text = question?.title || stripHtml(question?.description);
+  return text || `Question ${index + 1}`;
 }
 
 function resolveImageSrc(image) {
@@ -335,15 +337,15 @@ function QuestionReview({ questions, onZoomImage }) {
                         <span>Question Set Scenario / Shared Passage</span>
                       </div>
                       {question.groupContext && (
-                        <div className="mbep-group-context-text">{question.groupContext}</div>
+                        <SafeHtml tag="div" className="mbep-group-context-text" html={question.groupContext} />
                       )}
                       <PassageImages images={question.groupContextImages} onZoom={onZoomImage} />
                     </div>
                   )}
 
-                  {(titleText || !descriptionText) && <h3>{titleText || getQuestionTitle(question, index)}</h3>}
-                  {titleText && descriptionText && descriptionText !== titleText && (
-                    <p className="aer-question-description">{descriptionText}</p>
+                  {titleText && <h3>{titleText}</h3>}
+                  {descriptionText && (
+                    <SafeHtml tag="div" className="aer-question-description" html={descriptionText} />
                   )}
 
                   {Array.isArray(question.images) && question.images.length > 0 && (
@@ -373,7 +375,7 @@ function QuestionReview({ questions, onZoomImage }) {
                       return (
                         <div key={answerId || answer.text} className={`aer-answer-row ${correct ? 'correct' : ''} ${selected ? 'selected' : ''}`}>
                           <span>
-                            {answer.text || 'Untitled answer'}
+                            <SafeHtml html={answer.text} fallback="Untitled answer" />
                             <AnswerImage src={answer.image} alt="Answer image" onZoom={onZoomImage} className="answer-image--block" />
                           </span>
                           <div className="aer-answer-tags">
@@ -387,9 +389,11 @@ function QuestionReview({ questions, onZoomImage }) {
                   {question.rationalization && (
                     <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#f0f4f8', borderRadius: '8px', border: '1px solid #d9e2ec' }}>
                       <h4 style={{ margin: '0 0 8px 0', fontSize: '0.875rem', color: '#102a43', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Rationalization</h4>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: '#334e68', lineHeight: 1.5 }}>
-                        {question.rationalization}
-                      </p>
+                      <SafeHtml
+                        tag="div"
+                        style={{ margin: 0, fontSize: '0.875rem', color: '#334e68', lineHeight: 1.5 }}
+                        html={question.rationalization}
+                      />
                     </div>
                   )}
                 </div>

@@ -1,6 +1,8 @@
 import AuthImage from '../components/AuthImage.jsx';
 import AnswerImage from './AnswerImage.jsx';
 import FieldCheck from './FieldCheck.jsx';
+import RichTextEditor from './RichTextEditor.jsx';
+import { stripHtml } from './SafeHtml.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { apiAuth, apiAuthUpload } from '../lib/api.js';
@@ -95,9 +97,9 @@ function countAnswerImages(answers) {
 function getFieldChecks(q) {
   return {
     subject: Boolean(q.tagId),
-    description: (q.description || '').trim() !== '',
-    answers: q.answers.length >= 4 && q.answers.length <= 5 && q.answers.every((a) => a.text.trim() !== ''),
-    rationalization: (q.rationalization || '').trim() !== '',
+    description: stripHtml(q.description || '').trim() !== '',
+    answers: q.answers.length >= 4 && q.answers.length <= 5 && q.answers.every((a) => stripHtml(a.text).trim() !== ''),
+    rationalization: stripHtml(q.rationalization || '').trim() !== '',
     images: q.uploadedUrls.length > 0 && q.uploadingCount === 0,
   };
 }
@@ -658,7 +660,7 @@ export default function QuestionForm({
     }
 
     // 1. Content Flags
-    if (!q.description.trim()) {
+    if (!stripHtml(q.description).trim()) {
       flags.push({ severity: 'ERROR', message: 'Question text cannot be empty', field: 'description' });
     }
     if (!q.tagId) {
@@ -667,7 +669,7 @@ export default function QuestionForm({
 
     // 2. Option Count Flags (Exactly 4 or 5)
     // Only count non-empty answers
-    const filledOptions = q.answers.filter(a => a.text.trim() !== '').length;
+    const filledOptions = q.answers.filter(a => stripHtml(a.text).trim() !== '').length;
     if (filledOptions === 0) {
       flags.push({ severity: 'BLOCKER', message: 'At least one answer is required', field: 'answers', type: 'no_answers' });
     }
@@ -678,7 +680,7 @@ export default function QuestionForm({
     }
 
     // Answer images are optional, but every choice needs its text
-    const imageOnlyIdx = q.answers.findIndex(a => a.image && !a.text.trim());
+    const imageOnlyIdx = q.answers.findIndex(a => a.image && !stripHtml(a.text).trim());
     if (imageOnlyIdx !== -1) {
       flags.push({ severity: 'BLOCKER', message: `Answer ${imageOnlyIdx + 1} has an image but no text.`, field: 'answers', type: 'answer_image_without_text' });
     }
@@ -701,20 +703,20 @@ export default function QuestionForm({
       flags.push({ severity: 'BLOCKER', message: 'No correct answer selected', field: 'correct', type: 'no_correct_answer' });
     } else if (correctAnswers.length > 1) {
       flags.push({ severity: 'ERROR', message: 'Multiple correct answers selected.' });
-    } else if (!correctAnswers[0].text.trim() && !correctAnswers[0].image) {
+    } else if (!stripHtml(correctAnswers[0].text).trim() && !correctAnswers[0].image) {
       // Empty rows are dropped on save, so an empty correct answer would leave none selected
       flags.push({ severity: 'BLOCKER', message: 'The correct answer is empty.', field: 'correct', type: 'empty_correct_answer' });
     }
 
     // 4. Duplicate Answer Text
-    const texts = q.answers.map(a => a.text.trim().toLowerCase()).filter(t => t !== '');
+    const texts = q.answers.map(a => stripHtml(a.text).trim().toLowerCase()).filter(t => t !== '');
     const uniqueTexts = new Set(texts);
     if (uniqueTexts.size < texts.length) {
       flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected', field: 'answers', type: 'duplicate_answers' });
     }
 
     // 5. Rationalization Required
-    if (!q.rationalization || !q.rationalization.trim()) {
+    if (!q.rationalization || !stripHtml(q.rationalization).trim()) {
       flags.push({ severity: 'BLOCKER', message: 'Rationalization is required.', field: 'rationalization', type: 'missing_rationalization' });
     }
 
@@ -746,7 +748,7 @@ export default function QuestionForm({
       const prefix = questionsData.length > 1 ? `Question ${i + 1}: ` : '';
 
       // Check if question prompt / body is entered
-      if (!q.description || !q.description.trim()) {
+      if (!q.description || !stripHtml(q.description).trim()) {
         return `${prefix}Question prompt / description is required.`;
       }
 
@@ -1119,12 +1121,12 @@ export default function QuestionForm({
 
           <div className="qf-section-body">
             <div className="qf-field">
-              <textarea
-                aria-label="Question"
+              <RichTextEditor
+                ariaLabel="Question"
                 placeholder="Write the full question here..."
                 value={q.description}
-                onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, description: e.target.value }))}
-                rows={5}
+                onChange={(html) => updateQuestion(q.id, curr => ({ ...curr, description: html }))}
+                minRows={5}
                 disabled={readOnly}
               />
             </div>
@@ -1237,12 +1239,15 @@ export default function QuestionForm({
                     </label>
 
                     <div className="qf-answer-main">
-                      <AnswerTextInput
-                        className="qf-answer-input"
+                      <RichTextEditor
+                        className="rte-answer"
                         placeholder={`Answer ${idx + 1}`}
                         value={answer.text}
-                        onChange={(text) => setAnswerText(q.id, idx, text)}
+                        onChange={(html) => setAnswerText(q.id, idx, html)}
                         disabled={readOnly}
+                        singleLine
+                        minRows={1}
+                        ariaLabel={`Answer ${idx + 1}`}
                       />
 
                       {answer.image ? (
@@ -1316,15 +1321,17 @@ export default function QuestionForm({
             <p className="qf-section-hint">
               {readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}
             </p>
-            <textarea
-              className="qf-rationalization-textarea"
-              aria-label="Rationalization"
-              placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
-              value={q.rationalization || ''}
-              onChange={(e) => updateQuestion(q.id, curr => ({ ...curr, rationalization: e.target.value }))}
-              rows={4}
-              disabled={readOnly}
-            />
+            <div className="qf-field">
+              <RichTextEditor
+                className="qf-rationalization-editor"
+                ariaLabel="Rationalization"
+                placeholder="Provide a clear explanation of why the correct answer is correct, and why the other options are incorrect..."
+                value={q.rationalization || ''}
+                onChange={(html) => updateQuestion(q.id, curr => ({ ...curr, rationalization: html }))}
+                minRows={4}
+                disabled={readOnly}
+              />
+            </div>
           </div>
         </section>
 
@@ -1477,12 +1484,12 @@ export default function QuestionForm({
                   : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.'}
               </p>
               <div className="qf-field">
-                <textarea
-                  aria-label="Shared passage"
+                <RichTextEditor
+                  ariaLabel="Shared passage"
                   placeholder={readOnly ? 'No shared context provided.' : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."}
                   value={groupContext}
-                  onChange={e => setGroupContext(e.target.value)}
-                  rows={3}
+                  onChange={setGroupContext}
+                  minRows={3}
                   disabled={readOnly}
                 />
               </div>

@@ -865,6 +865,18 @@ textarea.qf-answer-input {
   opacity: 1;
 }
 
+/* Rationalization RichTextEditor: seamlessly aligns with Question editor */
+.qf-field .qf-rationalization-editor.rte-wrapper {
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.qf-field .qf-rationalization-editor.rte-wrapper:focus-within {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
+}
+
 /* ─── Grouped Questions Mode ─────────────────────────────────── */
 .qf-mode-toggle {
   display: flex;
