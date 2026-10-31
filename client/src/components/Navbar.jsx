@@ -186,6 +186,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
           <>
             <button className={cls('schoolsPrograms')} onClick={handle('schoolsPrograms')}>Schools and Programs</button>
             <button className={cls('adminUsers')} onClick={handle('adminUsers')}>User Management</button>
+            <button className={cls('adminMetrics')} onClick={handle('adminMetrics')}>System Metrics</button>
             <button className={cls('adminSettings')} onClick={handle('adminSettings')}>Settings</button>
           </>
         )}

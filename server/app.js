@@ -17,10 +17,14 @@ const alumniExamRoutes = require('./routes/alumniExamRoutes');
 const mockExamResultRoutes = require('./routes/mockExamResultRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const sseRoutes = require('./routes/sseRoutes');
+const { requestMetricsMiddleware } = require('./services/requestMetrics');
 
 const app = express();
 
 app.set('trust proxy', 1);
+
+// First, so every response is timed (including CORS and security-header rejections)
+app.use(requestMetricsMiddleware);
 
 app.use(helmet({
     contentSecurityPolicy: {

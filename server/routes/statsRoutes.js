@@ -8,6 +8,7 @@ const {
   getDeanDashboardStats,
   getNavbarBadgeCounts,
 } = require('../controllers/statsController');
+const { getSystemMetrics } = require('../controllers/systemMetricsController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
 router.get(
@@ -21,6 +22,13 @@ router.get(
   protect,
   authorizeRoles('super_admin'),
   getSummaryStats
+);
+
+router.get(
+  '/system-metrics',
+  protect,
+  authorizeRoles('super_admin'),
+  getSystemMetrics
 );
 
 router.get(

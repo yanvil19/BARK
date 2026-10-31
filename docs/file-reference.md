@@ -79,6 +79,11 @@ server/controllers/statsController.js
 -> Returns aggregate summary statistics (user counts, question counts, exam counts, audit log entries) used on dashboards and the public landing page.
 
 ```
+server/controllers/systemMetricsController.js
+```
+-> Super-admin System Metrics endpoint (`GET /api/stats/system-metrics?range=1h|24h|7d`): request traffic and response times, users active in the last 5 minutes / 24 hours, server and database health, and 14-day exam-attempt and audit-log counts.
+
+```
 server/controllers/studentExamController.js
 ```
 -> Manages the full student exam attempt lifecycle: start, save progress, submit, auto-submit on time expiry, and retrieve individual attempt results with shuffled questions. The available-exams list includes `publishedAt` and `publishedByName` (falling back to the creator and creation time for exams published before publish tracking) for the dashboard announcements.
@@ -155,7 +160,7 @@ server/routes/sseRoutes.js
 ```
 server/routes/statsRoutes.js
 ```
--> Mounts the public summary stats endpoint used on the landing page and dashboards.
+-> Mounts the public summary stats endpoint used on the landing page and dashboards, plus the super-admin `/system-metrics` endpoint.
 
 ```
 server/routes/studentExamRoutes.js
@@ -195,6 +200,11 @@ server/models/StudentExamAttempt.js
 server/models/AlumniExamAttempt.js
 ```
 -> Mongoose schema for an alumni exam attempt; mirrors StudentExamAttempt but allows unlimited attempts per exam with an incrementing `attemptNumber` field.
+
+```
+server/models/RequestMetric.js
+```
+-> One document per minute of API traffic: request count, 4xx/5xx counts, total and slowest response time, a latency histogram, and the same counters per route pattern. A TTL index deletes minutes older than 7 days.
 
 ```
 server/models/MockExamResult.js
@@ -259,6 +269,11 @@ server/services/examExpiryJob.js
 server/services/examScheduleConflictService.js
 ```
 -> Checks whether a new exam's scheduled window overlaps with any existing draft/published/ongoing student exam in the same program, returning conflicting exam details.
+
+```
+server/services/requestMetrics.js
+```
+-> Express middleware that times every API request and groups it by route pattern (never raw URLs, query strings or bodies), adds the totals to `RequestMetric` every 30 seconds, measures event loop delay, and builds the time series, percentiles and per-endpoint table for the metrics page. Skips `/`, `/health`, CORS preflights and SSE streams.
 
 ```
 server/services/calendarService.js
@@ -470,6 +485,11 @@ server/tests/userManagement.test.js
 ```
 -> Tests super-admin user management: list, activate/deactivate, delete users, and role-based filtering.
 
+```
+server/tests/systemMetrics.test.js
+```
+-> Tests the System Metrics endpoint: super-admin-only access, range validation, route-pattern recording (no raw IDs or query strings), skipped health checks, per-minute upserts, active-user and audit-log counts, and the latency percentile estimate.
+
 ---
 
 ### Config Files
@@ -557,6 +577,11 @@ client/src/pages/superadmin/SAdminUsers.jsx
 client/src/pages/superadmin/SAdminSettings.jsx
 ```
 -> Settings panel for configuring global app settings (email cooldown, password cooldown, max image uploads) with a pending-update countdown UI driven by SSE.
+
+```
+client/src/pages/superadmin/SAdminMetrics.jsx
+```
+-> System Metrics page for super admins: live tiles (active users, live connections, uptime, database response), request charts by outcome and response time with a 1h/24h/7d range filter, an endpoints table, 14-day activity charts, and server health. Every chart can switch to a table view; refreshes every 30 seconds.
 
 ---
 
@@ -1136,6 +1161,11 @@ client/src/styles/superadmin/SAdminSchoolsPrograms.css
 client/src/styles/superadmin/SAdminSettings.css
 ```
 -> Styles for the admin settings page including the countdown warning card.
+
+```
+client/src/styles/superadmin/SAdminMetrics.css
+```
+-> Styles for the System Metrics page: stat tiles, chart cards with the chart/table switch, legends, the endpoints table and the server facts grid.
 
 ```
 client/src/styles/superadmin/SAdminUsers.css

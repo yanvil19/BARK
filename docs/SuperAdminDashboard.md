@@ -18,6 +18,22 @@ The Super Admin Dashboard serves as the central command center for the NU-BOARD 
    - Compact overview of the academic structure.
    - Direct access to the activation/deactivation management suite.
 
+## System Metrics Page
+A separate **System Metrics** page (navbar, between User Management and Settings) covers live system health. It reads `GET /api/stats/system-metrics?range=1h|24h|7d` and refreshes every 30 seconds.
+
+- **Right now**: users active in the last 5 minutes (by role) and the last 24 hours (from the heartbeat), live SSE connections, server uptime, database response time.
+- **Requests** (1h / 24h / 7d): request count, 5xx and 4xx rates, response time percentiles, a requests-by-outcome chart, a response-time chart, and an endpoints table sortable by usage, slowness, or errors.
+- **Platform activity** (last 14 days): exam attempts started (students vs alumni) and audit log entries per day.
+- **Server**: memory, event loop delay, Node.js version.
+
+### How requests are recorded
+- `server/services/requestMetrics.js` times every request and adds it to an in-memory per-minute summary. Every 30 seconds (and on shutdown) the summaries are added to the `requestmetrics` collection, one document per minute.
+- Only route patterns are stored (`GET /api/questions/:id`), never raw URLs, IDs, query strings, or request bodies, so the data-privacy mandate above still holds.
+- `/`, `/health`, CORS preflights and SSE streams are skipped so uptime pings and long-lived connections don't skew the numbers.
+- A TTL index deletes minutes older than 7 days, which keeps the collection small next to the 512MB database limit.
+- Response time percentiles are estimated from a fixed latency histogram (10ms to 10s buckets), so they are approximate.
+- Each server instance records its own traffic; documents are updated with `$inc`, so several instances add up correctly.
+
 ## Planned Enhancements
 - **Audit Logs**: Tracking administrative changes (role updates, status toggles) for security auditing.
 - **Broadcast Tool**: System-wide announcements for all active users.
