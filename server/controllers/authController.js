@@ -11,6 +11,7 @@ const { validateStudentId, validateAlumniId } = require('../utils/idFormats');
 const { logAudit } = require('../utils/auditLogger');
 const { sendEmail } = require('../utils/emailService');
 const { welcomeCredentialsHtml } = require('../emails/templates/welcomeCredentialsTemplate');
+const { recordFailedLogin, recordSuccessfulLogin } = require('../middleware/loginIpRateLimit');
 
 const BULK_REGISTER_MAX_ENTRIES = 500;
 const bulkRegistrationBatches = new Map();
@@ -368,6 +369,7 @@ const loginUser = async (req, res) => {
       // responses take the same amount of time (prevents email enumeration
       // via timing differences).
       await bcrypt.compare(String(password), DUMMY_HASH);
+      recordFailedLogin(req);
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
@@ -408,6 +410,8 @@ const loginUser = async (req, res) => {
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      recordFailedLogin(req);
+
       // Increment cumulative failed-attempt counter
       user.loginFailedAttempts = (user.loginFailedAttempts || 0) + 1;
       user.loginLastFailedAt = new Date();
@@ -438,6 +442,7 @@ const loginUser = async (req, res) => {
     // -----------------------------------------------------------------------
     // Successful login — clear lockout counters
     // -----------------------------------------------------------------------
+    recordSuccessfulLogin(req);
     user.loginFailedAttempts = 0;
     user.loginLockedUntil = null;
     user.loginLastFailedAt = null;

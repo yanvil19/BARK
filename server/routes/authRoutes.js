@@ -51,7 +51,8 @@ function isValidEmail(email) {
 
 // @route   POST /api/auth/login
 // @access  Public
-// IP flood guard (25 req / 15 min per IP) + per-account lockout inside loginUser
+// Per-IP limit on failed and in-progress attempts (successful logins never count,
+// so a shared campus network is fine) + per-account lockout inside loginUser
 router.post('/login', loginIpRateLimiter, loginUser);
 
 // @route   POST /api/auth/logout

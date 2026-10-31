@@ -136,10 +136,6 @@
   gap: 16px;
 }
 
-.sam-tiles--four {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-}
-
 .sam-tile {
   display: flex;
   flex-direction: column;
@@ -198,6 +194,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.sam-card--wide {
+  grid-column: 1 / -1;
 }
 
 .sam-card {
@@ -450,7 +450,7 @@
 
 .sam-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin: 0;
 }
@@ -479,6 +479,10 @@
   .sam-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .sam-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -487,10 +491,14 @@
     justify-content: space-between;
   }
 
-  .sam-tiles,
-  .sam-tiles--four {
+  .sam-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  /* An odd last tile takes the full row instead of leaving a gap */
+  .sam-tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .sam-tile-value {

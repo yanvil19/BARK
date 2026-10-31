@@ -119,6 +119,7 @@ function getServerHealth() {
       heapTotalMB: toMB(memory.heapTotal),
     },
     eventLoopDelay: requestMetrics.getEventLoopDelay(),
+    cpu: requestMetrics.getCpuUsage(),
     liveConnections: settingsManager.facultyClients.size,
   };
 }

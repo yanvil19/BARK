@@ -46,6 +46,7 @@ describe('GET /api/stats/system-metrics access', () => {
       expect(res.body).toHaveProperty('users.now');
       expect(res.body).toHaveProperty('server.uptimeSec');
       expect(res.body).toHaveProperty('server.database.state', 'connected');
+      expect(res.body).toHaveProperty('server.cpu.capacityCores');
       expect(res.body.activity.days).toHaveLength(14);
     }
   });
@@ -102,6 +103,33 @@ describe('request recording', () => {
     expect(docs[0].routes['GET /api/example'].count).toBe(2);
   });
 
+  it('counts 429 responses on their own as well as with client errors', async () => {
+    requestMetrics.record('POST /api/auth/login', 429, 4);
+    requestMetrics.record('POST /api/auth/login', 429, 4);
+    requestMetrics.record('POST /api/auth/login', 401, 80);
+
+    const res = await getMetrics();
+    const { totals, routes, series } = res.body.requests;
+    expect(totals).toMatchObject({ rateLimited: 2, clientErrors: 3 });
+    expect(totals.rateLimitedRate).toBeCloseTo(2 / 3);
+    expect(routes.find((r) => r.route === 'POST /api/auth/login')).toMatchObject({ count: 3, clientErrors: 3, rateLimited: 2 });
+    expect(series.reduce((sum, point) => sum + point.rateLimited, 0)).toBe(2);
+  });
+
+  it('records the 429s the login limit sends', async () => {
+    const { UNSUCCESSFUL_LIMIT, resetLoginRateLimitForTests } = require('../middleware/loginIpRateLimit');
+    resetLoginRateLimitForTests();
+    // The limit lets this many unsuccessful attempts through, then blocks the next one
+    for (let i = 0; i <= UNSUCCESSFUL_LIMIT; i += 1) {
+      await request(app).post('/api/auth/login').send({ email: 'not-an-email', password: 'x' });
+    }
+    resetLoginRateLimitForTests();
+
+    const res = await getMetrics();
+    const loginRoute = res.body.requests.routes.find((r) => r.route === 'POST /api/auth/login');
+    expect(loginRoute.rateLimited).toBe(1);
+  });
+
   it('keeps route keys containing dots readable', async () => {
     requestMetrics.record('GET /api/files/:name.pdf', 200, 5);
     const res = await getMetrics();
@@ -120,6 +148,34 @@ describe('request recording', () => {
     expect(day.body.requests.routes.map((r) => r.route)).toEqual(
       expect.arrayContaining(['GET /api/old', 'GET /api/new'])
     );
+  });
+});
+
+describe('CPU use', () => {
+  it('adds CPU time to the current minute and reports the latest reading', async () => {
+    requestMetrics.sampleCpu();
+    const busyUntil = Date.now() + 60;
+    while (Date.now() < busyUntil) {
+      // keep the CPU busy so there is something to measure
+    }
+    requestMetrics.sampleCpu();
+
+    const res = await getMetrics();
+    const readings = res.body.requests.series.filter((point) => point.cpuPct !== null);
+    expect(readings).toHaveLength(1);
+    expect(readings[0].cpuPct).toBeGreaterThan(0);
+    expect(readings[0].cpuPeakPct).toBeGreaterThan(0);
+    expect(res.body.requests.totals.cpuAvgPct).toBeGreaterThan(0);
+    expect(res.body.requests.totals.cpuPeakPct).toBeGreaterThan(0);
+    expect(res.body.server.cpu.percent).toBeGreaterThan(0);
+  });
+
+  it('reports no reading for minutes without one', async () => {
+    requestMetrics.record('GET /api/example', 200, 5);
+    const res = await getMetrics();
+    expect(res.body.requests.series.every((point) => point.cpuPct === null)).toBe(true);
+    expect(res.body.requests.totals.cpuAvgPct).toBeNull();
+    expect(res.body.server.cpu.percent).toBeNull();
   });
 });
 

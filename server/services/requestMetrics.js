@@ -1,11 +1,12 @@
+const fs = require('node:fs');
 const mongoose = require('mongoose');
 const { monitorEventLoopDelay } = require('node:perf_hooks');
 const RequestMetric = require('../models/RequestMetric');
 
 // Records how long every API request takes and how it ended, in memory, and
-// periodically adds the totals to one RequestMetric document per minute.
-// Only route patterns ("GET /api/questions/:id") are kept, never raw URLs,
-// query strings, or bodies.
+// periodically adds the totals to one RequestMetric document per minute, along
+// with how much CPU the server used. Only route patterns
+// ("GET /api/questions/:id") are kept, never raw URLs, query strings, or bodies.
 
 // Upper bounds (ms) of the latency histogram buckets; one more bucket holds anything slower.
 const LATENCY_BOUNDS_MS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
@@ -36,11 +37,24 @@ let flushing = null;
 let flushTimer = null;
 let loopDelay = null;
 let loopDelaySnapshot = null;
+let cpuCapacityCores = 1;
+let cpuMark = null; // CPU time and clock reading at the previous sample
+let cpuSnapshot = null;
 
 // ─── Recording ───────────────────────────────────────────────────────────────
 
 function emptyStats() {
-  return { count: 0, clientErrors: 0, serverErrors: 0, totalMs: 0, maxMs: 0, hist: {} };
+  return { count: 0, clientErrors: 0, serverErrors: 0, rateLimited: 0, totalMs: 0, maxMs: 0, hist: {} };
+}
+
+function pendingMinute(now) {
+  const minute = now - (now % MINUTE_MS);
+  let bucket = pending.get(minute);
+  if (!bucket) {
+    bucket = { ...emptyStats(), cpuMs: 0, cpuCapacityMs: 0, routes: new Map() };
+    pending.set(minute, bucket);
+  }
+  return bucket;
 }
 
 function histBucketIndex(ms) {
@@ -52,6 +66,8 @@ function addSample(stats, status, ms, histKey) {
   stats.count += 1;
   if (status >= 500) stats.serverErrors += 1;
   else if (status >= 400) stats.clientErrors += 1;
+  // "Too Many Requests": turned away by a rate limit or an account lockout. Also counted in clientErrors.
+  if (status === 429) stats.rateLimited += 1;
   stats.totalMs += ms;
   if (ms > stats.maxMs) stats.maxMs = ms;
   stats.hist[histKey] = (stats.hist[histKey] || 0) + 1;
@@ -61,6 +77,7 @@ function mergeStats(target, source) {
   target.count += source.count;
   target.clientErrors += source.clientErrors;
   target.serverErrors += source.serverErrors;
+  target.rateLimited += source.rateLimited;
   target.totalMs += source.totalMs;
   target.maxMs = Math.max(target.maxMs, source.maxMs);
   for (const [key, n] of Object.entries(source.hist)) {
@@ -82,13 +99,7 @@ function getRouteKey(req) {
 }
 
 function record(routeKey, status, ms, now = Date.now()) {
-  const minute = now - (now % MINUTE_MS);
-  let bucket = pending.get(minute);
-  if (!bucket) {
-    bucket = { ...emptyStats(), routes: new Map() };
-    pending.set(minute, bucket);
-  }
-
+  const bucket = pendingMinute(now);
   const histKey = HIST_KEYS[histBucketIndex(ms)];
   addSample(bucket, status, ms, histKey);
 
@@ -136,6 +147,7 @@ function addUpdateOps(inc, max, prefix, stats) {
   inc[`${prefix}count`] = stats.count;
   if (stats.clientErrors) inc[`${prefix}clientErrors`] = stats.clientErrors;
   if (stats.serverErrors) inc[`${prefix}serverErrors`] = stats.serverErrors;
+  if (stats.rateLimited) inc[`${prefix}rateLimited`] = stats.rateLimited;
   inc[`${prefix}totalMs`] = roundMs(stats.totalMs);
   max[`${prefix}maxMs`] = roundMs(stats.maxMs);
   for (const [key, n] of Object.entries(stats.hist)) inc[`${prefix}hist.${key}`] = n;
@@ -146,6 +158,10 @@ function buildBulkOps(batch) {
     const inc = {};
     const max = {};
     addUpdateOps(inc, max, '', bucket);
+    if (bucket.cpuCapacityMs > 0) {
+      inc.cpuMs = roundMs(bucket.cpuMs);
+      inc.cpuCapacityMs = roundMs(bucket.cpuCapacityMs);
+    }
     for (const [routeKey, stats] of bucket.routes) {
       addUpdateOps(inc, max, `routes.${encodeRouteKey(routeKey)}.`, stats);
     }
@@ -168,6 +184,8 @@ function requeue(batch) {
       continue;
     }
     mergeStats(current, bucket);
+    current.cpuMs += bucket.cpuMs;
+    current.cpuCapacityMs += bucket.cpuCapacityMs;
     for (const [key, stats] of bucket.routes) {
       const existing = current.routes.get(key);
       if (existing) mergeStats(existing, stats);
@@ -233,14 +251,78 @@ function getEventLoopDelay() {
   return loopDelaySnapshot || readLoopDelay();
 }
 
+// ─── CPU ─────────────────────────────────────────────────────────────────────
+
+function toPercent(part, whole) {
+  return whole > 0 ? Math.round((part / whole) * 1000) / 10 : null;
+}
+
+function readTextFile(path) {
+  try {
+    return fs.readFileSync(path, 'utf8').trim();
+  } catch {
+    return null;
+  }
+}
+
+// The container's CPU quota in cores (Render and Docker set one), or null when there's no limit
+function readCpuQuotaCores() {
+  if (process.platform !== 'linux') return null;
+  const v2 = readTextFile('/sys/fs/cgroup/cpu.max'); // "<quota> <period>", or "max <period>" for no limit
+  if (v2) {
+    const [quota, period] = v2.split(/\s+/).map(Number);
+    return quota > 0 && period > 0 ? quota / period : null;
+  }
+  const quota = Number(readTextFile('/sys/fs/cgroup/cpu/cpu.cfs_quota_us'));
+  const period = Number(readTextFile('/sys/fs/cgroup/cpu/cpu.cfs_period_us'));
+  return quota > 0 && period > 0 ? quota / period : null;
+}
+
+// How much CPU the server can use, in cores. JavaScript runs on one thread, so
+// one core is the most it can keep busy even when the machine has more.
+function detectCpuCapacityCores() {
+  const quota = readCpuQuotaCores();
+  return quota ? Math.min(quota, 1) : 1;
+}
+
+// Adds the CPU time used since the previous sample to the current minute
+function sampleCpu(now = Date.now()) {
+  const at = process.hrtime.bigint();
+  const usage = process.cpuUsage();
+  if (cpuMark) {
+    const wallMs = Number(at - cpuMark.at) / 1e6;
+    const cpuMs = (usage.user - cpuMark.usage.user + usage.system - cpuMark.usage.system) / 1000;
+    if (wallMs > 0) {
+      const capacityMs = wallMs * cpuCapacityCores;
+      const bucket = pendingMinute(now);
+      bucket.cpuMs += cpuMs;
+      bucket.cpuCapacityMs += capacityMs;
+      cpuSnapshot = { percent: toPercent(cpuMs, capacityMs), measuredAt: new Date(now) };
+    }
+  }
+  cpuMark = { usage, at };
+}
+
+// CPU use over roughly the last 30 seconds, as a percentage of what the server can use
+function getCpuUsage() {
+  return {
+    capacityCores: cpuCapacityCores,
+    percent: cpuSnapshot ? cpuSnapshot.percent : null,
+    measuredAt: cpuSnapshot ? cpuSnapshot.measuredAt : null,
+  };
+}
+
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
 function start() {
   if (flushTimer) return;
   loopDelay = monitorEventLoopDelay({ resolution: LOOP_DELAY_RESOLUTION_MS });
   loopDelay.enable();
+  cpuCapacityCores = detectCpuCapacityCores();
+  sampleCpu();
   flushTimer = setInterval(() => {
     snapshotLoopDelay();
+    sampleCpu();
     flush().catch(() => {});
   }, FLUSH_INTERVAL_MS);
   flushTimer.unref();
@@ -257,6 +339,8 @@ function resetForTests() {
   pending = new Map();
   flushing = null;
   loopDelaySnapshot = null;
+  cpuMark = null;
+  cpuSnapshot = null;
 }
 
 // ─── Reading ─────────────────────────────────────────────────────────────────
@@ -296,6 +380,7 @@ function summarize(stats) {
     count,
     clientErrors: stats.clientErrors || 0,
     serverErrors: stats.serverErrors || 0,
+    rateLimited: stats.rateLimited || 0,
     avgMs: count ? roundMs(stats.totalMs / count) : null,
     p50Ms: percentileFromHist(stats.hist, 0.5, stats.maxMs),
     p95Ms: percentileFromHist(stats.hist, 0.95, stats.maxMs),
@@ -330,9 +415,18 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
           count: { $sum: '$count' },
           clientErrors: { $sum: '$clientErrors' },
           serverErrors: { $sum: '$serverErrors' },
+          rateLimited: { $sum: '$rateLimited' },
           totalMs: { $sum: '$totalMs' },
           maxMs: { $max: '$maxMs' },
           ...histSumFields('$hist'),
+          cpuMs: { $sum: '$cpuMs' },
+          cpuCapacityMs: { $sum: '$cpuCapacityMs' },
+          // Each document is one minute, so this is the busiest minute in the bucket
+          cpuPeak: {
+            $max: {
+              $cond: [{ $gt: ['$cpuCapacityMs', 0] }, { $divide: ['$cpuMs', '$cpuCapacityMs'] }, null],
+            },
+          },
         },
       },
     ]),
@@ -346,6 +440,7 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
           count: { $sum: '$routes.v.count' },
           clientErrors: { $sum: '$routes.v.clientErrors' },
           serverErrors: { $sum: '$routes.v.serverErrors' },
+          rateLimited: { $sum: '$routes.v.rateLimited' },
           totalMs: { $sum: '$routes.v.totalMs' },
           maxMs: { $max: '$routes.v.maxMs' },
           ...histSumFields('$routes.v.hist'),
@@ -359,17 +454,35 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
 
   const byBucket = new Map(seriesRaw.map((row) => [Number(row._id), row]));
   const totals = emptyStats();
+  const cpuTotals = { cpuMs: 0, cpuCapacityMs: 0, peakPct: null };
 
   const series = Array.from({ length: pointCount }, (_, i) => {
     const t = firstBucket + i * stepMs;
     const row = byBucket.get(t);
     if (!row) {
-      return { t, count: 0, ok: 0, clientErrors: 0, serverErrors: 0, p50Ms: null, p95Ms: null };
+      return {
+        t,
+        count: 0,
+        ok: 0,
+        clientErrors: 0,
+        serverErrors: 0,
+        rateLimited: 0,
+        p50Ms: null,
+        p95Ms: null,
+        cpuPct: null,
+        cpuPeakPct: null,
+      };
     }
+    const cpuPeakPct = typeof row.cpuPeak === 'number' ? Math.round(row.cpuPeak * 1000) / 10 : null;
+    cpuTotals.cpuMs += row.cpuMs || 0;
+    cpuTotals.cpuCapacityMs += row.cpuCapacityMs || 0;
+    if (cpuPeakPct !== null) cpuTotals.peakPct = Math.max(cpuTotals.peakPct ?? 0, cpuPeakPct);
+
     const stats = {
       count: row.count || 0,
       clientErrors: row.clientErrors || 0,
       serverErrors: row.serverErrors || 0,
+      rateLimited: row.rateLimited || 0,
       totalMs: row.totalMs || 0,
       maxMs: row.maxMs || 0,
       hist: pickHist(row),
@@ -382,8 +495,11 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
       ok: summary.count - summary.clientErrors - summary.serverErrors,
       clientErrors: summary.clientErrors,
       serverErrors: summary.serverErrors,
+      rateLimited: summary.rateLimited,
       p50Ms: summary.p50Ms,
       p95Ms: summary.p95Ms,
+      cpuPct: toPercent(row.cpuMs || 0, row.cpuCapacityMs || 0),
+      cpuPeakPct,
     };
   });
 
@@ -399,6 +515,7 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
         count: row.count || 0,
         clientErrors: row.clientErrors || 0,
         serverErrors: row.serverErrors || 0,
+        rateLimited: row.rateLimited || 0,
         totalMs: row.totalMs || 0,
         maxMs: row.maxMs || 0,
         hist: pickHist(row),
@@ -420,7 +537,10 @@ async function getRequestMetrics(rangeKey, now = Date.now()) {
       ...totalSummary,
       serverErrorRate: totalSummary.count ? totalSummary.serverErrors / totalSummary.count : 0,
       clientErrorRate: totalSummary.count ? totalSummary.clientErrors / totalSummary.count : 0,
+      rateLimitedRate: totalSummary.count ? totalSummary.rateLimited / totalSummary.count : 0,
       perMinute: Math.round((totalSummary.count / windowMinutes) * 10) / 10,
+      cpuAvgPct: toPercent(cpuTotals.cpuMs, cpuTotals.cpuCapacityMs),
+      cpuPeakPct: cpuTotals.peakPct,
     },
     series,
     routes,
@@ -438,6 +558,8 @@ module.exports = {
   stop,
   resetForTests,
   getEventLoopDelay,
+  sampleCpu,
+  getCpuUsage,
   getRequestMetrics,
   percentileFromHist,
   getRouteKey,

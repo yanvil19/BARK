@@ -17,13 +17,16 @@ import '../../styles/superadmin/SAdminMetrics.css';
 ChartJS.register(BarElement, CategoryScale, LinearScale, LineElement, PointElement, Tooltip);
 
 // Checked for color-blind separation against the white card surface.
-// Gold sits under 3:1 contrast, so every chart also has a legend and a table view.
+// Gold and pink sit under 3:1 contrast, so every chart also has a legend and a table view.
 const COLORS = {
   ok: '#4a56b0',
   clientError: '#eda100',
+  rateLimited: '#e87ba4',
   serverError: '#d03b3b',
   p95: '#4a56b0',
   p50: '#a3abe3',
+  cpuPeak: '#4a56b0',
+  cpuAverage: '#a3abe3',
   students: '#4a56b0',
   alumni: '#eda100',
   actions: '#4a56b0',
@@ -50,6 +53,7 @@ const SORT_OPTIONS = [
   { value: 'errors', label: 'Most errors' },
 ];
 
+const MINUTE_MS = 60 * 1000;
 const REFRESH_MS = 30 * 1000;
 const ENDPOINT_PREVIEW = 10;
 const FACULTY_ROLES = ['professor', 'program_chair', 'dean'];
@@ -75,6 +79,18 @@ function formatMs(ms) {
   if (ms < 1) return '<1 ms';
   if (ms < 1000) return `${Math.round(ms)} ms`;
   return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined) return '—';
+  if (value > 0 && value < 1) return '<1%';
+  return `${Math.round(value)}%`;
+}
+
+// JavaScript runs on one thread, so one core is the most the server can use; hosts can set a lower limit
+function describeCpuCapacity(cores) {
+  if (!cores || cores >= 1) return 'One core';
+  return `${Number(cores.toFixed(2))} of a core, set by the host`;
 }
 
 function formatRate(rate) {
@@ -119,6 +135,11 @@ function formatBucket(t, stepMs) {
 function formatDayKey(key, options = { month: 'short', day: 'numeric' }) {
   const [year, month, day] = key.split('-').map(Number);
   return new Date(year, month - 1, day).toLocaleDateString([], options);
+}
+
+// The API's clientErrors counts every 4xx, including the 429s shown on their own
+function otherClientErrors(stats) {
+  return Math.max(0, (stats.clientErrors || 0) - (stats.rateLimited || 0));
 }
 
 function plural(n, singular, pluralForm = `${singular}s`) {
@@ -199,7 +220,24 @@ function xTickLimit(width) {
   return 8;
 }
 
-function baseOptions({ labels, tickLimit = 8, stacked = false, yTick = formatCount, tooltip = {} }) {
+function lineStyle(color) {
+  return {
+    borderColor: color,
+    backgroundColor: color,
+    borderWidth: 2,
+    borderCapStyle: 'round',
+    borderJoinStyle: 'round',
+    pointRadius: isolatedPointRadius,
+    pointHoverRadius: 5,
+    pointHoverBorderWidth: 2,
+    pointHoverBorderColor: '#ffffff',
+    pointHitRadius: 12,
+    spanGaps: false,
+    tension: 0,
+  };
+}
+
+function baseOptions({ labels, tickLimit = 8, stacked = false, yTick = formatCount, yMax, tooltip = {} }) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -237,6 +275,7 @@ function baseOptions({ labels, tickLimit = 8, stacked = false, yTick = formatCou
       y: {
         stacked,
         beginAtZero: true,
+        suggestedMax: yMax,
         grid: { color: COLORS.grid },
         border: { display: false },
         ticks: { color: COLORS.axis, font: CHART_FONT, maxTicksLimit: 5, precision: 0, callback: (value) => yTick(value) },
@@ -277,7 +316,7 @@ function Legend({ items }) {
 
 // A chart with a table view of the same numbers, for screen readers and exact values.
 // `children` is a function that receives how many x-axis labels fit.
-function ChartCard({ title, subtitle, legend, table, empty, children }) {
+function ChartCard({ title, subtitle, legend, table, empty, wide = false, children }) {
   const [view, setView] = useState('chart');
   const [tickLimit, setTickLimit] = useState(8);
   const chartRef = useRef(null);
@@ -292,7 +331,7 @@ function ChartCard({ title, subtitle, legend, table, empty, children }) {
   }, [view, empty]);
 
   return (
-    <article className="sam-card">
+    <article className={`sam-card${wide ? ' sam-card--wide' : ''}`}>
       <header className="sam-card-head">
         <div>
           <h3 className="sam-card-title">{title}</h3>
@@ -355,7 +394,8 @@ const OutcomeChart = memo(function OutcomeChart({ series, range, stepMs, tickLim
     labels,
     datasets: [
       { label: 'Successful', data: series.map((p) => p.ok), ...stackedBarStyle(COLORS.ok) },
-      { label: 'Client errors (4xx)', data: series.map((p) => p.clientErrors), ...stackedBarStyle(COLORS.clientError) },
+      { label: 'Other client errors (4xx)', data: series.map(otherClientErrors), ...stackedBarStyle(COLORS.clientError) },
+      { label: 'Blocked (429)', data: series.map((p) => p.rateLimited || 0), ...stackedBarStyle(COLORS.rateLimited) },
       { label: 'Server errors (5xx)', data: series.map((p) => p.serverErrors), ...stackedBarStyle(COLORS.serverError) },
     ],
   };
@@ -376,20 +416,6 @@ const OutcomeChart = memo(function OutcomeChart({ series, range, stepMs, tickLim
 
 const LatencyChart = memo(function LatencyChart({ series, range, stepMs, tickLimit }) {
   const labels = series.map((point) => formatAxisTime(point.t, range));
-  const lineStyle = (color) => ({
-    borderColor: color,
-    backgroundColor: color,
-    borderWidth: 2,
-    borderCapStyle: 'round',
-    borderJoinStyle: 'round',
-    pointRadius: isolatedPointRadius,
-    pointHoverRadius: 5,
-    pointHoverBorderWidth: 2,
-    pointHoverBorderColor: '#ffffff',
-    pointHitRadius: 12,
-    spanGaps: false,
-    tension: 0,
-  });
   const data = {
     labels,
     datasets: [
@@ -405,6 +431,41 @@ const LatencyChart = memo(function LatencyChart({ series, range, stepMs, tickLim
       callbacks: {
         title: (items) => formatBucket(series[items[0].dataIndex].t, stepMs),
         label: (item) => `${item.dataset.label}: ${formatMs(item.raw)}`,
+      },
+      filter: (item) => item.raw !== null,
+    },
+  });
+  return <Line data={data} options={options} plugins={[crosshairPlugin]} />;
+});
+
+// With one-minute buckets the busiest minute and the average are the same number, so only one line is drawn
+function cpuSeries(series, stepMs) {
+  if (stepMs <= MINUTE_MS) return [{ label: 'CPU', key: 'cpuPct', color: COLORS.cpuPeak }];
+  return [
+    { label: 'Busiest minute', key: 'cpuPeakPct', color: COLORS.cpuPeak },
+    { label: 'Average', key: 'cpuPct', color: COLORS.cpuAverage },
+  ];
+}
+
+const CpuChart = memo(function CpuChart({ series, range, stepMs, tickLimit }) {
+  const labels = series.map((point) => formatAxisTime(point.t, range));
+  const data = {
+    labels,
+    datasets: cpuSeries(series, stepMs).map(({ label, key, color }) => ({
+      label,
+      data: series.map((p) => p[key]),
+      ...lineStyle(color),
+    })),
+  };
+  const options = baseOptions({
+    labels,
+    tickLimit,
+    yMax: 100,
+    yTick: (value) => `${value}%`,
+    tooltip: {
+      callbacks: {
+        title: (items) => formatBucket(series[items[0].dataIndex].t, stepMs),
+        label: (item) => `${item.dataset.label}: ${formatPercent(item.raw)}`,
       },
       filter: (item) => item.raw !== null,
     },
@@ -473,7 +534,8 @@ function EndpointsCard({ routes }) {
                   <tr>
                     <th>Endpoint</th>
                     <th className="sam-num">Requests</th>
-                    <th className="sam-num">4xx</th>
+                    <th className="sam-num" title="Client errors other than 429">Other 4xx</th>
+                    <th className="sam-num" title="Blocked for too many tries">429</th>
                     <th className="sam-num">5xx</th>
                     <th className="sam-num">Average</th>
                     <th className="sam-num">95th pct.</th>
@@ -490,7 +552,8 @@ function EndpointsCard({ routes }) {
                         </span>
                       </td>
                       <td className="sam-num">{formatExact(route.count)}</td>
-                      <td className="sam-num">{formatExact(route.clientErrors)}</td>
+                      <td className="sam-num">{formatExact(otherClientErrors(route))}</td>
+                      <td className="sam-num">{formatExact(route.rateLimited || 0)}</td>
                       <td className="sam-num">
                         {route.serverErrors > 0 ? (
                           <span className="sam-error-count">
@@ -562,13 +625,14 @@ export default function AdminMetrics() {
   const outcomeTable = useMemo(() => {
     if (!requests) return null;
     return {
-      columns: ['Time', 'Successful', '4xx', '5xx', 'Total'],
+      columns: ['Time', 'Successful', 'Other 4xx', '429', '5xx', 'Total'],
       rows: requests.series
         .filter((point) => point.count > 0)
         .map((point) => [
           formatBucket(point.t, requests.stepMs),
           formatExact(point.ok),
-          formatExact(point.clientErrors),
+          formatExact(otherClientErrors(point)),
+          formatExact(point.rateLimited || 0),
           formatExact(point.serverErrors),
           formatExact(point.count),
         ]),
@@ -582,6 +646,18 @@ export default function AdminMetrics() {
       rows: requests.series
         .filter((point) => point.count > 0)
         .map((point) => [formatBucket(point.t, requests.stepMs), formatMs(point.p50Ms), formatMs(point.p95Ms)]),
+    };
+  }, [requests]);
+
+  const cpuLines = requests ? cpuSeries(requests.series, requests.stepMs) : [];
+  const cpuTable = useMemo(() => {
+    if (!requests) return null;
+    const lines = cpuSeries(requests.series, requests.stepMs);
+    return {
+      columns: ['Time', ...lines.map((line) => line.label)],
+      rows: requests.series
+        .filter((point) => point.cpuPct !== null && point.cpuPct !== undefined)
+        .map((point) => [formatBucket(point.t, requests.stepMs), ...lines.map((line) => formatPercent(point[line.key]))]),
     };
   }, [requests]);
 
@@ -619,7 +695,10 @@ export default function AdminMetrics() {
   const database = server?.database;
   const dbConnected = database?.state === 'connected';
   const loopDelay = server?.eventLoopDelay;
+  const cpu = server?.cpu;
   const noTraffic = totals && totals.count === 0;
+  const noCpuReadings = cpuTable && cpuTable.rows.length === 0;
+  const otherClientTotal = totals ? otherClientErrors(totals) : 0;
   const attemptsTotal = activity
     ? activity.examAttempts.student.reduce((a, b) => a + b, 0) + activity.examAttempts.alumni.reduce((a, b) => a + b, 0)
     : 0;
@@ -678,7 +757,8 @@ export default function AdminMetrics() {
               <div>
                 <h2 id="sam-requests" className="sam-section-title">Requests</h2>
                 <p className="sam-section-sub">
-                  Calls to the API. Kept for {requests.retentionDays} days, then deleted automatically.
+                  Calls to the API and how busy the server was. Kept for {requests.retentionDays} days, then deleted
+                  automatically.
                 </p>
               </div>
               <CapsuleFilters options={RANGE_OPTIONS} value={range} onChange={setRange} ariaLabel="Time range" />
@@ -687,15 +767,24 @@ export default function AdminMetrics() {
             {trackingNote ? <p className="sam-note">{trackingNote}</p> : null}
 
             <div className={`sam-range-scope${showingRange ? '' : ' is-refreshing'}`}>
-              <div className="sam-tiles sam-tiles--four">
+              <div className="sam-tiles">
                 <StatTile label="Requests" value={formatCount(totals.count)} note={`About ${formatCount(totals.perMinute)} per minute`} />
+                <StatTile
+                  label="Other client errors (4xx)"
+                  value={formatRate(totals.count ? otherClientTotal / totals.count : 0)}
+                  note={plural(otherClientTotal, 'request')}
+                />
+                <StatTile
+                  label="Blocked for too many tries (429)"
+                  value={formatRate(totals.rateLimitedRate)}
+                  note={plural(totals.rateLimited || 0, 'request')}
+                />
                 <StatTile
                   label="Server errors (5xx)"
                   value={formatRate(totals.serverErrorRate)}
                   note={plural(totals.serverErrors, 'request')}
                   status={totals.serverErrors > 0 ? 'critical' : 'good'}
                 />
-                <StatTile label="Client errors (4xx)" value={formatRate(totals.clientErrorRate)} note={plural(totals.clientErrors, 'request')} />
                 <StatTile
                   label="Response time, 95th percentile"
                   value={formatMs(totals.p95Ms)}
@@ -709,7 +798,8 @@ export default function AdminMetrics() {
                   subtitle={`Number of requests ${stepLabel}`}
                   legend={[
                     { label: 'Successful', color: COLORS.ok },
-                    { label: 'Client errors (4xx)', color: COLORS.clientError },
+                    { label: 'Other client errors (4xx)', color: COLORS.clientError },
+                    { label: 'Blocked (429)', color: COLORS.rateLimited },
                     { label: 'Server errors (5xx)', color: COLORS.serverError },
                   ]}
                   table={outcomeTable}
@@ -732,6 +822,23 @@ export default function AdminMetrics() {
                 >
                   {(tickLimit) => (
                     <LatencyChart series={requests.series} range={requests.range} stepMs={requests.stepMs} tickLimit={tickLimit} />
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  wide
+                  title="Server CPU"
+                  subtitle={`Share of the server's CPU in use, ${stepLabel}. Near 100% it can't keep up and requests wait.`}
+                  legend={
+                    cpuLines.length > 1
+                      ? cpuLines.map((line) => ({ label: line.label, color: line.color, shape: 'line' }))
+                      : null
+                  }
+                  table={cpuTable}
+                  empty={noCpuReadings ? 'No CPU readings in this time range yet. The server takes one every 30 seconds.' : ''}
+                >
+                  {(tickLimit) => (
+                    <CpuChart series={requests.series} range={requests.range} stepMs={requests.stepMs} tickLimit={tickLimit} />
                   )}
                 </ChartCard>
               </div>
@@ -812,6 +919,14 @@ export default function AdminMetrics() {
                   <dd>
                     {loopDelay ? `${formatMs(loopDelay.p50Ms)} typical · ${formatMs(loopDelay.p99Ms)} worst` : 'Measuring…'}
                   </dd>
+                </div>
+                <div>
+                  <dt>CPU in use, last 30 seconds</dt>
+                  <dd>{cpu && cpu.percent !== null ? formatPercent(cpu.percent) : 'Measuring…'}</dd>
+                </div>
+                <div>
+                  <dt>CPU available</dt>
+                  <dd>{describeCpuCapacity(cpu?.capacityCores)}</dd>
                 </div>
                 <div>
                   <dt>Node.js</dt>
