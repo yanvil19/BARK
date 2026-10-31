@@ -6,6 +6,8 @@ import DropdownSelect from '../../components/DropdownSelect';
 import Pagination from '../../components/Pagination';
 import PageHeader from '../../components/PageHeader';
 import TrashButton from '../../components/TrashButton';
+import { useToast } from '../../components/Toast';
+import { isLoginLocked, lockedUntilLabel, unlockUserLogin, withLoginUnlocked } from '../../lib/loginLock';
 import '../../styles/shared/BulkRegister.css';
 
 const BULK_REGISTRATION_DRAFT_KEY = 'draft_bulk_registration';
@@ -40,6 +42,8 @@ export default function BulkRegister({ user }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [unlockBusyById, setUnlockBusyById] = useState({});
+  const { notify } = useToast();
 
   const pollRef = useRef(null);
   const hasLoadedDraftRef = useRef(false);
@@ -339,6 +343,21 @@ export default function BulkRegister({ user }) {
       .catch((err) => console.error('Failed to fetch registered accounts', err));
   };
 
+  // Clear a student's login lockout, e.g. when they lock themselves out right before an exam
+  const handleUnlock = async (account) => {
+    if (unlockBusyById[account._id]) return;
+    setUnlockBusyById((m) => ({ ...m, [account._id]: true }));
+    try {
+      await unlockUserLogin(account._id);
+      setRegisteredAccounts((prev) => prev.map((a) => (a._id === account._id ? withLoginUnlocked(a) : a)));
+      notify(`${account.name || account.email} can sign in again.`, { variant: 'success', title: 'Unlocked' });
+    } catch (err) {
+      notify(err.message || 'Unlock failed', { variant: 'error', title: 'Unlock' });
+    } finally {
+      setUnlockBusyById((m) => ({ ...m, [account._id]: false }));
+    }
+  };
+
   // Filter registered accounts based on search and type filter
   const filteredAccounts = registeredAccounts.filter((account) => {
     const matchesType = !filterType || account.role === filterType;
@@ -579,6 +598,7 @@ export default function BulkRegister({ user }) {
                 <th>Department</th>
                 <th>Program</th>
                 <th>Type</th>
+                <th>Lockout</th>
               </tr>
             </thead>
             <tbody>
@@ -595,11 +615,26 @@ export default function BulkRegister({ user }) {
                         {account.role === 'student' ? 'Student' : 'Alumni'}
                       </span>
                     </td>
+                    <td>
+                      {isLoginLocked(account) ? (
+                        <div className="br-lock-cell">
+                          <span className="br-lock-badge" title={lockedUntilLabel(account)}>Locked</span>
+                          <button
+                            type="button"
+                            className="br-btn-unlock"
+                            onClick={() => handleUnlock(account)}
+                            disabled={Boolean(unlockBusyById[account._id])}
+                          >
+                            {unlockBusyById[account._id] ? 'Unlocking…' : 'Unlock'}
+                          </button>
+                        </div>
+                      ) : '—'}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="br-table-empty">
+                  <td colSpan="7" className="br-table-empty">
                     No registered accounts found
                   </td>
                 </tr>

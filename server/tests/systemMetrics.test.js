@@ -117,11 +117,11 @@ describe('request recording', () => {
   });
 
   it('records the 429s the login limit sends', async () => {
-    const { UNSUCCESSFUL_LIMIT, resetLoginRateLimitForTests } = require('../middleware/loginIpRateLimit');
+    const { BASE_FAILED_LIMIT, resetLoginRateLimitForTests } = require('../middleware/loginIpRateLimit');
     resetLoginRateLimitForTests();
-    // The limit lets this many unsuccessful attempts through, then blocks the next one
-    for (let i = 0; i <= UNSUCCESSFUL_LIMIT; i += 1) {
-      await request(app).post('/api/auth/login').send({ email: 'not-an-email', password: 'x' });
+    // Unknown emails count as failed logins; the limit lets this many through, then blocks the next one
+    for (let i = 0; i <= BASE_FAILED_LIMIT; i += 1) {
+      await request(app).post('/api/auth/login').send({ email: `nobody-${i}@example.com`, password: 'x' });
     }
     resetLoginRateLimitForTests();
 

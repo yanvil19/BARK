@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema(
   {
@@ -157,7 +157,7 @@ userSchema.pre('save', async function () {
 
 // Compare entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return await bcrypt.compare(String(enteredPassword), this.password);
 };
 
 userSchema.index(

@@ -185,6 +185,49 @@
   color: #4a57a2;
 }
 
+/* Lockout column: shown when an account is locked after too many wrong passwords */
+.br-lock-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.br-lock-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: #fff4e5;
+  color: #b25e00;
+  cursor: help;
+}
+
+.br-btn-unlock {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid #b25e00;
+  background: #fff;
+  color: #b25e00;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.br-btn-unlock:hover:not(:disabled) {
+  background: #fff8ec;
+}
+
+.br-btn-unlock:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .br-list-footer {
   display: flex;
   justify-content: flex-end;

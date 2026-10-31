@@ -4,7 +4,7 @@ const { createUserAndToken } = require('./helpers');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 let dept, prog;
 

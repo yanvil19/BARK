@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
+import { isLoginLocked, lockedUntilLabel, unlockUserLogin, withLoginUnlocked } from '../../lib/loginLock.js';
 
 function PasswordToggle({ shown, onToggle, label, disabled }) {
   function handleKeyDown(e) {
@@ -77,6 +78,7 @@ export default function AdminUsers({ me }) {
   const [emailToggleMsgById, setEmailToggleMsgById] = useState({});
   const [bulkEmailBusy, setBulkEmailBusy] = useState(false);
   const [bulkEmailMsg, setBulkEmailMsg] = useState(null);
+  const [unlockBusyById, setUnlockBusyById] = useState({});
 
   // Modal states
   const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'deactivate' | 'activate' | 'delete'
@@ -254,6 +256,23 @@ export default function AdminUsers({ me }) {
         return next;
       });
       setBulkEmailBusy(false);
+    }
+  }
+
+  async function unlockLogin(user) {
+    if (!user?._id || unlockBusyById[user._id]) return;
+    setUnlockBusyById((m) => ({ ...m, [user._id]: true }));
+    try {
+      await unlockUserLogin(user._id);
+      setData((prev) => {
+        if (!prev?.users) return prev;
+        return { ...prev, users: prev.users.map((u) => (u._id === user._id ? withLoginUnlocked(u) : u)) };
+      });
+      notify(`${user.name || user.email} can sign in again.`, { variant: 'success', title: 'Unlocked' });
+    } catch (err) {
+      notify(err.message || 'Unlock failed', { variant: 'error', title: 'Unlock' });
+    } finally {
+      setUnlockBusyById((m) => ({ ...m, [user._id]: false }));
     }
   }
 
@@ -634,6 +653,9 @@ export default function AdminUsers({ me }) {
                             <span className={`um-status ${u.isActive ? 'um-status--active' : 'um-status--inactive'}`}>
                               ● {u.isActive ? 'Active' : 'Inactive'}
                             </span>
+                            {isLoginLocked(u) ? (
+                              <span className="um-lock-pill" title={lockedUntilLabel(u)}>Locked</span>
+                            ) : null}
                             {(() => {
                               const { isOnline, label } = getUserOnlineStatus(u.last_active_at);
                               return (
@@ -669,6 +691,16 @@ export default function AdminUsers({ me }) {
                           )}
                         </td>
                         <td className="um-actions-cell">
+                          {isLoginLocked(u) ? (
+                            <button
+                              className="um-btn-unlock"
+                              onClick={() => unlockLogin(u)}
+                              disabled={Boolean(unlockBusyById[u._id])}
+                              title={lockedUntilLabel(u)}
+                            >
+                              {unlockBusyById[u._id] ? 'Unlocking…' : 'Unlock'}
+                            </button>
+                          ) : null}
                           <button className="um-btn-edit" onClick={() => startEdit(u)}>Edit</button>
                           {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                             : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
