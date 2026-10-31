@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const { loginIpRateLimiter } = require('../middleware/loginIpRateLimit');
+const { forgotPasswordIpLimiter, forgotPasswordEmailLimiter } = require('../middleware/forgotPasswordRateLimit');
 const {
   registerUser,
   loginUser,
@@ -11,6 +12,7 @@ const {
   updateUser,
   deactivateUser,
   activateUser,
+  unlockUserLogin,
   deleteUser,
   bulkRegister,
   getBulkRegisterSummary,
@@ -31,16 +33,6 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-const { rateLimit: expressRateLimit } = require('express-rate-limit');
-
-const forgotPasswordRateLimiter = expressRateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 3,
-  message: { message: 'Too many requests. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 function normalizeEmail(email) {
   return String(email || '').toLowerCase().trim();
 }
@@ -51,8 +43,9 @@ function isValidEmail(email) {
 
 // @route   POST /api/auth/login
 // @access  Public
-// Per-IP limit on failed and in-progress attempts (successful logins never count,
-// so a shared campus network is fine) + per-account lockout inside loginUser
+// Per-IP limits on failed attempts (each account that signs in from the IP raises
+// it, so a shared lab network is fine) and on requests in progress, plus the
+// per-account lockout inside loginUser
 router.post('/login', loginIpRateLimiter, loginUser);
 
 // @route   POST /api/auth/logout
@@ -61,7 +54,8 @@ router.post('/logout', logoutUser);
 
 // @route   POST /api/auth/forgot-password
 // @access  Public
-router.post('/forgot-password', forgotPasswordRateLimiter, async (req, res) => {
+// Per-email limit, plus a generous per-IP cap so a shared lab network still works
+router.post('/forgot-password', forgotPasswordIpLimiter, forgotPasswordEmailLimiter, async (req, res) => {
   const genericMessage = { message: 'If this email is registered, you will receive a reset code shortly.' };
 
   try {
@@ -241,6 +235,10 @@ router.patch('/users/:id/deactivate', protect, authorizeRoles('super_admin'), de
 // @route   PATCH /api/auth/users/:id/activate
 // @access  Private - Super Admin only
 router.patch('/users/:id/activate', protect, authorizeRoles('super_admin'), activateUser);
+
+// @route   PATCH /api/auth/users/:id/unlock
+// @access  Private - Super Admin; Dean and Program Chair for students and alumni they manage
+router.patch('/users/:id/unlock', protect, authorizeRoles('super_admin', 'dean', 'program_chair'), unlockUserLogin);
 
 // @route   DELETE /api/auth/users/:id
 // @access  Private - Super Admin only

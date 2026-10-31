@@ -329,6 +329,21 @@
   background: #adb5bd;
 }
 
+/* Locked out of signing in after too many wrong passwords */
+.um-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  width: fit-content;
+  line-height: 1.2;
+  background: #fff4e5;
+  color: #b25e00;
+  cursor: help;
+}
+
 /* Action Buttons */
 .um-actions-cell {
   display: flex;
@@ -409,6 +424,28 @@
 
 .um-btn-activate:hover {
   background: #f0fff8;
+}
+
+.um-btn-unlock {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid #b25e00;
+  border-radius: 4px;
+  background: #fff;
+  color: #b25e00;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.um-btn-unlock:hover:not(:disabled) {
+  background: #fff8ec;
+}
+
+.um-btn-unlock:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Status / Error messages */

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RegistrationRequest = require('../models/RegistrationRequest');
 const AppSettings = require('../models/AppSettings');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
@@ -20,12 +20,12 @@ const bulkRegistrationBatches = new Map();
 // Login brute-force protection constants
 // ---------------------------------------------------------------------------
 
-// Pre-computed bcrypt hash of a random sentinel string.
-// Used in the "user not found" branch of loginUser so that the bcrypt.compare
-// call still runs, making the failed-lookup path take the same wall-clock time
-// as the failed-password path (prevents email enumeration via timing).
-const DUMMY_HASH =
-  '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+// bcrypt hash of a random string, made once at startup with the same cost as
+// real passwords. The "user not found" branch of loginUser compares against it,
+// so an unknown email takes as long to answer as a wrong password (prevents
+// email enumeration via timing). It has to be a well-formed hash: bcrypt
+// rejects a malformed one instantly, which would give the timing away.
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
 
 // Escalating lockout schedule.
 // Each entry: { minAttempts, durationMs }
@@ -442,7 +442,7 @@ const loginUser = async (req, res) => {
     // -----------------------------------------------------------------------
     // Successful login — clear lockout counters
     // -----------------------------------------------------------------------
-    recordSuccessfulLogin(req);
+    recordSuccessfulLogin(req, user._id);
     user.loginFailedAttempts = 0;
     user.loginLockedUntil = null;
     user.loginLastFailedAt = null;
@@ -891,6 +891,42 @@ const activateUser = async (req, res) => {
   }
 };
 
+// @desc    Clear a user's login lockout so they can sign in again right away
+// @route   PATCH /api/auth/users/:id/unlock
+// @access  Private (Super Admin: anyone; Dean / Program Chair: students and alumni in their department / program)
+const unlockUserLogin = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+
+    const user = await User.findById(req.params.id).select('role department program');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (req.user.role !== 'super_admin') {
+      const isLearner = user.role === 'student' || user.role === 'alumni';
+      const scopeField = req.user.role === 'dean' ? 'department' : 'program';
+      const inScope = Boolean(req.user[scopeField]) && String(user[scopeField]) === String(req.user[scopeField]);
+      if (!isLearner || !inScope) {
+        return res.status(403).json({ message: `You can only unlock students and alumni in your ${scopeField}.` });
+      }
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { loginFailedAttempts: 0, loginLockedUntil: null, loginLastFailedAt: null } }
+    );
+
+    await logAudit(req.user._id, 'user_login_unlocked', 'User', user._id);
+
+    res.status(200).json({
+      message: 'Account unlocked',
+      user: { _id: user._id, loginFailedAttempts: 0, loginLockedUntil: null },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 // @desc    Delete a user permanently
 // @route   DELETE /api/auth/users/:id
 // @access  Private (Super Admin only — enforced in route)
@@ -1023,7 +1059,7 @@ const registerStudentRequest = async (req, res) => {
       }
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(String(password), 10);
     const publicToken = crypto.randomBytes(32).toString('base64url');
     const publicTokenHash = hashPublicToken(publicToken);
 
@@ -1657,6 +1693,7 @@ module.exports = {
   updateUser,
   deactivateUser,
   activateUser,
+  unlockUserLogin,
   deleteUser,
   bulkRegister,
   getBulkRegisterSummary,

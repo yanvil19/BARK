@@ -18,7 +18,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1052.0",
     "@google/generative-ai": "^0.24.1",
-    "bcryptjs": "^3.0.3",
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",

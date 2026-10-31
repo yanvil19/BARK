@@ -2,66 +2,71 @@ const { ipKeyGenerator } = require('express-rate-limit');
 
 // IP-based login flood guard (anti-spraying layer) for POST /api/auth/login.
 //
-// Students on the same campus network usually share one public IP address, so
-// successful logins never use up the allowance. Two limits per IP, each over a
-// fixed 15-minute window that starts with the first counted attempt:
+// A computer lab, or a whole campus, usually reaches the server from one public
+// IP address, so this has to tell a room full of students signing in apart from
+// one attacker trying passwords against many accounts. Two checks per IP:
 //
-//   FAILED_LIMIT        wrong passwords (including unknown emails). The login
-//                       controller reports these with recordFailedLogin(req).
-//   UNSUCCESSFUL_LIMIT  attempts that haven't succeeded: still being checked,
-//                       failed, or rejected for any other reason. A failure is
-//                       only known after the slow password check, so this stops
-//                       a burst of attempts from all getting through before any
-//                       failure is counted. recordSuccessfulLogin(req) takes a
-//                       successful attempt back off.
+//   Failed logins  Wrong passwords and unknown emails, counted over a fixed
+//                  15-minute window that starts with the first counted event.
+//                  An IP may fail BASE_FAILED_LIMIT times, plus once more for
+//                  every different account that signed in successfully from it
+//                  in the same window. A lab where 180 students got in can absorb
+//                  230 typos, while an attacker with no working password still
+//                  stops at 50. Counting different accounts rather than sign-ins
+//                  means signing in to one account over and over earns nothing.
+//                  The login controller reports outcomes with
+//                  recordFailedLogin(req) and recordSuccessfulLogin(req, userId).
+//
+//   In progress    Login requests still being handled. A failure is only known
+//                  after the slow password check, so this stops a burst of
+//                  guesses from all getting through before any of them is
+//                  counted. Each request frees its place as soon as its response
+//                  is sent, whatever the outcome.
 //
 // Guessing one account's password is handled separately by the per-account
-// lockout inside loginUser. Counts live in this process's memory, like the
-// default express-rate-limit store, and reset when the server restarts.
-// req.ip resolves to the client's address because app.js sets `trust proxy 1`.
+// lockout inside loginUser. Counts live in this process's memory and reset when
+// the server restarts. req.ip resolves to the client's address because app.js
+// sets `trust proxy 1`.
 
 const WINDOW_MS = 15 * 60 * 1000;
-const FAILED_LIMIT = 50;
+const BASE_FAILED_LIMIT = 50;
 // Room for a few hundred people signing in at the same moment from one network
-const UNSUCCESSFUL_LIMIT = 300;
+const IN_PROGRESS_LIMIT = 300;
 const BUSY_RETRY_AFTER_SECONDS = 10;
 
-function createWindowCounter() {
-  const entries = new Map(); // key -> { count, resetAt }
+// key -> { resetAt, failures, accounts: Set of ids of users who signed in }
+const windows = new Map();
+// key -> number of login requests from that IP still being handled
+const inProgress = new Map();
 
-  function current(key, now) {
-    const entry = entries.get(key);
-    if (entry && entry.resetAt <= now) {
-      entries.delete(key);
-      return null;
-    }
-    return entry || null;
+function currentWindow(key, now) {
+  const entry = windows.get(key);
+  if (entry && entry.resetAt <= now) {
+    windows.delete(key);
+    return null;
   }
-
-  // Drop expired windows now and then so the map can't grow without bound
-  const sweep = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of entries) if (entry.resetAt <= now) entries.delete(key);
-  }, WINDOW_MS);
-  sweep.unref();
-
-  return {
-    get: (key, now = Date.now()) => current(key, now),
-    add(key, now = Date.now()) {
-      const entry = current(key, now);
-      if (entry) entry.count += 1;
-      else entries.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    },
-    remove(key, now = Date.now()) {
-      const entry = current(key, now);
-      if (entry && entry.count > 0) entry.count -= 1;
-    },
-    clear: () => entries.clear(),
-  };
+  return entry || null;
 }
 
-const failed = createWindowCounter();
-const unsuccessful = createWindowCounter();
+function openWindow(key, now = Date.now()) {
+  let entry = currentWindow(key, now);
+  if (!entry) {
+    entry = { resetAt: now + WINDOW_MS, failures: 0, accounts: new Set() };
+    windows.set(key, entry);
+  }
+  return entry;
+}
+
+function failedAllowance(entry) {
+  return BASE_FAILED_LIMIT + entry.accounts.size;
+}
+
+// Drop expired windows now and then so the map can't grow without bound
+const sweep = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of windows) if (entry.resetAt <= now) windows.delete(key);
+}, WINDOW_MS);
+sweep.unref();
 
 function clientKey(req) {
   return ipKeyGenerator(req.ip || '');
@@ -72,13 +77,28 @@ function sendTooMany(res, retryAfterSeconds, message) {
   return res.status(429).json({ message, retryAfterSeconds });
 }
 
+// Counts the request as in progress until its response is sent or the client goes away
+function trackInProgress(key, res) {
+  inProgress.set(key, (inProgress.get(key) || 0) + 1);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    const left = (inProgress.get(key) || 0) - 1;
+    if (left > 0) inProgress.set(key, left);
+    else inProgress.delete(key);
+  };
+  res.once('finish', release);
+  res.once('close', release);
+}
+
 function loginIpRateLimiter(req, res, next) {
   const key = clientKey(req);
   const now = Date.now();
 
-  const failures = failed.get(key, now);
-  if (failures && failures.count >= FAILED_LIMIT) {
-    const seconds = Math.max(1, Math.ceil((failures.resetAt - now) / 1000));
+  const entry = currentWindow(key, now);
+  if (entry && entry.failures >= failedAllowance(entry)) {
+    const seconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
     const minutes = Math.ceil(seconds / 60);
     return sendTooMany(
       res,
@@ -87,8 +107,7 @@ function loginIpRateLimiter(req, res, next) {
     );
   }
 
-  const pending = unsuccessful.get(key, now);
-  if (pending && pending.count >= UNSUCCESSFUL_LIMIT) {
+  if ((inProgress.get(key) || 0) >= IN_PROGRESS_LIMIT) {
     return sendTooMany(
       res,
       BUSY_RETRY_AFTER_SECONDS,
@@ -96,28 +115,29 @@ function loginIpRateLimiter(req, res, next) {
     );
   }
 
-  unsuccessful.add(key, now);
+  trackInProgress(key, res);
   return next();
 }
 
 // Called by loginUser after a wrong password or an unknown email
 function recordFailedLogin(req) {
-  failed.add(clientKey(req));
+  openWindow(clientKey(req)).failures += 1;
 }
 
-// Called by loginUser after a correct password, so successful logins don't use up the allowance
-function recordSuccessfulLogin(req) {
-  unsuccessful.remove(clientKey(req));
+// Called by loginUser after a correct password; each different account raises the failure allowance by one
+function recordSuccessfulLogin(req, userId) {
+  if (!userId) return;
+  openWindow(clientKey(req)).accounts.add(String(userId));
 }
 
 function resetLoginRateLimitForTests() {
-  failed.clear();
-  unsuccessful.clear();
+  windows.clear();
+  inProgress.clear();
 }
 
 module.exports = {
-  FAILED_LIMIT,
-  UNSUCCESSFUL_LIMIT,
+  BASE_FAILED_LIMIT,
+  IN_PROGRESS_LIMIT,
   loginIpRateLimiter,
   recordFailedLogin,
   recordSuccessfulLogin,

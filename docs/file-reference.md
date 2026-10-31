@@ -105,7 +105,7 @@ server/controllers/tagController.js
 ```
 server/routes/authRoutes.js
 ```
--> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes, plus `PATCH /me/board-exam-countdown` for students and alumni.
+-> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes, plus `PATCH /me/board-exam-countdown` for students and alumni and `PATCH /users/:id/unlock`, which clears a login lockout (super admin for anyone; dean and program chair for students and alumni in their department or program).
 
 ```
 server/routes/adminCatalogRoutes.js
@@ -307,7 +307,12 @@ server/middleware/authMiddleware.js
 ```
 server/middleware/loginIpRateLimit.js
 ```
--> Per-IP limit on the login endpoint against password spraying: at most 50 wrong passwords and 300 not-yet-successful attempts per IP per 15 minutes. Successful logins never count, so students sharing a campus network can all sign in. `loginUser` reports results through `recordFailedLogin` / `recordSuccessfulLogin`.
+-> Per-IP limit on the login endpoint against password spraying. Over a 15-minute window an IP may fail 50 times, plus once more for every different account that signed in successfully from it, so a computer lab full of students sharing one network address can absorb typos while an attacker with no working password still stops at 50. Separately, at most 300 login requests per IP can be in progress at once; each frees its place when its response is sent. `loginUser` reports results through `recordFailedLogin` / `recordSuccessfulLogin(req, userId)`.
+
+```
+server/middleware/forgotPasswordRateLimit.js
+```
+-> Limits for `POST /api/auth/forgot-password`: 3 requests per email address and 50 per IP per 15 minutes, so students sharing a lab network can each ask for a reset code.
 
 ```
 server/middleware/importRateLimit.js
@@ -576,7 +581,7 @@ client/src/pages/superadmin/SAdminSchoolsPrograms.jsx
 ```
 client/src/pages/superadmin/SAdminUsers.jsx
 ```
--> User management panel for super admins: list all users, activate/deactivate accounts, delete users, and filter by role.
+-> User management panel for super admins: list all users, activate/deactivate accounts, unlock accounts locked after too many wrong passwords, delete users, and filter by role.
 
 ```
 client/src/pages/superadmin/SAdminSettings.jsx
@@ -716,7 +721,7 @@ client/src/pages/shared/StudentRegister.jsx
 ```
 client/src/pages/shared/BulkRegister.jsx
 ```
--> Bulk registration form allowing authorized faculty to upload or manually enter a list of users for batch account creation.
+-> Bulk registration form allowing authorized faculty to upload or manually enter a list of users for batch account creation. Its Registered Accounts list shows a Lockout column with an Unlock button for students and alumni locked after too many wrong passwords.
 
 ```
 client/src/pages/shared/LearnerDashboard.jsx
@@ -895,6 +900,11 @@ client/src/lib/api.js
 client/src/lib/importApi.js
 ```
 -> API functions specifically for the question import pipeline: upload document, validate/count, extract questions, and submit to the question bank.
+
+```
+client/src/lib/loginLock.js
+```
+-> Helpers for the login lockout shown on the user lists: whether an account is locked, the "Locked until …" label, and the call to `PATCH /api/auth/users/:id/unlock`.
 
 ```
 client/src/lib/DeanTestRunOrganizer.js
