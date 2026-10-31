@@ -11,8 +11,8 @@ import '../styles/components/DropdownSelect.css';
  *  - placeholder  : string — empty-value option label (optional)
  *  - disabled     : boolean
  *  - id           : string (for accessibility)
+ *  - ariaLabel    : string — accessible name when there is no visible label
  *  - className    : extra class applied to the outer wrapper
- *  - size         : 'sm' | 'md' (default: 'md')
  */
 export default function DropdownSelect({
   value = '',
@@ -21,17 +21,18 @@ export default function DropdownSelect({
   placeholder,
   disabled = false,
   id,
+  ariaLabel,
   className = '',
-  size = 'md',
 }) {
   return (
-    <div className={`dd-select-wrap dd-select-wrap--${size} ${disabled ? 'dd-select-wrap--disabled' : ''} ${className}`}>
+    <div className={`dd-select-wrap ${disabled ? 'dd-select-wrap--disabled' : ''} ${className}`}>
       <select
         id={id}
         className="dd-select"
         value={value}
         onChange={onChange}
         disabled={disabled}
+        aria-label={ariaLabel}
       >
         {placeholder !== undefined && (
           <option value="">{placeholder}</option>

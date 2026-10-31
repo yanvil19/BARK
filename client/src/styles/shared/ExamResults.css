@@ -2,17 +2,11 @@
   --er-navy: #1e2d6b;
   --er-navy-soft: #35408e;
   --er-yellow: #f5c518;
-  --er-bg: #f4f6fb;
-  --er-border: rgba(30, 45, 107, 0.12);
   --er-border-strong: rgba(30, 45, 107, 0.2);
   --er-text: #1f2937;
   --er-muted: #7b86a5;
-  --er-shadow: 0 20px 40px rgba(30, 45, 107, 0.08);
-  margin: -20px;
-  padding: 0 0 40px;
   min-height: 100vh;
   font-family: var(--font-body);
-  background: var(--er-bg);
   overflow-x: clip;
 }
 
@@ -20,7 +14,6 @@
   display: grid;
   grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
   gap: 24px;
-  padding: 0 32px;
   align-items: start;
 }
 
@@ -33,9 +26,9 @@
 .er-breakdown-card,
 .er-empty-state-card {
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid var(--er-border);
-  border-radius: 22px;
-  box-shadow: var(--er-shadow);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .er-sidebar-card {
@@ -90,9 +83,10 @@
 
 .er-sidebar-summary-card {
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--card-radius);
   background: #f7f9ff;
-  border: 1px solid rgba(53, 64, 142, 0.08);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -119,46 +113,8 @@
   color: #8b96bc;
 }
 
-.er-program-filter select {
-  width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 1px solid rgba(53, 64, 142, 0.14);
-  border-radius: 14px;
-  background: #ffffff;
-  color: var(--er-navy);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.er-program-filter select:focus {
-  outline: 3px solid rgba(53, 64, 142, 0.18);
-  border-color: rgba(53, 64, 142, 0.32);
-}
-
-/* Shared SearchBar, in the look of the filter selects */
 .er-program-filter .er-sidebar-search {
   min-width: 0;
-  min-height: 42px;
-  box-sizing: border-box;
-  padding: 0 12px;
-  border: 1px solid rgba(53, 64, 142, 0.14);
-  border-radius: 14px;
-  background: #ffffff;
-}
-
-.er-program-filter .er-sidebar-search:focus-within {
-  border-color: rgba(53, 64, 142, 0.32);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.18);
-}
-
-.er-program-filter .er-sidebar-search .search-bar-input {
-  min-width: 0;
-  padding: 8px 10px;
-  color: var(--er-navy);
-  font-family: var(--font-body);
-  font-size: 13px;
 }
 
 .er-summary-label {
@@ -180,9 +136,10 @@
 .er-sidebar-item {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(30, 45, 107, 0.08);
+  border: 1px solid var(--card-border);
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 14px;
   text-align: left;
   cursor: pointer;
@@ -427,8 +384,6 @@
 .er-empty-state-card.compact {
   min-height: auto;
   padding: 26px 18px;
-  border-radius: 18px;
-  box-shadow: none;
 }
 
 .er-empty-message {
@@ -468,9 +423,10 @@
 
 .er-empty-meta-card {
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--card-radius);
   background: #f8faff;
-  border: 1px solid rgba(53, 64, 142, 0.08);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   text-align: left;
 }
 
@@ -715,10 +671,10 @@
   position: relative;
   overflow: hidden;
   padding: 24px 30px 26px;
-  border-radius: 24px;
+  border-radius: var(--card-radius);
   background: #24357d;
   color: #fff;
-  box-shadow: 0 26px 42px rgba(30, 45, 107, 0.22);
+  box-shadow: var(--card-shadow);
 }
 
 .er-hero-card::before {
@@ -1054,7 +1010,6 @@
 
 .er-breakdown-card {
   overflow: hidden;
-  box-shadow: none;
 }
 
 .er-breakdown-header {
@@ -1248,15 +1203,10 @@
 @media (max-width: 1200px) {
   .er-layout {
     grid-template-columns: 320px minmax(0, 1fr);
-    padding: 0 24px;
   }
 }
 
 @media (max-width: 900px) {
-
-  .er-page {
-    padding-bottom: 20px !important;
-  }
 
   .er-layout {
     display: flex;
@@ -1340,7 +1290,6 @@
   }
 
   .er-layout {
-    padding: 0 16px;
     gap: 18px;
   }
 
@@ -1408,22 +1357,6 @@
 }
 
 @media (max-width: 480px) {
-  .er-page {
-    padding-bottom: 20px;
-  }
-
-  .er-sidebar-card,
-  .er-report-view,
-  .er-breakdown-card,
-  .er-empty-state-card,
-  .er-hero-card {
-    border-radius: 18px;
-  }
-
-  .er-sidebar-item {
-    border-radius: 16px;
-  }
-
   .er-topic-row {
     padding-top: 18px;
     padding-bottom: 18px;
@@ -1497,38 +1430,13 @@
   align-items: center;
 }
 
-/* Shared SearchBar, in the look of the sort select next to it */
 .er-ind-controls .er-ind-search {
   flex: 1 1 240px;
   min-width: 0;
-  min-height: 40px;
-  box-sizing: border-box;
-  border: 1px solid var(--er-border-strong);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.er-ind-controls .er-ind-search:focus-within {
-  border-color: var(--er-navy-soft);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-}
-
-.er-ind-controls .er-ind-search .search-bar-input {
-  min-width: 0;
-  padding: 8px 10px;
-  font-family: var(--font-body);
 }
 
 .er-ind-sort {
-  min-height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--er-border-strong);
-  border-radius: 12px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  background: #fff;
-  cursor: pointer;
-  outline: none;
+  min-width: 160px;
 }
 
 .er-ind-refresh-btn {
@@ -1555,10 +1463,10 @@
 /* A person's card, in the colors of the question cards */
 .er-ind-student-card {
   background: #fff;
-  border: 1px solid #d8def2;
-  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--card-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 

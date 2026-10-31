@@ -9,6 +9,7 @@ import StudentManager from './pages/shared/StudentRegister.jsx';
 import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
 import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
 import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
+import AdminMetrics from './pages/superadmin/SAdminMetrics.jsx';
 import ManageSubject from './pages/shared/ManageSubject.jsx';
 import QuestionApprovals from './pages/shared/ApproveQuestions.jsx';
 import ChairCheatingLogs from './pages/programchair/PCLogs.jsx';
@@ -33,7 +34,6 @@ import Credits from './pages/Credits.jsx';
 import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
 import SystemUpdateWarning from './components/SystemUpdateWarning.jsx';
-import "react-datepicker/dist/react-datepicker.css";
 import { useHeartbeat } from './hooks/useHeartbeat.js';
 
 export default function App() {
@@ -277,13 +277,31 @@ export default function App() {
     setRoute('Dashboard');
   }
 
+  // Exam start / result handlers shared by the available-exams pages and the learner dashboards
+  function startStudentExam(id) {
+    setStudentExamId(id);
+    setRoute('studentExamRunner');
+  }
+  function startAlumniExam(id) {
+    setAlumniExamId(id);
+    setAlumniResultExamId(id);
+    setRoute('alumniExamRunner');
+  }
+  function viewAlumniResults(id) {
+    setAlumniResultExamId(id);
+    setRoute('alumniExamResults');
+  }
+
   let page = null;
   if (route === 'Dashboard') {
     page = me ? (
       <Dashboard
         me={me}
-        onNavigate={setRoute}
-        onRoute={setRoute}
+        onNavigate={handleRoute}
+        onRoute={handleRoute}
+        onTakeExam={me.role === 'alumni' ? startAlumniExam : startStudentExam}
+        onViewResults={me.role === 'alumni' ? viewAlumniResults : () => setRoute('studentExamResults')}
+        onMeRefresh={refreshMe}
       />
     ) : (
       <LandingPage onNavigate={setRoute} />
@@ -296,6 +314,7 @@ export default function App() {
   if (route === 'schoolsPrograms') page = <SchoolsPrograms />;
   if (route === 'adminUsers') page = <AdminUsers me={me} />;
   if (route === 'adminSettings') page = me?.role === 'super_admin' ? <AdminSettings /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
+  if (route === 'adminMetrics') page = me?.role === 'super_admin' ? <AdminMetrics /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
   if (route === 'chairTags') page = <ManageSubject me={me} />;
   if (route === 'chairQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'chairCheatingLogs') page = <ChairCheatingLogs />;
@@ -433,12 +452,7 @@ export default function App() {
     );
   if (route === 'studentAvailableExams')
     page = (
-      <StudentAvailableExams
-        onTakeExam={(id) => {
-          setStudentExamId(id);
-          setRoute('studentExamRunner');
-        }}
-      />
+      <StudentAvailableExams onTakeExam={startStudentExam} />
     );
   if (route === 'studentExamRunner')
     page = (
@@ -456,17 +470,7 @@ export default function App() {
     page = <StudentExamResults />;
   if (route === 'alumniAvailableExams')
     page = (
-      <AlumniAvailableExams
-        onTakeExam={(id) => {
-          setAlumniExamId(id);
-          setAlumniResultExamId(id);
-          setRoute('alumniExamRunner');
-        }}
-        onViewResults={(id) => {
-          setAlumniResultExamId(id);
-          setRoute('alumniExamResults');
-        }}
-      />
+      <AlumniAvailableExams onTakeExam={startAlumniExam} onViewResults={viewAlumniResults} />
     );
   if (route === 'alumniExamRunner')
     page = (

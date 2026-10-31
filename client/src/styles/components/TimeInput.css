@@ -1,0 +1,67 @@
+/* TimeInput.css
+   One box per time digit plus an AM/PM toggle. The focused box is the selected digit. */
+
+.time-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time-input-digit,
+.time-input-period {
+  height: 40px;
+  border: 1px solid #d5daf0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a2342;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.time-input-digit {
+  width: 28px;
+  padding: 0;
+  text-align: center;
+  caret-color: transparent;
+  cursor: pointer;
+}
+
+.time-input-digit::selection {
+  background: transparent;
+}
+
+.time-input-digit:hover,
+.time-input-period:hover {
+  border-color: var(--primary-bg);
+}
+
+.time-input-digit:focus {
+  outline: none;
+  border-color: var(--primary-bg);
+  background: var(--primary-bg);
+  color: #fff;
+}
+
+.time-input-sep {
+  padding: 0 2px;
+  color: #5b6684;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.time-input-period {
+  margin-left: 5px;
+  padding: 0 10px;
+  color: var(--primary-bg);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.time-input-period:focus-visible {
+  outline: none;
+  border-color: var(--primary-bg);
+  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.18);
+}

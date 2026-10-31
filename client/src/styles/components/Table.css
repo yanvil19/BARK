@@ -5,11 +5,11 @@
 
 .ui-table-card {
   background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.24);
-  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  margin: 20px;
+  box-shadow: var(--card-shadow);
+  margin: 20px 0;
 }
 
 /* Card joins the footer (pagination) placed directly after it */
@@ -21,13 +21,13 @@
 }
 
 .ui-table-footer {
-  margin: 0 20px 20px;
+  margin: 0 0 20px;
   padding: 14px 20px;
   background: #ffffff;
-  border: 1px solid rgba(53, 64, 142, 0.24);
+  border: 1px solid var(--card-border);
   border-top-color: #edf0f5;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .ui-table-scroll {
@@ -233,8 +233,7 @@
 .ambe-btn,
 .qp-btn-submit,
 .qp-btn-view,
-.qp-btn-edit,
-.qp-btn-delete {
+.qp-btn-edit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -331,19 +330,15 @@
 }
 
 /* Danger / Delete Button */
-.ui-table-btn--danger,
 .ui-table-btn.delete,
-.ambe-btn.delete,
-.qp-btn-delete {
+.ambe-btn.delete {
   background: #fee2e2;
   border: 1px solid #fca5a5;
   color: #991b1b;
 }
 
-.ui-table-btn--danger:hover,
 .ui-table-btn.delete:hover,
-.ambe-btn.delete:hover,
-.qp-btn-delete:hover {
+.ambe-btn.delete:hover {
   background: #fecaca;
 }
 

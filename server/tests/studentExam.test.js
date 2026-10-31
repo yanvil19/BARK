@@ -35,6 +35,32 @@ describe('GET /api/student-exams/available', () => {
     expect(res.status).toBe(401);
   });
 
+  it('includes who published each exam and when, falling back to the creator', async () => {
+    const { user: chair } = await createUserAndToken({
+      role: 'program_chair', name: 'Chair Person', department: dept._id, program: prog._id, email: 'chair@example.com',
+    });
+    const publishedAt = pastDate(1);
+    const tracked = { program: prog._id, department: dept._id, questions: [], status: 'published', createdBy: deanUser._id };
+    await MockBoardExam.create({
+      ...tracked, name: 'Tracked', startDateTime: futureDate(1), endDateTime: futureDate(2),
+      publishedBy: chair._id, publishedAt,
+    });
+    const legacy = await MockBoardExam.create({
+      ...tracked, name: 'Legacy', startDateTime: futureDate(3), endDateTime: futureDate(4),
+    });
+
+    const res = await request(app)
+      .get('/api/student-exams/available')
+      .set('Cookie', `nu_board_token=${studentToken}`);
+    expect(res.status).toBe(200);
+    const byName = Object.fromEntries(res.body.exams.map((exam) => [exam.name, exam]));
+    expect(byName.Tracked.publishedByName).toBe('Chair Person');
+    expect(byName.Tracked.publishedAt).toBe(publishedAt.toISOString());
+    expect(byName.Tracked).not.toHaveProperty('createdBy');
+    expect(byName.Legacy.publishedByName).toBe('Test User');
+    expect(byName.Legacy.publishedAt).toBe(legacy.createdAt.toISOString());
+  });
+
   it('should return 403 as professor', async () => {
     const { token } = await createUserAndToken({ role: 'professor' });
     const res = await request(app)

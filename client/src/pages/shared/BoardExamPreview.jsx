@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import SafeHtml from '../../components/SafeHtml.jsx';
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -60,7 +61,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
 
   if (loading) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <div style={{ padding: '80px', textAlign: 'center', color: '#9ba3cb' }}>
           <h3>Loading preview...</h3>
         </div>
@@ -70,7 +71,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
 
   if (error || (!exam && examId)) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <header className="mbep-header">
           <div className="mbep-header-info">
             <h1 className="mbep-title">Error</h1>
@@ -85,7 +86,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   }
   if (!exam) {
     return (
-      <div className="mbep-page">
+      <div className="mbep-page page-shell">
         <div style={{ padding: '80px', textAlign: 'center', color: '#9ba3cb' }}>
           <h3>Preparing preview...</h3>
         </div>
@@ -98,10 +99,9 @@ export default function MockBoardExamPreview({ examId, onBack }) {
   const progressPercent = questions.length > 0 ? ((currentIdx + 1) / questions.length) * 100 : 0;
 
   return (
-    <div className="mbep-page">
+    <div className="mbep-page page-shell">
       {/* ── Header ─────────────────────────────────────────────── */}
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title={exam.name}
         subtitle={exam.description || exam.program?.name || 'Academic Program Preview'}
       >
@@ -132,7 +132,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
             </div>
             <div className="mbep-card-body">
               <div className="mbep-question-title">
-                {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
+                <SafeHtml html={currentQuestion.description || currentQuestion.title} fallback={`Question ${currentIdx + 1}`} />
               </div>
 
               {currentQuestion.images?.length > 0 && (
@@ -167,7 +167,7 @@ export default function MockBoardExamPreview({ examId, onBack }) {
                   >
                     <div className="mbep-option-circle">{answer.optionLabel}</div>
                     <div className="mbep-option-text">
-                      {answer.text}
+                      <SafeHtml html={answer.text} />
                       <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
                     </div>
                   </div>

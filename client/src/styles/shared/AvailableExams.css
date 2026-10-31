@@ -2,15 +2,11 @@
   --ae-navy: #1e2d6b;
   --ae-yellow: #f5c518;
   --ae-border: rgba(30, 45, 107, 0.18);
-  --ae-shadow: 0 10px 26px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.06);
   --ae-muted: #6b7280;
-  --ae-bg: #f2f4fb;
 }
 
 .sae-page-container {
-  margin: -20px;
   min-height: 100%;
-  background: #e5e7f2;
   overflow-x: hidden;
 }
 
@@ -36,7 +32,6 @@
 
 .ae-grid {
   display: grid;
-  padding: 0 16px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
 }
@@ -49,16 +44,15 @@
 
 @media (max-width: 640px) {
   .ae-grid {
-    padding: 0 16px;
     grid-template-columns: 1fr;
   }
 }
 
 .ae-card {
   background: #ffffff;
-  border: 1px solid rgba(30, 45, 107, 0.18);
-  border-radius: 8px;
-  box-shadow: var(--ae-shadow);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -157,12 +151,12 @@
 /* Status filters (CapsuleFilters) */
 .ae-state-pills {
   margin-bottom: 16px;
-  padding: 14px 28px 0;
+  padding: 14px 0 0;
 }
 
 /* Minor spacing alignment with reused QuestionApprovals classes */
 .ae-filters.ca-filters {
-  padding: 12px 28px 20px;
+  padding: 12px 0 20px;
 
 }
 

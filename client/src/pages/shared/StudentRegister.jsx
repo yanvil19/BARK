@@ -5,9 +5,8 @@ import '../../styles/shared/StudentRegister.css';
 export default function StudentManager({ me, onNavigate }) {
   const scope = me?.role === 'program_chair' ? 'program' : 'department';
   return (
-    <main className="sm-page">
+    <main className="sm-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Student Registration"
         subtitle={`Bulk register students and alumni for your ${scope}.`}
       />

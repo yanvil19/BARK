@@ -3,6 +3,7 @@ import { getExamStudentResults } from '../../services/mockExamResultService';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import ResultQuestionList from '../../components/ResultQuestionList.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 
 // Same colors as the topics of the Overall tab
 const getStatusClass = (avg, threshold) => {
@@ -286,17 +287,18 @@ export default function IndividualReportView({ examId, threshold, audience = 'st
           placeholder={`Search ${audienceNoun} by name, ID, or email...`}
           className="er-ind-search"
         />
-        <select
+        <DropdownSelect
           value={sortOrder}
           onChange={e => setSortOrder(e.target.value)}
           className="er-ind-sort"
-          aria-label={`Sort ${audienceNoun}`}
-        >
-          <option value="name_asc">Sort A-Z</option>
-          <option value="name_desc">Sort Z-A</option>
-          <option value="score_desc">Highest Score</option>
-          <option value="score_asc">Lowest Score</option>
-        </select>
+          ariaLabel={`Sort ${audienceNoun}`}
+          options={[
+            { value: 'name_asc', label: 'Sort A-Z' },
+            { value: 'name_desc', label: 'Sort Z-A' },
+            { value: 'score_desc', label: 'Highest Score' },
+            { value: 'score_asc', label: 'Lowest Score' },
+          ]}
+        />
         <button onClick={fetchResults} className="er-ind-refresh-btn">Refresh</button>
       </div>
 

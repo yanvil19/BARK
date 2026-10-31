@@ -1,39 +1,60 @@
+/* Search bar: same height, border, radius and focus ring as DropdownSelect */
 .search-bar-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  background-color: var(--color-background-elevated, #fff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 6px;
+  gap: 8px;
+  box-sizing: border-box;
+  height: var(--control-height);
   padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Default width, kept at zero specificity so any page layout rule wins */
+:where(.search-bar-wrapper) {
   min-width: 280px;
-  transition: all 0.2s ease;
+}
+
+.search-bar-wrapper:hover {
+  border-color: var(--control-border-hover);
 }
 
 .search-bar-wrapper:focus-within {
-  border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: var(--primary-bg);
+  box-shadow: var(--control-focus-ring);
+}
+
+.search-bar-wrapper--disabled {
+  background: #f2f3f8;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .search-bar-icon {
   width: 16px;
   height: 16px;
-  color: var(--color-text-muted, #64748b);
+  color: var(--control-icon);
   flex-shrink: 0;
 }
 
 .search-bar-input {
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
   border: none;
   background: transparent;
-  padding: 10px;
+  font-family: var(--font-body);
   font-size: 14px;
-  color: var(--color-text-main, #1e293b);
+  color: var(--control-text);
   outline: none;
 }
 
 .search-bar-input::placeholder {
-  color: var(--color-text-muted, #94a3b8);
+  color: var(--control-muted);
 }
 
 .search-bar-clear {
@@ -44,14 +65,14 @@
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: var(--color-text-muted, #94a3b8);
+  color: var(--control-muted);
   border-radius: 50%;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .search-bar-clear:hover {
-  background-color: var(--color-background-hover, #f1f5f9);
-  color: var(--color-text-main, #1e293b);
+  background-color: #eef1fb;
+  color: var(--primary-bg);
 }
 
 .search-bar-clear svg {

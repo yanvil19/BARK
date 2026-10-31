@@ -2,15 +2,10 @@
   --aer-navy: #1e2d6b;
   --aer-navy-soft: #35408e;
   --aer-yellow: #f5c518;
-  --aer-bg: #f4f6fb;
   --aer-border: rgba(30, 45, 107, 0.12);
   --aer-text: #1f2937;
   --aer-muted: #7b86a5;
-  --aer-shadow: 0 20px 40px rgba(30, 45, 107, 0.08);
-  margin: -20px;
-  padding: 0 0 40px;
   min-height: 100vh;
-  background: var(--aer-bg);
   font-family: var(--font-body);
 }
 
@@ -18,7 +13,6 @@
   display: grid;
   grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
   gap: 24px;
-  padding: 0 32px;
   align-items: start;
 }
 
@@ -27,9 +21,9 @@
 .aer-breakdown-card,
 .aer-empty-state-card {
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid var(--aer-border);
-  border-radius: 22px;
-  box-shadow: var(--aer-shadow);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .aer-sidebar-card {
@@ -96,9 +90,10 @@
 
 .aer-sidebar-summary-card {
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--card-radius);
   background: #f7f9ff;
-  border: 1px solid rgba(53, 64, 142, 0.08);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -135,10 +130,11 @@
 .aer-sidebar-item,
 .aer-attempt-row {
   width: 100%;
-  border: 1px solid rgba(30, 45, 107, 0.08);
+  border: 1px solid var(--card-border);
   background: #fff;
   color: inherit;
-  border-radius: 18px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 14px;
   text-align: left;
   cursor: pointer;
@@ -254,8 +250,9 @@
 .aer-attempt-picker-card {
   overflow: hidden;
   background: #fff;
-  border: 1px solid var(--aer-border);
-  border-radius: 22px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .aer-attempt-overview-hero {
@@ -298,9 +295,10 @@
   flex-direction: column;
   justify-content: center;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--card-radius);
   background: #f7f9ff;
-  border: 1px solid rgba(53, 64, 142, 0.08);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
 }
 
 .aer-attempt-overview-stats span {
@@ -363,9 +361,9 @@
   z-index: 4;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--aer-border);
-  border-radius: 18px;
-  box-shadow: 0 14px 28px rgba(30, 45, 107, 0.1);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   backdrop-filter: blur(10px);
 }
 
@@ -412,10 +410,10 @@
   position: relative;
   overflow: hidden;
   padding: 22px 30px 0;
-  border-radius: 24px;
+  border-radius: var(--card-radius);
   background: #24357d;
   color: #fff;
-  box-shadow: 0 26px 42px rgba(30, 45, 107, 0.22);
+  box-shadow: var(--card-shadow);
 }
 
 .aer-hero-topline span {
@@ -522,7 +520,6 @@
 
 .aer-breakdown-card {
   overflow: hidden;
-  box-shadow: none;
 }
 
 .aer-breakdown-header {
@@ -546,9 +543,10 @@
   gap: 8px;
   margin: 14px 16px;
   padding: 10px;
-  border: 1px solid #c7d2fe;
-  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #f2f4ff;
+  box-shadow: var(--card-shadow);
 }
 
 .aer-question-set-header {
@@ -573,9 +571,10 @@
 
 .aer-question-set-list {
   overflow: hidden;
-  border: 1px solid rgba(30, 45, 107, 0.1);
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .aer-question-set-part {
@@ -594,8 +593,8 @@
 }
 
 .aer-attempt-row {
-  border: 1px solid rgba(30, 45, 107, 0.1);
-  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -918,12 +917,7 @@
 }
 
 @media (max-width: 720px) {
-  .aer-page {
-    margin: -12px;
-  }
-
   .aer-layout {
-    padding: 0 14px;
     gap: 14px;
   }
 
@@ -957,7 +951,6 @@
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 20px 18px;
-    border-radius: 18px;
   }
 
   .aer-attempt-overview-hero h2 {
@@ -984,10 +977,6 @@
 
   .aer-attempt-overview-stats strong {
     font-size: 17px;
-  }
-
-  .aer-attempt-picker-card {
-    border-radius: 18px;
   }
 
   .aer-attempt-picker-header {
@@ -1032,7 +1021,6 @@
   .aer-detail-toolbar {
     top: 8px;
     padding: 12px;
-    border-radius: 16px;
   }
 
   .aer-back-button {
@@ -1041,7 +1029,6 @@
 
   .aer-hero-card {
     padding: 16px 16px 0;
-    border-radius: 18px;
   }
 
   .aer-hero-body {
@@ -1088,9 +1075,6 @@
     border-bottom: 0;
   }
 
-  .aer-breakdown-card {
-    border-radius: 18px;
-  }
 
   .aer-breakdown-header {
     padding: 20px 18px 14px;

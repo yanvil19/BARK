@@ -39,7 +39,7 @@ export default function Footer({ onNavigate, isPublic = false, landingSectionsAv
           <p className="footer-kicker">NU Laguna Review Platform</p>
           <h2>BARK</h2>
           <p>
-            Board Exam &amp; Review Kit supports faculty-managed mock exams,
+            Board Assessment Review Kit supports faculty-managed mock exams,
             student review, and progress tracking for licensure preparation.
           </p>
         </section>

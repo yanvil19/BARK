@@ -38,9 +38,8 @@ const DeanDashboard = ({ me }) => {
   const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
 
   return (
-    <main className="dashboard-pc-main dashboard-dean-main">
+    <main className="dashboard-pc-main dashboard-dean-main page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title={`Good ${greeting}, Dean ${me?.firstName || ''}`}
         subtitle={me?.department?.school?.name || 'School not assigned'}
       />

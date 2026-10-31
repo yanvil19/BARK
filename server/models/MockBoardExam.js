@@ -85,6 +85,16 @@ const mockBoardExamSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Who last moved the exam from draft to published, and when; shown as learner dashboard announcements
+    publishedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    publishedAt: {
+      type: Date,
+      default: null,
+    },
     resultsReleaseDate: {
       type: Date,
       default: null,

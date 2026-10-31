@@ -132,9 +132,8 @@ export default function AlumniAvailableExams({ onTakeExam }) {
   const hasResults = filteredExams.length > 0;
 
   return (
-    <main className="aae-page">
+    <main className="aae-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Available Exams"
         subtitle="Browse alumni mock board exams for your program. Published exams are visible, while only on-going exams can be answered."
       />

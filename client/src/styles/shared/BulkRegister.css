@@ -81,8 +81,9 @@
   gap: 16px;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-list-header {
@@ -103,9 +104,10 @@
 
 .br-table-wrapper {
   overflow-x: auto;
-  border-radius: 6px;
-  border: 1px solid #dbe0f4;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .br-table {
@@ -257,8 +259,9 @@
   align-items: flex-end;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-controls .form-group {
@@ -355,8 +358,9 @@
   gap: 8px;
   padding: 18px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
-  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .br-entries-header {
@@ -426,36 +430,10 @@
   justify-content: center;
 }
 
-.br-btn-remove-row {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  border-radius: 6px;
-  color: #dc2626;
+/* Trash button sized to the row's 34px inputs */
+.col-action .trash-btn {
   width: 34px;
   height: 34px;
-  min-width: 34px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.br-btn-remove-row:hover:not(:disabled) {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #dc2626;
-}
-
-.br-btn-remove-row:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #9ca3af;
 }
 
 .br-btn-add-row-dashed {
@@ -645,10 +623,11 @@
   align-items: center;
   gap: 6px;
   padding: 16px 20px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   min-width: 110px;
   background: #f7f8fd;
-  border: 1px solid #dbe0f4;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
 }
 
 .stat-card.success {

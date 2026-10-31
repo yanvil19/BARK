@@ -1,9 +1,5 @@
 /* Follows the same design system as QuestionsPage.css */
 
-.ct-page {
-  padding: 0;
-}
-
 /* Reusing qp- classes from global or shared context if possible,
    but since they are in QuestionsPage.css, we redefine the necessary ones here
    to ensure the Manage Subjects page looks identical. */
@@ -59,7 +55,6 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 0 20px;
   margin-bottom: 20px;
   gap: 16px;
 }
@@ -67,30 +62,15 @@
 .qp-search {
   width: 100%;
   max-width: 400px;
-  padding: 10px 14px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: #333;
-  background-color: #fff;
-  transition: all 0.2s;
-  line-height: 1.2;
-}
-
-.qp-search:focus {
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  outline: none;
 }
 
 .qp-table-wrap {
   background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e4e7ec;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
   overflow: hidden;
-  margin: 0 20px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin: 0 0 16px;
+  box-shadow: var(--card-shadow);
 }
 
 .qp-table {
@@ -151,8 +131,7 @@
 }
 
 .qp-btn-edit,
-.qp-btn-submit,
-.qp-btn-delete {
+.qp-btn-submit {
   padding: 6px 16px;
   border-radius: 4px;
   background: #fff;
@@ -180,15 +159,6 @@
 
 .qp-btn-submit:hover {
   background: #f0fff8;
-}
-
-.qp-btn-delete {
-  border: 1px solid #fda29b;
-  color: #d92d20;
-}
-
-.qp-btn-delete:hover {
-  background: #fef3f2;
 }
 
 .qp-empty, .qp-loading {
@@ -260,31 +230,17 @@
 
 /* Dean-only layout additions kept isolated so the chair page keeps its original styling. */
 .st-dean-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  width: 100%;
+}
+
+.ct-controls-row--dean {
+  justify-content: flex-start;
 }
 
 .st-dean-program-select {
-  min-width: 220px;
-  padding: 10px 14px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: #333;
-  background-color: #fff;
-  transition: all 0.2s;
-}
-
-.st-dean-program-select:focus {
-  border-color: var(--primary-bg);
-  box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
-  outline: none;
-}
-
-.st-dean-search {
-  max-width: 320px;
+  width: 320px;
+  min-width: 320px;
+  flex: 0 0 320px;
 }
 
 .st-dean-modal-select {
@@ -292,7 +248,7 @@
 }
 
 .ct-helper-note {
-  margin: 0 20px 16px;
+  margin: 0 0 16px;
   color: #667085;
   font-size: 14px;
 }
@@ -303,17 +259,59 @@
   background: #fff;
 }
 
+main.ct-page--dean .ct-dean-subject-table-card {
+  margin: 0 0 16px;
+  overflow-x: auto;
+}
+
+main.ct-page--dean .ct-dean-subject-table-card:has(+ .ct-dean-subject-pagination) {
+  margin-bottom: 0;
+  border-bottom: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.ct-dean-subject-table {
+  min-width: 520px;
+}
+
+.ct-dean-subject-table .ct-dean-subject-label {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 1px solid rgba(53, 64, 142, 0.16);
+  border-radius: 6px;
+  background: #eef1ff;
+  color: var(--primary-bg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+main.ct-page--dean .ct-dean-subject-table .ct-dean-inline-edit {
+  box-sizing: border-box;
+  min-height: 36px;
+  border-radius: 6px;
+}
+
+.ct-dean-subject-pagination {
+  margin: 0 0 16px;
+}
+
 @media (max-width: 900px) {
   .st-dean-toolbar {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .st-dean-program-select,
   .st-dean-search {
-    max-width: none;
     width: 100%;
+    min-width: 0;
+  }
+
+  .st-dean-program-select {
+    flex-basis: auto;
   }
 
   .ct-controls-row {

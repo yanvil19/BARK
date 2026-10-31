@@ -8,8 +8,6 @@
 /* ── Full-page wrapper ────────────────────────────────────── */
 .lp-wrapper {
   position: relative;
-  /* Bleed out of page-content padding — same pattern as .landing-wrapper */
-  margin: -20px;
   min-height: calc(100svh - 62px); /* subtract approx navbar height */
   display: flex;
   align-items: center;

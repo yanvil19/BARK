@@ -47,9 +47,8 @@ const ProfessorDashboard = ({ me }) => {
   }, [summary.draft, summary.pending, summary.returned]);
 
   return (
-    <main className="dashboard-pc-main">
+    <main className="dashboard-pc-main page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title={`${greeting}, Professor ${me?.firstName || ''}`}
         subtitle={me?.department?.name || 'Department not assigned'}
       />

@@ -174,6 +174,39 @@ describe('PATCH /api/mock-board-exams/:id', () => {
   });
 });
 
+describe('publish tracking', () => {
+  it('records who published an exam and when, on create and on draft to published', async () => {
+    const tag = await require('../models/Tag').create({ name: 'Subject 3', program: prog._id, createdBy: deanUser._id, isActive: true });
+    const q = await Question.create({ description: 'Q3', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
+    const body = { programId: prog._id, subjectTagIds: [tag._id], questionIds: [q._id] };
+
+    const createdRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ ...body, name: 'Published On Create', startDateTime: futureDate(3), endDateTime: futureDate(4), status: 'published' });
+    expect(createdRes.status).toBe(201);
+    const created = await MockBoardExam.findById(createdRes.body.exam._id);
+    expect(String(created.publishedBy)).toBe(String(deanUser._id));
+    expect(created.publishedAt).toBeInstanceOf(Date);
+
+    const draftRes = await request(app)
+      .post('/api/mock-board-exams')
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ ...body, name: 'Draft First', startDateTime: futureDate(5), endDateTime: futureDate(6), status: 'draft' });
+    expect(draftRes.status).toBe(201);
+    expect((await MockBoardExam.findById(draftRes.body.exam._id)).publishedAt).toBeNull();
+
+    const publishRes = await request(app)
+      .patch(`/api/mock-board-exams/${draftRes.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ status: 'published' });
+    expect(publishRes.status).toBe(200);
+    const published = await MockBoardExam.findById(draftRes.body.exam._id);
+    expect(String(published.publishedBy)).toBe(String(deanUser._id));
+    expect(published.publishedAt).toBeInstanceOf(Date);
+  });
+});
+
 describe('PATCH /api/mock-board-exams/:id/archive', () => {
   it('should archive a finished exam', async () => {
     const exam = await MockBoardExam.create({

@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
+import SafeHtml from '../../components/SafeHtml.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -124,7 +125,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                   disabled={submitted}
                   onChange={() => handleSelect(question._id, answer._id)}
                 />{' '}
-                {answer.optionLabel} {answer.text}
+                {answer.optionLabel} <SafeHtml html={answer.text} />
                 <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
                 {submitted ? ` ${answer.isCorrect ? '(Correct Answer)' : checked ? '(Your Answer)' : ''}` : ''}
               </label>
@@ -133,7 +134,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
 
           return (
             <div key={answer._id || `${question._id}-${index}`} style={{ marginBottom: '8px' }}>
-              {answer.optionLabel} {answer.text}
+              {answer.optionLabel} <SafeHtml html={answer.text} />
               <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={setZoomedImage} className="answer-image--block" />
             </div>
           );
@@ -143,7 +144,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
   }
 
   return (
-    <main>
+    <main className="page-shell">
       <h1>{getModeTitle(mode)}</h1>
       <p>
         {mode === 'details'
@@ -221,7 +222,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                   <h4>
                     Question {index + 1}
                   </h4>
-                  <p>{question.description}</p>
+                  <SafeHtml tag="p" html={question.description} />
                   <p>
                     <strong>Subject:</strong> {question.tag?.name || '-'}
                   </p>
@@ -287,7 +288,7 @@ export default function ExamRunner({ examId, mode = 'details', onBack }) {
                       <h4>
                         Question {currentQuestionIndex + 1} of {questions.length}
                       </h4>
-                      <p>{currentQuestion.description}</p>
+                      <SafeHtml tag="p" html={currentQuestion.description} />
                       <p>
                         <strong>Subject:</strong> {currentQuestion.tag?.name || '-'}
                       </p>

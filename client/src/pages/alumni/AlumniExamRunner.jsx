@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
+import SafeHtml from '../../components/SafeHtml.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -133,8 +134,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (loading) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
-  if (error) return <div className="mbep-page"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
+  if (loading) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Exam...</h3></div></div>;
+  if (error) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error}</div></div>;
 
   const currentQuestion = questions[currentIdx];
   const currentQuestionSet = currentQuestion?.groupId
@@ -196,9 +197,8 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
         message={feedbackModal?.message}
       />
 
-      <div className="mbep-page mbep-page-secure">
+      <div className="mbep-page mbep-page-secure page-shell">
         <PageHeader
-          className="shared-page-header--bleed-lr"
           title={examInfo?.name}
           subtitle={attemptNumber ? `Attempt ${attemptNumber}` : examInfo?.description || 'Alumni Exam'}
         />
@@ -248,14 +248,14 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
                       <span>Question Set Scenario</span>
                     </div>
                     {currentQuestion.groupContext && (
-                      <div className="mbep-group-context-text">{currentQuestion.groupContext}</div>
+                      <SafeHtml tag="div" className="mbep-group-context-text" html={currentQuestion.groupContext} />
                     )}
                     <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
                   </div>
                 )}
 
                 <div className="mbep-question-title">
-                  {currentQuestion.description || currentQuestion.title || `Question ${currentIdx + 1}`}
+                  <SafeHtml html={currentQuestion.description || currentQuestion.title} fallback={`Question ${currentIdx + 1}`} />
                 </div>
 
                 {currentQuestion.images?.length > 0 && (
@@ -296,7 +296,7 @@ export default function AlumniExamRunner({ examId, onFinish, me }) {
                       >
                         <div className="mbep-option-circle">{String.fromCharCode(97 + i)}.</div>
                         <div className="mbep-option-text">
-                          {answer.text}
+                          <SafeHtml html={answer.text} />
                           <AnswerImage src={answer.image} alt={`Answer ${String.fromCharCode(97 + i)} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
                         </div>
                       </div>

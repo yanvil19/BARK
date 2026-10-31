@@ -27,7 +27,7 @@ function SuccessSeal() {
 
 export default function AlumniExamResult({ onReturn, onViewResults }) {
   return (
-    <main className="serc-page">
+    <main className="serc-page page-shell">
       <div className="serc-backdrop serc-backdrop--left" aria-hidden="true" />
       <div className="serc-backdrop serc-backdrop--right" aria-hidden="true" />
 

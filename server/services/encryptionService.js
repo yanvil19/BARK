@@ -91,6 +91,7 @@ function decryptQuestion(q) {
     ...obj,
     description: decryptText(obj.description),
     rationalization: decryptText(obj.rationalization),
+    groupContext: decryptText(obj.groupContext),
     answers: (obj.answers || []).map((a) => ({
       ...a,
       text: decryptText(a.text),

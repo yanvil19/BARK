@@ -1,0 +1,33 @@
+/* Icon-only delete button (trash can), used for every delete and remove action */
+.trash-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #f3b3b3;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #c62828;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.trash-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.trash-btn:hover:not(:disabled),
+.trash-btn:focus-visible {
+  background: #ffe3e3;
+  border-color: #e57373;
+  transform: translateY(-1px);
+}
+
+.trash-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

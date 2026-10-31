@@ -1,6 +1,7 @@
 import AuthImage from './AuthImage';
 import AnswerImage from './AnswerImage';
 import PassageImages from './PassageImages';
+import SafeHtml from './SafeHtml';
 import { resolveImageUrl } from '../lib/authImageCache';
 import '../styles/components/QuestionDetailPanels.css';
 
@@ -44,7 +45,7 @@ export default function QuestionDetailPanels({
         <section className="question-panel">
           <p className="question-panel-label">Shared Passage</p>
           <div className="question-panel-body">
-            {passage ? <p className="question-panel-text">{passage}</p> : null}
+            {passage ? <SafeHtml tag="div" className="question-panel-text" html={passage} /> : null}
             <PassageImages images={passageImages} onZoom={onZoom} />
           </div>
         </section>
@@ -53,7 +54,7 @@ export default function QuestionDetailPanels({
       <section className="question-panel">
         <p className="question-panel-label">Question</p>
         <div className="question-panel-body">
-          <p className="question-panel-text">{question.description || 'No description provided.'}</p>
+          <SafeHtml tag="div" className="question-panel-text" html={question.description} fallback="No description provided." />
         </div>
       </section>
 
@@ -103,7 +104,7 @@ export default function QuestionDetailPanels({
                 >
                   <span className="question-panel-option">{answer.optionLabel}</span>
                   <span className="question-panel-answer-text">
-                    {answer.text}
+                    <SafeHtml html={answer.text} />
                     <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={onZoom} className="answer-image--block" />
                   </span>
                   {(isSelected || answer.isCorrect || count !== null) && (
@@ -131,7 +132,7 @@ export default function QuestionDetailPanels({
         <section className="question-panel">
           <p className="question-panel-label">Rationalization</p>
           <div className="question-panel-body">
-            <p className="question-panel-text">{question.rationalization}</p>
+            <SafeHtml tag="div" className="question-panel-text" html={question.rationalization} />
           </div>
         </section>
       )}

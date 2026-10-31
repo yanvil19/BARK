@@ -1,7 +1,3 @@
-.as-page {
-  padding: 0;
-}
-
 .as-page-header {
   margin: -20px -20px 20px;
   padding: 18px 32px 12px;
@@ -30,15 +26,12 @@
   color: #8b92bc;
 }
 
-.as-content {
-  padding: 0 20px 24px;
-}
-
 .as-card {
   margin-top: 8px;
   background: #fff;
-  border: 1px solid #e4e7ec;
-  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 18px;
   max-width: 900px;
 }

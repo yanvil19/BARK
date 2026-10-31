@@ -140,9 +140,8 @@ const StudentExamResults = () => {
   const selectedThreshold = selectedAttempt?.passingThreshold || 70;
 
   return (
-    <main className="sae-page-container">
+    <main className="sae-page-container page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Exam Results"
         subtitle="View your completed exam results and performance breakdown"
       />

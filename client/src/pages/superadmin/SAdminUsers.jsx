@@ -5,6 +5,9 @@ import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
+import TrashButton from '../../components/TrashButton.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 
 function PasswordToggle({ shown, onToggle, label, disabled }) {
   function handleKeyDown(e) {
@@ -492,26 +495,13 @@ export default function AdminUsers({ me }) {
     return '(n/a)';
   }
 
-  function TrashIcon(props) {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-        <path d="M3 6h18" />
-        <path d="M8 6V4h8v2" />
-        <path d="M19 6l-1 14H6L5 6" />
-        <path d="M10 11v6" />
-        <path d="M14 11v6" />
-      </svg>
-    );
-  }
-
   const isEditingSelf = selectedUser?._id === me?._id;
   const isEditingSuperAdmin = selectedUser?.role === 'super_admin' || editForm.role === 'super_admin';
 
   return (
-    <main className="um-page">
+    <main className="um-page page-shell">
       {/* ── Page Header ── */}
       <PageHeader
-        className="shared-page-header--bleed"
         title="User Management"
         subtitle="Create, edit, and manage all system users"
       >
@@ -527,64 +517,63 @@ export default function AdminUsers({ me }) {
         </button>
       </PageHeader>
 
-      <div style={{ padding: '0 20px' }}>
+      <div>
         {/* ── Filters ── */}
         <div className="um-filters">
-          <input
+          <SearchBar
             className="um-search"
-            type="text"
             placeholder="Search users by name, email, or ID..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
           />
-          <select
+          <DropdownSelect
             className="um-filter-select"
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-          >
-            <option value="">Filter: All Roles</option>
-            <option value="student">Student</option>
-            <option value="alumni">Alumni</option>
-            <option value="super_admin">Super Admin</option>
-            <option value="dean">Dean</option>
-            <option value="program_chair">Program Chair</option>
-            <option value="professor">Professor</option>
-          </select>
-          <select
+            ariaLabel="Filter by role"
+            placeholder="Filter: All Roles"
+            options={[
+              { value: 'student', label: 'Student' },
+              { value: 'alumni', label: 'Alumni' },
+              { value: 'super_admin', label: 'Super Admin' },
+              { value: 'dean', label: 'Dean' },
+              { value: 'program_chair', label: 'Program Chair' },
+              { value: 'professor', label: 'Professor' },
+            ]}
+          />
+          <DropdownSelect
             className="um-filter-select"
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
-          >
-            <option value="">Filter: All Departments</option>
-            {departments.map((d) => (
-              <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
-            ))}
-          </select>
-          <select
+            ariaLabel="Filter by department"
+            placeholder="Filter: All Departments"
+            options={departments.map((d) => ({ value: d._id, label: `${d.code} - ${d.name}` }))}
+          />
+          <DropdownSelect
             className="um-filter-select"
             value={filterProgram}
             onChange={(e) => setFilterProgram(e.target.value)}
-          >
-            <option value="">Filter: All Programs</option>
-            {programs
+            ariaLabel="Filter by program"
+            placeholder="Filter: All Programs"
+            options={programs
               .filter((p) => {
                 if (!filterDepartment) return true;
                 const deptId = p.department?._id || p.department;
                 return String(deptId) === String(filterDepartment);
               })
-              .map((p) => (
-                <option key={p._id} value={p._id}>{p.code} - {p.name}</option>
-              ))}
-          </select>
-          <select
+              .map((p) => ({ value: p._id, label: `${p.code} - ${p.name}` }))}
+          />
+          <DropdownSelect
             className="um-filter-select"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="">Filter: All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+            ariaLabel="Filter by status"
+            placeholder="Filter: All Status"
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+            ]}
+          />
 
           <button
             type="button"
@@ -684,17 +673,13 @@ export default function AdminUsers({ me }) {
                           {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                             : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
                           {deleteMode ? (
-                            <button
-                              type="button"
+                            <TrashButton
                               className="um-btn-delete-icon"
+                              label={`Delete ${u.name || u.email}`}
                               onClick={() => startDelete(u)}
                               onMouseEnter={() => setHoveredDeleteUserId(u._id)}
                               onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
-                              aria-label={`Delete ${u.name || u.email}`}
-                              title="Delete user"
-                            >
-                              <TrashIcon className="um-delete-icon" />
-                            </button>
+                            />
                           ) : null}
                         </td>
                       </tr>
@@ -756,17 +741,13 @@ export default function AdminUsers({ me }) {
                         {u.isActive ? <button className="um-btn-deactivate" onClick={() => startDeactivate(u)}>Deactivate</button>
                           : <button className="um-btn-activate" onClick={() => startActivate(u)}>Activate</button>}
                         {deleteMode ? (
-                          <button
-                            type="button"
+                          <TrashButton
                             className="um-btn-delete-icon"
+                            label={`Delete ${u.name || u.email}`}
                             onClick={() => startDelete(u)}
                             onMouseEnter={() => setHoveredDeleteUserId(u._id)}
                             onMouseLeave={() => setHoveredDeleteUserId((current) => (current === u._id ? null : current))}
-                            aria-label={`Delete ${u.name || u.email}`}
-                            title="Delete user"
-                          >
-                            <TrashIcon className="um-delete-icon" />
-                          </button>
+                          />
                         ) : null}
                       </td>
                     </tr>

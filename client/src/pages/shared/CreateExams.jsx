@@ -12,6 +12,8 @@ import { Modal } from '../../components/Modal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import '../../styles/shared/CreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -684,9 +686,8 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       };
 
   return (
-    <main className="mbe-page" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+    <main className="mbe-page page-shell" data-audience={isAlumniExam ? 'alumni' : 'student'}>
       <PageHeader
-        className="shared-page-header--bleed"
         title="Mock Board Exam"
         subtitle={isEditing ? 'Edit an existing mock board exam.' : 'Create a new mock board exam for students or alumni.'}
       />
@@ -814,25 +815,43 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
               <div className="mbe-field">
                 <div className="mbe-field-heading">
-                  <label><span className="mbe-label-row">Exam Start <FieldCheck valid={fieldValid.start} /></span></label>
-                </div>
-                <DateTimePicker
-                  value={form.startDateTime}
-                  onChange={(val) => setForm((prev) => ({ ...prev, startDateTime: val }))}
-                />
-              </div>
-
-              <div className="mbe-field">
-                <div className="mbe-field-heading">
-                  <label><span className="mbe-label-row">Exam End <FieldCheck valid={fieldValid.end} /></span></label>
+                  <label>
+                    <span className="mbe-label-row">
+                      Exam Schedule <FieldCheck valid={fieldValid.start && fieldValid.end} />
+                    </span>
+                  </label>
                   <span className={`mbe-field-meta ${computedDuration?.includes('Invalid') ? 'is-error' : ''}`}>
                     {computedDuration ? `Duration: ${computedDuration}` : '\u00A0'}
                   </span>
                 </div>
                 <DateTimePicker
-                  value={form.endDateTime}
-                  onChange={(val) => setForm((prev) => ({ ...prev, endDateTime: val }))}
+                  range
+                  value={form.startDateTime}
+                  endValue={form.endDateTime}
+                  onChange={(start, end) => setForm((prev) => ({ ...prev, startDateTime: start, endDateTime: end }))}
+                  title="Exam Schedule"
+                  description="Pick when this exam starts and ends. Exams already scheduled for this program are shown on the calendar."
+                  placeholder="Select Start & End"
+                  role={me?.role}
+                  programId={programId}
+                  audience={form.targetAudience || 'student'}
+                  excludeExamId={editingExamId}
                 />
+              </div>
+
+              <div className="mbe-field">
+                <label>
+                  <span className="mbe-label-row">Passing Threshold (%) <FieldCheck valid={fieldValid.passingThreshold} /></span>
+                  <input
+                    className="mbe-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.passingThreshold}
+                    onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
+                    required
+                  />
+                </label>
               </div>
 
               {isAlumniExam && (
@@ -878,21 +897,6 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   </div>
                 </div>
               )}
-
-              <div className="mbe-field">
-                <label>
-                  <span className="mbe-label-row">Passing Threshold (%) <FieldCheck valid={fieldValid.passingThreshold} /></span>
-                  <input
-                    className="mbe-input"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.passingThreshold}
-                    onChange={(e) => setForm((prev) => ({ ...prev, passingThreshold: Number(e.target.value) }))}
-                    required
-                  />
-                </label>
-              </div>
 
               <div className="mbe-field mbe-field--full mbe-textarea-grid">
                 <label>
@@ -949,12 +953,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               return (
                 <>
                   <div className="mbe-subject-search-row">
-                    <input
-                      className="mbe-input mbe-subject-search"
-                      type="text"
+                    <SearchBar
+                      className="mbe-subject-search"
                       placeholder="Search subjects..."
                       value={subjectSearch}
-                      onChange={(e) => { setSubjectSearch(e.target.value); setSubjectPage(1); }}
+                      onChange={(value) => { setSubjectSearch(value); setSubjectPage(1); }}
                     />
                   </div>
                   {filteredBySearch.length === 0 ? (
@@ -1053,34 +1056,31 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   />
 
                   <div className="mbe-question-filters">
-                    <input
-                      className="mbe-input mbe-search"
-                      type="text"
+                    <SearchBar
+                      className="mbe-search"
                       placeholder="Search approved question"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={setSearchQuery}
                     />
-                    <select
-                      className="mbe-input mbe-filter-select"
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={questionFilterTagId}
                       onChange={(e) => setQuestionFilterTagId(e.target.value)}
-                    >
-                      <option value="">All selected subjects</option>
-                      {filteredSubjectOptions.map((tag) => (
-                        <option key={tag._id} value={tag._id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="mbe-input mbe-filter-select"
+                      ariaLabel="Filter questions by subject"
+                      placeholder="All selected subjects"
+                      options={filteredSubjectOptions.map((tag) => ({ value: tag._id, label: tag.name }))}
+                    />
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={approvedSelectionFilter}
                       onChange={(e) => setApprovedSelectionFilter(e.target.value)}
-                    >
-                      <option value="all">All questions</option>
-                      <option value="selected">Selected only</option>
-                      <option value="unselected">Not selected yet</option>
-                    </select>
+                      ariaLabel="Filter questions by selection"
+                      options={[
+                        { value: 'all', label: 'All questions' },
+                        { value: 'selected', label: 'Selected only' },
+                        { value: 'unselected', label: 'Not selected yet' },
+                      ]}
+                    />
                   </div>
 
                   <div className="mbe-question-bulk-controls">
@@ -1377,18 +1377,14 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
               {selectedQuestions.length > 0 ? (
                 <>
                   <div className="mbe-toolbar mbe-toolbar--selected">
-                    <select
-                      className="mbe-input mbe-filter-select"
+                    <DropdownSelect
+                      className="mbe-filter-select"
                       value={selectedQuestionFilterTagId}
                       onChange={(e) => setSelectedQuestionFilterTagId(e.target.value)}
-                    >
-                      <option value="">All selected subjects</option>
-                      {filteredSubjectOptions.map((tag) => (
-                        <option key={tag._id} value={tag._id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
+                      ariaLabel="Filter selected questions by subject"
+                      placeholder="All selected subjects"
+                      options={filteredSubjectOptions.map((tag) => ({ value: tag._id, label: tag.name }))}
+                    />
                   </div>
 
                   <div className="mbe-table-wrap">

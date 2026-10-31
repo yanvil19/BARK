@@ -7,6 +7,7 @@ import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import TrashButton from '../../components/TrashButton.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
@@ -820,9 +821,8 @@ export default function QuestionApprovals({ me }) {
     : -1;
 
   return (
-    <main className="ca-page">
+    <main className="ca-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Questions for Review and Approval"
         subtitle="Questions submitted by faculty for Program Chair review"
       />
@@ -888,7 +888,7 @@ export default function QuestionApprovals({ me }) {
                 {selectedState === 'rejected' && (
                   <>
                     <button className="ca-bulk-btn ca-bulk-btn--return" onClick={handleBulkRestore} disabled={bulkSubmitting}>Restore All</button>
-                    <button className="ca-bulk-btn ca-bulk-btn--reject" onClick={handleBulkDelete} disabled={bulkSubmitting}>Delete All</button>
+                    <TrashButton label="Delete all selected questions" onClick={handleBulkDelete} disabled={bulkSubmitting} />
                   </>
                 )}
                 <button
@@ -1217,10 +1217,10 @@ export default function QuestionApprovals({ me }) {
                     <button className="ca-btn ca-btn--reject" onClick={() => { setActionModal({ question: selectedQuestion, action: 'reject' }); setNote(''); }}>Reject</button>
                   </>
                 ) : (selectedQuestion.state === 'rejected') ? (
-                  <>
+                  <div className="ca-sidebar-action-row">
                     <button className="ca-btn ca-btn--restore" onClick={() => handleRestore(selectedQuestion)}>Restore for Revision</button>
-                    <button className="ca-btn ca-btn--delete" onClick={() => handleDelete(selectedQuestion)}>Delete</button>
-                  </>
+                    <TrashButton label="Delete question" onClick={() => handleDelete(selectedQuestion)} />
+                  </div>
                 ) : (selectedQuestion.state === 'approved' && !selectedQuestion.is_used_in_exam) ? (
                   <button className="ca-btn ca-btn--return" onClick={() => handleReturnToCreator(selectedQuestion)}>Return to Creator</button>
                 ) : (

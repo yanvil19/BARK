@@ -2,22 +2,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-  padding: 18px 32px 11px;
+  margin: 0 0 20px;
+  padding: 18px var(--page-gutter, 32px) 11px;
   background: #f9faff;
   border-bottom: 1px solid rgba(53, 64, 142, 0.35);
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.shared-page-header--bleed {
-  margin: -20px -20px 20px;
-}
-
-/* For pages whose container already uses margin: -20px (all sides).
-   The container already bleeds to the edges — header just needs no extra margin. */
-.shared-page-header--bleed-lr {
-  margin: 0 0 20px;
+/* Spans the full width of the page shell; its padding lines the title up with the page content */
+.page-shell > .shared-page-header {
+  margin-inline: calc(var(--page-gutter) * -1);
 }
 
 .shared-page-header-text {

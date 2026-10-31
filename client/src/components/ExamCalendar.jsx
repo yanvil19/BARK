@@ -1,187 +1,46 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, getDay, parse, startOfWeek } from 'date-fns';
-import { enUS } from 'date-fns/locale';
-import { apiAuth } from '../lib/api.js';
+import { useMemo, useState } from 'react';
 import { Modal } from './Modal.jsx';
+import ExamMonthGrid from './ExamMonthGrid.jsx';
+import { useCalendarExams } from '../hooks/useCalendarExams.js';
 import {
-  abbreviateExamTitle,
   addConflictFlags,
   formatExamDateTime,
-  getCalendarRange,
-  getExamEventColor,
   getLearnerExamState,
 } from '../utils/calendarUtils.js';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../styles/components/ExamCalendar.css';
 
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales: { 'en-US': enUS },
-});
-
-function normalizeRole(role) {
-  if (role === 'programChair') return 'program_chair';
-  if (role === 'prof') return 'professor';
-  return role;
-}
-
-function EventLabel({ event }) {
-  return (
-    <span className="exam-calendar-event-label">
-      {event.resource?.hasScheduleConflict ? (
-        <span className="exam-calendar-conflict" title="Overlapping exam schedule">!</span>
-      ) : null}
-      <span>{event.title}</span>
-    </span>
-  );
-}
-
-export default function ExamCalendar({ role, programId, refreshKey }) {
-  const normalizedRole = normalizeRole(role);
-  const isDean = normalizedRole === 'dean';
-  const isChair = normalizedRole === 'program_chair';
-  const isManager = isDean || isChair;
-  const [view, setView] = useState('month');
+export default function ExamCalendar({
+  role,
+  programId,
+  refreshKey,
+  statusFilter = '',
+  examIds = null,
+}) {
   const [date, setDate] = useState(new Date());
-  const [exams, setExams] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [selectedExam, setSelectedExam] = useState(null);
+  const { exams, loading, error, isManager } = useCalendarExams({ role, programId, date, refreshKey });
 
-  const effectiveProgramId = useMemo(() => {
-    if (!programId) return '';
-    if (typeof programId === 'object' && programId !== null) {
-      if (programId._id) return String(programId._id).trim();
-      if (typeof programId.toString === 'function' && programId.toString() !== '[object Object]') {
-        return programId.toString().trim();
-      }
-    }
-    const str = String(programId).trim();
-    if (str === '[object Object]' || str === 'undefined' || str === 'null') return '';
-    return str;
-  }, [programId]);
+  // Conflicts are flagged before filtering so an overlap stays marked when the other exam is filtered out
+  const calendarExams = useMemo(() => {
+    const flagged = isManager ? addConflictFlags(exams) : exams;
+    const allowedIds = examIds ? new Set(examIds.map(String)) : null;
 
-  const visibleRange = useMemo(() => getCalendarRange(date, view), [date, view]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function fetchCalendarExams() {
-      if (isDean && !effectiveProgramId) {
-        setExams([]);
-        return;
-      }
-
-      setLoading(true);
-      setError('');
-
-      try {
-        const params = new URLSearchParams();
-
-        if (isManager) {
-          if (effectiveProgramId) {
-            params.set('programId', effectiveProgramId);
-          }
-          params.set('startRange', visibleRange.start.toISOString());
-          params.set('endRange', visibleRange.end.toISOString());
-        }
-
-        const path = isDean
-          ? `/api/calendar/dean?${params.toString()}`
-          : isChair
-          ? `/api/calendar/chair?${params.toString()}`
-          : '/api/calendar/student';
-        const data = await apiAuth(path);
-        if (!ignore) setExams(data.exams || []);
-      } catch (err) {
-        if (!ignore) {
-          setError(err.message || 'Failed to load calendar exams.');
-          setExams([]);
-        }
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    fetchCalendarExams();
-
-    return () => {
-      ignore = true;
-    };
-  }, [isManager, isDean, isChair, effectiveProgramId, visibleRange.end, visibleRange.start, refreshKey]);
-
-  const calendarExams = useMemo(
-    () => (isManager ? addConflictFlags(exams) : exams),
-    [exams, isManager]
-  );
-
-  const events = useMemo(
-    () =>
-      calendarExams.map((exam) => ({
-        id: exam._id,
-        title: exam.name,
-        start: new Date(exam.startDateTime),
-        end: new Date(exam.endDateTime),
-        resource: exam,
-      })),
-    [calendarExams]
-  );
-
-  function handleViewChange(nextView) {
-    setView(nextView);
-  }
-
-  function handleNavigate(nextDate) {
-    setDate(nextDate);
-  }
-
-  function eventPropGetter(event) {
-    const color = getExamEventColor(event.resource?.status, normalizedRole);
-    return {
-      style: {
-        backgroundColor: color,
-        borderColor: color,
-      },
-    };
-  }
+    return flagged.filter((exam) =>
+      (!statusFilter || exam.status === statusFilter) &&
+      (!allowedIds || allowedIds.has(String(exam._id)))
+    );
+  }, [exams, isManager, statusFilter, examIds]);
 
   return (
-    <section className="exam-calendar-shell">
-      <div className="exam-calendar-toolbar">
-        <div>
-          <h2>Exam Calendar</h2>
-          <p>{isManager ? 'Review exam schedules for the selected program.' : 'View upcoming and active exams.'}</p>
-        </div>
-
-        <div className="exam-calendar-actions" />
-      </div>
-
-      {loading ? <div className="exam-calendar-status">Loading calendar...</div> : null}
-      {error ? <div className="exam-calendar-error">{error}</div> : null}
-
-      <div className="exam-calendar-frame">
-        <Calendar
-          localizer={localizer}
-          events={events}
-          date={date}
-          view={view}
-          views={['month']}
-          startAccessor="start"
-          endAccessor="end"
-          onNavigate={handleNavigate}
-          onView={handleViewChange}
-          onSelectEvent={(event) => setSelectedExam(event.resource)}
-          eventPropGetter={eventPropGetter}
-          components={{ event: EventLabel }}
-          maxRows={Infinity}
-          doShowMoreDrillDown={false}
-          style={{ minHeight: 620 }}
-        />
-      </div>
+    <>
+      <ExamMonthGrid
+        date={date}
+        exams={calendarExams}
+        loading={loading}
+        error={error}
+        onNavigate={setDate}
+        onSelectExam={setSelectedExam}
+      />
 
       <Modal
         open={!!selectedExam}
@@ -216,6 +75,6 @@ export default function ExamCalendar({ role, programId, refreshKey }) {
           </div>
         ) : null}
       </Modal>
-    </section>
+    </>
   );
 }

@@ -130,6 +130,19 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // Board exam countdown a student or alumni sets on their dashboard
+    boardExamCountdown: {
+      label: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+        default: '',
+      },
+      targetAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   { timestamps: true }
 );

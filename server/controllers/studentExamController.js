@@ -159,15 +159,23 @@ async function getAvailableExams(req, res) {
       endDateTime: { $gt: now },
       targetAudience: { $ne: 'alumni' },
     })
-      .select('name startDateTime endDateTime status program subjectTags questions')
+      .select('name startDateTime endDateTime status program subjectTags questions publishedBy publishedAt createdBy createdAt')
       .populate('program', 'name code')
       .populate('subjectTags', 'name')
+      .populate('publishedBy', 'name')
+      .populate('createdBy', 'name')
       .sort({ startDateTime: 1 })
       .lean();
 
     const enriched = exams.map((exam) => {
       const questionCount = exam.questions?.length ?? 0;
+      // Exams published before publish tracking fall back to their creator and creation time
+      const publishedByName = (exam.publishedBy || exam.createdBy)?.name || null;
+      const publishedAt = exam.publishedAt || exam.createdAt || null;
       delete exam.questions;
+      delete exam.publishedBy;
+      delete exam.createdBy;
+      delete exam.createdAt;
 
       const durationMinutes =
         exam.startDateTime && exam.endDateTime
@@ -185,7 +193,7 @@ async function getAvailableExams(req, res) {
         examCardStatus = 'open';
       }
 
-      return { ...exam, durationMinutes, questionCount, examCardStatus };
+      return { ...exam, durationMinutes, questionCount, examCardStatus, publishedAt, publishedByName };
     });
 
     res.json({ exams: enriched.map(decryptExamQuestions) });

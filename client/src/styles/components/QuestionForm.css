@@ -218,7 +218,6 @@ textarea.qf-answer-input {
 }
 
 .qf-secondary-btn,
-.qf-remove-btn,
 .qf-draft-btn,
 .qf-submit-btn,
 .qf-add-another-btn {
@@ -254,11 +253,10 @@ textarea.qf-answer-input {
   height: 18px;
 }
 
-.qf-remove-btn {
-  padding: 9px 12px;
-  border: 1px solid #e7bfd0;
-  background: #fff7fa;
-  color: #b4436c;
+/* The trash button beside the "add image" button, same 36px square */
+.qf-answer-actions .trash-btn {
+  width: 36px;
+  height: 36px;
 }
 
 .qf-draft-btn {
@@ -279,14 +277,12 @@ textarea.qf-answer-input {
 }
 
 .qf-secondary-btn:hover,
-.qf-remove-btn:hover,
 .qf-draft-btn:hover,
 .qf-submit-btn:hover {
   transform: translateY(-1px);
 }
 
 .qf-secondary-btn:disabled,
-.qf-remove-btn:disabled,
 .qf-draft-btn:disabled,
 .qf-submit-btn:disabled {
   transform: none;
@@ -472,11 +468,6 @@ textarea.qf-answer-input {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .qf-remove-btn {
-    grid-column: 2;
-    justify-self: start;
-  }
-
   .qf-answer-actions {
     grid-column: 2;
     flex-wrap: wrap;
@@ -556,22 +547,6 @@ textarea.qf-answer-input {
   font-family: var(--font-title);
   color: var(--primary-bg);
   font-size: 16px;
-}
-
-.qf-remove-question-btn {
-  background: #fff0f0;
-  color: #a13030;
-  border: 1px solid #f0c1c1;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.qf-remove-question-btn:hover {
-  background: #fde8e8;
 }
 
 .qf-add-block {
@@ -863,6 +838,18 @@ textarea.qf-answer-input {
   border-color: #e2e5f5;
   cursor: default;
   opacity: 1;
+}
+
+/* Rationalization RichTextEditor: seamlessly aligns with Question editor */
+.qf-field .qf-rationalization-editor.rte-wrapper {
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.qf-field .qf-rationalization-editor.rte-wrapper:focus-within {
+  border-color: #8e99d1;
+  box-shadow: 0 0 0 3px rgba(142, 153, 209, 0.15);
 }
 
 /* ─── Grouped Questions Mode ─────────────────────────────────── */

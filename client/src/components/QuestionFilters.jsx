@@ -1,5 +1,6 @@
 import React from 'react';
 import DropdownSelect from './DropdownSelect.jsx';
+import SearchBar from './SearchBar.jsx';
 import '../styles/components/QuestionFilters.css';
 
 export default function QuestionFilters({
@@ -23,12 +24,11 @@ export default function QuestionFilters({
 }) {
   return (
     <div className={`qf-filters ${className}`}>
-      <input
+      <SearchBar
         className="qf-search"
-        type="text"
         placeholder={searchPlaceholder}
         value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
+        onChange={onSearchChange}
       />
 
       <DropdownSelect

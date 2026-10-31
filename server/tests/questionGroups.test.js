@@ -161,4 +161,63 @@ describe('question groups have one subject', () => {
       .send({ tagId: tagA._id, description: 'Edited text' });
     expect(unchanged.status).toBe(200);
   });
+
+  it('encrypts groupContext in the database and decrypts it when fetched', async () => {
+    const rawPassage = 'A 45-year-old patient presents with acute chest pain.';
+    const created = await request(app)
+      .post('/api/questions/group')
+      .set('Cookie', profCookie)
+      .send({
+        questions: [member(tagA._id), member(tagA._id)],
+        groupContext: rawPassage,
+      });
+
+    expect(created.status).toBe(201);
+    expect(created.body.questions[0].groupContext).toBe(rawPassage);
+    expect(created.body.questions[1].groupContext).toBe(rawPassage);
+
+    // Verify in MongoDB: raw groupContext is encrypted (not plain text)
+    const rawDocs = await Question.find({ groupId: created.body.groupId }).lean();
+    expect(rawDocs).toHaveLength(2);
+    rawDocs.forEach((doc) => {
+      expect(doc.groupContext).not.toBe(rawPassage);
+      expect(typeof doc.groupContext).toBe('string');
+      // AES-128-GCM base64 format (IV + authTag + ciphertext)
+      expect(doc.groupContext).toMatch(/^[A-Za-z0-9+/=]+$/);
+    });
+
+    // Verify GET /api/questions/group/:groupId decrypts the passage
+    const fetched = await request(app)
+      .get(`/api/questions/group/${created.body.groupId}`)
+      .set('Cookie', profCookie);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.questions[0].groupContext).toBe(rawPassage);
+    expect(fetched.body.questions[1].groupContext).toBe(rawPassage);
+
+    // Verify PUT /api/questions/group/:groupId re-encrypts updated passage
+    const updatedPassage = 'Updated clinical case study description.';
+    const [first, second] = created.body.questions;
+    const updated = await request(app)
+      .put(`/api/questions/group/${created.body.groupId}`)
+      .set('Cookie', profCookie)
+      .send({
+        questions: [
+          member(tagA._id, { _id: first._id }),
+          member(tagA._id, { _id: second._id }),
+        ],
+        groupContext: updatedPassage,
+      });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.questions[0].groupContext).toBe(updatedPassage);
+
+    const updatedRawDocs = await Question.find({ groupId: created.body.groupId }).lean();
+    updatedRawDocs.forEach((doc) => {
+      expect(doc.groupContext).not.toBe(updatedPassage);
+      expect(doc.groupContext).not.toBe(rawDocs[0].groupContext); // new IV/ciphertext
+      expect(doc.groupContext).toMatch(/^[A-Za-z0-9+/=]+$/);
+    });
+  });
 });
+

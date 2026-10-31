@@ -46,9 +46,8 @@ const SuperAdminDashboard = ({ onNavigate, stats }) => {
   }, {});
 
   return (
-    <main className="dashboard-sa-main">
+    <main className="dashboard-sa-main page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title="Dashboard"
         subtitle="National University Laguna • Super Admin Portal"
       />

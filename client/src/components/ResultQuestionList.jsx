@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import AuthImage from './AuthImage';
 import ImportReviewBubbles from './ImportReviewBubbles';
 import QuestionDetailPanels from './QuestionDetailPanels';
+import { stripHtml } from './SafeHtml';
 import { organizeQuestionAnswers } from '../lib/DeanTestRunOrganizer';
 import { groupQuestionsForDisplay } from '../lib/groupQuestionsForDisplay';
 import '../styles/components/ResultQuestionList.css';
 
 function toOneLine(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
+  return stripHtml(String(text || '')).replace(/\s+/g, ' ').trim();
 }
 
 function getQuestionKey(question) {

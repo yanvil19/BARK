@@ -11,6 +11,7 @@ const { validateStudentId, validateAlumniId } = require('../utils/idFormats');
 const { logAudit } = require('../utils/auditLogger');
 const { sendEmail } = require('../utils/emailService');
 const { welcomeCredentialsHtml } = require('../emails/templates/welcomeCredentialsTemplate');
+const { recordFailedLogin, recordSuccessfulLogin } = require('../middleware/loginIpRateLimit');
 
 const BULK_REGISTER_MAX_ENTRIES = 500;
 const bulkRegistrationBatches = new Map();
@@ -368,6 +369,7 @@ const loginUser = async (req, res) => {
       // responses take the same amount of time (prevents email enumeration
       // via timing differences).
       await bcrypt.compare(String(password), DUMMY_HASH);
+      recordFailedLogin(req);
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
@@ -408,6 +410,8 @@ const loginUser = async (req, res) => {
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      recordFailedLogin(req);
+
       // Increment cumulative failed-attempt counter
       user.loginFailedAttempts = (user.loginFailedAttempts || 0) + 1;
       user.loginLastFailedAt = new Date();
@@ -438,6 +442,7 @@ const loginUser = async (req, res) => {
     // -----------------------------------------------------------------------
     // Successful login — clear lockout counters
     // -----------------------------------------------------------------------
+    recordSuccessfulLogin(req);
     user.loginFailedAttempts = 0;
     user.loginLockedUntil = null;
     user.loginLastFailedAt = null;
@@ -1592,6 +1597,37 @@ const subscribeBulkRegisterEvents = (req, res) => {
   }
 };
 
+// @desc    Set or clear the board exam countdown on the learner dashboard (targetAt: null clears it)
+// @route   PATCH /api/auth/me/board-exam-countdown
+// @access  Private - Student / Alumni
+const updateBoardExamCountdown = async (req, res) => {
+  try {
+    const label = String(req.body?.label || '').trim();
+    const targetAt = req.body?.targetAt ? new Date(req.body.targetAt) : null;
+
+    if (targetAt && Number.isNaN(targetAt.getTime())) {
+      return res.status(400).json({ message: 'Please provide a valid date and time' });
+    }
+    if (targetAt && targetAt <= new Date()) {
+      return res.status(400).json({ message: 'The board exam date must be in the future' });
+    }
+    if (label.length > 120) {
+      return res.status(400).json({ message: 'Exam name must be 120 characters or fewer' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: { boardExamCountdown: { label: targetAt ? label : '', targetAt } } },
+      { returnDocument: 'after', runValidators: true }
+    ).select('boardExamCountdown');
+
+    return res.status(200).json({ boardExamCountdown: user.boardExamCountdown });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
 // @desc    Update current user's heartbeat timestamp
 // @route   POST /api/auth/heartbeat
 // @access  Private
@@ -1632,5 +1668,6 @@ module.exports = {
   approveRegistrationRequest,
   rejectRegistrationRequest,
   heartbeat,
+  updateBoardExamCountdown,
 };
 

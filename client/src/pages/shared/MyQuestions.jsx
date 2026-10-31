@@ -894,9 +894,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   }
 
   return (
-    <main className="qp-page">
+    <main className="qp-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed"
         title={getPageTitle()}
         subtitle={getPageSubtitle()}
       >

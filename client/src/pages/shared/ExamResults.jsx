@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import ResultQuestionList from '../../components/ResultQuestionList.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import IndividualReportView from "./IndividualReportView.jsx";
 
@@ -609,9 +610,8 @@ const ExamResults = ({ me }) => {
   const audienceNoun = isAlumniReport ? 'alumni' : 'students';
 
   return (
-    <div className="er-page">
+    <div className="er-page page-shell">
       <PageHeader
-        className="shared-page-header--bleed-lr"
         title="Mock Board Exam Results"
         subtitle="Review computed analytics, pending exams, and topic-level performance in one place."
       />
@@ -650,30 +650,30 @@ const ExamResults = ({ me }) => {
 
             <label className="er-program-filter">
               <span>Program</span>
-              <select
+              <DropdownSelect
+                className="dd-full-width"
                 value={selectedProgramId}
                 onChange={(event) => setSelectedProgramId(event.target.value)}
                 disabled={isProgramChair}
-              >
-                <option value="all">All programs</option>
-                {programs.map((program) => (
-                  <option key={program._id} value={program._id}>
-                    {program.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: 'all', label: 'All programs' },
+                  ...programs.map((program) => ({ value: program._id, label: program.name })),
+                ]}
+              />
             </label>
 
             <label className="er-program-filter">
               <span>Exam Audience</span>
-              <select
+              <DropdownSelect
+                className="dd-full-width"
                 value={selectedAudience}
                 onChange={(event) => setSelectedAudience(event.target.value)}
-              >
-                <option value="all">All Audiences</option>
-                <option value="student">Student Exams</option>
-                <option value="alumni">Alumni Exams</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'All Audiences' },
+                  { value: 'student', label: 'Student Exams' },
+                  { value: 'alumni', label: 'Alumni Exams' },
+                ]}
+              />
             </label>
 
             <div className="er-sidebar-scroll">

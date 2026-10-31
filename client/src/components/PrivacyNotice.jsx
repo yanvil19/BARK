@@ -39,7 +39,7 @@ export default function PrivacyNotice({ onAccept }) {
               <hr className="pn-hero-divider" />
               
               <p className="pn-intro">
-                Welcome to the <strong>Board Assessment and Review Kit (BARK)</strong>, an online board exam reviewer
+                Welcome to the <strong>Board Assessment Review Kit (BARK)</strong>, an online board exam reviewer
                 platform developed in National University – Laguna (NUL). We value your privacy and are committed to
                 protecting your personal information. As a student, alumni, or faculty member using this digital board
                 exam reviewer platform, this policy explains how your data is collected, used, and safeguarded
