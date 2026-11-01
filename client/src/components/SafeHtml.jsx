@@ -55,6 +55,62 @@ export default function SafeHtml({
 }
 
 /**
+ * Safely truncates an HTML string while preserving formatted text and <math-field> formulas.
+ * Text outside math-fields is truncated to `max` characters, and unclosed tags are cleaned up.
+ */
+export function truncateHtml(html, max = 100) {
+  if (!html) return '';
+
+  // Extract and preserve math-field components by temporary placeholder tokens
+  const mathFields = [];
+  let tokenized = String(html).replace(/<math-field[^>]*>[\s\S]*?<\/math-field>/gi, (match) => {
+    // Ensure the math-field is read-only for inline preview
+    let readOnlyMatch = match;
+    if (!readOnlyMatch.includes('read-only')) {
+      readOnlyMatch = readOnlyMatch.replace('<math-field', '<math-field read-only style="display:inline-block; vertical-align:middle; font-size:0.9em; margin:0 4px; border:none; background:transparent;"');
+    }
+    const token = `___MATH_FIELD_${mathFields.length}___`;
+    mathFields.push(readOnlyMatch);
+    return token;
+  });
+
+  // Strip regular HTML tags (p, div, etc.) but keep the mathfield tokens
+  let plain = tokenized
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // If plain length is within limit, restore math fields and return
+  if (plain.length <= max) {
+    let restored = plain;
+    mathFields.forEach((mf, i) => {
+      restored = restored.replace(`___MATH_FIELD_${i}___`, mf);
+    });
+    return restored;
+  }
+
+  // If exceeding max, check if truncation cuts through tokens
+  let truncated = plain.slice(0, max);
+  // If we cut in the middle of a token, expand up to the end of the token
+  const partialTokenMatch = truncated.match(/___MATH_FIELD_\d*$/);
+  if (partialTokenMatch) {
+    const tokenIndex = plain.indexOf('___', truncated.length);
+    if (tokenIndex !== -1) {
+      truncated = plain.slice(0, tokenIndex + 3);
+    }
+  }
+
+  truncated += '...';
+
+  // Restore math fields
+  mathFields.forEach((mf, i) => {
+    truncated = truncated.replace(`___MATH_FIELD_${i}___`, mf);
+  });
+
+  return truncated;
+}
+
+/**
  * Strips all HTML tags from a string, returning plain text.
  * Useful for table cells, search matching, truncation, etc.
  */

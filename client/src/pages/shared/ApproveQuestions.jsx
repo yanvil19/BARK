@@ -3,6 +3,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { apiAuth, buildAuthHeaders } from '../../lib/api.js';
+import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
 import '../../styles/shared/QuestionApprovals.css';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -935,7 +936,7 @@ export default function QuestionApprovals({ me }) {
                   const isSomeGroupChecked = isGrouped && groupSiblings.some(q => selectedIds.has(q._id));
 
                   const groupTitle = question.groupContext?.trim()
-                    ? truncateText(question.groupContext.trim(), 80)
+                    ? <SafeHtml html={truncateHtml(question.groupContext.trim(), 80)} />
                     : `Question Set (${groupSiblings.length} questions)`;
 
                   if (isGrouped) {
@@ -1021,7 +1022,7 @@ export default function QuestionApprovals({ me }) {
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p className="ca-card-desc">
-                            {truncateText(question.description, 100)}
+                            <SafeHtml html={truncateHtml(question.description, 100)} />
                           </p>
                         </div>
                         <div className="ca-card-badges">

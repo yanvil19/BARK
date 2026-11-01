@@ -14,6 +14,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
+import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
 import '../../styles/shared/CreateExams.css';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -1200,7 +1201,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
                                   {!isExpanded && (
                                     <div className="mbe-question-headline mbe-question-headline--compact">
-                                      {truncateText(question.description, 100)}
+                                      <SafeHtml html={truncateHtml(question.description, 100)} />
                                     </div>
                                   )}
                                 </button>

@@ -16,6 +16,7 @@ import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import AuthImage from '../../components/AuthImage.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
+import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
 import '../../styles/shared/MyQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
 
@@ -406,13 +407,13 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
           <div className="qp-question-text">
             {question.groupId ? (
               <>
-                <strong>{truncateText(question.groupContext?.trim() || 'Question Set', 100)}</strong>
+                <strong><SafeHtml html={truncateHtml(question.groupContext?.trim() || 'Question Set', 100)} /></strong>
                 <span className="qp-badge qp-badge--group" title="Fixed Question Group">
                   Set ({groupSizes.get(question.groupId)} questions)
                 </span>
               </>
             ) : (
-              truncateText(question.description, 120)
+              <SafeHtml html={truncateHtml(question.description, 120)} />
             )}
           </div>
 
