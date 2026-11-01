@@ -173,3 +173,66 @@
   display: flex;
   align-items: center;
 }
+
+
+/* ───────────────────────────────────────────────────────────
+   MathLive MathField & MathNode styling
+   ─────────────────────────────────────────────────────────── */
+.math-node-wrapper {
+  margin: 6px 0;
+  user-select: none;
+}
+
+.math-node-wrapper math-field {
+  display: block;
+  font-size: 1.15rem;
+  background: #f8faff;
+  border: 1px solid #d5daf0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.math-node-wrapper math-field:focus-within {
+  border-color: #35408e;
+  box-shadow: 0 0 0 2px rgba(53, 64, 142, 0.12);
+  background: #ffffff;
+}
+
+.math-node-wrapper.is-selected math-field {
+  border-color: #35408e;
+}
+
+/* Math field in read-only / rendered mode */
+math-field[read-only] {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  display: inline-block;
+  cursor: default;
+}
+
+
+/* Ensure MathLive virtual keyboard appears above modals */
+:root {
+  --keyboard-zindex: 20000;
+}
+
+div.ML__keyboard,
+.ML__keyboard,
+mathlive-virtual-keyboard {
+  z-index: 20000 !important;
+}
+
+
+/* Ensure MathLive virtual keyboard appears above modals */
+:root {
+  --keyboard-zindex: 20000;
+}
+
+div.ML__keyboard,
+.ML__keyboard,
+mathlive-virtual-keyboard {
+  z-index: 20000 !important;
+}

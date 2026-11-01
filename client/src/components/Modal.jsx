@@ -15,6 +15,15 @@ export function Modal({ open, onClose, title, children, size = 'default', bodyCl
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose, open]);
 
+  // Hide virtual keyboard when modal closes or unmounts
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.mathVirtualKeyboard) {
+        window.mathVirtualKeyboard.hide();
+      }
+    };
+  }, [open]);
+
   const handleBackdropClick = (e) => {
     if (e.target === modalRef.current) {
       onClose();
