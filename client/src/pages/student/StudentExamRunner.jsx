@@ -2,6 +2,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
 import SafeHtml from '../../components/SafeHtml.jsx';
+import QuestionNavBubbles from '../../components/QuestionNavBubbles.jsx';
 import { useEffect, useState, useRef } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -454,20 +455,13 @@ export default function StudentExamRunner({ examId, onFinish, me }) {
           ) : null}
 
           <div className="mbep-navigator-wrap">
-            <div className="mbep-nav-bar">
-              {questions.map((q, i) => {
-                const isAnswered = !!answers[q._id];
-                let dotClass = "mbep-nav-circle";
-                if (currentIdx === i) dotClass += " active";
-                else if (isAnswered) dotClass += " is-answered-preview";
-
-                return (
-                  <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
-                    {i + 1}
-                  </button>
-                );
-              })}
-            </div>
+            <QuestionNavBubbles
+              className="mbep-nav-bar"
+              questions={questions}
+              currentIdx={currentIdx}
+              onSelect={setCurrentIdx}
+              getStatus={(question) => ({ done: Boolean(answers[question._id]) })}
+            />
 
             <div className="mbep-nav-actions">
               <button

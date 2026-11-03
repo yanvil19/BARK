@@ -11,17 +11,6 @@ export const getImportLimits = async () => {
 };
 
 /**
- * Upload a file for question import
- */
-export const uploadDocumentForImport = async (file, tags = []) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('tags', JSON.stringify(tags.map(t => ({ name: t.name }))));
-
-    return apiAuthUpload(`${BASE}/api/import/upload`, formData);
-};
-
-/**
  * Stage 1: Upload file, AI-count questions, validate <= 20, receive token + questionCount
  */
 export const validateAndCountDocument = async (file) => {
@@ -31,21 +20,12 @@ export const validateAndCountDocument = async (file) => {
 };
 
 /**
- * Stage 2: Full question extraction using session token from Stage 1
+ * Stage 2: Full question extraction using session token from Stage 1.
+ * The questions are reviewed in QuestionForm and saved through /api/questions.
  */
 export const extractQuestionsFromToken = async (token, tags = []) => {
     return apiAuth(`${BASE}/api/import/extract`, {
         method: 'POST',
         body: { token, tags: tags.map(t => ({ name: t.name })) }
-    });
-};
-
-/**
- * Submit extracted questions to draft
- */
-export const submitImportedQuestions = async (questions, programId) => {
-    return apiAuth(`${BASE}/api/import/submit`, {
-        method: 'POST',
-        body: { questions, programId }
     });
 };

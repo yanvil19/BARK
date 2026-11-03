@@ -617,6 +617,126 @@
   line-height: 1.45;
 }
 
+/* Import templates: a headed section, rows edge to edge split by lines */
+.qp-import-templates {
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.qp-import-templates-header {
+  padding: 10px 14px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+}
+
+.qp-import-templates-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary-bg);
+}
+
+.qp-import-templates-hint {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5d6da8;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.qp-import-template-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qp-import-template {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.qp-import-template + .qp-import-template {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.qp-import-template-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #eef1fb;
+  color: var(--primary-bg);
+}
+
+.qp-import-template-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.qp-import-template-text strong {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-bg);
+}
+
+.qp-import-template-text span {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #667085;
+}
+
+.qp-import-template-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid #c9d0ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #4b5ab0;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.qp-import-template-download:hover {
+  background: #f4f6ff;
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+.qp-import-template-download:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .qp-import-template {
+    flex-wrap: wrap;
+  }
+
+  .qp-import-template-download {
+    margin-left: 44px;
+  }
+}
+
 .qp-import-quota-val {
   font-weight: 700 !important;
   font-size: 16px !important;

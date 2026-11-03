@@ -908,6 +908,30 @@ textarea.qf-answer-input {
   color: #b7791f;
 }
 
+/* Imported question set: the notice carries the set's numbers and an Ungroup action */
+.qf-import-set-notice {
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.qf-import-set-notice .qf-group-notice-icon {
+  margin-top: 2px;
+}
+
+.qf-import-set-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-import-set-notice-text strong {
+  color: #5f4b14;
+  font-weight: 700;
+}
+
+.qf-import-set-notice .qf-section-action {
+  flex-shrink: 0;
+}
+
 /* Question block numbered header for grouped mode */
 .qf-group-question-header {
   display: flex;

@@ -51,7 +51,7 @@ server/controllers/catalogController.js
 ```
 server/controllers/importController.js
 ```
--> Orchestrates the AI-assisted question import pipeline: validates file type, extracts text/images, calls Gemini to count and parse questions, stores sessions in memory, and allows final submission to the question bank.
+-> Runs the AI question import in two steps. `validateAndCount` checks the file, reads its text and asks Gemini how many questions it has, then keeps the text in an encrypted `ImportSession` and returns a token. `extractFromSession` asks Gemini for the questions, runs the guardrails (which remove any rationalization that is not in the document) and returns them for review. `getLimits` returns the user's import limits. Reviewed questions are saved through the normal question endpoints, not here.
 
 ```
 server/controllers/mockBoardExamController.js
@@ -135,7 +135,7 @@ server/routes/catalogRoutes.js
 ```
 server/routes/importRoutes.js
 ```
--> Mounts the AI import pipeline endpoints: upload, validate/count, extract questions, and submit—guarded by import-specific rate limiting and file validation middleware.
+-> Mounts the AI import endpoints: `GET /limits`, `POST /validate-count` (file upload) and `POST /extract`, guarded by the per-user import limit, the shared Gemini request limit, the one-import-at-a-time lock and file validation.
 
 ```
 server/routes/mockBoardExamRoutes.js
@@ -219,7 +219,7 @@ server/models/AppSettings.js
 ```
 server/models/AuditLog.js
 ```
--> Mongoose schema that records administrative actions (user creation, approval, deletion, settings changes) with actor, action type, target type/ID, and metadata.
+-> Mongoose schema that records administrative actions (user creation, approval, deletion, settings changes) with actor, action type, target type/ID, and metadata. Creating or editing a question group is logged as `question_group_created` / `question_group_updated`, with the first question as the target and the `groupId` in the details.
 
 ```
 server/models/Department.js
@@ -245,6 +245,21 @@ server/models/PendingSettingUpdate.js
 server/models/Tag.js
 ```
 -> Mongoose schema for subject/topic tags linked to a program, used to categorize exam questions by subject area.
+
+```
+server/models/ImportSession.js
+```
+-> The text of an uploaded import file (encrypted), kept between the count and extract steps under a random token tied to its user. A TTL index deletes it after 10 minutes, and it is deleted as soon as its questions are extracted.
+
+```
+server/models/ImportUsage.js
+```
+-> One document per finished import (`import`, per user) and per Gemini request (`gemini_call`, retries included). The per-user and shared Gemini limits are counted from these. A TTL index deletes them after 25 hours.
+
+```
+server/models/ImportLock.js
+```
+-> One lock per user while an import request is running, so a user runs one import at a time. A lock that is never released expires after 5 minutes and can then be taken over.
 
 ---
 
@@ -293,7 +308,12 @@ server/services/fileExtractionService.js
 ```
 server/services/geminiService.js
 ```
--> Calls the Google Gemini API to count multiple-choice questions in extracted document text and to parse/structure those questions into a JSON array for import review.
+-> Calls the Google Gemini API to count the multiple-choice questions in a document's text and to extract them as JSON for review. Every Gemini request, retries included, first takes a place under the shared limits (`reserveGeminiCall`). The extract prompt copies a rationalization only when the document or its answer key gives one and never writes one. `processQuestionsWithGuardrails` also removes any rationalization that is not in the document text and flags that question for review.
+
+```
+server/services/importStateService.js
+```
+-> Import state kept in MongoDB, so it holds across restarts and server instances: the import sessions, each user's hourly and daily import count (`IMPORT_USER_HOURLY_LIMIT` / `IMPORT_USER_DAILY_LIMIT`, default 8 / 20), the shared Gemini request limits (`GEMINI_RPM_LIMIT` / `GEMINI_RPD_LIMIT`, default 8 / 200) and the one-import-per-user lock.
 
 ---
 
@@ -317,7 +337,7 @@ server/middleware/forgotPasswordRateLimit.js
 ```
 server/middleware/importRateLimit.js
 ```
--> Per-user sliding-window rate limiter for the question import endpoint, enforcing configurable hourly and daily upload limits tracked in memory.
+-> Limits for the import routes: `userImportLimiter` (each user's hourly and daily import limit), `geminiLimiter` (turns a request away when the shared Gemini limit is already used up) and `concurrentImportLimiter` (one import at a time per user; the lock is released when the response ends). The counts and the lock are kept in MongoDB by `importStateService`.
 
 ```
 server/middleware/importValidation.js
@@ -352,6 +372,11 @@ server/utils/idFormats.js
 server/utils/examAttemptUtils.js
 ```
 -> Shared helpers for exam attempt processing: Fisher-Yates shuffle for randomizing question/answer order and score calculation with per-subject breakdown.
+
+```
+server/utils/questionHtml.js
+```
+-> `cleanQuestionHtml` keeps only the markup the rich-text editor makes (the same list `SafeHtml` allows, equations included) in question text, answer choices, rationalizations and shared passages. HTML with nothing visible left, such as empty paragraphs, becomes `''`.
 
 ---
 
@@ -403,7 +428,7 @@ server/scripts/migrateAlumniRole.js
 ```
 server/tests/setup.js
 ```
--> Jest global setup that configures `mongodb-memory-server`, mocks the email service to prevent real sends during tests, and seeds the database before each test suite.
+-> Jest global setup that configures `mongodb-memory-server`, mocks the email service to prevent real sends during tests, and seeds the database before each test suite. It passes Node's `os` module to Mongoose as a runtime adapter, because the MongoDB driver loads it with a dynamic `import()` that fails under Jest.
 
 ```
 server/tests/helpers.js
@@ -499,6 +524,16 @@ server/tests/systemMetrics.test.js
 server/tests/loginRateLimit.test.js
 ```
 -> Tests the per-IP login limit: 200 people on one network signing in at once, blocking after too many wrong passwords, the cap on unsuccessful attempts, and that per-account lockout still applies.
+
+```
+server/tests/importFlow.test.js
+```
+-> Tests the AI import with Gemini mocked: the encrypted session between count and extract, a rationalization from the document kept and one the AI wrote removed, sessions limited to their user, the removed legacy endpoints, every Gemini request counted (retries included), the per-user and shared limits, and the one-import-at-a-time lock.
+
+```
+server/tests/questionRules.test.js
+```
+-> Tests question rules: submitting single questions and groups without a rationalization, image flags from an import kept and editable, question HTML cleaned on the server, the group audit log entry, and subject checks when a question's subject changes.
 
 ---
 
@@ -800,7 +835,7 @@ client/src/components/ChangeCredentialsModal.jsx
 ```
 client/src/components/QuestionForm.jsx
 ```
--> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, and AI import review mode.
+-> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, and AI import review mode. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
 
 ```
 client/src/components/QuestionFilters.jsx
@@ -870,7 +905,7 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> Bubble-navigation grid for the AI import review step: shows a numbered bubble per question, color-coded by readiness/flags, matching the student exam runner style.
+-> Question navigation for the AI import review step: a numbered bubble for each standalone question, and one capsule holding the numbers of each question set, like the exam runner's grouped bubbles. Numbers are colored by readiness and flags, and a set's capsule fills as its questions become ready.
 
 ```
 client/src/components/SystemUpdateWarning.jsx
@@ -899,7 +934,7 @@ client/src/lib/api.js
 ```
 client/src/lib/importApi.js
 ```
--> API functions specifically for the question import pipeline: upload document, validate/count, extract questions, and submit to the question bank.
+-> API functions for the question import: get the user's limits, upload a file to validate and count its questions, and extract the questions with the returned token. Reviewed questions are saved through the regular question endpoints.
 
 ```
 client/src/lib/loginLock.js
@@ -1065,7 +1100,7 @@ client/src/styles/components/Footer.css
 ```
 client/src/styles/components/ImportReviewBubbles.css
 ```
--> Styles for the import review bubble navigation grid matching the exam-runner bubble style.
+-> Styles for the import review navigation: standalone bubbles and the question-set capsule (`import-review-nav-group`) with its progress fill, matching the exam runner's grouped bubbles.
 
 ```
 client/src/styles/components/PrivacyNotice.css

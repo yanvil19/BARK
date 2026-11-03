@@ -1461,10 +1461,3 @@
   font-weight: 700;
   white-space: nowrap;
 }
-
-/* Sidebar Review Bubble Navigation */
-.ca-sidebar .import-review-nav-bubble {
-  width: 32px;
-  height: 32px;
-  font-size: 12px;
-}

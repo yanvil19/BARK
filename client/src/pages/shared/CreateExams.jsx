@@ -1303,6 +1303,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                                     currentIdx={activeIdx}
                                     onSelectQuestion={(idx) => setActiveGroupIdx(prev => ({ ...prev, [item.groupId]: idx }))}
                                     readOnly
+                                    allInOneSet
                                   />
                                 )}
 

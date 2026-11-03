@@ -33,6 +33,8 @@ const auditLogSchema = new mongoose.Schema({
       'question_submitted',
       'question_reviewed',
       'question_dean_returned',
+      'question_group_created',
+      'question_group_updated',
       'tag_created',
       'tag_updated',
       'tag_deleted',

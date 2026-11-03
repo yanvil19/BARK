@@ -1,52 +1,56 @@
+import QuestionNavBubbles from './QuestionNavBubbles.jsx';
 import '../styles/components/ImportReviewBubbles.css';
 
 // [IMPORT REVIEW - BUBBLE NAVIGATION]
-// Bubble navigation system for import review - matches StudentExamRunner styling.
-// A bordered section with the progress text in a header bar, like the sections
-// of QuestionDetailPanels.
-export default function ImportReviewBubbles({ questions, currentIdx, onSelectQuestion, getQuestionFlags, readOnly = false }) {
-  const readyCount = questions.filter(q => {
-    const flags = typeof getQuestionFlags === 'function' ? getQuestionFlags(q) : [];
-    return flags.length === 0;
-  }).length;
-  const totalCount = questions.length;
+// The question navigator (QuestionNavBubbles, the exam runner's bubbles) in a
+// bordered section with the progress text in a header bar, like the sections of
+// QuestionDetailPanels. Used by the question form and the read-only question set
+// views.
+//
+// Questions of one set (an imported set, a saved question group, or every
+// question when allInOneSet is on) share one capsule. While editing, a question
+// with no flags counts as ready, and a set's capsule fills as its questions
+// become ready.
+
+export default function ImportReviewBubbles({
+  questions,
+  currentIdx,
+  onSelectQuestion,
+  getQuestionFlags,
+  readOnly = false,
+  allInOneSet = false,
+}) {
+  // Read-only views show no flags or progress
+  const flagCounts = questions.map((q) => (
+    !readOnly && typeof getQuestionFlags === 'function' ? getQuestionFlags(q).length : 0
+  ));
+  const readyCount = flagCounts.filter((count) => count === 0).length;
+
+  const getSetKey = (q) => {
+    if (allInOneSet) return 'all';
+    if (q?.setKey) return q.setKey;
+    return q?.groupId ? `group-${q.groupId}` : null;
+  };
 
   return (
     <div className="import-review-bubble-wrapper">
       <div className="import-review-progress">
         <span className="import-review-progress-text">
           {readOnly
-            ? `Question ${currentIdx + 1} of ${totalCount}`
-            : `${readyCount} of ${totalCount} questions ready`}
+            ? `Question ${currentIdx + 1} of ${questions.length}`
+            : `${readyCount} of ${questions.length} questions ready`}
         </span>
       </div>
 
-      <div className="import-review-nav-bar">
-        {questions.map((q, i) => {
-          const flags = typeof getQuestionFlags === 'function' ? getQuestionFlags(q) : [];
-          const hasFlags = flags.length > 0;
-
-          let bubbleClass = "import-review-nav-bubble";
-          if (currentIdx === i) bubbleClass += " active";
-          else if (readOnly || !hasFlags) bubbleClass += " ready";
-          else bubbleClass += " flagged";
-
-          return (
-            <button
-              key={i}
-              type="button"
-              className={bubbleClass}
-              onClick={() => onSelectQuestion(i)}
-              title={`Question ${i + 1}${!readOnly && hasFlags ? ` (${flags.length} flags)` : ''}`}
-            >
-              <span className="bubble-number">{i + 1}</span>
-              {!readOnly && hasFlags && (
-                <span className="bubble-flag-badge">{flags.length}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <QuestionNavBubbles
+        className="import-review-nav-bar"
+        questions={questions}
+        currentIdx={currentIdx}
+        onSelect={onSelectQuestion}
+        getStatus={readOnly ? undefined : (_, index) => ({ done: flagCounts[index] === 0, flags: flagCounts[index] })}
+        doneLabel="ready"
+        getSetKey={getSetKey}
+      />
     </div>
   );
 }

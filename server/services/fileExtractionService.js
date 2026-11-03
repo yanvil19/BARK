@@ -1,5 +1,5 @@
 const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+const { extractDocxImportText } = require('./docxImportText');
 
 class FileExtractionService {
     /**
@@ -15,12 +15,12 @@ class FileExtractionService {
     }
 
     /**
-     * Extracts text and images from a DOCX buffer
+     * Extracts text from a DOCX buffer, keeping bold/italic/underline as <b>/<i>/<u>,
+     * Word equations as $LaTeX$ and pictures as [IMAGE] (see docxImportText.js)
      */
     async extractTextFromDOCX(buffer) {
         try {
-            const result = await mammoth.extractRawText({ buffer });
-            return result.value || '';
+            return await extractDocxImportText(buffer);
         } catch (error) {
             throw new Error(`DOCX parsing failed: ${error.message}`);
         }

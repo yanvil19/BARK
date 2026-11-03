@@ -2,7 +2,30 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
-import { uploadDocumentForImport, submitImportedQuestions, getImportLimits, validateAndCountDocument, extractQuestionsFromToken } from '../../lib/importApi.js';
+import { getImportLimits, validateAndCountDocument, extractQuestionsFromToken } from '../../lib/importApi.js';
+import { mapExtractedQuestions } from '../../lib/importText.js';
+
+// Word templates in client/public/templates, offered in the Import Questions window
+const IMPORT_TEMPLATES = [
+  {
+    file: 'bark-import-template-single-questions.docx',
+    downloadName: 'BARK Import Template - Single Questions.docx',
+    title: 'Single Questions',
+    description: 'Standalone questions with choices and answer, plus an optional rationalization and subject.',
+  },
+  {
+    file: 'bark-import-template-question-sets.docx',
+    downloadName: 'BARK Import Template - Question Sets.docx',
+    title: 'Question Sets',
+    description: 'Questions that share one passage, case or scenario. Can be mixed with single questions.',
+  },
+  {
+    file: 'bark-import-template-math-equations.docx',
+    downloadName: 'BARK Import Template - Math Equations.docx',
+    title: 'Math Equations',
+    description: 'Equations made with Word\'s equation tool, or typed as LaTeX between $ signs.',
+  },
+];
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -637,7 +660,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     markQuestionAsRead(question);
   }
 
-  function handleSaved(savedData, isEdit) {
+  // Puts saved questions into the list: replaces the ones already shown and adds new ones on top
+  function mergeSavedQuestions(savedData, isEdit) {
     if (Array.isArray(savedData)) {
       if (savedData.length > 0 && savedData[0].groupId) {
         // Group saved/updated: update existing members or append new
@@ -661,6 +685,10 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         setQuestions((prev) => [savedData, ...prev]);
       }
     }
+  }
+
+  function handleSaved(savedData, isEdit) {
+    mergeSavedQuestions(savedData, isEdit);
     closeFormModal();
   }
 
@@ -833,26 +861,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     setExtractionProgress({ current: questionCount, total: questionCount, status: 'completed' });
 
     try {
-      const preFilledQuestions = (extractionResult.questions || []).map(q => {
-        const matchedTag = tags.find(
-          t => t.name.toLowerCase() === (q.suggested_tag || '').toLowerCase()
-        );
-
-        return {
-          description: q.question_text || '',
-          answers: Object.entries(q.options || {})
-            .filter(([, text]) => text !== null)
-            .map(([key, text]) => ({
-              text,
-              isCorrect: key === q.correct_answer,
-            })),
-          rationalization: q.rationalization || '',
-          image_required: q.image_required || false,
-          image_note: q.image_note || null,
-          flags: q.flags || [],
-          tagId: matchedTag?._id || '',
-        };
-      });
+      // Formatting and $…$ equations become editor HTML; sets keep their shared passage
+      const preFilledQuestions = mapExtractedQuestions(extractionResult.questions || [], tags);
 
       if (preFilledQuestions.length === 0) {
         throw new Error('No questions could be extracted from this file. Please check the format and try again.');
@@ -1022,6 +1032,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
             handleSaved(savedData, isEdit);
             setImportedQuestions([]); // Clear after save
           }}
+          // Some questions saved before an error: show them, keep the form open for the rest
+          onPartialSave={(savedData) => mergeSavedQuestions(savedData, false)}
           onClose={() => {
             closeFormModal();
             setImportedQuestions([]);
@@ -1057,6 +1069,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
                   currentIdx={activeIdx}
                   onSelectQuestion={setViewGroupIdx}
                   readOnly
+                  allInOneSet
                 />
               )}
 
@@ -1163,7 +1176,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       >
         <div className="qp-modal-copy qp-modal-copy--import">
           <p className="qp-modal-subtitle">
-            Upload a PDF or DOCX file containing multiple choice questions. An AI will extract the questions for your review.
+            Upload a Word (.docx) or PDF file containing multiple choice questions. An AI will extract the questions for your review.
           </p>
 
           <div className="qp-import-guidelines">
@@ -1184,6 +1197,45 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
               <span>20 per upload</span>
             </div>
           </div>
+
+          <section className="qp-import-templates" aria-labelledby="qp-import-templates-title">
+            <div className="qp-import-templates-header">
+              <h3 id="qp-import-templates-title" className="qp-import-templates-title">Templates</h3>
+            </div>
+            <p className="qp-import-templates-hint">
+              Start from a template so the AI reads your file correctly. Word files keep bold, italic, underline and equations.
+            </p>
+            <ul className="qp-import-template-list">
+              {IMPORT_TEMPLATES.map((template) => (
+                <li key={template.file} className="qp-import-template">
+                  <span className="qp-import-template-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                      <path d="M9 13h6M9 17h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <span className="qp-import-template-text">
+                    <strong>{template.title}</strong>
+                    <span>{template.description}</span>
+                  </span>
+                  <a
+                    className="qp-import-template-download"
+                    href={`${import.meta.env.BASE_URL}templates/${template.file}`}
+                    download={template.downloadName}
+                    aria-label={`Download the ${template.title} template (Word)`}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M12 4v11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="m7 11 5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M5 20h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    Download
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           {importLimits.isLimitReached && (
             <div className="import-limit-banner">
@@ -1271,7 +1323,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
                     </div>
 
                     <span className="import-drop-zone-footnote">
-                      Please wait while the AI analyzes document structure, choices, and rationalizations.
+                      Please wait while the AI reads the questions, choices, answers and any rationalizations in your file.
                     </span>
                   </>
                 )}
@@ -1314,7 +1366,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
                   <p className="import-drop-zone-sub">
                     {importLimits.isLimitReached
                       ? `Limit reached. Resets ${formatResetTime(importLimits.earliestResetAt)}`
-                      : 'Drag & drop or browse your typed PDF or DOCX file'}
+                      : 'Drag & drop or browse your typed Word (.docx) or PDF file'}
                   </p>
                 </div>
                 <button

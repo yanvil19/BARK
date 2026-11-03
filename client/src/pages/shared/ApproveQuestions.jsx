@@ -1160,7 +1160,8 @@ export default function QuestionApprovals({ me }) {
                     questions={groupSiblingsReview}
                     currentIdx={activeGroupIdx}
                     onSelectQuestion={setActiveGroupIdx}
-                    readOnly={true}
+                    readOnly
+                    allInOneSet
                   />
                 )}
 
