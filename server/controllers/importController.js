@@ -1,32 +1,61 @@
 const fileExtractionService = require('../services/fileExtractionService');
 const geminiService = require('../services/geminiService');
 const {
-    saveImportSession,
-    getImportSession,
-    deleteImportSession,
     getUserImportLimits,
     recordUserImport,
+    importMaxQuestions,
     GeminiLimitError,
 } = require('../services/importStateService');
 
-// The import has two steps, each its own request:
-//   1. validate-count: read the file, count its questions, keep the text in an import session
-//   2. extract: turn the session's text into questions for the review form
-// The reviewed questions are saved through the normal question endpoints
-// (POST /api/questions and /api/questions/group), never by this controller.
+// The import is one request: POST /api/import/extract reads the uploaded file and
+// sends its text to Gemini once. Gemini counts the questions and, when there are
+// no more than IMPORT_MAX_QUESTIONS, returns them in the same reply. The file
+// text is never stored. The reviewed questions are saved through the normal
+// question endpoints (POST /api/questions and /api/questions/group), never by
+// this controller.
 
 const ALLOWED_MIMES = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ];
 
-// Subject names sent with the extract request, used to suggest a subject
-function readTagNames(tags) {
+// A file whose own rough count (no AI) is over this is turned away before Gemini
+// is asked: a quarter over the limit, and at least 5 over (50 for a limit of
+// 40). The margin stops a rough count from turning away a file the AI would accept.
+const roughCountCeiling = (maxQuestions) => maxQuestions + Math.max(5, Math.ceil(maxQuestions / 4));
+
+// Subject names sent with the upload, used to suggest a subject. In the form
+// data they are a JSON string: [{ "name": "Anatomy" }, ...]
+function readTagNames(raw) {
+    let tags = raw;
+    if (typeof raw === 'string') {
+        try {
+            tags = JSON.parse(raw);
+        } catch {
+            return [];
+        }
+    }
     if (!Array.isArray(tags)) return [];
     return tags
         .filter((tag) => typeof tag?.name === 'string' && tag.name.trim())
         .slice(0, 500)
         .map((tag) => ({ name: tag.name.trim() }));
+}
+
+function tooManyQuestionsMessage(count, max, { rough = false } = {}) {
+    const amount = rough ? `about ${count}` : `${count}`;
+    return `Upload failed. The document contains ${amount} questions (maximum allowed is ${max}). Please lessen the number of questions to ${max} or fewer.`;
+}
+
+function extractionErrorMessage(error) {
+    const message = error?.message || '';
+    if (/timeout|timed out/i.test(message)) {
+        return 'The extraction is taking longer than expected. Please try again in a moment.';
+    }
+    if (message.includes('JSON')) {
+        return 'Something went wrong during extraction. Please try again.';
+    }
+    return 'An error occurred during extraction. Please try again.';
 }
 
 /**
@@ -43,10 +72,10 @@ const getLimits = async (req, res) => {
 };
 
 /**
- * POST /api/import/validate-count
- * Step 1: Extracts text, runs AI question counting, verifies <= 20 questions, and returns token + questionCount
+ * POST /api/import/extract (multipart form: file, tags)
+ * Reads the file, then counts and extracts its questions in one Gemini request.
  */
-const validateAndCount = async (req, res) => {
+const importQuestions = async (req, res) => {
     const userId = req.user?._id;
 
     try {
@@ -78,7 +107,6 @@ const validateAndCount = async (req, res) => {
             });
         }
 
-        // Extract text
         let extractedText = '';
         try {
             extractedText = await fileExtractionService.extractFromFile(
@@ -92,119 +120,58 @@ const validateAndCount = async (req, res) => {
             });
         }
 
-        // Scanned PDF check
-        if (req.file.mimetype === 'application/pdf') {
-            if (fileExtractionService.isScannedPDF(extractedText)) {
-                return res.status(400).json({
-                    error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
-                });
-            }
-        }
-
-        // AI Question Counting
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
-        let questionCount = 0;
-        try {
-            const countResult = await geminiService.countQuestions(extractedText);
-            questionCount = countResult.question_count || 0;
-        } catch (error) {
-            if (error instanceof GeminiLimitError) {
-                return res.status(429).json({ error: error.message });
-            }
-            console.error('Gemini question count error:', error.message, error.status, error);
-            return res.status(503).json({
-                error: 'An error occurred while analyzing the document. Please try again.'
+        if (req.file.mimetype === 'application/pdf' && fileExtractionService.isScannedPDF(extractedText)) {
+            return res.status(400).json({
+                error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
             });
         }
 
-        if (questionCount > maxQuestions) {
-            // Count this as a used upload attempt even though it's rejected
-            await recordUserImport(userId);
+        const maxQuestions = importMaxQuestions();
+
+        // A file that clearly has too many questions is turned away without asking
+        // Gemini. No request was sent, so it does not use up one of the user's uploads.
+        const roughCount = fileExtractionService.estimateQuestionCount(extractedText);
+        if (roughCount > roughCountCeiling(maxQuestions)) {
             return res.status(400).json({
-                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`,
+                error: tooManyQuestionsMessage(roughCount, maxQuestions, { rough: true }),
                 limits: await getUserImportLimits(userId),
             });
         }
 
-        if (questionCount === 0) {
-            return res.status(400).json({
-                error: 'No multiple choice questions could be detected in this document. Please check the formatting and try again.'
-            });
-        }
-
-        // Kept for 10 minutes, for the extract step
-        const token = await saveImportSession({ userId, text: extractedText, questionCount });
-
-        return res.json({
-            token,
-            questionCount,
-        });
-
-    } catch (error) {
-        console.error('Validate and count error:', error);
-        return res.status(500).json({
-            error: 'An unexpected error occurred. Please try again.'
-        });
-    }
-};
-
-/**
- * POST /api/import/extract
- * Step 2: Full question extraction from a pre-counted session token
- */
-const extractFromSession = async (req, res) => {
-    const userId = req.user?._id;
-
-    try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const { token } = req.body || {};
-        if (!token || typeof token !== 'string') {
-            return res.status(400).json({ error: 'Session token is required' });
-        }
-
-        const session = await getImportSession(token, userId);
-        if (!session) {
-            return res.status(404).json({ error: 'Session expired or not found. Please upload again.' });
-        }
-
-        const { text: extractedText, questionCount } = session;
-        const tags = readTagNames(req.body.tags);
-
-        let extractedQuestions = [];
+        let extraction;
         try {
-            extractedQuestions = await geminiService.extractQuestions(extractedText, 0, tags);
+            extraction = await geminiService.extractQuestions(
+                extractedText,
+                readTagNames(req.body?.tags),
+                { maxQuestions }
+            );
         } catch (error) {
             if (error instanceof GeminiLimitError) {
                 return res.status(429).json({ error: error.message });
             }
             console.error('Gemini extraction error:', error.message, error.status, error);
-
-            if (error.message?.includes('timeout')) {
-                return res.status(503).json({
-                    error: 'The extraction is taking longer than expected. Please try again in a moment.'
-                });
-            } else if (error.message?.includes('JSON')) {
-                return res.status(503).json({
-                    error: 'Something went wrong during extraction. Please try again.'
-                });
-            } else {
-                return res.status(503).json({
-                    error: 'An error occurred during extraction. Please try again.'
-                });
-            }
+            return res.status(503).json({ error: extractionErrorMessage(error) });
         }
 
-        if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
+        const { questionCount, questions } = extraction;
+
+        if (questionCount > maxQuestions) {
+            // Gemini was asked, so this counts as one of the user's uploads
+            await recordUserImport(userId);
             return res.status(400).json({
-                error: 'No questions could be detected in your document. Please check the formatting and try again.'
+                error: tooManyQuestionsMessage(questionCount, maxQuestions),
+                limits: await getUserImportLimits(userId),
+            });
+        }
+
+        if (questions.length === 0) {
+            return res.status(400).json({
+                error: 'No multiple choice questions could be detected in this document. Please check the formatting and try again.'
             });
         }
 
         // The document text lets the guardrails drop rationalizations the AI wrote itself
-        const processedQuestions = geminiService.processQuestionsWithGuardrails(extractedQuestions, extractedText);
+        const processedQuestions = geminiService.processQuestionsWithGuardrails(questions, extractedText);
         const validQuestions = processedQuestions.filter(q => q.status !== 'INVALID');
         if (validQuestions.length === 0) {
             return res.status(400).json({
@@ -212,9 +179,7 @@ const extractFromSession = async (req, res) => {
             });
         }
 
-        // Record successful upload in rate-limit counter
         await recordUserImport(userId);
-        await deleteImportSession(token);
         const updatedLimits = await getUserImportLimits(userId);
 
         const stats = {
@@ -228,12 +193,12 @@ const extractFromSession = async (req, res) => {
             questions: processedQuestions,
             stats,
             limits: updatedLimits,
-            detectedCount: questionCount || processedQuestions.length,
+            detectedCount: questionCount,
             message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
         });
 
     } catch (error) {
-        console.error('Extract from session error:', error);
+        console.error('Import error:', error);
         return res.status(500).json({
             error: 'An unexpected error occurred during extraction. Please try again.'
         });
@@ -242,6 +207,5 @@ const extractFromSession = async (req, res) => {
 
 module.exports = {
     getLimits,
-    validateAndCount,
-    extractFromSession,
+    importQuestions,
 };

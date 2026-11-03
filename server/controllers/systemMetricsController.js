@@ -5,6 +5,7 @@ const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const requestMetrics = require('../services/requestMetrics');
 const settingsManager = require('../services/settingsManager');
+const { getGeminiModelsStatus } = require('../services/importStateService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_NOW_MINUTES = 5;
@@ -124,7 +125,8 @@ function getServerHealth() {
   };
 }
 
-// @desc    Request traffic, response times, active users, server health and recent activity
+// @desc    Request traffic, response times, active users, server health, recent
+//          activity, and the AI import's Gemini models (usage, limits, cooldowns)
 // @route   GET /api/stats/system-metrics?range=1h|24h|7d
 // @access  Private (Super Admin only)
 const getSystemMetrics = async (req, res) => {
@@ -135,11 +137,12 @@ const getSystemMetrics = async (req, res) => {
 
   try {
     const now = Date.now();
-    const [requests, users, activity, database] = await Promise.all([
+    const [requests, users, activity, database, ai] = await Promise.all([
       requestMetrics.getRequestMetrics(range, now),
       getActiveUsers(now),
       getActivity(now),
       getDatabaseHealth(),
+      getGeminiModelsStatus(now),
     ]);
 
     return res.status(200).json({
@@ -148,6 +151,7 @@ const getSystemMetrics = async (req, res) => {
       users,
       server: { ...getServerHealth(), database },
       activity,
+      ai,
     });
   } catch (error) {
     console.error('System metrics error:', error);

@@ -158,6 +158,24 @@ function describeActiveUsers(byRole = {}) {
   return groups.map(([n, singular, pluralForm]) => plural(n, singular, pluralForm)).join(' · ');
 }
 
+// "0:42" and "12:05" under an hour, "5h 12m" from an hour on
+function formatCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  if (totalSeconds >= 3600) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
+
+function ordinal(n) {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`;
+}
+
 // ─── Chart helpers ───────────────────────────────────────────────────────────
 
 // The topmost visible, non-empty segment of a stacked column gets the rounded end
@@ -286,11 +304,13 @@ function baseOptions({ labels, tickLimit = 8, stacked = false, yTick = formatCou
 
 // ─── Building blocks ─────────────────────────────────────────────────────────
 
-function StatTile({ label, value, note, status }) {
+// `meter` is optional: a bar under the value for a tile that is a ratio against a limit
+function StatTile({ label, value, note, status, meter = null }) {
   return (
     <div className="sam-tile">
       <span className="sam-tile-label">{label}</span>
       <strong className="sam-tile-value">{value}</strong>
+      {meter}
       {note ? (
         <span className="sam-tile-note">
           {status ? <span className={`sam-status-dot sam-status-dot--${status}`} aria-hidden="true" /> : null}
@@ -584,6 +604,215 @@ function EndpointsCard({ routes }) {
   );
 }
 
+// ─── AI import models ────────────────────────────────────────────────────────
+
+// Status colors always come with a label: warning and serious are faint on white
+const MODEL_STATUS = {
+  available: { label: 'Available', dot: 'good' },
+  cooling_down: { label: 'Cooling down', dot: 'warning' },
+  daily_limit: { label: 'Daily limit reached', dot: 'serious' },
+  unavailable: { label: 'Unavailable', dot: 'critical' },
+  off: { label: 'Turned off', dot: 'off' },
+};
+
+// One ratio against its limit. The fill turns amber from 80% and red when full.
+// In a table row the numbers sit beside it; in a tile (`wide`) the tile shows them.
+function UsageMeter({ used, max, label, wide = false }) {
+  // A limit of 0 turns the model off: an empty gray track, not an alarm
+  const ratio = max > 0 ? Math.min(used / max, 1) : 0;
+  let level = 'normal';
+  if (max === 0) level = 'off';
+  else if (used >= max) level = 'full';
+  else if (ratio >= 0.8) level = 'high';
+
+  const meter = (
+    <span
+      className={`sam-meter sam-meter--${level}${wide ? ' sam-meter--wide' : ''}`}
+      role="meter"
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={Math.min(used, max)}
+      aria-label={`${label}: ${used} of ${max}`}
+    >
+      <span className="sam-meter-fill" style={{ width: `${ratio * 100}%` }} />
+    </span>
+  );
+  if (wide) return meter;
+
+  return (
+    <span className="sam-usage">
+      {meter}
+      <span>
+        {formatExact(used)} / {formatExact(max)}
+      </span>
+    </span>
+  );
+}
+
+function describeWait(model, now) {
+  if (model.status === 'off') return 'Its limit is set to 0';
+  if (!model.availableAt) return '';
+
+  const availableAt = new Date(model.availableAt).getTime();
+  const waitMs = availableAt - now;
+  if (waitMs <= 0) return 'Ready again, refreshing…';
+
+  const when = waitMs >= 60 * MINUTE_MS ? ` (${formatTime(availableAt)})` : '';
+  if (model.status === 'unavailable') return `Not found by Google · tried again in ${formatCountdown(waitMs)}${when}`;
+  const who = model.source === 'google' ? "Google's limit" : "This server's limit";
+  return `${who} · ready in ${formatCountdown(waitMs)}${when}`;
+}
+
+function AiModelsSection({ ai, generatedAt, onRefresh }) {
+  const models = ai.models;
+  // Countdowns run on the server's clock, so they are right even if this computer's clock is off
+  const clockOffset = useMemo(() => new Date(generatedAt).getTime() - Date.now(), [generatedAt]);
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const now = tick + clockOffset;
+
+  // Refresh as soon as a short cooldown ends; longer ones are caught by the regular refresh
+  const nextChange = useMemo(() => {
+    const loadedAt = new Date(generatedAt).getTime();
+    const times = [ai.dailyResetAt, ...models.map((model) => model.availableAt)]
+      .filter(Boolean)
+      .map((value) => new Date(value).getTime())
+      .filter((time) => time > loadedAt);
+    return times.length ? Math.min(...times) : null;
+  }, [ai.dailyResetAt, generatedAt, models]);
+  useEffect(() => {
+    if (!nextChange) return undefined;
+    const delay = nextChange - (Date.now() + clockOffset) + 1500;
+    if (delay > REFRESH_MS) return undefined;
+    const timer = setTimeout(onRefresh, Math.max(delay, 1000));
+    return () => clearTimeout(timer);
+  }, [clockOffset, nextChange, onRefresh]);
+
+  const activeIndex = models.findIndex((model) => model.inUse);
+  const totals = ai.totals;
+  const resetAt = new Date(ai.dailyResetAt).getTime();
+
+  return (
+    <section className="sam-section" aria-labelledby="sam-ai">
+      <div className="sam-section-head">
+        <div>
+          <h2 id="sam-ai" className="sam-section-title">AI question import</h2>
+          <p className="sam-section-sub">
+            The Gemini models in the order they are tried. When one reaches its limit, the next one takes over.
+          </p>
+        </div>
+      </div>
+
+      <div className="sam-tiles">
+        <StatTile
+          label="Model in use"
+          value={<span className="sam-tile-value--text">{activeIndex >= 0 ? models[activeIndex].name : 'None'}</span>}
+          note={activeIndex >= 0 ? `Tried ${ordinal(activeIndex + 1)} of ${models.length}` : 'Every model is at its limit'}
+          status={activeIndex >= 0 ? 'good' : 'critical'}
+        />
+        <StatTile
+          label="Requests today"
+          value={
+            <>
+              {formatCount(totals.today)}
+              <span className="sam-tile-value-of"> of {formatCount(totals.perDay)}</span>
+            </>
+          }
+          meter={<UsageMeter wide used={totals.today} max={totals.perDay} label="Requests today, all models" />}
+          note={`${formatCount(totals.remainingToday)} left · ${plural(totals.blockedToday, 'request')} turned away by Google`}
+        />
+        <StatTile
+          label="Imports left today"
+          value={`About ${formatCount(totals.importsLeftToday)}`}
+          note={totals.requestsPerImport === 1
+            ? 'Each import uses 1 request; a retry after an error uses another'
+            : `Each import uses ${totals.requestsPerImport} requests`}
+        />
+        <StatTile
+          label="Daily limits reset in"
+          value={formatCountdown(resetAt - now)}
+          note={`At ${formatTime(resetAt)}, midnight Pacific time`}
+        />
+      </div>
+
+      <article className="sam-card">
+        <header className="sam-card-head">
+          <div>
+            <h3 className="sam-card-title">Models</h3>
+            <p className="sam-card-sub">Requests this server sent each model. &quot;Today&quot; counts from midnight Pacific time.</p>
+          </div>
+        </header>
+        <div className="sam-card-body sam-card-body--flush">
+          <div className="sam-table-scroll sam-table-scroll--wide">
+            <table className="sam-table sam-models">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Status</th>
+                  <th>Last minute</th>
+                  <th>Today</th>
+                  <th className="sam-num" title="Requests Google answered with 429 (out of quota)">Turned away by Google</th>
+                </tr>
+              </thead>
+              <tbody>
+                {models.map((model, index) => {
+                  const status = MODEL_STATUS[model.status] || { label: model.status, dot: 'off' };
+                  const wait = describeWait(model, now);
+                  return (
+                    <tr key={model.name} className={model.inUse ? 'is-in-use' : ''}>
+                      <td>
+                        <span className="sam-model">
+                          <span className="sam-model-order" aria-label={`Tried ${ordinal(index + 1)}`}>{index + 1}</span>
+                          <code>{model.name}</code>
+                          {model.inUse ? <span className="sam-model-pill">In use</span> : null}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="sam-model-status" title={model.message || undefined}>
+                          <span className="sam-model-status-label">
+                            <span className={`sam-status-dot sam-status-dot--${status.dot}`} aria-hidden="true" />
+                            {status.label}
+                          </span>
+                          {wait ? <span className="sam-model-status-detail">{wait}</span> : null}
+                        </span>
+                      </td>
+                      <td>
+                        <UsageMeter used={model.usage.lastMinute} max={model.limits.perMinute} label="Requests in the last minute" />
+                      </td>
+                      <td>
+                        <UsageMeter used={model.usage.today} max={model.limits.perDay} label="Requests today" />
+                      </td>
+                      <td className="sam-num">{formatExact(model.usage.blockedToday)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>All models</td>
+                  <td>
+                    {totals.availableModels} of {models.length} available
+                  </td>
+                  <td>
+                    <UsageMeter used={totals.lastMinute} max={totals.perMinute} label="Requests in the last minute, all models" />
+                  </td>
+                  <td>
+                    <UsageMeter used={totals.today} max={totals.perDay} label="Requests today, all models" />
+                  </td>
+                  <td className="sam-num">{formatExact(totals.blockedToday)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </article>
+    </section>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AdminMetrics() {
@@ -616,6 +845,8 @@ export default function AdminMetrics() {
     }, REFRESH_MS);
     return () => clearInterval(timer);
   }, [load, range]);
+
+  const refreshNow = useCallback(() => load(range), [load, range]);
 
   const requests = data?.requests;
   const showingRange = requests?.range === range;
@@ -892,6 +1123,8 @@ export default function AdminMetrics() {
               </ChartCard>
             </div>
           </section>
+
+          {data.ai ? <AiModelsSection ai={data.ai} generatedAt={data.generatedAt} onRefresh={refreshNow} /> : null}
 
           <section className="sam-section" aria-labelledby="sam-server">
             <div className="sam-section-head">

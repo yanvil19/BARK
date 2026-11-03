@@ -30,10 +30,11 @@ const userImportLimiter = async (req, res, next) => {
     }
 };
 
-// Turns a request away early when no Gemini request can be sent right now
-// (GEMINI_RPM_LIMIT per minute, default 8; GEMINI_RPD_LIMIT per day, default 200).
-// Every request to Gemini, retries included, is also counted when it is sent
-// (reserveGeminiCall in geminiService), so the limits are never exceeded.
+// Turns a request away early when none of the Gemini models can take a request
+// right now (each is at its per-minute or daily limit, or cooling down; see
+// config/geminiModels.js). Every request to Gemini, retries included, is also
+// counted when it is sent (reserveGeminiCall in geminiService), so the limits are
+// never exceeded.
 const geminiLimiter = async (req, res, next) => {
     try {
         const message = await getGeminiLimitError();

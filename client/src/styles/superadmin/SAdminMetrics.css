@@ -7,7 +7,10 @@
   --sam-line: #e4e7f2;
   --sam-head-bg: #f9faff;
   --sam-good: #0ca30c;
+  --sam-warning: #fab219;
+  --sam-serious: #ec835a;
   --sam-critical: #d03b3b;
+  --sam-accent: #4a56b0;
   color: var(--sam-ink);
 }
 
@@ -186,6 +189,27 @@
 
 .sam-status-dot--critical {
   background: var(--sam-critical);
+}
+
+.sam-status-dot--warning {
+  background: var(--sam-warning);
+}
+
+.sam-status-dot--serious {
+  background: var(--sam-serious);
+}
+
+/* A hollow dot for something switched off */
+.sam-status-dot--off {
+  box-shadow: inset 0 0 0 1.5px var(--sam-faint);
+}
+
+/* A tile whose value is a name rather than a number */
+.sam-tile-value--text {
+  display: block;
+  padding-top: 4px;
+  font-size: 18px;
+  line-height: 1.3;
 }
 
 /* ─── Cards ─── */
@@ -444,6 +468,149 @@
 .sam-sort .capsule-filter {
   height: 30px;
   font-size: 12px;
+}
+
+/* ─── AI import models ─── */
+
+.sam-models th:first-child,
+.sam-models td:first-child {
+  padding-left: 16px;
+}
+
+.sam-models th:last-child,
+.sam-models td:last-child {
+  padding-right: 16px;
+}
+
+.sam-models td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  vertical-align: middle;
+}
+
+.sam-models tbody tr.is-in-use td {
+  background: #f9faff;
+}
+
+/* The totals row */
+.sam-models tfoot td {
+  border-top: 1px solid var(--sam-line);
+  border-bottom: 0;
+  background: var(--sam-head-bg);
+  font-weight: 700;
+}
+
+/* "of 1,060" after a tile's number */
+.sam-tile-value-of {
+  color: var(--sam-muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* A meter across the full width of a tile */
+.sam-meter--wide {
+  width: 100%;
+  margin: 4px 0 2px;
+}
+
+.sam-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sam-model-order {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #eef0f8;
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sam-model code {
+  color: var(--sam-ink);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+}
+
+.sam-model-pill {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-bg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sam-model-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sam-model-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.sam-model-status-detail {
+  color: var(--sam-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A ratio against its limit: the track is a light step of the fill's own color */
+.sam-usage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sam-meter {
+  flex: none;
+  display: block;
+  width: 72px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--sam-meter-track);
+}
+
+.sam-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--sam-meter-fill);
+}
+
+.sam-meter--normal {
+  --sam-meter-fill: var(--sam-accent);
+  --sam-meter-track: #e4e7f6;
+}
+
+.sam-meter--high {
+  --sam-meter-fill: var(--sam-warning);
+  --sam-meter-track: #fdf0d2;
+}
+
+.sam-meter--full {
+  --sam-meter-fill: var(--sam-critical);
+  --sam-meter-track: #f8dddd;
+}
+
+.sam-meter--off {
+  --sam-meter-fill: transparent;
+  --sam-meter-track: #eef0f8;
 }
 
 /* ─── Server facts ─── */

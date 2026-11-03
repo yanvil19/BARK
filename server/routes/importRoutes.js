@@ -23,32 +23,20 @@ router.get(
 );
 
 /**
- * POST /api/import/validate-count
- * Step 1: Upload file, extract text, AI-count questions, verify <= 20, return token + questionCount
- */
-router.post(
-    '/validate-count',
-    protect,
-    authorizeRoles(...FACULTY),
-    userImportLimiter, // Per-user hourly and daily limit
-    geminiLimiter, // Global Gemini per-minute and daily limit
-    concurrentImportLimiter, // One import at a time per user
-    upload.single('file'),
-    importController.validateAndCount
-);
-
-/**
  * POST /api/import/extract
- * Step 2: Full question extraction using the session token from step 1.
- * The reviewed questions are then saved through /api/questions.
+ * Upload a file (multipart: file, and tags as a JSON string). Its questions are
+ * counted and extracted in one Gemini request and returned for review; the
+ * reviewed questions are then saved through /api/questions.
  */
 router.post(
     '/extract',
     protect,
     authorizeRoles(...FACULTY),
-    geminiLimiter,
-    concurrentImportLimiter,
-    importController.extractFromSession
+    userImportLimiter, // Per-user hourly and daily limit
+    geminiLimiter, // Turned away early when no Gemini model can take a request
+    concurrentImportLimiter, // One import at a time per user
+    upload.single('file'),
+    importController.importQuestions
 );
 
 module.exports = router;

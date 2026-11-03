@@ -915,56 +915,6 @@
   color: #16a34a;
 }
 
-/* Segmented bar: 1 2 3 ... 20 */
-.import-segmented-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  background: #ffffff;
-  border: 1px solid var(--card-border);
-  border-radius: var(--card-radius);
-  padding: 8px 10px;
-  box-shadow: var(--card-shadow);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.import-bar-divider {
-  color: #cbd5e1;
-  font-weight: 300;
-  font-size: 14px;
-  user-select: none;
-}
-
-.import-bar-segment {
-  min-width: 20px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 3px;
-  border-radius: 5px;
-  background: #f1f5f9;
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 600;
-  transition: all 0.25s ease;
-}
-
-/* Completed question turns blue */
-.import-bar-segment.is-done {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.35);
-  transform: scale(1.06);
-}
-
-.import-bar-segment-num {
-  line-height: 1;
-}
-
 .import-error-banner {
   padding: 12px 14px;
   background: #fff1f2;

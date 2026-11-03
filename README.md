@@ -146,11 +146,13 @@ Faculty can upload existing reviewer files and turn them into questions instead 
 How it works:
 
 1) Text is extracted from the uploaded PDF (`pdf-parse`) or DOCX (`mammoth`)
-2) Google Gemini maps the text into a strict JSON question format (question, choices, correct answer, rationalization, subject). The rationalization is optional: it is copied only when the file or its answer key has one, and the AI never writes one (the server also removes any rationalization that is not in the file)
+2) One request to Google Gemini counts the questions and maps the text into a strict JSON question format (question, choices, correct answer, rationalization, subject). A file may hold up to 40 questions (`IMPORT_MAX_QUESTIONS`); a file with more is turned away, and one that clearly has more is turned away before Gemini is asked. The rationalization is optional: it is copied only when the file or its answer key has one, and the AI never writes one (the server also removes any rationalization that is not in the file)
 3) The faculty member reviews every question (each is marked Ready, Needs Review, or Invalid) before submitting
 4) Submitted questions are saved as **drafts** and still go through the normal approval workflow before students can see them
 
-Imports are limited per user per hour and per day (`IMPORT_USER_*`), every Gemini request (retries included) counts toward the shared per-minute and per-day limits (`GEMINI_RPM_LIMIT` / `GEMINI_RPD_LIMIT`), and each user runs one import at a time. These counts are kept in MongoDB, so they hold across restarts and server instances.
+Several Gemini models can be listed, in the order they are tried (`GEMINI_MODEL_1`, `GEMINI_MODEL_2`, … in `server/.env`). When a model is out of quota, the next one is used, and the one Google turned away is skipped until its limit resets: the wait Google asks for, or midnight Pacific time for a daily limit. Each model can have its own per-minute and per-day limit (`GEMINI_MODEL_1_RPM`, `GEMINI_MODEL_1_RPD`, …; otherwise `GEMINI_RPM_LIMIT` / `GEMINI_RPD_LIMIT`). The super admin's **System Metrics** page shows each model's usage, status and when it can be used again.
+
+Imports are also limited per user per hour and per day (`IMPORT_USER_*`), and each user runs one import at a time. These counts are kept in MongoDB, so they hold across restarts and server instances.
 
 ## Contributing (Simple Rules)
 

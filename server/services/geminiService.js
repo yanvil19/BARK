@@ -1,27 +1,96 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { reserveGeminiCall } = require('./importStateService');
+const {
+    GeminiLimitError,
+    noModelAvailableError,
+    reserveGeminiCall,
+    recordGeminiOutcome,
+    setModelCooldown,
+    importMaxQuestions,
+} = require('./importStateService');
+const { getGeminiModels } = require('../config/geminiModels');
+const { nextPacificMidnight } = require('../utils/pacificTime');
 
-const GEMINI_COUNT_PROMPT = `You are an expert examination document analyzer.
-Your task is to accurately count the total number of multiple choice questions present in the provided document text.
+const MINUTE_MS = 60 * 1000;
 
-Rules:
-1. Count each distinct multiple choice question (even if questions are unnumbered, or formatted with "1.", "1)", "Question 1", Roman numerals, letters, or bullet points).
-2. Do not hallucinate or count non-question headings, instructions, or multiple options of a single question as separate questions.
-3. Questions in a set (several questions sharing one passage, e.g. between "SET START" and "SET END") count one each; the passage itself is not a question.
-4. Ignore any section titled "HOW TO USE THIS TEMPLATE" — it is template help, not questions.
-5. The text may contain <b>, <i>, <u> tags and math between $ signs; they are formatting, not separate content.
-6. Return ONLY a valid JSON object with the exact format:
+// ── Choosing a model ────────────────────────────────────────────────────────
+// Requests go to the models in config/geminiModels.js in order. A model that is
+// out of quota (Google answers 429) or missing (404) gets a cooldown and the next
+// model is tried. A passing problem (timeout, 5xx, a reply that is not valid
+// JSON) is retried once on the same model, then the next model is tried. Any
+// other error (bad request, bad API key, blocked content) would fail on every
+// model, so it is returned at once.
+
+const MISSING_MODEL_COOLDOWN_MS = 60 * MINUTE_MS;
+const DEFAULT_QUOTA_COOLDOWN_MS = MINUTE_MS;
+const MIN_QUOTA_COOLDOWN_MS = 5 * 1000;
+const MAX_QUOTA_COOLDOWN_MS = 15 * MINUTE_MS;
+
+function isQuotaError(error) {
+    return error?.status === 429 || /RESOURCE_EXHAUSTED/.test(error?.message || '');
+}
+
+function isMissingModel(error) {
+    return error?.status === 404;
+}
+
+function isPassingError(error) {
+    return (
+        [500, 502, 503, 504].includes(error?.status) ||
+        error instanceof SyntaxError ||
+        /timeout|timed out|Unexpected token|not the expected JSON|fetch failed/i.test(error?.message || '')
+    );
+}
+
+// "31s" or "1.5s" → milliseconds
+function parseRetryDelay(value) {
+    const match = String(value || '').match(/^(\d+(?:\.\d+)?)s$/);
+    return match ? Math.ceil(parseFloat(match[1]) * 1000) : null;
+}
+
+// How long to skip a model after Google turned a request away. A 429 carries the
+// quota that was hit (QuotaFailure) and how long to wait (RetryInfo). For a daily
+// quota the wait Google gives can be far too short, so the model waits for the
+// daily reset instead.
+function cooldownFor(error, now = Date.now()) {
+    if (isMissingModel(error)) {
+        return {
+            reason: 'unavailable',
+            until: new Date(now + MISSING_MODEL_COOLDOWN_MS),
+            message: 'Google says this model does not exist or is not available to this API key. It is tried again after an hour.',
+        };
+    }
+
+    const details = Array.isArray(error?.errorDetails) ? error.errorDetails : [];
+    const typeOf = (detail) => String(detail?.['@type'] || '');
+    const quotaIds = details
+        .filter((detail) => typeOf(detail).endsWith('QuotaFailure'))
+        .flatMap((detail) => detail.violations || [])
+        .map((violation) => String(violation?.quotaId || ''));
+
+    if (quotaIds.some((id) => /PerDay/i.test(id))) {
+        return { reason: 'day', until: nextPacificMidnight(now), message: "Google's daily limit for this model was reached." };
+    }
+
+    const retryDelay = parseRetryDelay(details.find((detail) => typeOf(detail).endsWith('RetryInfo'))?.retryDelay);
+    const wait = Math.min(Math.max(retryDelay ?? DEFAULT_QUOTA_COOLDOWN_MS, MIN_QUOTA_COOLDOWN_MS), MAX_QUOTA_COOLDOWN_MS);
+    return { reason: 'minute', until: new Date(now + wait), message: "Google's per-minute limit for this model was reached." };
+}
+
+// One request does the whole import: the model counts the questions and, when
+// there are no more than maxQuestions, extracts them in the same reply.
+const extractionPrompt = (maxQuestions) => `You are a document parser for a board exam question extraction system.
+Your job is to count and extract the multiple choice questions in the provided document text.
+
+You must return ONLY a valid JSON object. Do not include any explanation,
+markdown formatting, code fences, or text outside the JSON object.
+
+The object must have this exact structure:
 {
-  "question_count": <integer - total number of multiple choice questions found>
-}`;
+  "question_count": <integer — the number of multiple choice questions in the document (rule 19)>,
+  "questions": <array — the extracted questions in document order. An empty array [] when question_count is more than ${maxQuestions}>
+}
 
-const GEMINI_SYSTEM_PROMPT = `You are a document parser for a board exam question extraction system.
-Your job is to extract multiple choice questions from the provided document text.
-
-You must return ONLY a valid JSON array. Do not include any explanation,
-markdown formatting, code fences, or text outside the JSON array.
-
-Each question in the array must follow this exact structure:
+Each question in the "questions" array must follow this exact structure:
 {
   "question_number": <integer — the order the question appears in the document>,
   "question_text": <string — the question stem ONLY. Do NOT include the multiple choice options or the correct answer label here>,
@@ -67,7 +136,7 @@ Rules you must strictly follow:
 1. Only extract questions that are clearly multiple choice format.
 2. If a question has fewer than 4 options or more than 5 options,
    still extract it but set confidence to "low".
-3. If the document contains no questions, return an empty array: []
+3. If the document contains no questions, return {"question_count": 0, "questions": []}
 4. If question text is unclear or cut off, extract what you can
    and set confidence to "low".
 5. Never invent or assume answer choices that are not in the document.
@@ -77,7 +146,7 @@ Rules you must strictly follow:
 7. Preserve the exact wording of questions and options.
    Do not paraphrase or correct grammar.
 8. If options are labeled 1/2/3/4 instead of A/B/C/D, map them to A/B/C/D.
-9. Extract all multiple choice questions found in the document.
+9. Extract all multiple choice questions found in the document, unless there are too many (rule 19).
 10. For suggested_tag: if a tag list is provided at the top of the document text,
     you must only suggest tags from that list. Set suggested_tag_confidence to "high"
     only if you are confident the question clearly belongs to one of the provided tags.
@@ -115,7 +184,25 @@ Rules you must strictly follow:
     - "Rationalization:" gives the explanation. Copy it exactly (keeping its tags and $…$ math). A question without a "Rationalization:" line gets rationalization "" (rule 12).
     - "Subject:" names the subject; use it as suggested_tag (rule 10 still applies). A "Subject:" line inside a set applies to every question of that set.
     - Never include these labels themselves in any field.
-18. Ignore any section titled "HOW TO USE THIS TEMPLATE" — it is help text, not questions.`;
+18. Ignore any section titled "HOW TO USE THIS TEMPLATE" — it is help text, not questions.
+19. QUESTION LIMIT: A file may hold at most ${maxQuestions} questions.
+    - First count the multiple choice questions. Each question of a set counts as one; a shared passage, a heading, an instruction, an option or an answer key line is not a question.
+    - If there are more than ${maxQuestions}, return {"question_count": <that number>, "questions": []} and extract nothing.
+    - Otherwise extract every question, and question_count must equal the number of questions you return.`;
+
+// The reply is { question_count, questions }. A bare array is read as the
+// questions. The count is never lower than the number of questions returned.
+function readExtraction(data) {
+    const questions = Array.isArray(data) ? data : data?.questions;
+    if (!Array.isArray(questions)) {
+        throw new Error('Response is not the expected JSON object');
+    }
+    const reported = Number.parseInt(data?.question_count, 10);
+    return {
+        questionCount: Math.max(Number.isFinite(reported) ? reported : 0, questions.length),
+        questions: questions.filter((question) => question && typeof question === 'object'),
+    };
+}
 
 // LaTeX commands that start with "n", so "\neq" inside math is not read as a newline + "eq".
 const LATEX_N_COMMANDS = new Set([
@@ -213,7 +300,58 @@ class GeminiService {
             throw new Error('GEMINI_API_KEY is not set in environment variables');
         }
         this.client = new GoogleGenerativeAI(apiKey);
-        this.model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    }
+
+    /**
+     * Runs `run(modelName)` on the first model that can take it (see "Choosing a
+     * model" above). Every request is counted toward its model's limits.
+     * Throws GeminiLimitError when no model can take the request.
+     */
+    async callWithFallback(task, run, { retryDelayMs = 2000 } = {}) {
+        const limitReasons = [];
+        let passingError = null;
+
+        for (const model of getGeminiModels()) {
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+                let usageId;
+                try {
+                    usageId = await reserveGeminiCall(model);
+                } catch (error) {
+                    if (!(error instanceof GeminiLimitError)) throw error;
+                    limitReasons.push(error.reason);
+                    break; // this model is at its limit or cooling down
+                }
+
+                try {
+                    const result = await run(model.name);
+                    await recordGeminiOutcome(usageId, 'success');
+                    return result;
+                } catch (error) {
+                    if (isQuotaError(error) || isMissingModel(error)) {
+                        await recordGeminiOutcome(usageId, isQuotaError(error) ? 'rate_limited' : 'failed');
+                        const cooldown = cooldownFor(error);
+                        await setModelCooldown(model.name, cooldown);
+                        console.warn(`Gemini ${task}: ${model.name} is skipped until ${cooldown.until.toISOString()} (${cooldown.reason}).`);
+                        limitReasons.push(cooldown.reason === 'minute' ? 'minute' : 'day');
+                        break;
+                    }
+
+                    await recordGeminiOutcome(usageId, 'failed');
+                    if (!isPassingError(error)) throw error;
+                    passingError = error;
+                    if (attempt === 1) {
+                        console.log(`Retrying Gemini ${task} on ${model.name}...`);
+                        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+                    }
+                }
+            }
+        }
+
+        // Every model failed. When one frees up within a minute, "try again in a
+        // minute" is the useful answer; otherwise report the last real error, or
+        // that no model has room until tomorrow.
+        if (passingError && !limitReasons.includes('minute')) throw passingError;
+        throw noModelAvailableError(limitReasons);
     }
 
     /**
@@ -251,72 +389,21 @@ class GeminiService {
     }
 
     /**
-     * Quickly and accurately counts the number of multiple-choice questions in the document.
+     * Counts and extracts the questions in one Gemini request. tags (subject
+     * names) guide the suggested subject. Returns { questionCount, questions };
+     * questions is empty when questionCount is over maxQuestions.
      */
-    async countQuestions(documentText, retryCount = 0) {
-        try {
-            const cleanedText = this.preprocessText(documentText);
-            await reserveGeminiCall(); // counts toward the global Gemini limits; throws when used up
+    async extractQuestions(documentText, tags = [], { maxQuestions = importMaxQuestions() } = {}) {
+        const cleanedText = this.preprocessText(documentText);
+        const fullPrompt = this.buildTagContext(tags) + cleanedText;
+        const systemInstruction = extractionPrompt(maxQuestions);
+
+        return this.callWithFallback('extraction', async (modelName) => {
             const response = await this.client.getGenerativeModel({
-                model: this.model,
-                systemInstruction: GEMINI_COUNT_PROMPT
+                model: modelName,
+                systemInstruction
             }).generateContent({
-                contents: [{
-                    role: 'user',
-                    parts: [{
-                        text: cleanedText
-                    }]
-                }],
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.0
-                }
-            });
-
-            const rawJson = response.response.text();
-            const data = JSON.parse(rawJson);
-            const count = typeof data.question_count === 'number'
-                ? data.question_count
-                : parseInt(data.question_count, 10) || 0;
-            return { question_count: count };
-        } catch (error) {
-            if (retryCount < 1) {
-                if (
-                    error.message?.includes('timeout') ||
-                    error.message?.includes('Unexpected token') ||
-                    error.status === 503
-                ) {
-                    console.log(`Retrying Gemini question count (attempt ${retryCount + 1})...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    return this.countQuestions(documentText, retryCount + 1);
-                }
-            }
-            throw error;
-        }
-    }
-
-    /**
-     * Calls Gemini API to extract questions from text.
-     * Accepts an optional tags array to guide tag suggestion.
-     * Includes retry logic for timeouts and malformed JSON
-     */
-    async extractQuestions(documentText, retryCount = 0, tags = []) {
-        try {
-            const cleanedText = this.preprocessText(documentText);
-            const tagContext = this.buildTagContext(tags);
-            const fullPrompt = tagContext + cleanedText;
-
-            await reserveGeminiCall(); // counts toward the global Gemini limits; throws when used up
-            const response = await this.client.getGenerativeModel({
-                model: this.model,
-                systemInstruction: GEMINI_SYSTEM_PROMPT
-            }).generateContent({
-                contents: [{
-                    role: 'user',
-                    parts: [{
-                        text: fullPrompt
-                    }]
-                }],
+                contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
                 generationConfig: {
                     responseMimeType: 'application/json',
                     // The model copies what the document says; it should not be creative
@@ -324,33 +411,8 @@ class GeminiService {
                 }
             });
 
-            const rawJson = response.response.text();
-            const questions = this.parseModelJson(rawJson);
-
-            if (!Array.isArray(questions)) {
-                throw new Error('Response is not a JSON array');
-            }
-
-            return questions;
-        } catch (error) {
-            // Retry once for timeout or malformed JSON
-            // In the catch block inside extractQuestions
-            if (retryCount < 1) {
-                if (
-                    error.message?.includes('timeout') ||
-                    error.message?.includes('Unexpected token') ||
-                    error instanceof SyntaxError ||
-                    error.status === 503 // Add this
-                ) {
-                    console.log(`Retrying Gemini extraction (attempt ${retryCount + 1})...`);
-                    // Wait 3 seconds before retry on 503
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    return this.extractQuestions(documentText, retryCount + 1, tags);
-                }
-}
-            // Re-throw after retry exhausted
-            throw error;
-        }
+            return readExtraction(this.parseModelJson(response.response.text()));
+        }, { retryDelayMs: 3000 });
     }
 
     addGuardrailFlags(question) {
@@ -477,3 +539,4 @@ class GeminiService {
 
 module.exports = new GeminiService();
 module.exports.toComparableText = toComparableText;
+module.exports.cooldownFor = cooldownFor;
