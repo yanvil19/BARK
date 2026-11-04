@@ -2,6 +2,7 @@ import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import PassageImages from '../../components/PassageImages.jsx';
 import SafeHtml from '../../components/SafeHtml.jsx';
+import QuestionNavBubbles from '../../components/QuestionNavBubbles.jsx';
 import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
@@ -294,20 +295,13 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
 
         {/* ── Navigation ────────────────────────────────────────── */}
         <div className="mbep-navigator-wrap">
-          <div className="mbep-nav-bar">
-            {questions.map((q, i) => {
-              const isAnswered = !!answers[q._id];
-              let dotClass = "mbep-nav-circle";
-              if (currentIdx === i) dotClass += " active";
-              else if (isAnswered && !submitted) dotClass += " is-answered-preview";
-
-              return (
-                <button key={i} className={dotClass} onClick={() => setCurrentIdx(i)}>
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
+          <QuestionNavBubbles
+            className="mbep-nav-bar"
+            questions={questions}
+            currentIdx={currentIdx}
+            onSelect={setCurrentIdx}
+            getStatus={(question) => ({ done: !submitted && Boolean(answers[question._id]) })}
+          />
 
           <div className="mbep-nav-actions">
             <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}>

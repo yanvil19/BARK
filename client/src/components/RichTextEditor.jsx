@@ -1,11 +1,12 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
+import MathNode from '../extensions/MathNode.js';
 import { useEffect, useRef, useState } from 'react';
 import '../styles/components/RichTextEditor.css';
 
 /**
- * Restricted rich-text editor — only Bold, Italic, and Underline.
+ * Restricted rich-text editor — Bold, Italic, Underline, and MathLive Equation block.
  *
  * Props:
  *   value       – HTML string (initial / controlled content)
@@ -52,6 +53,7 @@ export default function RichTextEditor({
         // Keep paragraph + hard break + history (undo/redo)
       }),
       Underline,
+      MathNode,
     ],
     content: value,
     editable: !disabled,
@@ -71,19 +73,17 @@ export default function RichTextEditor({
             return false;
           }
         : undefined,
-      // Clean pasted content: strip everything except bold/italic/underline
-      // TipTap's StarterKit already drops most block-level nodes we disabled,
-      // but this catches stray spans with inline styles from Word / Docs.
+      // Clean pasted content: strip everything except bold/italic/underline and math-field
       transformPastedHTML(html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        // Walk all elements and strip class / style, but keep <b>, <i>, <u>,
-        // <strong>, <em> tags (TipTap maps them to marks automatically).
         doc.body.querySelectorAll('*').forEach((el) => {
+          if (el.tagName.toLowerCase() === 'math-field') {
+            return;
+          }
           el.removeAttribute('class');
           el.removeAttribute('style');
           el.removeAttribute('id');
         });
-        // In single-line mode collapse block elements to spaces
         if (singleLine) {
           return doc.body.textContent.replace(/\s+/g, ' ').trim();
         }
@@ -122,6 +122,15 @@ export default function RichTextEditor({
     if (!editor || editor.isDestroyed) return;
     editor.setEditable(!disabled);
   }, [disabled, editor]);
+
+  // Hide virtual keyboard when RichTextEditor unmounts
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.mathVirtualKeyboard) {
+        window.mathVirtualKeyboard.hide();
+      }
+    };
+  }, []);
 
   if (!editor) return null;
 
@@ -171,6 +180,20 @@ export default function RichTextEditor({
             aria-pressed={editor.isActive('underline')}
           >
             <u>U</u>
+          </button>
+          <button
+            type="button"
+            className={`rte-btn rte-btn--math ${editor.isActive('mathNode') ? 'is-active' : ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              editor.chain().focus().setMathNode().run();
+            }}
+            title="Insert Math Equation (LaTeX)"
+            aria-label="Insert Math Equation"
+          >
+            <span style={{ fontFamily: 'KaTeX_Main, Times New Roman, serif', fontSize: '15px', fontWeight: 600 }}>
+              &sum;
+            </span>
           </button>
         </div>
       )}

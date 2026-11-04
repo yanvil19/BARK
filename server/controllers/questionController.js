@@ -17,8 +17,36 @@ const {
   countAnswerImages,
   getAnswerSubmissionError,
 } = require('../utils/questionAnswers');
+const { cleanQuestionHtml } = require('../utils/questionHtml');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+
+// Image requirement flags from an import ("this question needs an image").
+// Returns only the fields present in the request, so an update leaves the others alone.
+function getImageFlagFields(source = {}) {
+  const fields = {};
+  if (source.image_required !== undefined) fields.image_required = Boolean(source.image_required);
+  if (source.image_note !== undefined) {
+    fields.image_note = typeof source.image_note === 'string' && source.image_note.trim()
+      ? source.image_note.trim()
+      : null;
+  }
+  if (source.image_flag_removed_by_user !== undefined) {
+    fields.image_flag_removed_by_user = Boolean(source.image_flag_removed_by_user);
+  }
+  return fields;
+}
+
+// The rationalization is optional; an empty one is stored as ''
+function encryptRationalization(value) {
+  return encryptText(cleanQuestionHtml(value));
+}
+
+// A group's shared passage, or null when it is empty
+function encryptGroupContext(value) {
+  const clean = cleanQuestionHtml(value);
+  return clean ? encryptText(clean) : null;
+}
 
 // Checks a question's image limits from AppSettings. Question images and answer
 // images have separate limits. Returns an error message or null.
@@ -246,11 +274,12 @@ const createQuestionGroup = async (req, res) => {
       const q = questionsPayload[i];
       const prefix = `Question ${i + 1}: `;
 
-      if (!q.description?.trim()) {
+      const description = cleanQuestionHtml(q.description);
+      if (!description) {
         return res.status(400).json({ message: `${prefix}Question prompt/description is required` });
       }
 
-      const member = { ...q, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
+      const member = { ...q, description, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
       const limitError = getImageLimitError(member, settings, prefix);
       if (limitError) return res.status(400).json({ message: limitError });
 
@@ -268,28 +297,27 @@ const createQuestionGroup = async (req, res) => {
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
 
     const groupId = crypto.randomUUID();
+    const encryptedGroupContext = encryptGroupContext(groupContext);
     const createdQuestions = [];
 
     for (let i = 0; i < members.length; i++) {
       const q = members[i];
 
       const questionData = {
-        description: encryptText(q.description.trim()),
+        description: encryptText(q.description),
         images: q.images,
         answers: encryptAnswers(q.answers),
-        rationalization: encryptText(q.rationalization?.trim() || ''),
+        rationalization: encryptRationalization(q.rationalization),
         tag: groupTagId || null,
         program: resolvedProgramId,
         createdBy: req.user._id,
         state: 'draft',
         // Image flags from import
-        image_required: q.image_required || false,
-        image_note: q.image_note || null,
-        image_flag_removed_by_user: q.image_flag_removed_by_user || false,
+        ...getImageFlagFields(q),
         // Group metadata
         groupId,
         groupOrder: i,
-        groupContext: groupContext?.trim() ? encryptText(groupContext.trim()) : null,
+        groupContext: encryptedGroupContext,
         groupContextImages: passageImages,
       };
 
@@ -301,7 +329,7 @@ const createQuestionGroup = async (req, res) => {
       createdQuestions.push(decryptQuestion(populated));
     }
 
-    await logAudit(req.user._id, 'question_group_created', 'Question', null, {
+    await logAudit(req.user._id, 'question_group_created', 'Question', createdQuestions[0]?._id, {
       groupId,
       programId: resolvedProgramId,
       questionCount: createdQuestions.length,
@@ -358,11 +386,9 @@ const submitQuestionGroup = async (req, res) => {
       const decrypted = decryptQuestion(q);
       const prefix = `Question ${i + 1}: `;
 
+      // The rationalization is optional
       if (!decrypted.description?.trim()) {
         return res.status(400).json({ message: `${prefix}Question text is required for submission` });
-      }
-      if (!decrypted.rationalization?.trim()) {
-        return res.status(400).json({ message: `${prefix}Rationalization is required for submission` });
       }
       if (!decrypted.tag) {
         return res.status(400).json({ message: `${prefix}A subject tag must be assigned before submission` });
@@ -484,11 +510,12 @@ const updateQuestionGroup = async (req, res) => {
     for (let i = 0; i < questionsPayload.length; i++) {
       const q = questionsPayload[i];
       const prefix = `Question ${i + 1}: `;
-      if (!q.description?.trim()) {
+      const description = cleanQuestionHtml(q.description);
+      if (!description) {
         return res.status(400).json({ message: `${prefix}Question prompt/description is required` });
       }
 
-      const member = { ...q, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
+      const member = { ...q, description, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
       const limitError = getImageLimitError(member, settings, prefix);
       if (limitError) return res.status(400).json({ message: limitError });
 
@@ -505,7 +532,7 @@ const updateQuestionGroup = async (req, res) => {
     }
 
     const encryptedGroupContext = groupContext !== undefined
-      ? (groupContext?.trim() ? encryptText(groupContext.trim()) : null)
+      ? encryptGroupContext(groupContext)
       : existingQuestions[0].groupContext;
 
     // Images already in this group stay valid; anything new must be the user's own upload
@@ -529,11 +556,12 @@ const updateQuestionGroup = async (req, res) => {
       let questionDoc = qId ? existingMap.get(qId) : null;
 
       if (questionDoc) {
-        questionDoc.description = encryptText(qData.description.trim());
-        questionDoc.rationalization = encryptText(qData.rationalization?.trim() || '');
+        questionDoc.description = encryptText(qData.description);
+        questionDoc.rationalization = encryptRationalization(qData.rationalization);
         questionDoc.answers = encryptAnswers(qData.answers);
         questionDoc.tag = groupTagId || null;
         questionDoc.images = qData.images;
+        Object.assign(questionDoc, getImageFlagFields(qData));
         questionDoc.groupOrder = i;
         questionDoc.groupContext = encryptedGroupContext;
         questionDoc.groupContextImages = passageImages;
@@ -546,14 +574,15 @@ const updateQuestionGroup = async (req, res) => {
         existingMap.delete(qId);
       } else {
         questionDoc = await Question.create({
-          description: encryptText(qData.description.trim()),
+          description: encryptText(qData.description),
           images: qData.images,
           answers: encryptAnswers(qData.answers),
-          rationalization: encryptText(qData.rationalization?.trim() || ''),
+          rationalization: encryptRationalization(qData.rationalization),
           tag: groupTagId || null,
           program: programId,
           createdBy: req.user._id,
           state: 'draft',
+          ...getImageFlagFields(qData),
           groupId,
           groupOrder: i,
           groupContext: encryptedGroupContext,
@@ -576,7 +605,7 @@ const updateQuestionGroup = async (req, res) => {
     // Now that every change is saved, remove images the group no longer uses
     await deleteUnreferencedImages(previousUrls.filter((url) => !nextUrls.includes(url)));
 
-    await logAudit(req.user._id, 'question_group_updated', 'Question', null, {
+    await logAudit(req.user._id, 'question_group_updated', 'Question', updatedQuestions[0]?._id, {
       groupId,
       questionCount: updatedQuestions.length,
     });
@@ -591,9 +620,10 @@ const updateQuestionGroup = async (req, res) => {
 // POST /api/questions
 const createQuestion = async (req, res) => {
   try {
-    const { description, answers, tagId, programId, images, rationalization } = req.body;
+    const { answers, tagId, programId, images, rationalization } = req.body;
 
-    if (!description?.trim()) {
+    const description = cleanQuestionHtml(req.body.description);
+    if (!description) {
       return res.status(400).json({
         message: 'Question text is required'
       });
@@ -622,7 +652,7 @@ const createQuestion = async (req, res) => {
 
     // Validate tag if provided
     if (tagId) {
-      const tag = await Tag.findById(tagId);
+      const tag = mongoose.isValidObjectId(tagId) ? await Tag.findById(tagId) : null;
       if (!tag || !tag.isActive) return res.status(400).json({ message: 'Invalid or inactive tag' });
       if (tag.program.toString() !== resolvedProgramId)
         return res.status(400).json({ message: 'Tag does not belong to the specified program' });
@@ -635,14 +665,16 @@ const createQuestion = async (req, res) => {
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
 
     const questionData = {
-      description: encryptText(description.trim()),
+      description: encryptText(description),
       images: draft.images,
       answers: encryptAnswers(draft.answers),
-      rationalization: encryptText(rationalization?.trim() || ''),
+      rationalization: encryptRationalization(rationalization),
       tag: tagId || null,
       program: resolvedProgramId,
       createdBy: req.user._id,
       state: 'draft',
+      // Image flags from an import, so a question that needs an image stays marked
+      ...getImageFlagFields(req.body),
     };
     const question = await Question.create(questionData);
 
@@ -682,6 +714,18 @@ const updateQuestion = async (req, res) => {
       return res.status(400).json({ message: `${GROUP_SUBJECT_MESSAGE}. Change the subject for the whole group instead.` });
     }
 
+    // A new subject must be active and in the question's program. The subject it
+    // already has stays valid, even if it was deactivated since.
+    if (tagId && String(tagId) !== String(question.tag || '')) {
+      const tagError = await getTagError(tagId, question.program);
+      if (tagError) return res.status(400).json({ message: tagError });
+    }
+
+    const cleanDescription = description ? cleanQuestionHtml(description) : null;
+    if (description && !cleanDescription) {
+      return res.status(400).json({ message: 'Question text is required' });
+    }
+
     const previousUrls = collectQuestionImageUrls(question);
     const next = {
       images: images !== undefined ? normalizeImagesInput(images) : question.images,
@@ -705,11 +749,12 @@ const updateQuestion = async (req, res) => {
     });
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
 
-    if (description) question.description = encryptText(description.trim());
-    if (rationalization !== undefined) question.rationalization = encryptText(rationalization.trim());
+    if (cleanDescription) question.description = encryptText(cleanDescription);
+    if (rationalization !== undefined) question.rationalization = encryptRationalization(rationalization);
     if (images !== undefined) question.images = next.images;
     if (answers) question.answers = encryptAnswers(next.answers);
     if (tagId !== undefined) question.tag = tagId || null;
+    Object.assign(question, getImageFlagFields(req.body));
 
     // If a submitted question is edited, pull it back to draft so it can be re-submitted.
     if (question.state === 'pending_chair' || question.state === 'restored') {
@@ -777,9 +822,8 @@ const submitQuestion = async (req, res) => {
 
     const decrypted = decryptQuestion(question);
 
-    // --- STRICT SUBMISSION VALIDATION ---
+    // --- STRICT SUBMISSION VALIDATION --- (the rationalization is optional)
     if (!decrypted.description?.trim()) return res.status(400).json({ message: 'Question text is required for submission' });
-    if (!decrypted.rationalization?.trim()) return res.status(400).json({ message: 'Rationalization is required for submission' });
     if (!decrypted.tag) return res.status(400).json({ message: 'A subject tag must be assigned before submission' });
 
     const answerError = getAnswerSubmissionError(keepFilledAnswers(question, decrypted));

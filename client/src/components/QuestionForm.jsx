@@ -76,6 +76,11 @@ function normalizeFormQuestion(q) {
     uploadedUrls: Array.isArray(q.uploadedUrls) ? q.uploadedUrls : [],
     uploadingCount: 0,
     error: '',
+    // [IMPORT SETS] questions an import found sharing one passage. Every member
+    // carries the set's passage and passage images, so drafts keep them.
+    setKey: q.setKey || null,
+    setPassage: q.setKey ? (q.setPassage || '') : '',
+    setImages: q.setKey && Array.isArray(q.setImages) ? q.setImages : [],
   };
 }
 
@@ -88,21 +93,80 @@ function toAnswerPayload(answers) {
   }));
 }
 
+function toQuestionPayload(q) {
+  return {
+    description: q.description.trim(),
+    answers: toAnswerPayload(q.answers),
+    tagId: q.tagId,
+    rationalization: q.rationalization?.trim() || '',
+    images: q.uploadedUrls,
+    image_required: q.image_required,
+    image_note: q.image_note,
+    image_flag_removed_by_user: q.image_flag_removed_by_user,
+  };
+}
+
+// [IMPORT SETS] puts a set's passage at the start of a question's text when the
+// set is broken up, so the passage is not lost
+function prependPassage(passage, description) {
+  return stripHtml(passage || '').trim() ? `${passage}${description || ''}` : (description || '');
+}
+
+// [IMPORT SETS] turns every set with only one question left into a single
+// question. Returns the new list, whether any set was dissolved, and the passage
+// images that are no longer used.
+function dissolveLoneSets(list) {
+  const counts = new Map();
+  list.forEach((q) => { if (q.setKey) counts.set(q.setKey, (counts.get(q.setKey) || 0) + 1); });
+  const droppedImages = [];
+  let dissolved = false;
+  const next = list.map((q) => {
+    if (!q.setKey || counts.get(q.setKey) > 1) return q;
+    dissolved = true;
+    droppedImages.push(...(q.setImages || []));
+    return { ...q, description: prependPassage(q.setPassage, q.description), setKey: null, setPassage: '', setImages: [] };
+  });
+  return { list: next, dissolved, droppedImages };
+}
+
 function countAnswerImages(answers) {
   return answers.filter((a) => a.image || a.uploading).length;
 }
 
-// Field checks (grey → green once valid). Answers turn green once there are 4 or 5
-// choices and every one has text; duplicates and the correct answer are still
-// covered by the flags under the question.
+// Field checks (grey → green once valid) for the required fields. Answers turn
+// green once there are 4 or 5 choices and every one has text; duplicates and the
+// correct answer are still covered by the flags under the question.
 function getFieldChecks(q) {
   return {
     subject: Boolean(q.tagId),
     description: stripHtml(q.description || '').trim() !== '',
     answers: q.answers.length >= 4 && q.answers.length <= 5 && q.answers.every((a) => stripHtml(a.text).trim() !== ''),
-    rationalization: stripHtml(q.rationalization || '').trim() !== '',
     images: q.uploadedUrls.length > 0 && q.uploadingCount === 0,
   };
+}
+
+// Message for a save of new questions that stopped part way. Questions saved
+// before the error are already in My Questions and have left the form.
+function describePartialSave({ error, saved, notSubmitted, remaining }) {
+  const reason = error?.message || 'Failed to save question(s).';
+  if (saved.length === 0) return reason;
+
+  const parts = [reason];
+  if (notSubmitted) {
+    parts.push(notSubmitted === 1
+      ? 'That question was saved as a draft instead. You can submit it from My Questions.'
+      : `Those ${notSubmitted} questions were saved as drafts instead. You can submit them from My Questions.`);
+  }
+  const before = saved.length - (notSubmitted || 0);
+  if (before > 0) {
+    parts.push(`${before} question${before === 1 ? ' was' : 's were'} saved before the error.`);
+  }
+  if (remaining > 0) {
+    parts.push(remaining === 1
+      ? 'The question still in this form was not saved yet. Save again to save it.'
+      : `The ${remaining} questions still in this form were not saved yet. Save again to save them.`);
+  }
+  return parts.join(' ');
 }
 
 // Picture with a plus in the corner, for the icon-only "add image" buttons
@@ -156,6 +220,8 @@ export default function QuestionForm({
   initialData,
   initialGroupQuestions = null,
   onSaved,
+  // Called with the questions saved before an error when only some of them saved
+  onPartialSave,
   onClose,
   readOnly = false,
   importedQuestions = [],
@@ -238,6 +304,10 @@ export default function QuestionForm({
         image_required: q.image_required || false,
         image_note: q.image_note || null,
         image_flag_removed_by_user: false,
+        // [IMPORT SETS]
+        setKey: q.setKey || null,
+        setPassage: q.setPassage || '',
+        setImages: [],
       }));
     }
 
@@ -258,9 +328,12 @@ export default function QuestionForm({
     })];
   });
 
-  // Drafts restored from localStorage skip the initializer above
+  // Drafts restored from localStorage skip the initializer above. A draft left
+  // empty (every question saved) starts over with one blank question.
   useEffect(() => {
-    setQuestionsData((prev) => prev.map(normalizeFormQuestion));
+    setQuestionsData((prev) => (
+      prev.length > 0 ? prev.map(normalizeFormQuestion) : [normalizeFormQuestion(blankQuestion())]
+    ));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -306,13 +379,28 @@ export default function QuestionForm({
 
   const [saving, setSaving] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  // Editing a set opens on the question whose Edit was clicked
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(() => {
+    const clicked = (initialGroupQuestions || []).findIndex((q) => q._id && q._id === initialData?._id);
+    return Math.max(0, clicked);
+  });
   const [showSubmitWarning, setShowSubmitWarning] = useState(false);
   const isGroupedView = readOnly && isGrouped && questionsData.length > 1;
-  const useBubbleNav = (!readOnly && (isImportMode || !initialData)) || isGroupedView;
+  // One question at a time with the bubbles, as when creating; only a single
+  // question being edited shows without them
+  const useBubbleNav = readOnly ? isGroupedView : (isImportMode || !initialData || isGrouped);
   const [showRemoveImageFlag, setShowRemoveImageFlag] = useState(false);
   const [imageRemovalQuestionIdx, setImageRemovalQuestionIdx] = useState(null);
   const [dismissedFlags, setDismissedFlags] = useState({});
+  // [IMPORT SETS] per-set passage image uploads, and the set waiting for "Ungroup" confirmation
+  const [setImageUploading, setSetImageUploading] = useState({});
+  const [setImageErrors, setSetImageErrors] = useState({});
+  const [ungroupSetKey, setUngroupSetKey] = useState(null);
+
+  // Saved questions leave the form, so keep the selected bubble in range
+  useEffect(() => {
+    setCurrentQuestionIdx((idx) => Math.min(idx, Math.max(0, questionsData.length - 1)));
+  }, [questionsData.length]);
 
   function getFlagKey(qId, flag) {
     return `${qId}::${flag.type ?? flag.field ?? flag.message ?? 'flag'}`;
@@ -372,8 +460,7 @@ export default function QuestionForm({
     if (field === 'tag' || field === 'subject') return true;
     if (field === 'correct' || field === 'answers') return true;
     if (field === 'description') return true;
-    if (field === 'rationalization') return true;
-    if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers' || type === 'missing_rationalization') return true;
+    if (type === 'missing_subject' || type === 'no_correct_answer' || type === 'no_answers') return true;
 
     return msg === 'No subject assigned.' || msg === 'No correct answer selected' || msg === 'Question must have at least 4 answer choices';
   }
@@ -537,6 +624,108 @@ export default function QuestionForm({
     discardImage(removed);
   }
 
+  // ── [IMPORT SETS] questions an import found sharing one passage ──────────
+  const importSetKeys = isImportMode
+    ? [...new Set(questionsData.map((q) => q.setKey).filter(Boolean))]
+    : [];
+
+  function getSetMembers(key) {
+    return questionsData.filter((q) => q.setKey === key);
+  }
+
+  // "Questions 4–6" (numbers as shown in the review bubbles)
+  function getSetLabel(key) {
+    const numbers = questionsData
+      .map((q, i) => (q.setKey === key ? i + 1 : null))
+      .filter((n) => n !== null);
+    if (numbers.length === 0) return 'Question set';
+    const contiguous = numbers[numbers.length - 1] - numbers[0] === numbers.length - 1;
+    return contiguous
+      ? `Questions ${numbers[0]}–${numbers[numbers.length - 1]}`
+      : `Questions ${numbers.join(', ')}`;
+  }
+
+  function updateSetMembers(key, updater) {
+    setQuestionsData((prev) => prev.map((q) => (q.setKey === key ? updater(q) : q)));
+  }
+
+  function setSetPassage(key, html) {
+    if (readOnly) return;
+    updateSetMembers(key, (q) => ({ ...q, setPassage: html }));
+  }
+
+  function setSetTag(key, tagId) {
+    if (readOnly) return;
+    updateSetMembers(key, (q) => ({ ...q, tagId }));
+  }
+
+  async function handleSetImagePick(e, key) {
+    if (readOnly) return;
+    const files = Array.from(e.target.files);
+    e.target.value = '';
+    if (!files.length) return;
+
+    const current = getSetMembers(key)[0]?.setImages || [];
+    const uploadingNow = setImageUploading[key] || 0;
+    if (current.length + uploadingNow + files.length > maxGroupContextImages) {
+      setSetImageErrors((prev) => ({ ...prev, [key]: `Maximum of ${maxGroupContextImages} images allowed for the shared passage.` }));
+      return;
+    }
+
+    for (const file of files) {
+      const fileError = getImageFileError(file);
+      if (fileError) {
+        setSetImageErrors((prev) => ({ ...prev, [key]: fileError }));
+        return;
+      }
+    }
+
+    setSetImageErrors((prev) => ({ ...prev, [key]: '' }));
+    setSetImageUploading((prev) => ({ ...prev, [key]: (prev[key] || 0) + files.length }));
+
+    try {
+      const urls = await uploadImages(files);
+      // Discarded when the form closed or the set was ungrouped meanwhile
+      if (!mountedRef.current || !latestQuestionsRef.current.some((q) => q.setKey === key)) {
+        urls.forEach(discardImage);
+        return;
+      }
+      updateSetMembers(key, (q) => ({ ...q, setImages: [...(q.setImages || []), ...urls] }));
+    } catch (err) {
+      if (mountedRef.current) setSetImageErrors((prev) => ({ ...prev, [key]: `Image upload failed: ${err.message}` }));
+    } finally {
+      if (mountedRef.current) {
+        setSetImageUploading((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - files.length) }));
+      }
+    }
+  }
+
+  function removeSetImage(key, idx) {
+    if (readOnly) return;
+    const removed = getSetMembers(key)[0]?.setImages?.[idx];
+    updateSetMembers(key, (q) => ({ ...q, setImages: (q.setImages || []).filter((_, i) => i !== idx) }));
+    setSetImageErrors((prev) => ({ ...prev, [key]: '' }));
+    discardImage(removed);
+  }
+
+  // Makes every question of the set a single question. The passage is copied to
+  // the start of each question's text; passage images are removed, since an
+  // image can belong to only one saved question.
+  function confirmUngroupSet() {
+    const key = ungroupSetKey;
+    setUngroupSetKey(null);
+    if (!key) return;
+    const images = getSetMembers(key)[0]?.setImages || [];
+    updateSetMembers(key, (q) => ({
+      ...q,
+      description: prependPassage(q.setPassage, q.description),
+      setKey: null,
+      setPassage: '',
+      setImages: [],
+    }));
+    images.forEach(discardImage);
+  }
+
   function removeImage(qId, idx) {
     if (readOnly) return;
 
@@ -624,8 +813,13 @@ export default function QuestionForm({
   /**
    * Computes real-time flags for a question block
    */
+  // [IMPORT SETS] a picture on the set's shared passage counts for every question of the set
+  function setPassageHasImages(q) {
+    return Boolean(q.setKey) && ((q.setImages || []).length > 0 || (setImageUploading[q.setKey] || 0) > 0);
+  }
+
   function getQuestionFlags(q) {
-    const hasAnyImage = q.uploadedUrls.length > 0 || q.uploadingCount > 0;
+    const hasAnyImage = q.uploadedUrls.length > 0 || q.uploadingCount > 0 || setPassageHasImages(q);
 
     const aiFlags = (q.aiFlags || []).filter((f) => {
       const msg = sanitizeFlagMessage(f?.message);
@@ -704,10 +898,7 @@ export default function QuestionForm({
       flags.push({ severity: 'ERROR', message: 'Duplicate answer choices detected', field: 'answers', type: 'duplicate_answers' });
     }
 
-    // 5. Rationalization Required
-    if (!q.rationalization || !stripHtml(q.rationalization).trim()) {
-      flags.push({ severity: 'BLOCKER', message: 'Rationalization is required.', field: 'rationalization', type: 'missing_rationalization' });
-    }
+    // The rationalization is optional, so an empty one is never flagged
 
     return flags;
   }
@@ -730,6 +921,20 @@ export default function QuestionForm({
       return maxGroupContextImages === 0
         ? 'Shared passage images are turned off. Remove the images from the shared passage.'
         : `Only ${maxGroupContextImages} image(s) can be attached to the shared passage.`;
+    }
+
+    // [IMPORT SETS] the same rules as a question group, per set
+    for (const key of importSetKeys) {
+      const members = getSetMembers(key);
+      const label = getSetLabel(key);
+      if (new Set(members.map((q) => q.tagId || '')).size > 1) {
+        return `${label}: pick one subject for the whole set.`;
+      }
+      if ((members[0].setImages || []).length > maxGroupContextImages) {
+        return maxGroupContextImages === 0
+          ? `${label}: shared passage images are turned off. Remove the images from the shared passage.`
+          : `${label}: only ${maxGroupContextImages} image(s) can be attached to the shared passage.`;
+      }
     }
 
     for (let i = 0; i < questionsData.length; i++) {
@@ -776,6 +981,169 @@ export default function QuestionForm({
   }
 
 
+  // New questions are saved one unit at a time: a unit is one question, or a whole
+  // set or group. [IMPORT SETS] An import is saved in document order, each set as
+  // one question set (like "Grouped Questions") and every other question on its own.
+  function getSaveUnits() {
+    const single = (q) => ({
+      ids: [q.id],
+      isGroup: false,
+      body: { ...toQuestionPayload(q), ...(programId ? { programId } : {}) },
+    });
+    const group = (members, passage, passageImages) => ({
+      ids: members.map((m) => m.id),
+      isGroup: true,
+      body: {
+        questions: members.map(toQuestionPayload),
+        programId,
+        groupContext: stripHtml(passage || '').trim() ? passage.trim() : null,
+        groupContextImages: passageImages || [],
+      },
+    });
+
+    if (isGrouped) return [group(questionsData, groupContext, groupContextImages)];
+    if (!isImportMode) return questionsData.map(single);
+
+    const units = [];
+    const done = new Set();
+    for (const q of questionsData) {
+      if (done.has(q.id)) continue;
+      if (q.setKey) {
+        const members = questionsData.filter((m) => m.setKey === q.setKey);
+        members.forEach((m) => done.add(m.id));
+        units.push(group(members, q.setPassage, q.setImages));
+      } else {
+        done.add(q.id);
+        units.push(single(q));
+      }
+    }
+    return units;
+  }
+
+  // Creates new questions unit by unit. Each unit leaves the form (and with it the
+  // local draft) as soon as the server has it, so when a later unit fails, saving
+  // again does not create the earlier ones a second time.
+  async function createInUnits(submit) {
+    const saved = [];
+    const savedIds = new Set();
+
+    for (const unit of getSaveUnits()) {
+      let created;
+      try {
+        if (unit.isGroup) {
+          const data = await apiAuth(`${BASE}/api/questions/group`, { method: 'POST', body: unit.body });
+          created = { questions: data.questions, groupId: data.groupId };
+        } else {
+          const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body: unit.body });
+          created = { questions: [data.question] };
+        }
+      } catch (error) {
+        return { saved, savedIds, error };
+      }
+
+      const unitIds = new Set(unit.ids);
+      unit.ids.forEach((id) => savedIds.add(id));
+      setQuestionsData((prev) => prev.filter((q) => !unitIds.has(q.id)));
+
+      if (!submit) {
+        saved.push(...created.questions);
+        continue;
+      }
+
+      try {
+        if (unit.isGroup) {
+          const data = await apiAuth(`${BASE}/api/questions/group/${created.groupId}/submit`, { method: 'POST' });
+          saved.push(...data.questions);
+        } else {
+          const data = await apiAuth(`${BASE}/api/questions/${created.questions[0]._id}/submit`, { method: 'POST' });
+          saved.push(data.question);
+        }
+      } catch (error) {
+        // The unit exists as a draft; it stays saved and out of the form
+        saved.push(...created.questions);
+        return { saved, savedIds, error, notSubmitted: created.questions.length };
+      }
+    }
+
+    return { saved, savedIds, error: null };
+  }
+
+  // Saves changes to the question or group being edited
+  async function saveEdits(submit) {
+    if (isGrouped) {
+      const targetGroupId = initialGroupQuestions?.[0]?.groupId || initialData?.groupId;
+      const data = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}`, {
+        method: 'PUT',
+        body: {
+          questions: questionsData.map((q) => ({ _id: q._id, ...toQuestionPayload(q) })),
+          groupContext: groupContext.trim() || null,
+          groupContextImages,
+        },
+      });
+      if (!submit) return data.questions;
+
+      const subData = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}/submit`, { method: 'POST' });
+      window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+      return subData.questions;
+    }
+
+    const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, {
+      method: 'PATCH',
+      body: { ...toQuestionPayload(questionsData[0]), ...(programId ? { programId } : {}) },
+    });
+    if (!submit) return [data.question];
+
+    const subData = await apiAuth(`${BASE}/api/questions/${data.question._id}/submit`, { method: 'POST' });
+    window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+    return [subData.question];
+  }
+
+  function finishSave(savedQuestions, isEdit) {
+    if (clearQuestionsData) {
+      clearQuestionsData();
+    }
+    savedRef.current = true;
+    onSaved(savedQuestions, isEdit);
+  }
+
+  async function saveNew(submit) {
+    const { saved, savedIds, error, notSubmitted } = await createInUnits(submit);
+    if (submit && saved.length > 0) window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+
+    if (!error) {
+      finishSave(saved, false);
+      return;
+    }
+
+    const remaining = questionsData.filter((q) => !savedIds.has(q.id)).length;
+    const message = describePartialSave({ error, saved, notSubmitted, remaining });
+    if (remaining === 0) {
+      // Everything was saved, but the last unit could not be submitted
+      finishSave(saved, false);
+    } else if (saved.length > 0 && typeof onPartialSave === 'function') {
+      onPartialSave(saved);
+    }
+    showFeedback({ message, tone: 'danger' });
+  }
+
+  async function runSave(submit) {
+    setSaving(true);
+    try {
+      if (isEditing) {
+        finishSave(await saveEdits(submit), !!initialData && questionsData.length === 1);
+      } else {
+        await saveNew(submit);
+      }
+    } catch (err) {
+      showFeedback({
+        message: err.message || 'Failed to save question(s).',
+        tone: 'danger',
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save(submit = false) {
     if (readOnly) return;
     const err = validate(submit);
@@ -790,136 +1158,14 @@ export default function QuestionForm({
     // [IMPORT REVIEW - SUBMIT BEHAVIOR]
     // Show warning if submitting with flagged questions in import mode
     if (submit && isImportMode) {
-      const flaggedQuestions = questionsData
-        .map((q, idx) => ({
-          idx,
-          flags: getQuestionFlags(q),
-          number: idx + 1
-        }))
-        .filter(q => q.flags.length > 0);
-
-      if (flaggedQuestions.length > 0) {
+      const hasFlaggedQuestions = questionsData.some((q) => getQuestionFlags(q).length > 0);
+      if (hasFlaggedQuestions) {
         setShowSubmitWarning(true);
         return;
       }
     }
 
-    setSaving(true);
-    const savedQuestions = [];
-
-    try {
-      // [GROUPED QUESTIONS] — creating a new group
-      if (isGrouped && !isEditing) {
-        const questionsPayload = questionsData.map(q => ({
-          description: q.description.trim(),
-          answers: toAnswerPayload(q.answers),
-          tagId: q.tagId,
-          rationalization: q.rationalization?.trim() || '',
-          images: q.uploadedUrls,
-          image_required: q.image_required,
-          image_note: q.image_note,
-          image_flag_removed_by_user: q.image_flag_removed_by_user,
-        }));
-
-        const data = await apiAuth(`${BASE}/api/questions/group`, {
-          method: 'POST',
-          body: {
-            questions: questionsPayload,
-            programId,
-            groupContext: groupContext.trim() || null,
-            groupContextImages,
-          },
-        });
-
-        if (submit) {
-          const subData = await apiAuth(`${BASE}/api/questions/group/${data.groupId}/submit`, { method: 'POST' });
-          savedQuestions.push(...subData.questions);
-          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
-        } else {
-          savedQuestions.push(...data.questions);
-        }
-      } else if (isGrouped && isEditing) {
-        // [GROUPED QUESTIONS] — updating an existing group
-        const targetGroupId = initialGroupQuestions?.[0]?.groupId || initialData?.groupId;
-        const questionsPayload = questionsData.map(q => ({
-          _id: q._id,
-          description: q.description.trim(),
-          answers: toAnswerPayload(q.answers),
-          tagId: q.tagId,
-          rationalization: q.rationalization?.trim() || '',
-          images: q.uploadedUrls,
-          image_required: q.image_required,
-          image_note: q.image_note,
-          image_flag_removed_by_user: q.image_flag_removed_by_user,
-        }));
-
-        const data = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}`, {
-          method: 'PUT',
-          body: {
-            questions: questionsPayload,
-            groupContext: groupContext.trim() || null,
-            groupContextImages,
-          },
-        });
-
-        if (submit) {
-          const subData = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}/submit`, { method: 'POST' });
-          savedQuestions.push(...subData.questions);
-          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
-        } else {
-          savedQuestions.push(...data.questions);
-        }
-      } else {
-        // Single question mode (existing logic)
-        for (const q of questionsData) {
-          const body = {
-            description: q.description.trim(),
-            answers: toAnswerPayload(q.answers),
-            tagId: q.tagId,
-            rationalization: q.rationalization?.trim() || '',
-            images: q.uploadedUrls,
-            ...(programId ? { programId } : {}),
-            // [IMPORT REVIEW - FLAG SYSTEM]
-            // Save image requirement tracking
-            image_required: q.image_required,
-            image_note: q.image_note,
-            image_flag_removed_by_user: q.image_flag_removed_by_user,
-          };
-
-          let question;
-          if (initialData && questionsData.length === 1) {
-            const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
-            question = data.question;
-          } else {
-            const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
-            question = data.question;
-          }
-
-          if (submit) {
-            await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
-            savedQuestions.push({ ...question, state: 'pending_chair' });
-          } else {
-            savedQuestions.push(question);
-          }
-        }
-        if (submit) {
-          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
-        }
-      }
-
-      if (clearQuestionsData) {
-        clearQuestionsData();
-      }
-      savedRef.current = true;
-      onSaved(savedQuestions, !!initialData && questionsData.length === 1);
-    } catch (err) {
-      showFeedback({
-        message: err.message || 'Failed to save question(s).',
-        tone: 'danger',
-      });
-    } finally {
-      setSaving(false);
-    }
+    await runSave(submit);
   }
 
   function confirmSubmitWithWarning() {
@@ -929,50 +1175,9 @@ export default function QuestionForm({
       return;
     }
 
+    // The warning is only shown when reviewing an import
     setShowSubmitWarning(false);
-    setSaving(true);
-    const saveAsync = async () => {
-      const savedQuestions = [];
-      try {
-        for (const q of questionsData) {
-          const body = {
-            description: q.description.trim(),
-            answers: toAnswerPayload(q.answers),
-            tagId: q.tagId,
-            rationalization: q.rationalization?.trim() || '',
-            images: q.uploadedUrls,
-            ...(programId ? { programId } : {}),
-            image_required: q.image_required,
-            image_note: q.image_note,
-            image_flag_removed_by_user: q.image_flag_removed_by_user,
-          };
-
-          let question;
-          if (initialData && questionsData.length === 1) {
-            const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, { method: 'PATCH', body });
-            question = data.question;
-          } else {
-            const data = await apiAuth(`${BASE}/api/questions`, { method: 'POST', body });
-            question = data.question;
-          }
-
-          await apiAuth(`${BASE}/api/questions/${question._id}/submit`, { method: 'POST' });
-          savedQuestions.push({ ...question, state: 'pending_chair' });
-        }
-
-        if (clearQuestionsData) {
-          clearQuestionsData();
-        }
-        window.dispatchEvent(new CustomEvent('badge-counts-updated'));
-        savedRef.current = true;
-        onSaved(savedQuestions, !!initialData && questionsData.length === 1);
-      } catch (err) {
-        notify(err.message || 'Failed to save question(s).', { variant: 'error' });
-      } finally {
-        setSaving(false);
-      }
-    };
-    saveAsync();
+    runSave(true);
   }
 
   function addQuestionBlock() {
@@ -988,9 +1193,16 @@ export default function QuestionForm({
 
   function removeQuestionBlock(qId) {
     if (questionsData.length > 1) {
+      // [IMPORT SETS] a set left with one question becomes a single question
+      const { dissolved, droppedImages } = dissolveLoneSets(questionsData.filter(q => q.id !== qId));
+      droppedImages.forEach(discardImage);
+      if (dissolved) {
+        notify('Only one question was left in its set, so it is now a single question. The shared passage was added to its text.', { variant: 'info' });
+      }
+
       setQuestionsData(prev => {
         const removeIndex = prev.findIndex(q => q.id === qId);
-        const next = prev.filter(q => q.id !== qId);
+        const next = dissolveLoneSets(prev.filter(q => q.id !== qId)).list;
         setCurrentQuestionIdx((curr) => {
           if (next.length === 0) return 0;
           if (removeIndex < 0) return Math.min(curr, next.length - 1);
@@ -1027,6 +1239,7 @@ export default function QuestionForm({
   }
 
   const anyUploading = passageUploadingCount > 0
+    || Object.values(setImageUploading).some((n) => n > 0)
     || questionsData.some(q => q.uploadingCount > 0 || q.answers.some(a => a.uploading));
 
   // [GROUPED QUESTIONS] one subject for the whole group, picked above the shared passage.
@@ -1040,14 +1253,189 @@ export default function QuestionForm({
     setQuestionsData((prev) => prev.map((q) => ({ ...q, tagId })));
   }
 
+  // One subject for a whole group or imported set
+  function renderSetSubjectSection({ value, onChange, label, hint }) {
+    return (
+      <section className="qf-section">
+        <div className="qf-section-header">
+          <h3 className="qf-section-title qf-label-row">Subject * {!readOnly && <FieldCheck valid={Boolean(value)} />}</h3>
+        </div>
+
+        <div className="qf-section-body">
+          <p className="qf-section-hint">{hint}</p>
+          <div className="qf-field qf-field--narrow">
+            <select
+              aria-label={label}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              disabled={readOnly}
+            >
+              <option value="">Select a subject</option>
+              {tags.map((tag) => (
+                <option key={tag._id} value={tag._id}>{tag.name}</option>
+              ))}
+            </select>
+          </div>
+          {tags.length === 0 && !readOnly ? (
+            <p className="qf-inline-note qf-inline-note--error">
+              No subjects available. Ask your Program Chair to create subjects first.
+            </p>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  // Shared passage (text + images) of a group or imported set
+  function renderPassageSection({ value, onChange, images, uploadingCount, error, inputId, onPick, onRemove, hint, placeholder }) {
+    return (
+      <section className="qf-section">
+        <div className="qf-section-header">
+          <h3 className="qf-section-title">Shared Passage</h3>
+        </div>
+
+        <div className="qf-section-body">
+          <p className="qf-section-hint">{hint}</p>
+          <div className="qf-field">
+            <RichTextEditor
+              ariaLabel="Shared passage"
+              placeholder={placeholder}
+              value={value}
+              onChange={onChange}
+              minRows={3}
+              disabled={readOnly}
+            />
+          </div>
+          {/* Shared passage images: own limit, separate from each question's images */}
+          {!readOnly && maxGroupContextImages > 0 && (
+            <div className="qf-upload-box">
+              <input
+                id={inputId}
+                className="qf-file-input"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                onChange={onPick}
+              />
+              <button
+                type="button"
+                className="qf-secondary-btn qf-icon-btn"
+                onClick={() => document.getElementById(inputId)?.click()}
+                title="Add shared passage images"
+                aria-label="Add shared passage images"
+              >
+                <AddImageIcon />
+              </button>
+              <span className="qf-upload-note">
+                {uploadingCount > 0
+                  ? 'Uploading images...'
+                  : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
+              </span>
+            </div>
+          )}
+
+          {!readOnly && error ? (
+            <p className="qf-inline-note qf-inline-note--error">{error}</p>
+          ) : null}
+
+          {images.length > 0 || uploadingCount > 0 ? (
+            <div className="image-previews">
+              {images.map((url, idx) => (
+                <div key={url} className="image-thumb">
+                  <AuthImage
+                    src={url}
+                    alt={`Shared passage image ${idx + 1}`}
+                    onClick={() => setFullscreenImage(url)}
+                    title="Click to view full size"
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(idx)}
+                      className="btn-remove-img"
+                      title="Remove image"
+                      aria-label={`Remove shared passage image ${idx + 1}`}
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {Array.from({ length: uploadingCount }, (_, idx) => (
+                <div key={`passage-uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  // [IMPORT SETS] shown above each question of a set while reviewing an import
+  function renderImportSetSections(key) {
+    const members = getSetMembers(key);
+    const first = members[0];
+    const tagId = members.every((m) => m.tagId === first.tagId) ? first.tagId || '' : '';
+
+    return (
+      <>
+        <div className="qf-group-notice qf-import-set-notice">
+          <span className="qf-group-notice-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="5" width="16" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+              <rect x="4" y="14" width="16" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </span>
+          <span className="qf-import-set-notice-text">
+            <strong>Question set: {getSetLabel(key)}.</strong>{' '}
+            These questions share the passage below. They are saved as one set and always appear together in this order during exams.
+          </span>
+          {!readOnly && (
+            <button
+              type="button"
+              className="qf-secondary-btn qf-section-action"
+              onClick={() => setUngroupSetKey(key)}
+            >
+              Ungroup
+            </button>
+          )}
+        </div>
+
+        {renderSetSubjectSection({
+          value: tagId,
+          onChange: (id) => setSetTag(key, id),
+          label: 'Set subject',
+          hint: 'A set has one subject. Every question in this set uses it.',
+        })}
+
+        {renderPassageSection({
+          value: first.setPassage || '',
+          onChange: (html) => setSetPassage(key, html),
+          images: first.setImages || [],
+          uploadingCount: setImageUploading[key] || 0,
+          error: setImageErrors[key] || '',
+          inputId: `${passageFileInputId}-${key}`,
+          onPick: (e) => handleSetImagePick(e, key),
+          onRemove: (idx) => removeSetImage(key, idx),
+          hint: 'Shown above every question in this set during the exam.',
+          placeholder: 'Shared passage, case or scenario for this set.',
+        })}
+      </>
+    );
+  }
+
   // Render a single question block (shared between single and grouped modes)
   function renderQuestionBlock(q, index) {
     const checks = getFieldChecks(q);
     // Images are optional unless the import flagged this question as needing one
-    const imageRequired = q.image_required && !q.image_flag_removed_by_user;
+    // (a picture on an imported set's shared passage also covers it)
+    const imageRequired = q.image_required && !q.image_flag_removed_by_user && !setPassageHasImages(q);
 
     return (
       <div key={q.id} className="qf-question-block">
+        {/* [IMPORT SETS] the set's notice, subject and shared passage come first */}
+        {isImportMode && q.setKey && renderImportSetSections(q.setKey)}
+
         {/* ── Header ── */}
         {isGrouped ? (
           <div className="qf-group-question-header">
@@ -1067,8 +1455,8 @@ export default function QuestionForm({
           </div>
         ) : null}
 
-        {/* Grouped questions share the group's subject, picked above the shared passage */}
-        {!isGrouped && (
+        {/* Grouped questions (and imported sets) share one subject, picked above the shared passage */}
+        {!isGrouped && !q.setKey && (
           <section className="qf-section">
             <div className="qf-section-header">
               <h3 className="qf-section-title qf-label-row">Subject * {!readOnly && <FieldCheck valid={checks.subject} />}</h3>
@@ -1295,12 +1683,12 @@ export default function QuestionForm({
         {/* Rationalization Field */}
         <section className="qf-section">
           <div className="qf-section-header">
-            <h3 className="qf-section-title qf-label-row">Rationalization * {!readOnly && <FieldCheck valid={checks.rationalization} />}</h3>
+            <h3 className="qf-section-title">Rationalization</h3>
           </div>
 
           <div className="qf-section-body">
             <p className="qf-section-hint">
-              {readOnly ? 'Explanation for the correct answer.' : 'Explain why the correct answer is correct. This is required before submission.'}
+              {readOnly ? 'Explanation for the correct answer.' : 'Optional. Explain why the correct answer is correct.'}
             </p>
             <div className="qf-field">
               <RichTextEditor
@@ -1384,14 +1772,18 @@ export default function QuestionForm({
 
   return (
     <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
-      {/* [GROUPED QUESTIONS] Mode indicator / toggle */}
-      {!readOnly && !isEditing && !isImportMode && (
+      {/* [GROUPED QUESTIONS] Mode toggle. A saved set stays a set, so while one is
+          edited the toggle shows Grouped Questions and Single Question is off. */}
+      {!readOnly && !isImportMode && (!isEditing || isGrouped) && (
         <div className="qf-mode-toggle" role="group" aria-label="Question mode">
           <button
             type="button"
             id="qf-mode-single"
             className={`qf-mode-btn ${mode === 'single' ? 'qf-mode-btn--active' : ''}`}
+            aria-pressed={mode === 'single'}
             onClick={() => handleModeChange('single')}
+            disabled={isEditing}
+            title={isEditing ? 'A saved question set cannot become a single question' : undefined}
           >
             Single Question
           </button>
@@ -1399,6 +1791,7 @@ export default function QuestionForm({
             type="button"
             id="qf-mode-grouped"
             className={`qf-mode-btn ${mode === 'grouped' ? 'qf-mode-btn--active' : ''}`}
+            aria-pressed={mode === 'grouped'}
             onClick={() => handleModeChange('grouped')}
           >
             Grouped Questions
@@ -1406,136 +1799,34 @@ export default function QuestionForm({
         </div>
       )}
 
-      {isGrouped && isEditing && !readOnly && (
-        <div className="qf-mode-toggle" style={{ pointerEvents: 'none' }}>
-          <button
-            type="button"
-            className="qf-mode-btn qf-mode-btn--active"
-            style={{ width: '100%' }}
-          >
-            Editing Question Set ({questionsData.length} questions)
-          </button>
-        </div>
-      )}
-
       {/* [GROUPED QUESTIONS] Group context/stem field */}
       {isGrouped && (
         <>
-          <section className="qf-section">
-            <div className="qf-section-header">
-              <h3 className="qf-section-title qf-label-row">Subject * {!readOnly && <FieldCheck valid={Boolean(groupTagId)} />}</h3>
-            </div>
+          {renderSetSubjectSection({
+            value: groupTagId,
+            onChange: setGroupTag,
+            label: 'Group subject',
+            hint: readOnly
+              ? 'Subject of every question in this group.'
+              : 'A group has one subject. Every question in this group uses it.',
+          })}
 
-            <div className="qf-section-body">
-              <p className="qf-section-hint">
-                {readOnly
-                  ? 'Subject of every question in this group.'
-                  : 'A group has one subject. Every question in this group uses it.'}
-              </p>
-              <div className="qf-field qf-field--narrow">
-                <select
-                  aria-label="Group subject"
-                  value={groupTagId}
-                  onChange={(e) => setGroupTag(e.target.value)}
-                  disabled={readOnly}
-                >
-                  <option value="">Select a subject</option>
-                  {tags.map((tag) => (
-                    <option key={tag._id} value={tag._id}>{tag.name}</option>
-                  ))}
-                </select>
-              </div>
-              {tags.length === 0 && !readOnly ? (
-                <p className="qf-inline-note qf-inline-note--error">
-                  No subjects available. Ask your Program Chair to create subjects first.
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="qf-section">
-            <div className="qf-section-header">
-              <h3 className="qf-section-title">Shared Passage</h3>
-            </div>
-
-            <div className="qf-section-body">
-              <p className="qf-section-hint">
-                {readOnly
-                  ? 'Shared passage, scenario, or context shown above all questions in this group.'
-                  : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.'}
-              </p>
-              <div className="qf-field">
-                <RichTextEditor
-                  ariaLabel="Shared passage"
-                  placeholder={readOnly ? 'No shared context provided.' : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed."}
-                  value={groupContext}
-                  onChange={setGroupContext}
-                  minRows={3}
-                  disabled={readOnly}
-                />
-              </div>
-              {/* Shared passage images: own limit, separate from each question's images */}
-              {!readOnly && maxGroupContextImages > 0 && (
-                <div className="qf-upload-box">
-                  <input
-                    id={passageFileInputId}
-                    className="qf-file-input"
-                    type="file"
-                    multiple
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handlePassageImagePick}
-                  />
-                  <button
-                    type="button"
-                    className="qf-secondary-btn qf-icon-btn"
-                    onClick={() => document.getElementById(passageFileInputId)?.click()}
-                    title="Add shared passage images"
-                    aria-label="Add shared passage images"
-                  >
-                    <AddImageIcon />
-                  </button>
-                  <span className="qf-upload-note">
-                    {passageUploadingCount > 0
-                      ? 'Uploading images...'
-                      : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
-                  </span>
-                </div>
-              )}
-
-              {!readOnly && passageImageError ? (
-                <p className="qf-inline-note qf-inline-note--error">{passageImageError}</p>
-              ) : null}
-
-              {groupContextImages.length > 0 || passageUploadingCount > 0 ? (
-                <div className="image-previews">
-                  {groupContextImages.map((url, idx) => (
-                    <div key={url} className="image-thumb">
-                      <AuthImage
-                        src={url}
-                        alt={`Shared passage image ${idx + 1}`}
-                        onClick={() => setFullscreenImage(url)}
-                        title="Click to view full size"
-                      />
-                      {!readOnly && (
-                        <button
-                          type="button"
-                          onClick={() => removePassageImage(idx)}
-                          className="btn-remove-img"
-                          title="Remove image"
-                          aria-label={`Remove shared passage image ${idx + 1}`}
-                        >
-                          <TrashIcon />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {Array.from({ length: passageUploadingCount }, (_, idx) => (
-                    <div key={`passage-uploading-${idx}`} className="image-thumb image-thumb--uploading">Uploading...</div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </section>
+          {renderPassageSection({
+            value: groupContext,
+            onChange: setGroupContext,
+            images: groupContextImages,
+            uploadingCount: passageUploadingCount,
+            error: passageImageError,
+            inputId: passageFileInputId,
+            onPick: handlePassageImagePick,
+            onRemove: removePassageImage,
+            hint: readOnly
+              ? 'Shared passage, scenario, or context shown above all questions in this group.'
+              : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.',
+            placeholder: readOnly
+              ? 'No shared context provided.'
+              : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed.",
+          })}
           <div className="qf-group-notice">
             <span className="qf-group-notice-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1556,6 +1847,7 @@ export default function QuestionForm({
           onSelectQuestion={setCurrentQuestionIdx}
           getQuestionFlags={getVisibleQuestionFlags}
           readOnly={readOnly}
+          allInOneSet={isGrouped}
         />
       )}
 
@@ -1669,6 +1961,37 @@ export default function QuestionForm({
             style={{ width: 'auto' }}
           >
             {saving ? 'Submitting...' : 'Submit Anyway'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* [IMPORT SETS] Ungroup confirmation */}
+      <Modal
+        open={!!ungroupSetKey}
+        onClose={() => setUngroupSetKey(null)}
+        title="Ungroup Question Set"
+      >
+        <p className="modal-text">
+          {ungroupSetKey ? `${getSetLabel(ungroupSetKey)} will become single questions. ` : ''}
+          The shared passage is added to the start of each question&apos;s text.
+          {ungroupSetKey && (getSetMembers(ungroupSetKey)[0]?.setImages || []).length > 0
+            ? ' Images on the shared passage are removed.'
+            : ''}
+        </p>
+        <div className="modal-actions qp-modal-actions">
+          <button
+            type="button"
+            className="modal-btn-cancel"
+            onClick={() => setUngroupSetKey(null)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="modal-btn-primary"
+            onClick={confirmUngroupSet}
+          >
+            Ungroup
           </button>
         </div>
       </Modal>

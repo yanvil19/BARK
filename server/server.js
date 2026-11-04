@@ -1,6 +1,14 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// A mistake in the Gemini model list stops the server here, not at the first import
+try {
+    require('./config/geminiModels').getGeminiModels();
+} catch (err) {
+    console.error(`Gemini model settings: ${err.message}`);
+    process.exit(1);
+}
+
 const app = require('./app');
 const connectDB = require('./config/db');
 const requestMetrics = require('./services/requestMetrics');

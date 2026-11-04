@@ -27,6 +27,11 @@ server/config/db.js
 ```
 -> Establishes the Mongoose connection to MongoDB Atlas using the `MONGO_URI` env variable, with optional custom DNS server support for `mongodb+srv://` URIs.
 
+```
+server/config/geminiModels.js
+```
+-> Reads the Gemini models for the AI import from the environment, in the order they are tried: `GEMINI_MODEL_1`, `GEMINI_MODEL_2`, … (numbers set the order, gaps allowed, no maximum), each with optional `_RPM` / `_RPD` limits that default to `GEMINI_RPM_LIMIT` / `GEMINI_RPD_LIMIT` (8 / 200). A limit of 0 turns a model off. With no numbered models, `GEMINI_MODEL` is the only model. An empty name, a limit that is not a whole number or a model listed twice throws `GeminiConfigError`; `server.js` checks this at startup and stops.
+
 ---
 
 ### Controllers
@@ -51,7 +56,7 @@ server/controllers/catalogController.js
 ```
 server/controllers/importController.js
 ```
--> Orchestrates the AI-assisted question import pipeline: validates file type, extracts text/images, calls Gemini to count and parse questions, stores sessions in memory, and allows final submission to the question bank.
+-> Runs the AI question import in one request. `importQuestions` checks the file and reads its text, turns away a file whose rough count (no AI) is well over `IMPORT_MAX_QUESTIONS` (default 40) without asking Gemini or using up an upload, then asks Gemini once to count and extract the questions. A file over the limit is turned away and counts as an upload. Otherwise the guardrails run (they remove any rationalization that is not in the document) and the questions are returned for review. The file text is not stored. `getLimits` returns the user's import limits and the question limit. Reviewed questions are saved through the normal question endpoints, not here.
 
 ```
 server/controllers/mockBoardExamController.js
@@ -81,7 +86,7 @@ server/controllers/statsController.js
 ```
 server/controllers/systemMetricsController.js
 ```
--> Super-admin System Metrics endpoint (`GET /api/stats/system-metrics?range=1h|24h|7d`): request traffic, 429 counts, response times and CPU use, users active in the last 5 minutes / 24 hours, server and database health, and 14-day exam-attempt and audit-log counts.
+-> Super-admin System Metrics endpoint (`GET /api/stats/system-metrics?range=1h|24h|7d`): request traffic, 429 counts, response times and CPU use, users active in the last 5 minutes / 24 hours, server and database health, 14-day exam-attempt and audit-log counts, and the AI import's Gemini models (`ai`: each model's usage against its limits, status, cooldown and the next daily reset, plus totals across the models: capacity per minute and per day, used, left today and imports left, from `getGeminiModelsStatus`).
 
 ```
 server/controllers/studentExamController.js
@@ -135,7 +140,7 @@ server/routes/catalogRoutes.js
 ```
 server/routes/importRoutes.js
 ```
--> Mounts the AI import pipeline endpoints: upload, validate/count, extract questions, and submit—guarded by import-specific rate limiting and file validation middleware.
+-> Mounts the AI import endpoints: `GET /limits` and `POST /extract` (file upload, with the subjects as a JSON `tags` field), guarded by the per-user import limit, the shared Gemini request limit, the one-import-at-a-time lock and file validation.
 
 ```
 server/routes/mockBoardExamRoutes.js
@@ -219,7 +224,7 @@ server/models/AppSettings.js
 ```
 server/models/AuditLog.js
 ```
--> Mongoose schema that records administrative actions (user creation, approval, deletion, settings changes) with actor, action type, target type/ID, and metadata.
+-> Mongoose schema that records administrative actions (user creation, approval, deletion, settings changes) with actor, action type, target type/ID, and metadata. Creating or editing a question group is logged as `question_group_created` / `question_group_updated`, with the first question as the target and the `groupId` in the details.
 
 ```
 server/models/Department.js
@@ -245,6 +250,21 @@ server/models/PendingSettingUpdate.js
 server/models/Tag.js
 ```
 -> Mongoose schema for subject/topic tags linked to a program, used to categorize exam questions by subject area.
+
+```
+server/models/ImportUsage.js
+```
+-> One document per finished import (`import`, per user) and per Gemini request (`gemini_call`, retries included, with its `model` and `outcome`: pending, success, rate_limited or failed). The per-user limits and each model's limits are counted from these. A TTL index deletes them after 25 hours.
+
+```
+server/models/GeminiCooldown.js
+```
+-> One document per Gemini model that Google turned away, with the reason and when the model may be used again: `minute` (the wait Google asked for), `day` (the next midnight Pacific time) or `unavailable` (the model does not exist for the API key; tried again after an hour). A TTL index deletes it once it has ended.
+
+```
+server/models/ImportLock.js
+```
+-> One lock per user while an import request is running, so a user runs one import at a time. A lock that is never released expires after 5 minutes and can then be taken over.
 
 ---
 
@@ -288,12 +308,17 @@ server/services/settingsManager.js
 ```
 server/services/fileExtractionService.js
 ```
--> Extracts plain text (and images from DOCX) from uploaded PDF and DOCX file buffers using `pdf-parse` and `mammoth`.
+-> Extracts plain text (and images from DOCX) from uploaded PDF and DOCX file buffers using `pdf-parse` and `mammoth`. `estimateQuestionCount` gives a rough question count without the AI (lines that start an "A" option), used to turn away a file that clearly has too many questions.
 
 ```
 server/services/geminiService.js
 ```
--> Calls the Google Gemini API to count multiple-choice questions in extracted document text and to parse/structure those questions into a JSON array for import review.
+-> Calls the Google Gemini API once per import (`extractQuestions`): the prompt has the model count the multiple-choice questions and, when there are no more than the limit, return them as JSON for review in the same reply (`{ question_count, questions }`). `callWithFallback` sends each request to the first model in `config/geminiModels.js` that can take it. A model that answers 429 (out of quota) or 404 gets a cooldown (`cooldownFor` reads Google's QuotaFailure and RetryInfo; a daily quota waits for midnight Pacific time) and the next model is tried. A timeout, 5xx or reply that is not valid JSON is retried once on the same model, then the next model is tried; any other error is returned at once. Every request, retries included, first takes a place under its model's limits (`reserveGeminiCall`). The extract prompt copies a rationalization only when the document or its answer key gives one and never writes one. `processQuestionsWithGuardrails` also removes any rationalization that is not in the document text and flags that question for review.
+
+```
+server/services/importStateService.js
+```
+-> Import state kept in MongoDB, so it holds across restarts and server instances: the most questions a file may hold (`importMaxQuestions`, `IMPORT_MAX_QUESTIONS`, default 40), each user's hourly and daily import count (`IMPORT_USER_HOURLY_LIMIT` / `IMPORT_USER_DAILY_LIMIT`, default 8 / 20), each Gemini model's per-minute and daily limits (the daily count runs from midnight Pacific time, like Google's) and cooldowns, each model's status for System Metrics (`getGeminiModelsStatus`), and the one-import-per-user lock.
 
 ---
 
@@ -317,7 +342,7 @@ server/middleware/forgotPasswordRateLimit.js
 ```
 server/middleware/importRateLimit.js
 ```
--> Per-user sliding-window rate limiter for the question import endpoint, enforcing configurable hourly and daily upload limits tracked in memory.
+-> Limits for the import routes: `userImportLimiter` (each user's hourly and daily import limit), `geminiLimiter` (turns a request away when the shared Gemini limit is already used up) and `concurrentImportLimiter` (one import at a time per user; the lock is released when the response ends). The counts and the lock are kept in MongoDB by `importStateService`.
 
 ```
 server/middleware/importValidation.js
@@ -352,6 +377,16 @@ server/utils/idFormats.js
 server/utils/examAttemptUtils.js
 ```
 -> Shared helpers for exam attempt processing: Fisher-Yates shuffle for randomizing question/answer order and score calculation with per-subject breakdown.
+
+```
+server/utils/questionHtml.js
+```
+-> `cleanQuestionHtml` keeps only the markup the rich-text editor makes (the same list `SafeHtml` allows, equations included) in question text, answer choices, rationalizations and shared passages. HTML with nothing visible left, such as empty paragraphs, becomes `''`.
+
+```
+server/utils/pacificTime.js
+```
+-> `startOfPacificDay` and `nextPacificMidnight`: the Gemini API resets daily quotas at midnight Pacific time, so the import's daily counts and cooldowns use the same day, also on the days the clocks change.
 
 ---
 
@@ -403,7 +438,7 @@ server/scripts/migrateAlumniRole.js
 ```
 server/tests/setup.js
 ```
--> Jest global setup that configures `mongodb-memory-server`, mocks the email service to prevent real sends during tests, and seeds the database before each test suite.
+-> Jest global setup that configures `mongodb-memory-server`, mocks the email service to prevent real sends during tests, and seeds the database before each test suite. It passes Node's `os` module to Mongoose as a runtime adapter, because the MongoDB driver loads it with a dynamic `import()` that fails under Jest.
 
 ```
 server/tests/helpers.js
@@ -496,9 +531,24 @@ server/tests/systemMetrics.test.js
 -> Tests the System Metrics endpoint: super-admin-only access, range validation, route-pattern recording (no raw IDs or query strings), skipped health checks, per-minute upserts, 429 counts, CPU readings, active-user and audit-log counts, and the latency percentile estimate.
 
 ```
+server/tests/geminiModels.test.js
+```
+-> Tests the Gemini model list and fallback: reading the numbered models and their limits (and the startup errors), midnight Pacific time across the clock changes, how long a model is skipped after a per-minute quota, a daily quota or a missing model, falling back to the next model (skipping one in cooldown or at this server's limit, retrying a passing error once, not falling back for a bad request), the messages when no model has room, and the models on the System Metrics page.
+
+```
 server/tests/loginRateLimit.test.js
 ```
 -> Tests the per-IP login limit: 200 people on one network signing in at once, blocking after too many wrong passwords, the cap on unsuccessful attempts, and that per-account lockout still applies.
+
+```
+server/tests/importFlow.test.js
+```
+-> Tests the AI import with Gemini mocked: counting and extracting in one request (the limit in the prompt, the subjects sent with the text), a rationalization from the document kept and one the AI wrote removed, files over the question limit turned away (by the AI's count, by the questions returned, and by the rough count without asking Gemini), a file with no questions, the rough count itself, the removed endpoints (including the old count step), every Gemini request counted (retries included), the per-user and shared limits, and the one-import-at-a-time lock.
+
+```
+server/tests/questionRules.test.js
+```
+-> Tests question rules: submitting single questions and groups without a rationalization, image flags from an import kept and editable, question HTML cleaned on the server, the group audit log entry, and subject checks when a question's subject changes.
 
 ---
 
@@ -591,7 +641,7 @@ client/src/pages/superadmin/SAdminSettings.jsx
 ```
 client/src/pages/superadmin/SAdminMetrics.jsx
 ```
--> System Metrics page for super admins: live tiles (active users, live connections, uptime, database response), request charts by outcome (including 429 "blocked" requests), response time and server CPU with a 1h/24h/7d range filter, an endpoints table, 14-day activity charts, and server health. Every chart can switch to a table view; refreshes every 30 seconds.
+-> System Metrics page for super admins: live tiles (active users, live connections, uptime, database response), request charts by outcome (including 429 "blocked" requests), response time and server CPU with a 1h/24h/7d range filter, an endpoints table, 14-day activity charts, and server health. An AI question import section shows the Gemini model in use, requests today against the daily total of all models (with a meter), about how many imports are left today (one request each), a countdown to the daily reset, and a table of the models in fallback order with each one's status, a live countdown to when it can be used again, meters for its per-minute and daily limits, and an All models total row. Every chart can switch to a table view; refreshes every 30 seconds, and as soon as a short cooldown ends.
 
 ---
 
@@ -656,7 +706,7 @@ client/src/pages/student/StudentAvailableExams.jsx
 ```
 client/src/pages/student/StudentExamRunner.jsx
 ```
--> Timed exam-taking interface for students: renders shuffled questions, tracks answers, auto-saves progress, and submits on timeout.
+-> Timed exam-taking interface for students: renders shuffled questions, tracks answers, auto-saves progress, and submits on timeout. Questions are navigated with `QuestionNavBubbles`.
 
 ```
 client/src/pages/student/StudentExamResult.jsx
@@ -680,7 +730,7 @@ client/src/pages/alumni/AlumniAvailableExams.jsx
 ```
 client/src/pages/alumni/AlumniExamRunner.jsx
 ```
--> Timed exam-taking interface for alumni: mirrors the student runner but allows repeated attempts without restriction.
+-> Timed exam-taking interface for alumni: mirrors the student runner but allows repeated attempts without restriction. Questions are navigated with `QuestionNavBubbles`.
 
 ```
 client/src/pages/alumni/AlumniExamResult.jsx
@@ -741,12 +791,12 @@ client/src/pages/shared/CreateExams.jsx
 ```
 client/src/pages/shared/BoardExamPreview.jsx
 ```
--> Read-only preview of a mock board exam's questions and answers.
+-> Read-only preview of a mock board exam's questions and answers, navigated with `QuestionNavBubbles`.
 
 ```
 client/src/pages/shared/BoardExamTestRun.jsx
 ```
--> Interactive test-run mode for faculty to walk through an exam as if taking it, without recording an attempt.
+-> Interactive test-run mode for faculty to walk through an exam as if taking it, without recording an attempt. Questions are navigated with `QuestionNavBubbles`.
 
 ```
 client/src/pages/shared/ExamRunner.jsx
@@ -800,7 +850,7 @@ client/src/components/ChangeCredentialsModal.jsx
 ```
 client/src/components/QuestionForm.jsx
 ```
--> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, and AI import review mode.
+-> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, and AI import review mode. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
 
 ```
 client/src/components/QuestionFilters.jsx
@@ -870,7 +920,12 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> Bubble-navigation grid for the AI import review step: shows a numbered bubble per question, color-coded by readiness/flags, matching the student exam runner style.
+-> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions) and the read-only question set views (My Questions, Approve Questions, Create Exams, Board Exams, exam results). While editing, a question with no flags counts as ready.
+
+```
+client/src/components/QuestionNavBubbles.jsx
+```
+-> The one question navigator, with the alumni exam runner's look: a circle per standalone question and one capsule per question set (neighbouring questions with the same `groupId`, or `getSetKey`), filling from the left by the share of done questions. The current question is navy with a yellow number; a flagged question has a red number and a count badge. `getStatus(question, index)` returns `{ done, flags }`. Used by the student and alumni exam runners, the exam preview and test run, and `ImportReviewBubbles`.
 
 ```
 client/src/components/SystemUpdateWarning.jsx
@@ -899,7 +954,7 @@ client/src/lib/api.js
 ```
 client/src/lib/importApi.js
 ```
--> API functions specifically for the question import pipeline: upload document, validate/count, extract questions, and submit to the question bank.
+-> API functions for the question import: get the user's limits, and upload a file (with the subjects) whose questions are counted and extracted in one request. Reviewed questions are saved through the regular question endpoints.
 
 ```
 client/src/lib/loginLock.js
@@ -1065,7 +1120,12 @@ client/src/styles/components/Footer.css
 ```
 client/src/styles/components/ImportReviewBubbles.css
 ```
--> Styles for the import review bubble navigation grid matching the exam-runner bubble style.
+-> Styles for the bordered section and header bar around `QuestionNavBubbles`.
+
+```
+client/src/styles/components/QuestionNavBubbles.css
+```
+-> Styles for `QuestionNavBubbles` (`qnb-*`): standalone circles, the question-set capsule with its progress fill (it wraps inside itself when too long for the row), the active, done and flagged states, and the flag badge.
 
 ```
 client/src/styles/components/PrivacyNotice.css
@@ -1120,7 +1180,7 @@ client/src/styles/shared/StudentRegister.css
 ```
 client/src/styles/shared/MockBoardExamPreview.css
 ```
--> Styles for the exam preview page: question list, answer options, and print-friendly layout.
+-> Styles for the exam preview page: question list, answer options, and print-friendly layout. `.mbep-nav-bar` is only the card around `QuestionNavBubbles`.
 
 ```
 client/src/styles/shared/QuestionApprovals.css
@@ -1180,7 +1240,7 @@ client/src/styles/superadmin/SAdminSettings.css
 ```
 client/src/styles/superadmin/SAdminMetrics.css
 ```
--> Styles for the System Metrics page: stat tiles, chart cards with the chart/table switch, legends, the endpoints table and the server facts grid.
+-> Styles for the System Metrics page: stat tiles, chart cards with the chart/table switch, legends, the endpoints table, the AI models table (status dots, usage meters whose fill turns amber from 80% and red when full) and the server facts grid.
 
 ```
 client/src/styles/superadmin/SAdminUsers.css

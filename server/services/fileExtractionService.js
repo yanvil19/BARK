@@ -1,5 +1,5 @@
 const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+const { extractDocxImportText } = require('./docxImportText');
 
 class FileExtractionService {
     /**
@@ -15,12 +15,12 @@ class FileExtractionService {
     }
 
     /**
-     * Extracts text and images from a DOCX buffer
+     * Extracts text from a DOCX buffer, keeping bold/italic/underline as <b>/<i>/<u>,
+     * Word equations as $LaTeX$ and pictures as [IMAGE] (see docxImportText.js)
      */
     async extractTextFromDOCX(buffer) {
         try {
-            const result = await mammoth.extractRawText({ buffer });
-            return result.value || '';
+            return await extractDocxImportText(buffer);
         } catch (error) {
             throw new Error(`DOCX parsing failed: ${error.message}`);
         }
@@ -35,15 +35,17 @@ class FileExtractionService {
     }
 
     /**
-     * Counts approximate question blocks in text
-     * Uses heuristics: looks for numbered lines followed by question markers
+     * A rough question count made without the AI: the number of lines that
+     * start an "A" option ("A.", "A)" or "(A)"), which every multiple choice
+     * question has once. Options numbered 1-4 are not counted, so this can be
+     * lower than the real count but rarely higher. Used only to turn away a file
+     * that clearly has too many questions before Gemini is asked.
      */
-    countQuestionBlocks(text) {
-        // Simple heuristic: count lines that start with numbers followed by period or parenthesis
-        // e.g., "1.", "2)", "1.", "Question 1", etc.
-        const questionPattern = /^(?:\d+[\.\)]\s|Question\s+\d+|Q\d+\.)/gim;
-        const matches = text.match(questionPattern) || [];
-        return matches.length;
+    estimateQuestionCount(text) {
+        return String(text || '')
+            .split('\n')
+            .filter((line) => /^\s*(?:\(A\)|A[.)])\s+\S/.test(line.replace(/<\/?[biu]>/g, '')))
+            .length;
     }
 
     /**

@@ -891,6 +891,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
                 currentIdx={activeIdx}
                 onSelectQuestion={(idx) => setActiveGroupIdx((prev) => ({ ...prev, [groupId]: idx }))}
                 readOnly
+                allInOneSet
               />
             )}
 

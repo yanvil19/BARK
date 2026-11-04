@@ -1,27 +1,69 @@
 const fileExtractionService = require('../services/fileExtractionService');
 const geminiService = require('../services/geminiService');
 const {
-    markImportStart,
-    markImportEnd,
-    recordUserImport,
     getUserImportLimits,
-} = require('../middleware/importRateLimit');
-const Question = require('../models/Question');
-const Program = require('../models/Program');
-const Tag = require('../models/Tag');
-const { encryptText } = require('../services/encryptionService');
+    recordUserImport,
+    importMaxQuestions,
+    GeminiLimitError,
+} = require('../services/importStateService');
 
-// In-memory session store (replaces Redis cache)
-const importSessions = new Map();
-const pendingCountSessions = new Map();
+// The import is one request: POST /api/import/extract reads the uploaded file and
+// sends its text to Gemini once. Gemini counts the questions and, when there are
+// no more than IMPORT_MAX_QUESTIONS, returns them in the same reply. The file
+// text is never stored. The reviewed questions are saved through the normal
+// question endpoints (POST /api/questions and /api/questions/group), never by
+// this controller.
+
+const ALLOWED_MIMES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
+
+// A file whose own rough count (no AI) is over this is turned away before Gemini
+// is asked: a quarter over the limit, and at least 5 over (50 for a limit of
+// 40). The margin stops a rough count from turning away a file the AI would accept.
+const roughCountCeiling = (maxQuestions) => maxQuestions + Math.max(5, Math.ceil(maxQuestions / 4));
+
+// Subject names sent with the upload, used to suggest a subject. In the form
+// data they are a JSON string: [{ "name": "Anatomy" }, ...]
+function readTagNames(raw) {
+    let tags = raw;
+    if (typeof raw === 'string') {
+        try {
+            tags = JSON.parse(raw);
+        } catch {
+            return [];
+        }
+    }
+    if (!Array.isArray(tags)) return [];
+    return tags
+        .filter((tag) => typeof tag?.name === 'string' && tag.name.trim())
+        .slice(0, 500)
+        .map((tag) => ({ name: tag.name.trim() }));
+}
+
+function tooManyQuestionsMessage(count, max, { rough = false } = {}) {
+    const amount = rough ? `about ${count}` : `${count}`;
+    return `Upload failed. The document contains ${amount} questions (maximum allowed is ${max}). Please lessen the number of questions to ${max} or fewer.`;
+}
+
+function extractionErrorMessage(error) {
+    const message = error?.message || '';
+    if (/timeout|timed out/i.test(message)) {
+        return 'The extraction is taking longer than expected. Please try again in a moment.';
+    }
+    if (message.includes('JSON')) {
+        return 'Something went wrong during extraction. Please try again.';
+    }
+    return 'An error occurred during extraction. Please try again.';
+}
 
 /**
  * GET /api/import/limits
  */
 const getLimits = async (req, res) => {
     try {
-        const userId = req.user?._id?.toString();
-        const limits = getUserImportLimits(userId);
+        const limits = await getUserImportLimits(req.user?._id);
         return res.json({ limits });
     } catch (error) {
         console.error('Get limits error:', error);
@@ -30,11 +72,11 @@ const getLimits = async (req, res) => {
 };
 
 /**
- * POST /api/import/validate-count
- * Stage 1: Extracts text, runs AI question counting, verifies <= 20 questions, and returns token + questionCount
+ * POST /api/import/extract (multipart form: file, tags)
+ * Reads the file, then counts and extracts its questions in one Gemini request.
  */
-const validateAndCount = async (req, res) => {
-    const userId = req.user?._id?.toString();
+const importQuestions = async (req, res) => {
+    const userId = req.user?._id;
 
     try {
         if (!req.user) {
@@ -59,17 +101,12 @@ const validateAndCount = async (req, res) => {
             });
         }
 
-        const allowedMimes = [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        if (!allowedMimes.includes(req.file.mimetype)) {
+        if (!ALLOWED_MIMES.includes(req.file.mimetype)) {
             return res.status(400).json({
                 error: 'Only PDF and DOCX files are supported. Please upload a valid file.'
             });
         }
 
-        // Extract text
         let extractedText = '';
         try {
             extractedText = await fileExtractionService.extractFromFile(
@@ -83,136 +120,67 @@ const validateAndCount = async (req, res) => {
             });
         }
 
-        // Scanned PDF check
-        if (req.file.mimetype === 'application/pdf') {
-            if (fileExtractionService.isScannedPDF(extractedText)) {
-                return res.status(400).json({
-                    error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
-                });
-            }
-        }
-
-        // AI Question Counting
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
-        let questionCount = 0;
-        try {
-            const countResult = await geminiService.countQuestions(extractedText);
-            questionCount = countResult.question_count || 0;
-        } catch (error) {
-            console.error('Gemini question count error:', error.message, error.status, error);
-            return res.status(503).json({
-                error: 'An error occurred while analyzing the document. Please try again.'
+        if (req.file.mimetype === 'application/pdf' && fileExtractionService.isScannedPDF(extractedText)) {
+            return res.status(400).json({
+                error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
             });
         }
+
+        const maxQuestions = importMaxQuestions();
+
+        // A file that clearly has too many questions is turned away without asking
+        // Gemini. No request was sent, so it does not use up one of the user's uploads.
+        const roughCount = fileExtractionService.estimateQuestionCount(extractedText);
+        if (roughCount > roughCountCeiling(maxQuestions)) {
+            return res.status(400).json({
+                error: tooManyQuestionsMessage(roughCount, maxQuestions, { rough: true }),
+                limits: await getUserImportLimits(userId),
+            });
+        }
+
+        let extraction;
+        try {
+            extraction = await geminiService.extractQuestions(
+                extractedText,
+                readTagNames(req.body?.tags),
+                { maxQuestions }
+            );
+        } catch (error) {
+            if (error instanceof GeminiLimitError) {
+                return res.status(429).json({ error: error.message });
+            }
+            console.error('Gemini extraction error:', error.message, error.status, error);
+            return res.status(503).json({ error: extractionErrorMessage(error) });
+        }
+
+        const { questionCount, questions } = extraction;
 
         if (questionCount > maxQuestions) {
-            // Count this as a used upload attempt even though it's rejected
-            recordUserImport(userId);
+            // Gemini was asked, so this counts as one of the user's uploads
+            await recordUserImport(userId);
             return res.status(400).json({
-                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`,
-                limits: getUserImportLimits(userId),
+                error: tooManyQuestionsMessage(questionCount, maxQuestions),
+                limits: await getUserImportLimits(userId),
             });
         }
 
-        if (questionCount === 0) {
+        if (questions.length === 0) {
             return res.status(400).json({
                 error: 'No multiple choice questions could be detected in this document. Please check the formatting and try again.'
             });
         }
 
-
-        const token = `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        pendingCountSessions.set(token, {
-            userId,
-            extractedText,
-            questionCount,
-            createdAt: Date.now(),
-        });
-
-        // Auto-expire in 10 minutes
-        setTimeout(() => pendingCountSessions.delete(token), 10 * 60 * 1000);
-
-        return res.json({
-            token,
-            questionCount,
-        });
-
-    } catch (error) {
-        console.error('Validate and count error:', error);
-        return res.status(500).json({
-            error: 'An unexpected error occurred. Please try again.'
-        });
-    }
-};
-
-/**
- * POST /api/import/extract
- * Stage 2: Full question extraction from a pre-counted session token
- */
-const extractFromSession = async (req, res) => {
-    const userId = req.user?._id?.toString();
-
-    try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const { token, tags = [] } = req.body;
-        if (!token) {
-            return res.status(400).json({ error: 'Session token is required' });
-        }
-
-        const session = pendingCountSessions.get(token);
-        if (!session || session.userId !== userId) {
-            return res.status(404).json({ error: 'Session expired or not found. Please upload again.' });
-        }
-
-        const { extractedText, questionCount } = session;
-
-        markImportStart(userId);
-        const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-        let extractedQuestions = [];
-        try {
-            extractedQuestions = await geminiService.extractQuestions(extractedText, 0, tags);
-        } catch (error) {
-            console.error('Gemini extraction error:', error.message, error.status, error);
-            markImportEnd(userId);
-
-            if (error.message?.includes('timeout')) {
-                return res.status(503).json({
-                    error: 'The extraction is taking longer than expected. Please try again in a moment.'
-                });
-            } else if (error.message?.includes('JSON')) {
-                return res.status(503).json({
-                    error: 'Something went wrong during extraction. Please try again.'
-                });
-            } else {
-                return res.status(503).json({
-                    error: 'An error occurred during extraction. Please try again.'
-                });
-            }
-        }
-
-        if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
-            markImportEnd(userId);
-            return res.status(400).json({
-                error: 'No questions could be detected in your document. Please check the formatting and try again.'
-            });
-        }
-
-        const processedQuestions = geminiService.processQuestionsWithGuardrails(extractedQuestions);
+        // The document text lets the guardrails drop rationalizations the AI wrote itself
+        const processedQuestions = geminiService.processQuestionsWithGuardrails(questions, extractedText);
         const validQuestions = processedQuestions.filter(q => q.status !== 'INVALID');
         if (validQuestions.length === 0) {
-            markImportEnd(userId);
             return res.status(400).json({
                 error: 'No valid questions were found after checking your document. Please review the formatting guide and try again.'
             });
         }
 
-        // Record successful upload in rate-limit counter
-        recordUserImport(userId);
-        const updatedLimits = getUserImportLimits(userId);
+        await recordUserImport(userId);
+        const updatedLimits = await getUserImportLimits(userId);
 
         const stats = {
             total: processedQuestions.length,
@@ -221,327 +189,23 @@ const extractFromSession = async (req, res) => {
             invalid: processedQuestions.filter(q => q.status === 'INVALID').length
         };
 
-        importSessions.set(jobId, {
-            userId,
-            questions: processedQuestions,
-            stats,
-            createdAt: new Date().toISOString()
-        });
-        setTimeout(() => importSessions.delete(jobId), 60 * 60 * 1000);
-        pendingCountSessions.delete(token);
-        markImportEnd(userId);
-
         return res.json({
-            jobId,
             questions: processedQuestions,
             stats,
             limits: updatedLimits,
-            detectedCount: questionCount || processedQuestions.length,
+            detectedCount: questionCount,
             message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
         });
 
     } catch (error) {
-        console.error('Extract from session error:', error);
-        markImportEnd(userId);
+        console.error('Import error:', error);
         return res.status(500).json({
             error: 'An unexpected error occurred during extraction. Please try again.'
         });
     }
 };
 
-/**
- * POST /api/import/upload
- */
-const uploadAndExtract = async (req, res) => {
-    const userId = req.user?._id?.toString();
-
-    try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const allowedRoles = ['professor', 'program_chair', 'dean'];
-        if (!allowedRoles.includes(req.user.role?.toLowerCase())) {
-            return res.status(403).json({
-                error: 'Only Professors, Chairs, and Deans can import questions.'
-            });
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file provided' });
-        }
-
-        const maxSize = parseInt(process.env.IMPORT_MAX_FILE_SIZE_MB || 10, 10) * 1024 * 1024;
-        if (req.file.size > maxSize) {
-            return res.status(400).json({
-                error: 'Your file exceeds the 10MB limit. Please compress or split the document.'
-            });
-        }
-
-        const allowedMimes = [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        if (!allowedMimes.includes(req.file.mimetype)) {
-            return res.status(400).json({
-                error: 'Only PDF and DOCX files are supported. Please upload a valid file.'
-            });
-        }
-
-        // ===== EXTRACT TEXT =====
-        let extractedText = '';
-        try {
-            extractedText = await fileExtractionService.extractFromFile(
-                req.file.buffer,
-                req.file.mimetype
-            );
-        } catch (error) {
-            console.error('File extraction error:', error);
-            return res.status(400).json({
-                error: 'Your file could not be read. It may be corrupted. Please try re-saving and uploading again.'
-            });
-        }
-
-        // ===== SCANNED PDF CHECK =====
-        if (req.file.mimetype === 'application/pdf') {
-            if (fileExtractionService.isScannedPDF(extractedText)) {
-                return res.status(400).json({
-                    error: 'This PDF appears to be scanned. Scanned documents are not supported yet. Please upload a typed PDF or DOCX.'
-                });
-            }
-        }
-
-        // ===== SET ACTIVE IMPORT =====
-        markImportStart(userId);
-        const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-        // ===== STEP 1: AI PRE-COUNT QUESTION BLOCKS =====
-        const maxQuestions = parseInt(process.env.IMPORT_MAX_QUESTIONS || 20, 10);
-        let questionCount = 0;
-        try {
-            const countResult = await geminiService.countQuestions(extractedText);
-            questionCount = countResult.question_count || 0;
-        } catch (error) {
-            console.error('Gemini question count error:', error.message, error.status, error);
-            markImportEnd(userId);
-            return res.status(503).json({
-                error: 'An error occurred while analyzing the document. Please try again.'
-            });
-        }
-
-        if (questionCount > maxQuestions) {
-            markImportEnd(userId);
-            return res.status(400).json({
-                error: `Upload failed. The document contains ${questionCount} questions (maximum allowed is ${maxQuestions}). Please lessen the number of questions to ${maxQuestions} or fewer.`
-            });
-        }
-
-        if (questionCount === 0) {
-            markImportEnd(userId);
-            return res.status(400).json({
-                error: 'No multiple choice questions could be detected in your document. Please check the formatting and try again.'
-            });
-        }
-
-        // ===== STEP 2: FULL EXTRACTION =====
-        let extractedQuestions = [];
-        try {
-            const tags = JSON.parse(req.body.tags || '[]');
-            extractedQuestions = await geminiService.extractQuestions(extractedText, 0, tags);
-        } catch (error) {
-            console.error('Gemini extraction error:', error.message, error.status, error);
-            markImportEnd(userId);
-
-            if (error.message?.includes('timeout')) {
-                return res.status(503).json({
-                    error: 'The extraction is taking longer than expected. Please try again in a moment.'
-                });
-            } else if (error.message?.includes('JSON')) {
-                return res.status(503).json({
-                    error: 'Something went wrong during extraction. Please try again. If this persists, try reformatting your document.'
-                });
-            } else {
-                return res.status(503).json({
-                    error: 'An error occurred during extraction. Please try again.'
-                });
-            }
-        }
-
-        // ===== EMPTY RESPONSE CHECK =====
-        if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
-            markImportEnd(userId);
-            return res.status(400).json({
-                error: 'No questions could be detected in your document. Please check the formatting and try again.'
-            });
-        }
-
-        // ===== GUARDRAIL FLAGS =====
-        const processedQuestions = geminiService.processQuestionsWithGuardrails(extractedQuestions);
-
-        const validQuestions = processedQuestions.filter(q => q.status !== 'INVALID');
-        if (validQuestions.length === 0) {
-            markImportEnd(userId);
-            return res.status(400).json({
-                error: 'No valid questions were found after checking your document. Please review the formatting guide and try again.'
-            });
-        }
-
-        // Record successful upload in rate-limit counter
-        recordUserImport(userId);
-        const updatedLimits = getUserImportLimits(userId);
-
-        // ===== STATS =====
-        const stats = {
-            total: processedQuestions.length,
-            ready: processedQuestions.filter(q => q.status === 'READY').length,
-            needsReview: processedQuestions.filter(q => q.status === 'NEEDS_REVIEW').length,
-            invalid: processedQuestions.filter(q => q.status === 'INVALID').length
-        };
-
-        // ===== STORE SESSION IN MEMORY =====
-        importSessions.set(jobId, {
-            userId,
-            questions: processedQuestions,
-            stats,
-            createdAt: new Date().toISOString()
-        });
-
-        // Auto-expire session after 1 hour
-        setTimeout(() => importSessions.delete(jobId), 60 * 60 * 1000);
-
-        // Mark import complete — user can start another one
-        markImportEnd(userId);
-
-        return res.json({
-            jobId,
-            questions: processedQuestions,
-            stats,
-            limits: updatedLimits,
-            detectedCount: questionCount || processedQuestions.length,
-            message: `${stats.total} questions extracted. ${stats.ready} are ready to submit.`
-        });
-
-    } catch (error) {
-        console.error('Import upload error:', error);
-        markImportEnd(userId);
-        return res.status(500).json({
-            error: 'An unexpected error occurred. Please try again.'
-        });
-    }
-};
-
-/**
- * GET /api/import/status/:jobId
- */
-const getStatus = async (req, res) => {
-    try {
-        const { jobId } = req.params;
-        const session = importSessions.get(jobId);
-
-        if (!session) {
-            return res.status(404).json({ error: 'Job not found or expired' });
-        }
-
-        return res.json(session);
-    } catch (error) {
-        console.error('Status check error:', error);
-        return res.status(500).json({ error: 'Failed to check status' });
-    }
-};
-
-/**
- * POST /api/import/submit
- */
-const submitQuestions = async (req, res) => {
-    const userId = req.user?._id?.toString();
-
-    try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const { questions } = req.body;
-
-        if (!Array.isArray(questions) || questions.length === 0) {
-            return res.status(400).json({ error: 'No questions provided' });
-        }
-
-        const readyQuestions = questions.filter(q => q.status === 'READY');
-        if (readyQuestions.length === 0) {
-            return res.status(400).json({ error: 'No valid questions to submit' });
-        }
-
-        const savedQuestions = [];
-        let errorCount = 0;
-
-        for (const geminiQ of readyQuestions) {
-            try {
-                const answers = [];
-
-                for (const [key, text] of Object.entries(geminiQ.options || {})) {
-                    if (text) {
-                        answers.push({
-                            text,
-                            isCorrect: key === geminiQ.correct_answer
-                        });
-                    }
-                }
-
-                if (answers.length < 4) {
-                    errorCount++;
-                    continue;
-                }
-
-                // [IMPORT REVIEW - BUBBLE NAVIGATION]
-                // Save image_required, image_note, and rationalization from Gemini extraction
-                const newQuestion = new Question({
-                    description: encryptText(geminiQ.question_text),
-                    answers: answers.map(a => ({ ...a, text: encryptText(a.text) })),
-                    rationalization: encryptText(geminiQ.rationalization || ''),
-                    tag: geminiQ.selected_tag || null,
-                    program: req.user.programId || req.body.programId,
-                    createdBy: req.user._id,
-                    state: 'draft',
-                    image_required: geminiQ.image_required || false,
-                    image_note: geminiQ.image_note || null,
-                });
-
-                const saved = await newQuestion.save();
-                savedQuestions.push({
-                    _id: saved._id,
-                    question_number: geminiQ.question_number,
-                    description: geminiQ.question_text,
-                    rationalization: geminiQ.rationalization || '',
-
-                });
-
-            } catch (error) {
-                console.error('Error saving individual question:', error);
-                errorCount++;
-            }
-        }
-
-        return res.json({
-            success: true,
-            saved: savedQuestions.length,
-            skipped: errorCount,
-            questions: savedQuestions,
-            message: `${savedQuestions.length} questions imported successfully and saved to drafts.`
-        });
-
-    } catch (error) {
-        console.error('Submit questions error:', error);
-        return res.status(500).json({
-            error: 'Failed to save questions. Please try again.'
-        });
-    }
-};
-
 module.exports = {
     getLimits,
-    validateAndCount,
-    extractFromSession,
-    uploadAndExtract,
-    getStatus,
-    submitQuestions
+    importQuestions,
 };

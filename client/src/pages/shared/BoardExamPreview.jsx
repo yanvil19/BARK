@@ -1,6 +1,7 @@
 import AuthImage from '../../components/AuthImage.jsx';
 import AnswerImage from '../../components/AnswerImage.jsx';
 import SafeHtml from '../../components/SafeHtml.jsx';
+import QuestionNavBubbles from '../../components/QuestionNavBubbles.jsx';
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -181,17 +182,12 @@ export default function MockBoardExamPreview({ examId, onBack }) {
 
         {/* ── Navigation ────────────────────────────────────────── */}
         <div className="mbep-navigator-wrap">
-          <div className="mbep-nav-bar">
-            {questions.map((_, i) => (
-              <button
-                key={i}
-                className={`mbep-nav-circle ${currentIdx === i ? 'active' : ''}`}
-                onClick={() => setCurrentIdx(i)}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+          <QuestionNavBubbles
+            className="mbep-nav-bar"
+            questions={questions}
+            currentIdx={currentIdx}
+            onSelect={setCurrentIdx}
+          />
 
           <div className="mbep-nav-actions">
             <button

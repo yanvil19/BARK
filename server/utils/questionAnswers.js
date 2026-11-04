@@ -1,20 +1,22 @@
 const mongoose = require('mongoose');
 const { encryptText } = require('../services/encryptionService');
+const { cleanQuestionHtml } = require('./questionHtml');
 
 // An answer choice counts as filled when it has text or an image.
 function isFilledAnswer(answer) {
   return Boolean(answer?.text?.trim() || answer?.image);
 }
 
-// Cleans answer choices sent by the client: keeps only the known fields and
-// drops rows with neither text nor an image, so empty choices are never stored.
+// Cleans answer choices sent by the client: keeps only the known fields, keeps
+// only the editor's markup in the text, and drops rows with neither text nor an
+// image, so empty choices are never stored.
 function normalizeAnswersInput(answers) {
   if (!Array.isArray(answers)) return [];
 
   return answers
     .map((answer) => {
       const normalized = {
-        text: typeof answer?.text === 'string' ? answer.text.trim() : '',
+        text: cleanQuestionHtml(answer?.text),
         isCorrect: Boolean(answer?.isCorrect),
         image: typeof answer?.image === 'string' && answer.image.trim() ? answer.image.trim() : null,
       };

@@ -11,41 +11,13 @@ export const getImportLimits = async () => {
 };
 
 /**
- * Upload a file for question import
+ * Uploads a file; its questions are counted and extracted in one request.
+ * tags (the subjects) help the AI suggest a subject for each question.
+ * The questions are reviewed in QuestionForm and saved through /api/questions.
  */
-export const uploadDocumentForImport = async (file, tags = []) => {
+export const importQuestionsFromFile = async (file, tags = []) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('tags', JSON.stringify(tags.map(t => ({ name: t.name }))));
-
-    return apiAuthUpload(`${BASE}/api/import/upload`, formData);
-};
-
-/**
- * Stage 1: Upload file, AI-count questions, validate <= 20, receive token + questionCount
- */
-export const validateAndCountDocument = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return apiAuthUpload(`${BASE}/api/import/validate-count`, formData);
-};
-
-/**
- * Stage 2: Full question extraction using session token from Stage 1
- */
-export const extractQuestionsFromToken = async (token, tags = []) => {
-    return apiAuth(`${BASE}/api/import/extract`, {
-        method: 'POST',
-        body: { token, tags: tags.map(t => ({ name: t.name })) }
-    });
-};
-
-/**
- * Submit extracted questions to draft
- */
-export const submitImportedQuestions = async (questions, programId) => {
-    return apiAuth(`${BASE}/api/import/submit`, {
-        method: 'POST',
-        body: { questions, programId }
-    });
+    formData.append('tags', JSON.stringify(tags.map((t) => ({ name: t.name }))));
+    return apiAuthUpload(`${BASE}/api/import/extract`, formData);
 };

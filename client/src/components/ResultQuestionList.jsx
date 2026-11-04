@@ -120,6 +120,7 @@ export default function ResultQuestionList({ questions, renderMeta, renderSetMet
                 currentIdx={activeIdx}
                 onSelectQuestion={(idx) => setActiveGroupIdx((prev) => ({ ...prev, [groupId]: idx }))}
                 readOnly
+                allInOneSet
               />
             )}
 

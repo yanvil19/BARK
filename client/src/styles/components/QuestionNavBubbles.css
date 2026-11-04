@@ -1,0 +1,139 @@
+/* QuestionNavBubbles.css
+   The question navigator's look, taken from the alumni exam runner. Every page
+   that steps through questions uses it (see QuestionNavBubbles.jsx); a page only
+   adds the box around it. */
+
+.qnb-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ── Standalone question ─────────────────────────────────── */
+.qnb-circle {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  border-radius: 50%;
+  background: #fff;
+  color: #8b92bc;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.qnb-circle.is-done {
+  background: rgba(90, 99, 168, 0.16);
+  color: #5a63a8;
+}
+
+.qnb-circle.is-flagged {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.qnb-circle:hover {
+  border-color: var(--primary-bg);
+  color: var(--primary-bg);
+}
+
+.qnb-circle.is-active {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+/* ── Question set ────────────────────────────────────────── */
+/* One capsule per set. It fills from the left by the share of done questions
+   (--qnb-set-progress). A set too long for the row wraps inside the capsule. */
+.qnb-set {
+  display: flex;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
+  min-height: 42px;
+  padding: 2px;
+  border: 1.5px solid rgba(53, 64, 142, 0.2);
+  border-radius: 21px;
+  background: linear-gradient(
+    to right,
+    rgba(90, 99, 168, 0.16) var(--qnb-set-progress, 0%),
+    #fff var(--qnb-set-progress, 0%)
+  );
+  transition: background 0.3s ease;
+}
+
+.qnb-set-item {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  height: 35px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8b92bc;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.qnb-set-item.is-done {
+  color: #5a63a8;
+}
+
+.qnb-set-item.is-flagged {
+  color: #dc2626;
+}
+
+.qnb-set-item:hover {
+  color: var(--primary-bg);
+}
+
+.qnb-set-item.is-active {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.qnb-circle:focus-visible,
+.qnb-set-item:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+/* ── Flag count (import review) ──────────────────────────── */
+.qnb-flag-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}

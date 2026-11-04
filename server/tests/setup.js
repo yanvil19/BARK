@@ -18,7 +18,10 @@ beforeAll(async () => {
     },
   });
   const uri = mongoServer.getUri();
-  await mongoose.connect(uri);
+  // The MongoDB driver loads its "os" adapter with a dynamic import(), which Jest's
+  // CommonJS runtime does not support. Without it the handshake has no client
+  // metadata and the server refuses the connection, so pass the adapter in.
+  await mongoose.connect(uri, { runtimeAdapters: { os: require('os') } });
 });
 
 afterAll(async () => {

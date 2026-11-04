@@ -883,7 +883,12 @@ textarea.qf-answer-input {
   box-shadow: 0 2px 8px rgba(53, 64, 142, 0.12);
 }
 
-.qf-mode-btn:hover:not(.qf-mode-btn--active) {
+.qf-mode-btn:disabled {
+  cursor: not-allowed;
+  color: #a9b0d6;
+}
+
+.qf-mode-btn:hover:not(.qf-mode-btn--active):not(:disabled) {
   background: rgba(255,255,255,0.55);
   color: var(--primary-bg);
 }
@@ -906,6 +911,30 @@ textarea.qf-answer-input {
   display: inline-flex;
   flex-shrink: 0;
   color: #b7791f;
+}
+
+/* Imported question set: the notice carries the set's numbers and an Ungroup action */
+.qf-import-set-notice {
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.qf-import-set-notice .qf-group-notice-icon {
+  margin-top: 2px;
+}
+
+.qf-import-set-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.qf-import-set-notice-text strong {
+  color: #5f4b14;
+  font-weight: 700;
+}
+
+.qf-import-set-notice .qf-section-action {
+  flex-shrink: 0;
 }
 
 /* Question block numbered header for grouped mode */
