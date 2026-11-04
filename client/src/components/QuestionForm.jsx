@@ -379,10 +379,16 @@ export default function QuestionForm({
 
   const [saving, setSaving] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  // Editing a set opens on the question whose Edit was clicked
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(() => {
+    const clicked = (initialGroupQuestions || []).findIndex((q) => q._id && q._id === initialData?._id);
+    return Math.max(0, clicked);
+  });
   const [showSubmitWarning, setShowSubmitWarning] = useState(false);
   const isGroupedView = readOnly && isGrouped && questionsData.length > 1;
-  const useBubbleNav = (!readOnly && (isImportMode || !initialData)) || isGroupedView;
+  // One question at a time with the bubbles, as when creating; only a single
+  // question being edited shows without them
+  const useBubbleNav = readOnly ? isGroupedView : (isImportMode || !initialData || isGrouped);
   const [showRemoveImageFlag, setShowRemoveImageFlag] = useState(false);
   const [imageRemovalQuestionIdx, setImageRemovalQuestionIdx] = useState(null);
   const [dismissedFlags, setDismissedFlags] = useState({});
@@ -1766,14 +1772,18 @@ export default function QuestionForm({
 
   return (
     <div className={`qf-shell ${readOnly ? 'qf-shell--readonly' : ''}`}>
-      {/* [GROUPED QUESTIONS] Mode indicator / toggle */}
-      {!readOnly && !isEditing && !isImportMode && (
+      {/* [GROUPED QUESTIONS] Mode toggle. A saved set stays a set, so while one is
+          edited the toggle shows Grouped Questions and Single Question is off. */}
+      {!readOnly && !isImportMode && (!isEditing || isGrouped) && (
         <div className="qf-mode-toggle" role="group" aria-label="Question mode">
           <button
             type="button"
             id="qf-mode-single"
             className={`qf-mode-btn ${mode === 'single' ? 'qf-mode-btn--active' : ''}`}
+            aria-pressed={mode === 'single'}
             onClick={() => handleModeChange('single')}
+            disabled={isEditing}
+            title={isEditing ? 'A saved question set cannot become a single question' : undefined}
           >
             Single Question
           </button>
@@ -1781,21 +1791,10 @@ export default function QuestionForm({
             type="button"
             id="qf-mode-grouped"
             className={`qf-mode-btn ${mode === 'grouped' ? 'qf-mode-btn--active' : ''}`}
+            aria-pressed={mode === 'grouped'}
             onClick={() => handleModeChange('grouped')}
           >
             Grouped Questions
-          </button>
-        </div>
-      )}
-
-      {isGrouped && isEditing && !readOnly && (
-        <div className="qf-mode-toggle" style={{ pointerEvents: 'none' }}>
-          <button
-            type="button"
-            className="qf-mode-btn qf-mode-btn--active"
-            style={{ width: '100%' }}
-          >
-            Editing Question Set ({questionsData.length} questions)
           </button>
         </div>
       )}

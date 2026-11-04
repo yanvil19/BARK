@@ -883,7 +883,12 @@ textarea.qf-answer-input {
   box-shadow: 0 2px 8px rgba(53, 64, 142, 0.12);
 }
 
-.qf-mode-btn:hover:not(.qf-mode-btn--active) {
+.qf-mode-btn:disabled {
+  cursor: not-allowed;
+  color: #a9b0d6;
+}
+
+.qf-mode-btn:hover:not(.qf-mode-btn--active):not(:disabled) {
   background: rgba(255,255,255,0.55);
   color: var(--primary-bg);
 }
