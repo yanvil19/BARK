@@ -791,7 +791,7 @@ client/src/pages/shared/LearnerDashboard.jsx
 ```
 client/src/pages/shared/BoardExams.jsx
 ```
--> Board exam listing page for deans and chairs to view exams filtered by program, status, audience, and subject. The table view stacks related data in 8 columns: Exam (name + audience), Program, Created (creator + date), Subjects (first 2 + "+N more"), Schedule (date, times, and duration or alumni per-attempt limit), Activity (questions + submissions/attempts), Status (+ results release date), and Actions.
+-> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `ImportReviewBubbles` and `QuestionDetailPanels`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete.
 
 ```
 client/src/pages/shared/CreateExams.jsx
@@ -865,7 +865,7 @@ client/src/components/QuestionForm.jsx
 ```
 client/src/components/QuestionFilters.jsx
 ```
--> Filter bar component for the question list: filters by subject tag, approval status, and search text.
+-> Filter bar with search, subject, program (deans only) and sort, used by My Questions, Approve Questions and Board Exams. A page can add its own filters before the sort (`extraFilters`) and controls at the end of the row (children).
 
 ```
 client/src/components/CapsuleFilters.jsx
@@ -930,12 +930,12 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions) and the read-only question set views (My Questions, Approve Questions, Create Exams, Board Exams, exam results). While editing, a question with no flags counts as ready.
+-> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and the whole exam in the Board Exams panel. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar.
 
 ```
 client/src/components/QuestionMarkers.jsx
 ```
--> The small round markers on question cards and the legend that explains them, shared by Approve Questions and My Questions.
+-> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions and Board Exams.
 
 ```
 client/src/components/QuestionNavBubbles.jsx
@@ -1165,7 +1165,7 @@ client/src/styles/shared/AvailableExams.css
 ```
 client/src/styles/shared/BoardExams.css
 ```
--> Styles for the board exam faculty listing page with status filters, the stacked-cell exam table (`.ambe-stack`), and exam card grid.
+-> What the board exam page adds to the shared `ca-` layout: the exam status colours (`--ambe-status-*`, also used by the calendar) and markers, the List and Calendar toggle, the same toggle in the panel for Questions and Details, a tighter panel on short laptop screens, a height limit on a long exam's bubbles, and the publish conflict message.
 
 ```
 client/src/styles/shared/LearnerDashboard.css

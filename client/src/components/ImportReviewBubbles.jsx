@@ -19,6 +19,8 @@ export default function ImportReviewBubbles({
   getQuestionFlags,
   readOnly = false,
   allInOneSet = false,
+  // Shown at the right of the header bar, such as the current question's subject
+  aside = null,
 }) {
   // Read-only views show no flags or progress
   const flagCounts = questions.map((q) => (
@@ -40,6 +42,7 @@ export default function ImportReviewBubbles({
             ? `Question ${currentIdx + 1} of ${questions.length}`
             : `${readyCount} of ${questions.length} questions ready`}
         </span>
+        {aside}
       </div>
 
       <QuestionNavBubbles

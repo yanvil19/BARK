@@ -20,7 +20,11 @@ export default function QuestionFilters({
   sortOptions = [
     { value: 'newest', label: 'Sort: Newest' },
     { value: 'oldest', label: 'Sort: Oldest' }
-  ]
+  ],
+  // Filters only this page has, placed before the sort; children go at the end of the row.
+  // Without onSortChange there is no sort control.
+  extraFilters = null,
+  children = null,
 }) {
   return (
     <div className={`qf-filters ${className}`}>
@@ -52,12 +56,18 @@ export default function QuestionFilters({
         />
       )}
 
-      <DropdownSelect
-        className="qf-sort"
-        value={sortBy}
-        onChange={(e) => onSortChange(e.target.value)}
-        options={sortOptions}
-      />
+      {extraFilters}
+
+      {onSortChange && (
+        <DropdownSelect
+          className="qf-sort"
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value)}
+          options={sortOptions}
+        />
+      )}
+
+      {children}
     </div>
   );
 }

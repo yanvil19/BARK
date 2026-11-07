@@ -214,7 +214,6 @@
 
 /* Actions cell container */
 .ui-table-actions,
-.ambe-actions,
 .qp-actions-cell {
   display: inline-flex;
   align-items: center;
@@ -228,9 +227,8 @@
   text-align: center;
 }
 
-/* Standardized table action buttons (matching Board Exams standard) */
+/* Standardized table action buttons */
 .ui-table-btn,
-.ambe-btn,
 .qp-btn-submit,
 .qp-btn-view,
 .qp-btn-edit {
@@ -251,39 +249,34 @@
   box-sizing: border-box;
 }
 
-.ui-table-btn:hover,
-.ambe-btn:hover {
+.ui-table-btn:hover {
   transform: none;
   box-shadow: none;
 }
 
-.ui-table-btn:disabled,
-.ambe-btn:disabled {
+.ui-table-btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 /* Primary Navy Button */
 .ui-table-btn--primary,
-.ui-table-btn.primary,
-.ambe-btn.primary {
+.ui-table-btn.primary {
   background: var(--primary-bg, #35408e);
   color: #ffffff;
   border-color: var(--primary-bg, #35408e);
 }
 
 .ui-table-btn--primary:hover,
-.ui-table-btn.primary:hover,
-.ambe-btn.primary:hover {
+.ui-table-btn.primary:hover {
   background: #2a3474;
   border-color: #2a3474;
 }
 
-/* Secondary / View Details Button (Board Exams 1:1 match) */
+/* Secondary / View Details Button */
 .ui-table-btn--secondary,
 .ui-table-btn.view,
 .ui-table-btn--view,
-.ambe-btn.view,
 .qp-btn-view {
   background: #ffffff;
   border: 1px solid rgba(53, 64, 142, 0.22);
@@ -293,22 +286,19 @@
 .ui-table-btn--secondary:hover,
 .ui-table-btn.view:hover,
 .ui-table-btn--view:hover,
-.ambe-btn.view:hover,
 .qp-btn-view:hover {
   background: #f4f6ff;
   border-color: rgba(53, 64, 142, 0.22);
 }
 
 /* Publish Green Button */
-.ui-table-btn.publish,
-.ambe-btn.publish {
+.ui-table-btn.publish {
   background: #15803d;
   color: #ffffff;
   border-color: #15803d;
 }
 
-.ui-table-btn.publish:hover,
-.ambe-btn.publish:hover {
+.ui-table-btn.publish:hover {
   background: #166534;
   border-color: #166534;
 }
@@ -330,15 +320,13 @@
 }
 
 /* Danger / Delete Button */
-.ui-table-btn.delete,
-.ambe-btn.delete {
+.ui-table-btn.delete {
   background: #fee2e2;
   border: 1px solid #fca5a5;
   color: #991b1b;
 }
 
-.ui-table-btn.delete:hover,
-.ambe-btn.delete:hover {
+.ui-table-btn.delete:hover {
   background: #fecaca;
 }
 

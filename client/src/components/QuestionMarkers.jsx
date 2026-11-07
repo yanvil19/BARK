@@ -1,7 +1,8 @@
 import { getStatusLabel } from '../utils/statusLabels.js';
 
-// The small round markers on question cards and the legend that explains them, shared by
-// Approve Questions and My Questions. Their styles are in styles/shared/QuestionApprovals.css.
+// The small round markers on list cards and the legend that explains them, shared by
+// Approve Questions, My Questions and Board Exams. Their styles are in
+// styles/shared/QuestionApprovals.css.
 
 export function MarkerIcon({ children }) {
   return (
@@ -46,7 +47,21 @@ export function StateMarker({ state }) {
   );
 }
 
-// Says what the markers on the question cards mean, so the cards need no long labels
+// Says what the markers on the cards mean, so the cards need no long labels.
+// items are { text, className, content }, a marker sample and its meaning.
+export function MarkerLegend({ items, ariaLabel }) {
+  return (
+    <div className="ca-legend" role="group" aria-label={ariaLabel}>
+      {items.map(({ text, className, content }) => (
+        <span key={text} className="ca-legend-item">
+          <Marker className={className}>{content}</Marker>
+          {text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function CardLegend({ states, showEvaluating = false }) {
   const items = [
     { text: 'Questions', className: 'ca-marker--count', content: '#' },
@@ -59,14 +74,5 @@ export function CardLegend({ states, showEvaluating = false }) {
     ...(showEvaluating ? [{ text: 'Being evaluated', className: 'ca-marker--evaluating', content: EVALUATING_DOT }] : []),
   ];
 
-  return (
-    <div className="ca-legend" role="group" aria-label="What the question markers mean">
-      {items.map(({ text, className, content }) => (
-        <span key={text} className="ca-legend-item">
-          <Marker className={className}>{content}</Marker>
-          {text}
-        </span>
-      ))}
-    </div>
-  );
+  return <MarkerLegend items={items} ariaLabel="What the question markers mean" />;
 }
