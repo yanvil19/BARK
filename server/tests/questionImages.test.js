@@ -40,8 +40,9 @@ function mockR2() {
       return {};
     }
     if (!stored) {
-      const err = new Error('NotFound');
-      err.name = 'NotFound';
+      const name = command instanceof GetObjectCommand ? 'NoSuchKey' : 'NotFound';
+      const err = new Error(name);
+      err.name = name;
       err.$metadata = { httpStatusCode: 404 };
       throw err;
     }
@@ -124,9 +125,61 @@ describe('POST /api/questions/upload-image', () => {
     expect(stored.Metadata).toEqual({ uploadedby: String(prof._id), contenttype: 'image/png' });
     expect(Buffer.compare(stored.Body, PNG_BYTES)).not.toBe(0);
   });
+
+  it('checks shared passage uploads against the passage limit, not the question limit', async () => {
+    await AppSettings.getSingleton();
+    await AppSettings.updateOne({ key: 'singleton' }, { maxUploadImages: 1, maxGroupContextImages: 3 });
+
+    const upload = (count, purpose) => {
+      const req = request(app).post('/api/questions/upload-image').set('Cookie', profCookie);
+      if (purpose) req.field('purpose', purpose);
+      for (let i = 0; i < count; i += 1) {
+        req.attach('images', PNG_BYTES, { filename: `figure-${i}.png`, contentType: 'image/png' });
+      }
+      return req;
+    };
+
+    const withinPassageLimit = await upload(3, 'passage');
+    expect(withinPassageLimit.status).toBe(200);
+    expect(withinPassageLimit.body.urls).toHaveLength(3);
+
+    const overPassageLimit = await upload(4, 'passage');
+    expect(overPassageLimit.status).toBe(400);
+    expect(overPassageLimit.body.message).toBe('Maximum of 3 images allowed for the shared passage.');
+
+    const overQuestionLimit = await upload(2);
+    expect(overQuestionLimit.status).toBe(400);
+    expect(overQuestionLimit.body.message).toBe('Maximum of 1 images allowed per question.');
+  });
 });
 
 describe('GET /api/questions/image/:key', () => {
+  it('reports a decryption failure as a logged server error, not a missing image', async () => {
+    const url = await uploadImage(profCookie);
+    const stored = r2Store.get(objectKey(url));
+    r2Store.set(objectKey(url), { ...stored, Body: Buffer.alloc(64) });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await request(app).get(url).set('Cookie', profCookie);
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe('Failed to load image');
+    expect(consoleError).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers 404 without logging when a saved image is gone from storage', async () => {
+    const url = await uploadImage(profCookie);
+    const created = await createDraft(profCookie, { images: [url] });
+    expect(created.status).toBe(201);
+    r2Store.delete(objectKey(url));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await request(app).get(url).set('Cookie', profCookie);
+
+    expect(res.status).toBe(404);
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
   it('lets the uploader view an unsaved upload, without caching', async () => {
     const url = await uploadImage(profCookie);
 

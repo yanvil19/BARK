@@ -50,6 +50,7 @@ export default function RichTextEditor({
         code: false,
         horizontalRule: false,
         strike: false,
+        underline: false, // Registered separately below
         // Keep paragraph + hard break + history (undo/redo)
       }),
       Underline,

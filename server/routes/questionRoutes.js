@@ -28,6 +28,7 @@ const {
   imageReferenceFilter,
   uploadQuestionImage,
   getImageUploader,
+  isMissingObjectError,
   readQuestionImage,
   deleteImageObject,
   canViewQuestionImage,
@@ -99,7 +100,12 @@ router.get('/image/:key', protect, authorizeRoles('student', 'alumni', ...FACULT
     res.setHeader('Content-Type', contentType);
     return res.send(buffer);
   } catch (err) {
-    return res.status(404).json({ message: 'Image not found or failed to load' });
+    if (isMissingObjectError(err)) {
+      return res.status(404).json({ message: 'Image not found' });
+    }
+    // Storage, decryption and database failures are not a missing image
+    console.error(`Failed to load image ${req.params.key}:`, err);
+    return res.status(500).json({ message: 'Failed to load image' });
   }
 });
 
@@ -124,6 +130,7 @@ router.delete('/image/:key', protect, authorizeRoles(...FACULTY), async (req, re
     await deleteImageObject(filename);
     return res.json({ message: 'Image deleted from storage' });
   } catch (err) {
+    console.error(`Failed to delete image ${req.params.key}:`, err);
     return res.status(500).json({ message: 'Failed to delete image' });
   }
 });
@@ -138,7 +145,11 @@ router.post(
     try {
       // Dynamically enforce the limit from AppSettings
       const settings = await AppSettings.getSingleton();
-      const maxAllowed = settings.maxUploadImages ?? 5;
+      // Shared passage images have their own limit, separate from each question's images
+      const isPassageUpload = req.body?.purpose === 'passage';
+      const maxAllowed = isPassageUpload
+        ? settings.maxGroupContextImages ?? 5
+        : settings.maxUploadImages ?? 5;
 
       if (!isStorageConfigured()) {
         return res.status(500).json({ message: 'R2 is not configured' });
@@ -149,7 +160,8 @@ router.post(
       }
 
       if (req.files.length > maxAllowed) {
-        return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed per question.` });
+        const scope = isPassageUpload ? 'for the shared passage' : 'per question';
+        return res.status(400).json({ message: `Maximum of ${maxAllowed} images allowed ${scope}.` });
       }
 
       // Returns the API path to the decrypting image route, NOT an R2 URL
@@ -157,6 +169,7 @@ router.post(
 
       return res.json({ urls });
     } catch (err) {
+      console.error('Failed to upload images:', err);
       return res.status(500).json({ message: err?.message || 'Failed to upload images' });
     }
   }

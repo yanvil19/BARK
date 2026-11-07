@@ -120,6 +120,12 @@ async function getImageUploader(filename) {
   }
 }
 
+// True when the object itself does not exist. A missing bucket is a configuration
+// problem, so it is deliberately not treated as a missing image.
+function isMissingObjectError(err) {
+  return err?.name === 'NoSuchKey' || err?.name === 'NotFound';
+}
+
 async function readQuestionImage(filename) {
   const obj = await r2.send(
     new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: toObjectKey(filename) })
@@ -239,6 +245,7 @@ module.exports = {
   imageReferenceFilter,
   uploadQuestionImage,
   getImageUploader,
+  isMissingObjectError,
   readQuestionImage,
   deleteImageObject,
   canViewQuestionImage,

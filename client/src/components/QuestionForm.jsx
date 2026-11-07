@@ -515,8 +515,9 @@ export default function QuestionForm({
 
   // Uploads image files and returns their URLs. The local files seed the
   // in-memory image cache, so the previews show without downloading them again.
-  async function uploadImages(files) {
+  async function uploadImages(files, purpose) {
     const fd = new FormData();
+    if (purpose) fd.append('purpose', purpose);
     files.forEach((file) => fd.append('images', file));
     const data = await apiAuthUpload(`${BASE}/api/questions/upload-image`, fd);
     const urls = data.urls || [];
@@ -602,7 +603,7 @@ export default function QuestionForm({
     setPassageUploadingCount((n) => n + files.length);
 
     try {
-      const urls = await uploadImages(files);
+      const urls = await uploadImages(files, 'passage');
       // Discarded when the form closed or switched to a single question meanwhile
       if (!mountedRef.current || !isGroupedRef.current) {
         urls.forEach(discardImage);
@@ -684,7 +685,7 @@ export default function QuestionForm({
     setSetImageUploading((prev) => ({ ...prev, [key]: (prev[key] || 0) + files.length }));
 
     try {
-      const urls = await uploadImages(files);
+      const urls = await uploadImages(files, 'passage');
       // Discarded when the form closed or the set was ungrouped meanwhile
       if (!mountedRef.current || !latestQuestionsRef.current.some((q) => q.setKey === key)) {
         urls.forEach(discardImage);
