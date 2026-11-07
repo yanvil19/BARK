@@ -5,6 +5,7 @@ const Department = require('../models/Department');
 const Program = require('../models/Program');
 const Tag = require('../models/Tag');
 const Question = require('../models/Question');
+const MockBoardExam = require('../models/MockBoardExam');
 
 let dept, prog, chairToken, chairUser;
 
@@ -110,5 +111,48 @@ describe('DELETE /api/tags/:id', () => {
       .delete(`/api/tags/${tag._id}`)
       .set('Cookie', `nu_board_token=${chairToken}`);
     expect(res.status).toBe(400);
+  });
+
+  it('should take a deleted tag off exams that list it, so they can still be published', async () => {
+    const kept = await Tag.create({ name: 'Algebra', program: prog._id, createdBy: chairUser._id });
+    const unused = await Tag.create({ name: 'Geometry', program: prog._id, createdBy: chairUser._id });
+    const question = await Question.create({
+      description: 'What is 1+1?',
+      answers: [{ text: '2', isCorrect: true }, { text: '3', isCorrect: false }],
+      tag: kept._id,
+      program: prog._id,
+      createdBy: chairUser._id,
+      state: 'approved',
+    });
+    const exam = await MockBoardExam.create({
+      name: 'Draft Exam',
+      program: prog._id,
+      department: dept._id,
+      subjectTags: [kept._id, unused._id],
+      questions: [question._id],
+      status: 'draft',
+      createdBy: chairUser._id,
+    });
+
+    const res = await request(app)
+      .delete(`/api/tags/${unused._id}`)
+      .set('Cookie', `nu_board_token=${chairToken}`);
+    expect(res.status).toBe(200);
+
+    const saved = await MockBoardExam.findById(exam._id);
+    expect(saved.subjectTags.map(String)).toEqual([String(kept._id)]);
+    // The list sorts by this, and nobody edited the exam
+    expect(saved.updatedAt).toEqual(exam.updatedAt);
+
+    const day = 24 * 60 * 60 * 1000;
+    const publish = await request(app)
+      .patch(`/api/mock-board-exams/${exam._id}`)
+      .set('Cookie', `nu_board_token=${chairToken}`)
+      .send({
+        status: 'published',
+        startDateTime: new Date(Date.now() + day),
+        endDateTime: new Date(Date.now() + 2 * day),
+      });
+    expect(publish.status).toBe(200);
   });
 });

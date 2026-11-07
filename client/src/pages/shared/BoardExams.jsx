@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
-import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
-import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
-import { Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
+import PanelHeader from '../../components/PanelHeader.jsx';
+import QuestionStepper from '../../components/QuestionStepper.jsx';
+import { EXAM_STATUSES, Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { apiAuth } from '../../lib/api.js';
-import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
-import { groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
@@ -26,14 +24,6 @@ import '../../styles/shared/BoardExams.css';
 const BASE = import.meta.env.VITE_API_URL;
 
 const ITEMS_PER_PAGE = 10;
-
-const EXAM_STATUSES = {
-  draft: { label: 'Draft', icon: <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" /> },
-  published: { label: 'Published', icon: <path d="M21 3L3 11l7 3 3 7 8-18z" /> },
-  ongoing: { label: 'Ongoing', icon: <path d="M8 5l11 7-11 7V5z" /> },
-  finished: { label: 'Finished', icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
-  archived: { label: 'Archived', icon: <><path d="M3 4h18v4H3z" /><path d="M5 8v12h14V8" /><path d="M10 12h4" /></> },
-};
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -55,7 +45,7 @@ const LEGEND_ITEMS = [
   { text: 'Questions', className: 'ca-marker--count', content: '#' },
   ...Object.entries(EXAM_STATUSES).map(([status, { label, icon }]) => ({
     text: label,
-    className: `ambe-state--${status}`,
+    className: `ca-exam-state--${status}`,
     content: <MarkerIcon>{icon}</MarkerIcon>,
   })),
   ...Object.entries(AUDIENCE_LABELS).map(([audience, label]) => ({
@@ -651,21 +641,6 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const isLoadingQuestions = Boolean(selectedExamId) && loadedQuestions.examId !== selectedExamId;
   const questionsError = isLoadingQuestions ? '' : loadedQuestions.error;
 
-  // In exam order with each set's questions together, so the bubbles give every set one capsule
-  const examQuestions = useMemo(() => (
-    groupQuestionsForDisplay(loadedQuestions.questions.map((question) => organizeQuestionAnswers(question)))
-      .flatMap((item) => (item.type === 'group' ? item.questions.map((member) => member.question) : [item.question]))
-  ), [loadedQuestions.questions]);
-
-  const currentIdx = Math.min(activeQuestionIdx, Math.max(examQuestions.length - 1, 0));
-  const currentQuestion = isLoadingQuestions ? null : examQuestions[currentIdx] || null;
-  // The set's shared passage, repeated above whichever of its questions is shown
-  const firstInCurrentSet = currentQuestion?.groupId
-    ? examQuestions.find((question) => question.groupId === currentQuestion.groupId)
-    : null;
-  const currentPassage = (currentQuestion?.groupContext || firstInCurrentSet?.groupContext || '').trim();
-  const currentPassageImages = currentQuestion?.groupContextImages || firstInCurrentSet?.groupContextImages || [];
-
   const programExams = useMemo(() => {
     if (isManager && selectedProgramId && selectedProgramId !== 'all') {
       return exams.filter((exam) =>
@@ -769,7 +744,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             <Marker className="ambe-marker--audience" label={AUDIENCE_LABELS[audience]}>
               <AudienceMarkerIcon audience={audience} />
             </Marker>
-            <Marker className={`ambe-state--${exam.status}`} label={formatStatusLabel(exam.status)}>
+            <Marker className={`ca-exam-state--${exam.status}`} label={formatStatusLabel(exam.status)}>
               <MarkerIcon>{EXAM_STATUSES[exam.status]?.icon}</MarkerIcon>
             </Marker>
           </div>
@@ -833,7 +808,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
   return (
     /* Only the list fits the screen; the calendar keeps the normal page scroll */
-    <main className={`ambe-page page-shell${viewMode === 'list' ? ' ca-page' : ''}`}>
+    <main className={`ambe-page page-shell${viewMode === 'list' ? ' ca-page ca-page--stepper' : ''}`}>
       <PageHeader
         title="Available Mock Board Exams"
         subtitle="This page lists the mock board exams created by the dean for department programs."
@@ -886,7 +861,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
             />
           )}
         >
-          <div className="ambe-view-toggle">
+          <div className="ca-view-toggle ambe-view-toggle">
             <button
               type="button"
               className={viewMode === 'list' ? 'is-active' : ''}
@@ -966,82 +941,35 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
 
           {selectedExam ? (
             <div className="ca-sidebar" ref={panelRef}>
-              <div className="ca-sidebar-header">
-                <div className="ambe-panel-heading">
-                  <h2 className="ca-sidebar-title">{selectedExam.name}</h2>
-                  <div className="ambe-view-toggle ambe-panel-toggle" role="group" aria-label="Show in this panel">
-                    {PANEL_VIEWS.map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className={panelView === value ? 'is-active' : ''}
-                        onClick={() => setPanelView(value)}
-                        aria-pressed={panelView === value}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="ca-sidebar-header-actions">
-                  <button
-                    type="button"
-                    className="ca-sidebar-expand-btn"
-                    onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                    title={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
-                    aria-label={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      {isSidebarExpanded ? (
-                        <>
-                          <path d="M4 14h6v6" />
-                          <path d="M20 10h-6V4" />
-                          <path d="M14 10l7-7" />
-                          <path d="M10 14l-7 7" />
-                        </>
-                      ) : (
-                        <>
-                          <path d="M15 3h6v6" />
-                          <path d="M9 21H3v-6" />
-                          <path d="M21 3l-7 7" />
-                          <path d="M3 21l7-7" />
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                  <button type="button" className="ca-sidebar-close" aria-label="Close exam panel" onClick={() => setSelectedExamId(null)}>x</button>
-                </div>
-              </div>
+              <PanelHeader
+                title={selectedExam.name}
+                views={PANEL_VIEWS}
+                view={panelView}
+                onViewChange={setPanelView}
+                isExpanded={isSidebarExpanded}
+                onToggleExpanded={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                onClose={() => setSelectedExamId(null)}
+                closeLabel="Close exam panel"
+              />
 
               {/* Keyed so each exam and each view starts scrolled to the top */}
               <div className="ca-sidebar-content" key={`${selectedExam._id}-${panelView}`}>
                 {panelView === 'questions' ? (
                   <>
-                    {isLoadingQuestions && <p className="ambe-panel-note">Loading questions...</p>}
-                    {questionsError && <p className="ambe-panel-note ambe-panel-note--error" role="alert">{questionsError}</p>}
-                    {!isLoadingQuestions && !questionsError && examQuestions.length === 0 && (
-                      <p className="ambe-panel-note">This exam has no questions yet.</p>
+                    {isLoadingQuestions && <p className="ca-panel-note">Loading questions...</p>}
+                    {questionsError && <p className="ca-panel-note ca-panel-note--error" role="alert">{questionsError}</p>}
+                    {!isLoadingQuestions && !questionsError && loadedQuestions.questions.length === 0 && (
+                      <p className="ca-panel-note">This exam has no questions yet.</p>
                     )}
 
-                    {currentQuestion && (
-                      <>
-                        <ImportReviewBubbles
-                          questions={examQuestions}
-                          currentIdx={currentIdx}
-                          onSelectQuestion={setActiveQuestionIdx}
-                          readOnly
-                          aside={<span className="ca-tag-pill">{currentQuestion.tag?.name || 'No subject'}</span>}
-                        />
-
-                        {/* Keyed so moving between questions fades the next one in */}
-                        <QuestionDetailPanels
-                          key={currentQuestion._id}
-                          question={currentQuestion}
-                          passage={currentPassage}
-                          passageImages={currentPassageImages}
-                          onZoom={setFullscreenImage}
-                        />
-                      </>
+                    {!isLoadingQuestions && (
+                      <QuestionStepper
+                        questions={loadedQuestions.questions}
+                        activeIdx={activeQuestionIdx}
+                        onSelectQuestion={setActiveQuestionIdx}
+                        onZoom={setFullscreenImage}
+                        renderAside={(question) => <span className="ca-tag-pill">{question.tag?.name || 'No subject'}</span>}
+                      />
                     )}
                   </>
                 ) : (

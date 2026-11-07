@@ -1,37 +1,5 @@
-/* Follows the same design system as QuestionsPage.css */
-
-/* Reusing qp- classes from global or shared context if possible,
-   but since they are in QuestionsPage.css, we redefine the necessary ones here
-   to ensure the Manage Subjects page looks identical. */
-
-.qp-page-header {
-  margin: -20px -20px 20px;
-  padding: 18px 32px 12px;
-  background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.qp-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.qp-title {
-  margin: 0 0 4px;
-  font-family: var(--font-title);
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--primary-bg);
-}
-
-.qp-subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: #8b92bc;
-}
+/* The list, panel and motion come from QuestionApprovals.css; only what this page adds is here.
+   The windows' shared styles are last. */
 
 .qp-btn-add {
   background-color: var(--primary-bg);
@@ -51,133 +19,85 @@
   opacity: 0.85;
 }
 
-.ct-controls-row {
+.st-header-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
+}
+
+.st-program-select {
+  width: 320px;
+  min-width: 320px;
+  flex: 0 0 320px;
+}
+
+/* A count beside its icon, so it can't be mistaken for the question count */
+.st-marker--exams {
+  gap: 3px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.st-marker--exams svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ---------- Exams using the subject ---------- */
+
+.st-exam-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.st-exam-row {
+  display: flex;
   align-items: center;
-  margin-bottom: 20px;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
 }
 
-.qp-search {
-  width: 100%;
-  max-width: 400px;
+.st-exam-row + .st-exam-row {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
 }
 
-.qp-table-wrap {
-  background: #fff;
-  border-radius: var(--card-radius);
-  border: 1px solid var(--card-border);
-  overflow: hidden;
-  margin: 0 0 16px;
-  box-shadow: var(--card-shadow);
+.st-exam-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
-.qp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.qp-table thead tr {
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e4e7ec;
-}
-
-.qp-table th {
-  padding: 12px 16px;
-  text-align: left;
+.st-exam-name {
+  color: #1a1f4b;
   font-family: var(--font-title);
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-  vertical-align: middle;
-}
-
-.qp-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: middle;
-}
-
-.qp-table tbody tr:hover {
-  background-color: #f9fafb;
-}
-
-.qp-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--font-body);
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-
-.qp-badge--subject {
-  background-color: #e7e0f8;
-  color: #6f42c1;
-  border: 1px solid #6f42c1;
-}
-
-.qp-actions-cell {
-  white-space: nowrap;
-}
-
-.qp-actions-cell button:not(:last-child) {
-  margin-right: 8px;
-}
-
-.qp-btn-edit,
-.qp-btn-submit {
-  padding: 6px 16px;
-  border-radius: 4px;
-  background: #fff;
-  font-size: 13px;
-  font-family: var(--font-body);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.qp-btn-edit {
-  border: 1px solid #d0d5dd;
-  color: #344054;
-}
-
-.qp-btn-edit:hover {
-  background: #f9fafb;
-  border-color: #b0b5bd;
-}
-
-.qp-btn-submit {
-  border: 1px solid #22a06b;
-  color: #22a06b;
-}
-
-.qp-btn-submit:hover {
-  background: #f0fff8;
-}
-
-.qp-empty, .qp-loading {
-  text-align: center;
-  padding: 40px !important;
-  color: #667085;
-}
-
-/* Inline Edit Input */
-.ct-inline-edit {
-  width: 100%;
-  padding: 6px 12px;
-  border: 1px solid var(--primary-bg);
-  border-radius: 4px;
-  font-family: var(--font-body);
   font-size: 14px;
-  outline: none;
-  background: #fff;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
+
+.st-exam-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: #667085;
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .st-program-select {
+    width: 100%;
+    min-width: 0;
+    flex: unset;
+  }
+}
+
+/* ---------- Add and edit window ---------- */
 
 .adminCatalog-form-group {
   display: flex;
@@ -211,6 +131,10 @@
   box-shadow: 0 0 0 3px rgba(53, 64, 142, 0.1);
 }
 
+.st-dean-modal-select {
+  width: 100%;
+}
+
 .ct-modal-actions {
   margin-top: 24px;
 }
@@ -226,96 +150,4 @@
   font-size: 13px;
   margin-top: 8px !important;
   font-weight: 600;
-}
-
-/* Dean-only layout additions kept isolated so the chair page keeps its original styling. */
-.st-dean-toolbar {
-  width: 100%;
-}
-
-.ct-controls-row--dean {
-  justify-content: flex-start;
-}
-
-.st-dean-program-select {
-  width: 320px;
-  min-width: 320px;
-  flex: 0 0 320px;
-}
-
-.st-dean-modal-select {
-  width: 100%;
-}
-
-.ct-helper-note {
-  margin: 0 0 16px;
-  color: #667085;
-  font-size: 14px;
-}
-
-.ct-pagination-wrap {
-  padding: 12px 16px;
-  border-top: 1px solid #e4e7ec;
-  background: #fff;
-}
-
-main.ct-page--dean .ct-dean-subject-table-card {
-  margin: 0 0 16px;
-  overflow-x: auto;
-}
-
-main.ct-page--dean .ct-dean-subject-table-card:has(+ .ct-dean-subject-pagination) {
-  margin-bottom: 0;
-  border-bottom: 0;
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.ct-dean-subject-table {
-  min-width: 520px;
-}
-
-.ct-dean-subject-table .ct-dean-subject-label {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  padding: 5px 10px;
-  border: 1px solid rgba(53, 64, 142, 0.16);
-  border-radius: 6px;
-  background: #eef1ff;
-  color: var(--primary-bg);
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-main.ct-page--dean .ct-dean-subject-table .ct-dean-inline-edit {
-  box-sizing: border-box;
-  min-height: 36px;
-  border-radius: 6px;
-}
-
-.ct-dean-subject-pagination {
-  margin: 0 0 16px;
-}
-
-@media (max-width: 900px) {
-  .st-dean-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .st-dean-program-select,
-  .st-dean-search {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .st-dean-program-select {
-    flex-basis: auto;
-  }
-
-  .ct-controls-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
 }

@@ -101,7 +101,7 @@ server/controllers/alumniExamController.js
 ```
 server/controllers/tagController.js
 ```
--> CRUD for subject tags (topics) scoped to accessible programs; resolves program access based on the requesting user's role (professor, program_chair, dean).
+-> CRUD for subject tags (topics) scoped to accessible programs; resolves program access based on the requesting user's role (professor, program_chair, dean). A subject used by any question can't be deleted; deleting one also takes it off the exams that list it.
 
 ---
 
@@ -771,7 +771,7 @@ client/src/pages/shared/ApproveQuestions.jsx
 ```
 client/src/pages/shared/ManageSubject.jsx
 ```
--> Subject (tag) CRUD page for creating, editing, and deactivating subject tags within a program (deans and chairs).
+-> Subject page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). A dean picks a program first. A card shows the subject's name with its question and exam counts. A Questions and Exams toggle sits beside the subject's name in the panel: Questions steps through all its submitted questions with `QuestionStepper`, showing each one's status, professor, submitted date and last edit; Exams lists the exams that use it. Subjects are added and renamed in a window, and deleted from the panel, which is blocked while questions use them. It loads every question and exam once (`/api/questions/approvals`, `/api/mock-board-exams`) and works out each subject's share itself, so drafts aren't included.
 
 ```
 client/src/pages/shared/StudentRegister.jsx
@@ -791,7 +791,7 @@ client/src/pages/shared/LearnerDashboard.jsx
 ```
 client/src/pages/shared/BoardExams.jsx
 ```
--> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `ImportReviewBubbles` and `QuestionDetailPanels`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete.
+-> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `QuestionStepper`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete.
 
 ```
 client/src/pages/shared/CreateExams.jsx
@@ -930,12 +930,22 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and the whole exam in the Board Exams panel. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar.
+-> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and `QuestionStepper`. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar.
 
 ```
 client/src/components/QuestionMarkers.jsx
 ```
--> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions and Board Exams.
+-> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions, Board Exams and Manage Subjects. Also the pills that spell a question's or an exam's status out, and the exam statuses' labels and icons (`EXAM_STATUSES`).
+
+```
+client/src/components/PanelHeader.jsx
+```
+-> The header of a list page's side panel: the title, buttons beside it that switch what the panel shows, and the expand and close buttons. Used by Board Exams and Manage Subjects.
+
+```
+client/src/components/QuestionStepper.jsx
+```
+-> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar and `renderDetails` goes below the question. Used by Board Exams for a whole exam and Manage Subjects for a whole subject.
 
 ```
 client/src/components/QuestionNavBubbles.jsx
@@ -1165,7 +1175,7 @@ client/src/styles/shared/AvailableExams.css
 ```
 client/src/styles/shared/BoardExams.css
 ```
--> What the board exam page adds to the shared `ca-` layout: the exam status colours (`--ambe-status-*`, also used by the calendar) and markers, the List and Calendar toggle, the same toggle in the panel for Questions and Details, a tighter panel on short laptop screens, a height limit on a long exam's bubbles, and the publish conflict message.
+-> What the board exam page adds to the shared `ca-` layout: the audience marker, the size of the List and Calendar toggle, the exam details, and the publish conflict message.
 
 ```
 client/src/styles/shared/LearnerDashboard.css
@@ -1180,7 +1190,7 @@ client/src/styles/shared/BulkRegister.css
 ```
 client/src/styles/shared/MyQuestions.css
 ```
--> Styles for the My Questions page (`qp-*` classes): header buttons, import modal, and panel buttons. Its list and panel use `QuestionApprovals.css`. Some `qp-*` rules are also used by Manage Subject.
+-> Styles for the My Questions page (`qp-*` classes): header buttons, import modal, and panel buttons. Its list and panel use `QuestionApprovals.css`. Approve Questions, Manage Subjects and the question form also use its `.qp-modal-*` window parts.
 
 ```
 client/src/styles/shared/CreateExams.css
@@ -1205,7 +1215,7 @@ client/src/styles/shared/MockBoardExamPreview.css
 ```
 client/src/styles/shared/QuestionApprovals.css
 ```
--> Styles for the question list, markers, side panel, fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions and My Questions; also the approve/return/reject buttons and bulk toolbar.
+-> Styles for the list, markers, status pills, side panel and its header toggle, fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions, My Questions, Board Exams and Manage Subjects; also the exam status colours (`--exam-status-*`), `ca-page--stepper` for panels using `QuestionStepper`, the approve/return/reject buttons and bulk toolbar.
 
 ```
 client/src/styles/shared/StudentExamResult.css
@@ -1220,7 +1230,7 @@ client/src/styles/shared/StudentExamResults.css
 ```
 client/src/styles/shared/SubjectTags.css
 ```
--> Styles for the subject tag management page: tag chips, edit inline form, and deactivate toggle.
+-> What the Manage Subjects page adds to the shared `ca-` layout: the dean's program picker, the exam count marker, the list of exams using a subject, and the add and edit window. Other pages also rely on its `.qp-btn-add`, `.error-text` and `.qp-warning-text`.
 
 ```
 client/src/styles/dean/DeanDashboard.css

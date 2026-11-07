@@ -499,6 +499,76 @@
   border: 1px solid #cbd5e1;
 }
 
+/* An exam's status, in the colours the exam calendar uses (ExamMonthGrid.css) */
+.ca-page {
+  --exam-status-draft: #94a3b8;
+  --exam-status-draft-text: #5b6684;
+  --exam-status-draft-bg: #fff;
+  --exam-status-published: #3b82f6;
+  --exam-status-published-text: #1d4ed8;
+  --exam-status-published-bg: #e8f0ff;
+  --exam-status-ongoing: #f59e0b;
+  --exam-status-ongoing-text: #a16207;
+  --exam-status-ongoing-bg: #fff3d6;
+  --exam-status-finished: #0f766e;
+  --exam-status-finished-text: #0f766e;
+  --exam-status-finished-bg: #e6f4f1;
+  --exam-status-archived: #cbd5e1;
+  --exam-status-archived-text: #6b7280;
+  --exam-status-archived-bg: #e1e5ec;
+}
+
+.ca-exam-state--draft {
+  background: var(--exam-status-draft-bg);
+  color: var(--exam-status-draft-text);
+  border: 1px solid var(--exam-status-draft);
+}
+
+.ca-exam-state--published {
+  background: var(--exam-status-published-bg);
+  color: var(--exam-status-published-text);
+  border: 1px solid var(--exam-status-published);
+}
+
+.ca-exam-state--ongoing {
+  background: var(--exam-status-ongoing-bg);
+  color: var(--exam-status-ongoing-text);
+  border: 1px solid var(--exam-status-ongoing);
+}
+
+.ca-exam-state--finished {
+  background: var(--exam-status-finished-bg);
+  color: var(--exam-status-finished-text);
+  border: 1px solid var(--exam-status-finished);
+}
+
+.ca-exam-state--archived {
+  background: var(--exam-status-archived-bg);
+  color: var(--exam-status-archived-text);
+  border: 1px solid var(--exam-status-archived);
+}
+
+/* A status spelled out with its icon, where no legend explains the markers */
+.ca-status-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ca-status-pill svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
 .ca-evaluating-dot {
   width: 7px;
   height: 7px;
@@ -709,6 +779,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .ca-sidebar-title {
@@ -719,6 +790,125 @@
   color: var(--primary-bg);
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* PanelHeader: the toggle sits beside the title; a title too long to share the line pushes it underneath */
+.ca-panel-heading {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+/* Joined buttons, with the current choice filled */
+.ca-view-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1.5px solid rgba(53, 64, 142, 0.22);
+  border-radius: 6px;
+  background: #f9faff;
+}
+
+.ca-view-toggle button {
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #5966ac;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ca-view-toggle button.is-active {
+  background: var(--primary-bg);
+  color: #fff;
+}
+
+/* Inside the toggle, which clips anything drawn outside it */
+.ca-view-toggle button:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.ca-view-toggle button.is-active:focus-visible {
+  outline-color: var(--accent-yellow);
+}
+
+.ca-panel-toggle {
+  height: 32px;
+}
+
+.ca-panel-toggle button {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* In the panel's content, instead of its questions: while they load, or when there are none */
+.ca-panel-note {
+  margin: 0;
+  padding: 28px 16px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.ca-panel-note--error {
+  color: #b91c1c;
+}
+
+/* ── Panels that step through many questions (QuestionStepper) ─────────── */
+
+/* A long list's bubbles scroll inside their section, so the question stays near the top */
+.ca-page--stepper .import-review-nav-bar {
+  box-sizing: border-box;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Short laptop screens: the panel always has bubbles, so without this they fill it and the question
+   starts below the fold */
+@media (max-height: 760px) and (min-width: 1025px) {
+  .ca-page--stepper .ca-sidebar-header {
+    padding: 10px 20px;
+  }
+
+  .ca-page--stepper .ca-sidebar-content {
+    padding: 14px 20px;
+    gap: 14px;
+  }
+
+  .ca-page--stepper .import-review-progress {
+    padding: 6px 14px;
+  }
+
+  .ca-page--stepper .import-review-nav-bar {
+    max-height: 88px;
+    padding: 8px 14px;
+  }
+
+  .ca-page--stepper .ca-sidebar-actions {
+    padding: 8px 20px;
+  }
+}
+
+/* These panels' actions share the row evenly, unlike a question's narrower Edit */
+.ca-page--stepper .ca-sidebar-actions .ca-btn--edit {
+  flex: 1 1 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.ca-page--stepper .ca-sidebar-actions .trash-btn {
+  width: 40px;
+  height: auto;
+  min-height: 38px;
 }
 
 .ca-sidebar-close {
@@ -1290,10 +1480,6 @@
   .ca-sidebar--empty,
   .ca-sidebar-expand-btn {
     display: none;
-  }
-
-  .ca-sidebar-header {
-    gap: 12px;
   }
 
   .ca-sidebar-content {

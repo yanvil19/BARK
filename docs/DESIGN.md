@@ -63,7 +63,7 @@ Ratios are against white. Small text needs at least 4.5:1.
 
 ### Status
 
-A status keeps its colour everywhere. Markers use the text, background and border columns. Tables use a dot with the listed `ui-table-status--` tone.
+A status keeps its colour everywhere. Markers use the text, background and border columns. `Table` uses a dot with the listed `ui-table-status--` tone, though no page uses it at the moment.
 
 | Status | Text | Background | Border | Table tone |
 | --- | --- | --- | --- | --- |
@@ -75,7 +75,7 @@ A status keeps its colour everywhere. Markers use the text, background and borde
 | Restored | `#7E22CE` | `#FAF5FF` | `#E9D5FF` | `violet` |
 | Used in exam | `#1D4ED8` | `#EFF6FF` | `#93C5FD` | |
 
-Exams have their own set, used by the Board Exams markers and the exam calendar. They're the `--ambe-status-` tokens in `BoardExams.css`.
+Exams have their own set, used by exam markers and status pills and by the exam calendar. They're the `--exam-status-` tokens in `QuestionApprovals.css`, with the same colours repeated in `ExamMonthGrid.css`.
 
 | Exam status | Text | Background | Border or dot |
 | --- | --- | --- | --- |
@@ -157,9 +157,11 @@ Use these for new work.
 
 ### Work queues
 
-A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions and Board Exams do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
+A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions, Board Exams and Manage Subjects do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
 
-These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all three pages, so check them all.
+These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all four pages, so check them all.
+
+Board Exams and Manage Subjects also add `ca-page--stepper` to the root. Their panels open with `PanelHeader`, whose buttons beside the title switch what the panel shows, and step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
 
 Board Exams also has a calendar view, which needs normal page scrolling, so the page drops `ca-page` while the calendar shows.
 
@@ -195,11 +197,13 @@ Layers, lowest to highest:
 | Search | `SearchBar` | Takes the free space in a filter row |
 | Dropdown | `DropdownSelect` | Same height, border and focus ring as `SearchBar` |
 | Question filters | `QuestionFilters` | Search, subject, program and sort together; `extraFilters` adds filters before the sort, and children go at the end of the row |
-| Table | `Table` | Navy head with a yellow line, 64px rows, horizontal scroll on small screens |
+| Table | `Table` | Navy head with a yellow line, 64px rows, horizontal scroll on small screens; no page uses it at the moment, and nothing loads `Table.css` until one does |
 | Page numbers | `Pagination` | `maxPageButtons` shortens long lists |
 | More actions | `ActionMenu` | 32×32 button with three dots; no page uses it at the moment |
 | Delete or remove | `TrashButton` | Used for every delete and remove |
-| Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them |
+| Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them; `StatePill` and `ExamStatePill` spell a status out where there's no legend |
+| Side panel header | `PanelHeader` | Title, buttons beside it that switch the panel's view, expand and close |
+| Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them |
 | Dialog | `Modal` | `size="compact"` for short ones; Escape or a click outside closes it |
 | Ask before acting | `ConfirmationModal` | `confirmVariant` is `danger` by default, or `primary` |
 | Message to acknowledge | `FeedbackModal` | `tone`: info, success, warning or danger |
@@ -226,10 +230,10 @@ Layers, lowest to highest:
 | Modal's main action | `.modal-btn-primary` | Navy, white text |
 | Modal's destructive action | `.modal-btn-danger` | Red, white text |
 | Modal or form cancel | `.modal-btn-cancel` | White, grey border |
-| Table row | `.ui-table-btn` with `--primary`, `--secondary` or `--success` | 32px high, 8px radius |
-| Publish or delete in a table row | `.ui-table-btn` with `.publish` or `.delete` | Green or red tint |
+| Table row | `.ui-table-btn` with `--primary`, `--secondary` or `--success` | 32px high, 8px radius; in `Table.css`, so no page has it at the moment |
+| Publish or delete in a table row | `.ui-table-btn` with `.publish` or `.delete` | Green or red tint; also in `Table.css` |
 | Review decisions | `.ca-btn` with `--approve`, `--return`, `--reject` or `--restore` | Tinted by outcome |
-| Review edit | `.ca-btn--edit` | White, navy text, narrower than the decisions; Board Exams spreads its panel buttons evenly |
+| Review edit | `.ca-btn--edit` | White, navy text, narrower than the decisions; under `ca-page--stepper` the panel's buttons spread evenly |
 
 Disabled buttons use lowered opacity (0.5–0.6) and `cursor: not-allowed`.
 
@@ -251,7 +255,7 @@ Use `QuestionDetailPanels`. It stacks bordered sections in this order: Shared Pa
 
 - **Navigator:** `QuestionNavBubbles` everywhere, with a circle per question and a capsule per set. Active is navy with yellow text. Flagged is a red number with a badge. Don't write bubble markup by hand.
 - **Forms and read-only views:** the bubbles sit inside `ImportReviewBubbles`, a bordered section headed "Question X of N". Its `aside` prop adds something to the right of the header.
-- **A whole exam:** Board Exams steps through every question of the exam with these bubbles, numbered across the exam, with a capsule per set and the question's subject in `aside`. A long exam's bubbles scroll inside their section. A Questions and Details toggle beside the exam name swaps them for the exam's information.
+- **A whole exam or subject:** `QuestionStepper` steps through all of them with these bubbles, numbered across the list, with a capsule per set. A long list's bubbles scroll inside their section. On Board Exams the header shows the question's subject, and a Questions and Details toggle beside the exam name swaps them for the exam's information. On Manage Subjects the header shows the question's status, and a Questions and Exams toggle beside the subject name swaps them for the exams using it. Drafts aren't listed, because they stay private to whoever is writing them.
 - **Exam runners:** the bubbles sit in a `.mbep-nav-bar` card.
 - **One at a time:** show one question, with the shared passage repeated above it.
 - **Numbering:** keep exam numbering ("Question 3", "Questions 4–6"). Bubbles count 1–N within the set. Don't use "Part N" labels.
@@ -287,7 +291,7 @@ Navy gradient with a white title, as `Modal` provides. Don't restyle it per page
 
 ## Motion
 
-Approve Questions is the reference, and My Questions and Board Exams share its animations: see the Motion section at the end of `QuestionApprovals.css`.
+Approve Questions is the reference, and My Questions, Board Exams and Manage Subjects share its animations: see the Motion section at the end of `QuestionApprovals.css`.
 
 | Moment | Motion | Duration |
 | --- | --- | --- |
@@ -322,7 +326,7 @@ Approve Questions is the reference, and My Questions and Board Exams share its a
 All page styles load together, so every class is global, and a rule in one page's file can affect another page. For example, `.ca-bulk-toolbar` is styled in both `CreateExams.css` and `QuestionApprovals.css`.
 
 - Prefix a page's classes, and scope its rules under its root class, such as `.ca-page .ca-btn`.
-- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions and Board Exams), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
+- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions, Board Exams and Manage Subjects), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `st-` (the rest of Manage Subjects), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
 - Prefix keyframe names as well, because they're global too.
 - Name the properties in a transition rather than using `transition: all`.
 - Use a token instead of repeating its value.
@@ -339,7 +343,7 @@ These are places where the code doesn't yet match this guide. Fix them when work
 - **Button radius:** buttons use 6, 8, 10 and 12px depending on the page.
 - **Breakpoints:** older styles also use 1100, 900, 860, 760, 720, 600 and 560px.
 - **`transition: all`:** still used in 36 rules.
-- **Reduced motion:** only `Table.css` and `QuestionApprovals.css` handle it. Toasts and other animated pages don't.
+- **Reduced motion:** only `QuestionApprovals.css` handles it, plus `Table.css` if a page uses it again. Toasts and other animated pages don't.
 - **Approve Questions and My Questions:**
     - List cards don't follow the card rules above: no number, no "N answers | N images", no ▾, no All/Single/Group filter.
     - Details and notes aren't in headed sections.

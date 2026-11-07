@@ -1,6 +1,7 @@
 const Tag = require('../models/Tag');
 const Program = require('../models/Program');
 const Question = require('../models/Question');
+const MockBoardExam = require('../models/MockBoardExam');
 const { logAudit } = require('../utils/auditLogger');
 
 // Helper: resolve program IDs accessible to the requesting user
@@ -136,6 +137,12 @@ const deleteTag = async (req, res) => {
     }
 
     await tag.deleteOne();
+    // An exam still listing a deleted subject can't be published. Nobody edited these exams, so keep their updatedAt.
+    await MockBoardExam.updateMany(
+      { subjectTags: tag._id },
+      { $pull: { subjectTags: tag._id } },
+      { timestamps: false }
+    );
     await logAudit(req.user._id, 'tag_deleted', 'Tag', tag._id, {
       name: tag.name,
       programId: tag.program,

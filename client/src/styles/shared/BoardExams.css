@@ -1,22 +1,4 @@
 /* The list, panel and motion come from QuestionApprovals.css; only what this page adds is here. */
-.ambe-page {
-  /* The calendar uses the same colours (ExamMonthGrid.css) */
-  --ambe-status-draft: #94a3b8;
-  --ambe-status-draft-text: #5b6684;
-  --ambe-status-draft-bg: #fff;
-  --ambe-status-published: #3b82f6;
-  --ambe-status-published-text: #1d4ed8;
-  --ambe-status-published-bg: #e8f0ff;
-  --ambe-status-ongoing: #f59e0b;
-  --ambe-status-ongoing-text: #a16207;
-  --ambe-status-ongoing-bg: #fff3d6;
-  --ambe-status-finished: #0f766e;
-  --ambe-status-finished-text: #0f766e;
-  --ambe-status-finished-bg: #e6f4f1;
-  --ambe-status-archived: #cbd5e1;
-  --ambe-status-archived-text: #6b7280;
-  --ambe-status-archived-bg: #e1e5ec;
-}
 
 /* ---------- Filter row ---------- */
 
@@ -29,76 +11,12 @@
   min-width: 150px;
 }
 
+/* List and Calendar, sized to match the filters beside it */
 .ambe-view-toggle {
-  display: inline-flex;
-  flex-shrink: 0;
-  box-sizing: border-box;
   height: 40px;
-  overflow: hidden;
-  border: 1.5px solid rgba(53, 64, 142, 0.22);
-  border-radius: 6px;
-  background: #f9faff;
-}
-
-.ambe-view-toggle button {
-  height: 100%;
-  padding: 0 12px;
-  border: 0;
-  background: transparent;
-  color: #5966ac;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.ambe-view-toggle button.is-active {
-  background: var(--primary-bg);
-  color: #fff;
-}
-
-/* Inside the toggle, which clips anything drawn outside it */
-.ambe-view-toggle button:focus-visible {
-  outline: 2px solid var(--primary-bg);
-  outline-offset: -2px;
-}
-
-.ambe-view-toggle button.is-active:focus-visible {
-  outline-color: var(--accent-yellow);
 }
 
 /* ---------- Markers on the exam cards ---------- */
-
-.ambe-state--draft {
-  background: var(--ambe-status-draft-bg);
-  color: var(--ambe-status-draft-text);
-  border: 1px solid var(--ambe-status-draft);
-}
-
-.ambe-state--published {
-  background: var(--ambe-status-published-bg);
-  color: var(--ambe-status-published-text);
-  border: 1px solid var(--ambe-status-published);
-}
-
-.ambe-state--ongoing {
-  background: var(--ambe-status-ongoing-bg);
-  color: var(--ambe-status-ongoing-text);
-  border: 1px solid var(--ambe-status-ongoing);
-}
-
-.ambe-state--finished {
-  background: var(--ambe-status-finished-bg);
-  color: var(--ambe-status-finished-text);
-  border: 1px solid var(--ambe-status-finished);
-}
-
-.ambe-state--archived {
-  background: var(--ambe-status-archived-bg);
-  color: var(--ambe-status-archived-text);
-  border: 1px solid var(--ambe-status-archived);
-}
 
 .ambe-marker--audience {
   background: #f9faff;
@@ -126,76 +44,6 @@
 
 /* ---------- Panel ---------- */
 
-.ambe-page .ca-sidebar-header {
-  gap: 12px;
-}
-
-/* The toggle sits beside the exam name; a name too long to share the line pushes it underneath */
-.ambe-panel-heading {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  min-width: 0;
-}
-
-.ambe-page .ambe-panel-toggle {
-  width: auto;
-  height: 32px;
-}
-
-.ambe-page .ambe-panel-toggle button {
-  flex: 0 0 auto;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-/* A long exam's bubbles scroll inside their section, so the question stays near the top */
-.ambe-page .import-review-nav-bar {
-  box-sizing: border-box;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-/* Short laptop screens: every exam has bubbles, so without this they fill the panel and the
-   question starts below the fold */
-@media (max-height: 760px) and (min-width: 1025px) {
-  .ambe-page .ca-sidebar-header {
-    padding: 10px 20px;
-  }
-
-  .ambe-page .ca-sidebar-content {
-    padding: 14px 20px;
-    gap: 14px;
-  }
-
-  .ambe-page .import-review-progress {
-    padding: 6px 14px;
-  }
-
-  .ambe-page .import-review-nav-bar {
-    max-height: 88px;
-    padding: 8px 14px;
-  }
-
-  .ambe-page .ca-sidebar-actions {
-    padding: 8px 20px;
-  }
-}
-
-.ambe-panel-note {
-  margin: 0;
-  padding: 28px 16px;
-  color: #6b7280;
-  font-size: 13px;
-  text-align: center;
-}
-
-.ambe-panel-note--error {
-  color: #b91c1c;
-}
-
 /* Details fill the view on their own, so nothing above them needs a line to separate it */
 .ambe-page .ca-review-metadata {
   padding-top: 0;
@@ -216,19 +64,6 @@
   font-weight: 500;
   line-height: 1.5;
   white-space: pre-wrap;
-}
-
-/* An exam has more actions than a question, so they share the row evenly */
-.ambe-page .ca-sidebar-actions .ca-btn--edit {
-  flex: 1 1 auto;
-  padding-left: 16px;
-  padding-right: 16px;
-}
-
-.ambe-page .ca-sidebar-actions .trash-btn {
-  width: 40px;
-  height: auto;
-  min-height: 38px;
 }
 
 /* ---------- Publish conflict, shown in a FeedbackModal ---------- */

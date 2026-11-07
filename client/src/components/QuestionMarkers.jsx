@@ -1,7 +1,7 @@
 import { getStatusLabel } from '../utils/statusLabels.js';
 
 // The small round markers on list cards and the legend that explains them, shared by
-// Approve Questions, My Questions and Board Exams. Their styles are in
+// Approve Questions, My Questions, Board Exams and Manage Subjects. Their styles are in
 // styles/shared/QuestionApprovals.css.
 
 export function MarkerIcon({ children }) {
@@ -19,6 +19,14 @@ const STATE_MARKERS = {
   returned: { legend: 'Returned', icon: <><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 6 6v4" /></> },
   approved: { legend: 'Approved', icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
   rejected: { legend: 'Rejected', icon: <path d="M6 6l12 12M18 6L6 18" /> },
+};
+
+export const EXAM_STATUSES = {
+  draft: { label: 'Draft', icon: <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" /> },
+  published: { label: 'Published', icon: <path d="M21 3L3 11l7 3 3 7 8-18z" /> },
+  ongoing: { label: 'Ongoing', icon: <path d="M8 5l11 7-11 7V5z" /> },
+  finished: { label: 'Finished', icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
+  archived: { label: 'Archived', icon: <><path d="M3 4h18v4H3z" /><path d="M5 8v12h14V8" /><path d="M10 12h4" /></> },
 };
 
 export const USED_IN_EXAM_ICON = <MarkerIcon><path d="M6 3h9l4 4v14H6z" /><path d="M9.5 12h6M9.5 16h6" /></MarkerIcon>;
@@ -44,6 +52,25 @@ export function StateMarker({ state }) {
     <Marker className={`ca-state--${state}`} label={getStatusLabel(state)}>
       <MarkerIcon>{STATE_MARKERS[state]?.icon}</MarkerIcon>
     </Marker>
+  );
+}
+
+// A status spelled out with its icon, for where no legend explains the markers
+export function StatePill({ state }) {
+  return (
+    <span className={`ca-status-pill ca-state--${state}`}>
+      <MarkerIcon>{STATE_MARKERS[state]?.icon}</MarkerIcon>
+      {getStatusLabel(state)}
+    </span>
+  );
+}
+
+export function ExamStatePill({ status }) {
+  return (
+    <span className={`ca-status-pill ca-exam-state--${status}`}>
+      <MarkerIcon>{EXAM_STATUSES[status]?.icon}</MarkerIcon>
+      {EXAM_STATUSES[status]?.label || status}
+    </span>
   );
 }
 
