@@ -2,14 +2,22 @@ import { useEffect, useState } from 'react';
 import { apiAuth } from '../lib/api';
 import { Modal } from './Modal';
 
+// In production the API has its own host, so a relative URL would reach the client's host
+const API_BASE = import.meta.env.VITE_API_URL || '';
+const FACULTY_ROLES = ['dean', 'program_chair', 'professor'];
+
 export default function SystemUpdateWarning({ me }) {
+  const isFaculty = FACULTY_ROLES.includes(me?.role);
   const [showWarning, setShowWarning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    if (!me || !['dean', 'program_chair', 'professor'].includes(me.role)) return;
+    if (!isFaculty) return;
 
+    // Stays false once cleaned up, so a status request that finishes afterwards
+    // cannot open a connection that nothing would ever close
+    let active = true;
     let sse;
     let interval;
 
@@ -17,6 +25,7 @@ export default function SystemUpdateWarning({ me }) {
       try {
         // 1. Fetch current status in case we reconnected
         const res = await apiAuth('/api/admin/settings/status');
+        if (!active) return;
         if (res?.isPending && res?.expiresAt) {
           startCountdown(res.expiresAt);
         } else {
@@ -28,8 +37,10 @@ export default function SystemUpdateWarning({ me }) {
         console.error('Failed to fetch settings status', err);
       }
 
+      if (!active) return;
+
       // 2. Connect to SSE
-      sse = new EventSource('/api/sse/faculty', {
+      sse = new EventSource(`${API_BASE}/api/sse/faculty`, {
         withCredentials: true,
       });
 
@@ -75,12 +86,13 @@ export default function SystemUpdateWarning({ me }) {
     }
 
     return () => {
+      active = false;
       if (sse) sse.close();
       clearInterval(interval);
     };
-  }, [me]);
+  }, [isFaculty]);
 
-  if (!me || !['dean', 'program_chair', 'professor'].includes(me.role)) return null;
+  if (!isFaculty) return null;
 
   if (isDismissed && timeRemaining > 0) {
     return (

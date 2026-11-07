@@ -578,7 +578,7 @@ client/index.html
 ```
 client/src/main.jsx
 ```
--> Mounts the React root: wraps `<App />` in `<React.StrictMode>` and attaches it to `#root` in `index.html`.
+-> Mounts the React root: wraps `<App />` in `<React.StrictMode>` and attaches it to `#root` in `index.html`. Also turns off MathLive's sound effects, whose files are not shipped with the app.
 
 ```
 client/src/App.jsx
