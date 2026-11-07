@@ -15,6 +15,8 @@ import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { CardLegend, EVALUATING_DOT, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
+import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 const BASE = import.meta.env.VITE_API_URL;
 
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -36,87 +38,8 @@ function getReviewedQuestions(res) {
   return res?.groupQuestions?.length ? res.groupQuestions : [res.question];
 }
 
-function MarkerIcon({ children }) {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {children}
-    </svg>
-  );
-}
-
-const STATE_MARKERS = {
-  pending_chair: { legend: 'Pending', icon: <path d="M12 6v6l4 2" /> },
-  restored: { legend: 'Restored', icon: <><path d="M4 12a8 8 0 1 0 2.6-5.9" /><path d="M4 4v5h5" /></> },
-  returned: { legend: 'Returned', icon: <><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 6 6v4" /></> },
-  approved: { legend: 'Approved', icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
-  rejected: { legend: 'Rejected', icon: <path d="M6 6l12 12M18 6L6 18" /> },
-};
-const USED_IN_EXAM_ICON = <MarkerIcon><path d="M6 3h9l4 4v14H6z" /><path d="M9.5 12h6M9.5 16h6" /></MarkerIcon>;
-const EVALUATING_DOT = <span className="ca-evaluating-dot" />;
-
-// A small round marker on a question card. Without a label it is only a sample in the legend.
-function Marker({ className, label, children }) {
-  return (
-    <span
-      className={`ca-marker ${className}`}
-      role={label ? 'img' : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
-      title={label}
-    >
-      {children}
-    </span>
-  );
-}
-
-// Says what the markers on the question cards mean, so the cards need no long labels
-function CardLegend() {
-  const items = [
-    { text: 'Questions', className: 'ca-marker--count', content: '#' },
-    ...Object.entries(STATE_MARKERS).map(([state, marker]) => ({
-      text: marker.legend,
-      className: `ca-state--${state}`,
-      content: <MarkerIcon>{marker.icon}</MarkerIcon>,
-    })),
-    { text: 'Used in exam', className: 'ca-marker--used', content: USED_IN_EXAM_ICON },
-    { text: 'Being evaluated', className: 'ca-marker--evaluating', content: EVALUATING_DOT },
-  ];
-
-  return (
-    <div className="ca-legend" role="group" aria-label="What the question markers mean">
-      {items.map(({ text, className, content }) => (
-        <span key={text} className="ca-legend-item">
-          <Marker className={className}>{content}</Marker>
-          {text}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function getSubmittedAt(question) {
   return question?.submittedAt || question?.createdAt || null;
-}
-
-function formatDate(iso) {
-  if (!iso) return '-';
-  return new Date(iso).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function formatTime(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleTimeString('en-PH', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-function formatDateTime(iso) {
-  return iso ? `${formatDate(iso)} · ${formatTime(iso)}` : '-';
 }
 
 function formatProgramLabel(program) {
@@ -1055,7 +978,7 @@ export default function QuestionApprovals({ me }) {
 
       <div className={`ca-layout ${selectedQuestion && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
         <section className="ca-list-panel" aria-label="Questions">
-          <CardLegend />
+          <CardLegend states={STATE_FILTERS.filter((state) => state !== 'all')} showEvaluating />
 
           {/* Bulk Toolbar */}
           {selectedIds.size > 0 && (
@@ -1181,9 +1104,7 @@ export default function QuestionApprovals({ me }) {
                             {isUsedInExam && (
                               <Marker className="ca-marker--used" label="Used in exam">{USED_IN_EXAM_ICON}</Marker>
                             )}
-                            <Marker className={`ca-state--${question.state}`} label={getStatusLabel(question.state)}>
-                              <MarkerIcon>{STATE_MARKERS[question.state]?.icon}</MarkerIcon>
-                            </Marker>
+                            <StateMarker state={question.state} />
                           </div>
                         </div>
                         <div className="ca-card-meta">

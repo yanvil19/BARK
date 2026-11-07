@@ -501,6 +501,16 @@ server/tests/questionCRUD.test.js
 -> Tests the full question CRUD and approval workflow: create by professor, review by chair, approve/return/reject by dean, and encryption round-trip verification.
 
 ```
+server/tests/myQuestionsList.test.js
+```
+-> Tests for the list My Questions loads: every question and whole sets, only the user's own, who last edited, and reading feedback leaving the date alone.
+
+```
+server/tests/questionReviewEdit.test.js
+```
+-> Tests for a chair or dean editing a submitted question: it stays in review, who may edit, set edits, locks and last-edited tracking.
+
+```
 server/tests/questions.test.js
 ```
 -> Additional question listing and filtering tests across different role permissions.
@@ -751,7 +761,7 @@ client/src/pages/alumni/AlumniExamResults.jsx
 ```
 client/src/pages/shared/MyQuestions.jsx
 ```
--> "My Questions" page used by professors, chairs, and deans: question list with status capsules, create/edit/view via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review.
+-> "My Questions" page used by professors, chairs, and deans: question cards with status capsules and a legend beside a preview panel, sharing the Approve Questions layout and animations; submit, edit and delete from the panel, create/edit via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review.
 
 ```
 client/src/pages/shared/ApproveQuestions.jsx
@@ -923,6 +933,11 @@ client/src/components/ImportReviewBubbles.jsx
 -> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions) and the read-only question set views (My Questions, Approve Questions, Create Exams, Board Exams, exam results). While editing, a question with no flags counts as ready.
 
 ```
+client/src/components/QuestionMarkers.jsx
+```
+-> The small round markers on question cards and the legend that explains them, shared by Approve Questions and My Questions.
+
+```
 client/src/components/QuestionNavBubbles.jsx
 ```
 -> The one question navigator, with the alumni exam runner's look: a circle per standalone question and one capsule per question set (neighbouring questions with the same `groupId`, or `getSetKey`), filling from the left by the share of done questions. The current question is navy with a yellow number; a flagged question has a red number and a count badge. `getStatus(question, index)` returns `{ done, flags }`. Used by the student and alumni exam runners, the exam preview and test run, and `ImportReviewBubbles`.
@@ -1002,6 +1017,11 @@ client/src/hooks/useCalendarExams.js
 client/src/utils/calendarUtils.js
 ```
 -> Helper functions for the exam calendar and date & time picker: the visible month range, which exams fall on a day, exam time-range and date formatting, and schedule-conflict flags.
+
+```
+client/src/utils/dateFormat.js
+```
+-> How the question pages write dates and times (`formatDate`, `formatTime`, `formatDateTime`).
 
 ```
 client/src/utils/statusLabels.js
@@ -1160,7 +1180,7 @@ client/src/styles/shared/BulkRegister.css
 ```
 client/src/styles/shared/MyQuestions.css
 ```
--> Styles for the My Questions page (`qp-*` classes): question list, import modal, and action toolbar.
+-> Styles for the My Questions page (`qp-*` classes): header buttons, import modal, and panel buttons. Its list and panel use `QuestionApprovals.css`. Some `qp-*` rules are also used by Manage Subject.
 
 ```
 client/src/styles/shared/CreateExams.css
@@ -1185,7 +1205,7 @@ client/src/styles/shared/MockBoardExamPreview.css
 ```
 client/src/styles/shared/QuestionApprovals.css
 ```
--> Styles for the question approval queue: status badge chips, comment thread, and approve/return/reject button row.
+-> Styles for the question list, markers, side panel, fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions and My Questions; also the approve/return/reject buttons and bulk toolbar.
 
 ```
 client/src/styles/shared/StudentExamResult.css

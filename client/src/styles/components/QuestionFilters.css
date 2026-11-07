@@ -44,6 +44,11 @@
     flex: unset;
   }
 
+  /* Only deans have the program picker; without it the search takes the whole row */
+  .qf-filters:not(:has(.qf-filter-select--program)) .qf-search {
+    grid-column: 1 / -1;
+  }
+
   /* Program picker spans column 2 of row 1 */
   .qf-filter-select--program {
     width: 100%;

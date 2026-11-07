@@ -115,6 +115,13 @@ const LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes
 // States a Program Chair or Dean decides on, and can also edit
 const REVIEWABLE_STATES = ['pending_chair', 'restored'];
 
+// The fields My Questions shows for a question
+const CREATOR_POPULATE = [
+  { path: 'tag', select: 'name' },
+  { path: 'program', select: 'name code' },
+  { path: 'lastEditedBy', select: 'name' },
+];
+
 // The fields the review page shows for a question
 const REVIEW_POPULATE = [
   { path: 'tag', select: 'name' },
@@ -240,29 +247,19 @@ const unlockQuestion = async (req, res) => {
 };
 
 // GET /api/questions?state=draft
+// All of the user's questions: My Questions filters, counts and pages them itself, like the
+// approvals list, and needs every question of a set to show it whole.
 const listQuestions = async (req, res) => {
   try {
     const filter = { createdBy: req.user._id };
     if (req.query.state) filter.state = req.query.state;
     if (req.query.programId) filter.program = req.query.programId;
 
-    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.max(parseInt(req.query.limit, 10) || 20, 1);
-    const skip = (page - 1) * limit;
+    const questions = await Question.find(filter)
+      .populate(CREATOR_POPULATE)
+      .sort({ updatedAt: -1 });
 
-    const [totalItems, questions] = await Promise.all([
-      Question.countDocuments(filter),
-      Question.find(filter)
-        .populate('tag', 'name')
-        .populate('program', 'name code')
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(limit),
-    ]);
-
-    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-
-    res.json({ questions: questions.map(decryptQuestion), totalPages, currentPage: page, totalItems });
+    res.json({ questions: questions.map(decryptQuestion) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -380,10 +377,7 @@ const createQuestionGroup = async (req, res) => {
       };
 
       const question = await Question.create(questionData);
-      const populated = await question.populate([
-        { path: 'tag', select: 'name' },
-        { path: 'program', select: 'name code' },
-      ]);
+      const populated = await question.populate(CREATOR_POPULATE);
       createdQuestions.push(decryptQuestion(populated));
     }
 
@@ -405,8 +399,7 @@ const getQuestionGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
     const questions = await Question.find({ groupId, createdBy: req.user._id })
-      .populate('tag', 'name')
-      .populate('program', 'name code')
+      .populate(CREATOR_POPULATE)
       .sort({ groupOrder: 1 });
 
     if (questions.length === 0) {
@@ -472,10 +465,7 @@ const submitQuestionGroup = async (req, res) => {
       question.feedbackRead = false;
       await question.save();
 
-      const populated = await question.populate([
-        { path: 'tag', select: 'name' },
-        { path: 'program', select: 'name code' },
-      ]);
+      const populated = await question.populate(CREATOR_POPULATE);
       submittedQuestions.push(decryptQuestion(populated));
 
       await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
@@ -677,10 +667,7 @@ const saveQuestionGroupEdit = async (req, res, { asReviewer = false } = {}) => {
       }
       await questionDoc.save();
 
-      const populated = await questionDoc.populate(asReviewer ? REVIEW_POPULATE : [
-        { path: 'tag', select: 'name' },
-        { path: 'program', select: 'name code' },
-      ]);
+      const populated = await questionDoc.populate(asReviewer ? REVIEW_POPULATE : CREATOR_POPULATE);
       updatedQuestions.push(decryptQuestion(populated));
     }
 
@@ -771,10 +758,7 @@ const createQuestion = async (req, res) => {
     };
     const question = await Question.create(questionData);
 
-    const populated = await question.populate([
-      { path: 'tag', select: 'name' },
-      { path: 'program', select: 'name code' },
-    ]);
+    const populated = await question.populate(CREATOR_POPULATE);
     await logAudit(req.user._id, 'question_created', 'Question', question._id, {
       programId: question.program,
       tagId: question.tag || null,
@@ -885,10 +869,7 @@ const saveQuestionEdit = async (req, res, { asReviewer = false } = {}) => {
     // Removed images are deleted only once the question has saved successfully
     await deleteUnreferencedImages(previousUrls.filter((url) => !nextUrls.includes(url)));
 
-    const populated = await question.populate(asReviewer ? REVIEW_POPULATE : [
-      { path: 'tag', select: 'name' },
-      { path: 'program', select: 'name code' },
-    ]);
+    const populated = await question.populate(asReviewer ? REVIEW_POPULATE : CREATOR_POPULATE);
     await logAudit(req.user._id, 'question_updated', 'Question', question._id, {
       programId: question.program,
       tagId: question.tag || null,
@@ -960,10 +941,7 @@ const submitQuestion = async (req, res) => {
     question.feedbackRead = false;
     await question.save();
 
-    const populated = await question.populate([
-      { path: 'tag', select: 'name' },
-      { path: 'program', select: 'name code' },
-    ]);
+    const populated = await question.populate(CREATOR_POPULATE);
     await logAudit(req.user._id, 'question_submitted', 'Question', question._id, {
       programId: question.program,
       tagId: question.tag || null,
@@ -1221,7 +1199,8 @@ const markQuestionRead = async (req, res) => {
     if (!question) return res.status(404).json({ message: 'Question not found' });
 
     question.feedbackRead = true;
-    await question.save();
+    // Seeing feedback is not a change to the question, so its Updated date stays
+    await question.save({ timestamps: false });
 
     res.json({ message: 'Marked as read', questionId: question._id });
   } catch (err) {

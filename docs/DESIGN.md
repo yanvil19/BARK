@@ -67,7 +67,7 @@ A status keeps its colour everywhere. Markers use the text, background and borde
 
 | Status | Text | Background | Border | Table tone |
 | --- | --- | --- | --- | --- |
-| Draft | | | | `hollow` |
+| Draft | `#475569` | `#F8FAFC` | `#CBD5E1` | `hollow` |
 | Pending | `#B45309` | `#FFFBEB` | `#FCD34D` | `amber` |
 | Returned | `#B91C1C` | `#FEF2F2` | `#FCA5A5` | `orange` |
 | Approved | `#15803D` | `#F0FDF4` | `#86EFAC` | `green` |
@@ -149,7 +149,9 @@ Use these for new work.
 
 ### Work queues
 
-A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions does this, with its media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
+A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions and My Questions do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
+
+Both pages share one layout: question cards under a legend on one side, and the open question in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches both pages, so check both.
 
 ## Shape, shadow and layers
 
@@ -187,6 +189,7 @@ Layers, lowest to highest:
 | Page numbers | `Pagination` | `maxPageButtons` shortens long lists |
 | More actions | `ActionMenu` | 32×32 button with three dots |
 | Delete or remove | `TrashButton` | Used for every delete and remove |
+| Question card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` to explain them |
 | Dialog | `Modal` | `size="compact"` for short ones; Escape or a click outside closes it |
 | Ask before acting | `ConfirmationModal` | `confirmVariant` is `danger` by default, or `primary` |
 | Message to acknowledge | `FeedbackModal` | `tone`: info, success, warning or danger |
@@ -251,7 +254,7 @@ Use `QuestionDetailPanels`. It stacks bordered sections in this order: Shared Pa
 ### Nesting
 
 - At most card → section.
-- The container around the questions has no box. Approve Questions is the one exception: its questions sit in a bordered scrolling section with a legend.
+- The container around the questions has no box. Approve Questions and My Questions are the exceptions: their questions sit in a bordered scrolling section with a legend.
 - A question inside an open set is not its own card.
 - Stacked question blocks in a form are split by a line, not boxed.
 - Drill-downs follow the same idea: person card → subject rows split by lines → question cards, with one item open at a time.
@@ -273,7 +276,7 @@ Navy gradient with a white title, as `Modal` provides. Don't restyle it per page
 
 ## Motion
 
-Approve Questions is the reference: see the Motion section at the end of `QuestionApprovals.css`.
+Approve Questions is the reference, and My Questions shares its animations: see the Motion section at the end of `QuestionApprovals.css`.
 
 | Moment | Motion | Duration |
 | --- | --- | --- |
@@ -308,7 +311,7 @@ Approve Questions is the reference: see the Motion section at the end of `Questi
 All page styles load together, so every class is global, and a rule in one page's file can affect another page. For example, `.ca-bulk-toolbar` is styled in both `CreateExams.css` and `QuestionApprovals.css`.
 
 - Prefix a page's classes, and scope its rules under its root class, such as `.ca-page .ca-btn`.
-- Existing prefixes include `ca-` (Approve Questions), `qp-` (My Questions), `qf-` (question form and filters), `mbe-` (Create Exams), `ambe-` (Board Exams) and `ui-` (shared table and menu).
+- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions), `qp-` (the rest of My Questions), `qf-` (question form and filters), `mbe-` (Create Exams), `ambe-` (Board Exams) and `ui-` (shared table and menu).
 - Prefix keyframe names as well, because they're global too.
 - Name the properties in a transition rather than using `transition: all`.
 - Use a token instead of repeating its value.
@@ -320,15 +323,16 @@ These are places where the code doesn't yet match this guide. Fix them when work
 - **Faint text:** `#8B92BC` is used for readable text such as page subtitles, form hints and detail labels. It reaches 3.03:1 on white, 2.90:1 on `#F9FAFF` and 2.53:1 on the page background.
 - **Low contrast:** white on the modal danger button `#DE7A7D` is 2.92:1, and white on the warning toast `#D97706` is 3.19:1.
 - **Second palette:** `AvailableExams.css` and `AlumniAvailableExams.css` each define a different navy and yellow from the brand's (`--ae-navy` and `--aae-navy` `#1E2D6B`, `--ae-yellow` and `--aae-yellow` `#F5C518`).
-- **Returned status:** it's orange in tables but red in the Approve Questions markers.
+- **Returned status:** its table tone is orange, but its marker is red. No table shows this status today, so settle on one before a table needs it.
 - **Font weights:** many rules ask for Nunito 700 or weights of 800 and 900, which aren't loaded.
 - **Button radius:** buttons use 6, 8, 10 and 12px depending on the page.
 - **Breakpoints:** older styles also use 1100, 900, 860, 760, 720, 600 and 560px.
 - **`transition: all`:** still used in 36 rules.
 - **Reduced motion:** only `Table.css`, `BoardExams.css` and `QuestionApprovals.css` handle it. Toasts and other animated pages don't.
-- **Approve Questions:**
+- **Approve Questions and My Questions:**
     - List cards don't follow the card rules above: no number, no "N answers | N images", no ▾, no All/Single/Group filter.
     - Details and notes aren't in headed sections.
+- **Approve Questions:**
     - The warning modal is brown, uses an emoji and doesn't use `Modal`.
     - Bulk delete still uses `window.confirm`.
     - The image overlay doesn't close on Escape.

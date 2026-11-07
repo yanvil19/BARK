@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getImportLimits, importQuestionsFromFile } from '../../lib/importApi.js';
@@ -32,16 +31,20 @@ import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
-import Table from '../../components/Table.jsx';
 import Pagination from '../../components/Pagination.jsx';
-import ActionMenu from '../../components/ActionMenu.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import AuthImage from '../../components/AuthImage.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
+import { CardLegend, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
+import TrashButton, { TrashIcon } from '../../components/TrashButton.jsx';
+import { useToast } from '../../components/Toast.jsx';
+// The list, panel and motion are the same as Approve Questions, so they share its styles
+import '../../styles/shared/QuestionApprovals.css';
 import '../../styles/shared/MyQuestions.css';
 import PageHeader from '../../components/PageHeader.jsx';
+import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -49,16 +52,17 @@ const BASE = import.meta.env.VITE_API_URL;
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
+const LEGEND_STATES = STATE_FILTERS.filter((state) => state !== 'all');
+const ITEMS_PER_PAGE = 10;
 
-// Dot tone for the table status cell (.ui-table-status in Table.css)
-const QUESTION_STATUS_TONES = {
-  draft: 'hollow',
-  pending_chair: 'amber',
-  returned: 'orange',
-  approved: 'green',
-  rejected: 'red',
-  restored: 'violet',
-};
+// A set is one item in the list and the panel, so both find it by its groupId
+function getItemKey(question) {
+  return question.groupId || question._id;
+}
+
+function formatProgramLabel(program) {
+  return program?.name || program?.code || 'N/A';
+}
 
 function formatResetTime(isoDateStr) {
   if (!isoDateStr) return '';
@@ -90,29 +94,8 @@ function formatCountdown(seconds) {
   return parts.join(' ');
 }
 
-function formatDate(iso) {
-  if (!iso) return '-';
-  return new Date(iso).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function truncateText(text, max = 80) {
-  if (!text) return '';
-
-  const clean = text
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return clean.length > max
-    ? `${clean.slice(0, max)}...`
-    : clean;
-}
-
 export default function MyQuestions({ role, programId, programLabel, programs = [], onProgramChange, me }) {
+  const { notify } = useToast();
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -122,12 +105,11 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [loading, setLoading] = useState(true);
   const [editQuestion, setEditQuestion] = useState(null);
   const [editGroupQuestions, setEditGroupQuestions] = useState(null);
-  const [viewQuestion, setViewQuestion] = useState(null);
-  const [viewGroupQuestions, setViewGroupQuestions] = useState(null);
-  // View modal: the question shown from a set, and the image opened full size
-  const [viewGroupIdx, setViewGroupIdx] = useState(0);
-  const [viewImage, setViewImage] = useState(null);
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  // The panel: the open question or set, the question shown from a set, and the image opened full size
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
   // Import-related state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importedQuestions, setImportedQuestions] = useState([]);
@@ -148,7 +130,6 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const fileInputRef = useRef(null);
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [questionToSubmit, setQuestionToSubmit] = useState(null);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState(null);
@@ -156,13 +137,39 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [pendingDeanAction, setPendingDeanAction] = useState('create');
   const [pendingProgramId, setPendingProgramId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [hasImportDraft, setHasImportDraft] = useState(false);
   const [isRestoringImportDraft, setIsRestoringImportDraft] = useState(false);
   const [maxImages, setMaxImages] = useState(5);
   const [maxAnswerImages, setMaxAnswerImages] = useState(5);
   const [maxGroupContextImages, setMaxGroupContextImages] = useState(5);
-  const itemsPerPage = 10;
+
+  // The list scrolls on its own: each page or filter starts at the top...
+  const listScrollRef = useRef(null);
+  useEffect(() => {
+    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
+  }, [currentPage, filter, searchQuery, subjectFilter, sortBy, programId]);
+
+  // ...and the open question's card stays in view when the columns change
+  useEffect(() => {
+    listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+  }, [selectedKey, currentPage, isSidebarExpanded]);
+
+  // Windows too short to fit the page scroll it, which can leave the panel partly off screen
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (!selectedKey) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panelRef.current?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [selectedKey]);
+
+  useEffect(() => {
+    if (!fullscreenImage) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setFullscreenImage(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [fullscreenImage]);
 
   const fetchLimits = useCallback(async () => {
     try {
@@ -184,16 +191,16 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const programParam = programId ? `&programId=${encodeURIComponent(programId)}` : '';
-      const data = await apiAuth(`${BASE}/api/questions?page=${encodeURIComponent(currentPage)}&limit=${encodeURIComponent(itemsPerPage)}${programParam}`);
+      const programParam = programId ? `?programId=${encodeURIComponent(programId)}` : '';
+      const data = await apiAuth(`${BASE}/api/questions${programParam}`);
       setQuestions(data.questions || []);
-      setTotalItems(typeof data.totalItems === 'number' ? Math.max(0, data.totalItems) : 0);
     } catch (err) {
       console.error('Failed to load questions:', err);
+      notify(err.message || 'Your questions could not be loaded. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, programId]);
+  }, [notify, programId]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -322,6 +329,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
 
       const content = [
         q.description,
+        q.groupContext,
         q.tag?.name,
         q.program?.name,
         q.program?.code,
@@ -371,171 +379,75 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     return finalQuestions;
   }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
 
-  function getQuestionActions(question) {
-    const isDraftOrReturned = question.state === 'draft' || question.state === 'returned';
-    const isGrouped = !!question.groupId;
-    const items = [];
-
-    items.push({
-      key: 'view',
-      label: 'View Details',
-      onClick: () => openViewModal(question),
+  // What each set contains, across the whole list so a search can't shrink it
+  const setInfo = useMemo(() => {
+    const info = new Map();
+    baseQuestions.forEach((q) => {
+      if (!q.groupId) return;
+      const entry = info.get(q.groupId) || { size: 0, usedInExam: false };
+      entry.size += 1;
+      entry.usedInExam = entry.usedInExam || !!q.is_used_in_exam;
+      info.set(q.groupId, entry);
     });
+    return info;
+  }, [baseQuestions]);
 
-    if (isDraftOrReturned) {
-      items.push({
-        key: 'edit',
-        label: isGrouped ? 'Edit Question Set' : 'Edit Question',
-        onClick: () => openEditModal(question),
-      });
-    }
-
-    if (question.state === 'draft' || question.state === 'returned' || question.state === 'rejected') {
-      items.push({
-        key: 'delete',
-        label: isGrouped ? 'Delete Question Set' : 'Delete Question',
-        danger: true,
-        onClick: () => {
-          if (isGrouped) {
-            setQuestionToDelete({ ...question, isGroupAction: true });
-          } else {
-            handleDelete(question);
-          }
-        },
-      });
-    }
-
-    return items;
-  }
-
-  // A question set shows as one row (its first member); remember each set's size for the badge
-  const { tableRows, groupSizes } = useMemo(() => {
-    const sizes = new Map();
-    const rows = [];
-    filteredQuestions.forEach((q) => {
-      if (!q.groupId) {
-        rows.push(q);
-        return;
-      }
-      if (!sizes.has(q.groupId)) rows.push(q);
-      sizes.set(q.groupId, (sizes.get(q.groupId) || 0) + 1);
+  // A set shows as one card
+  const displayQuestions = useMemo(() => {
+    const seen = new Set();
+    return filteredQuestions.filter((q) => {
+      if (!q.groupId) return true;
+      if (seen.has(q.groupId)) return false;
+      seen.add(q.groupId);
+      return true;
     });
-    return { tableRows: rows, groupSizes: sizes };
   }, [filteredQuestions]);
 
-  const questionColumns = [
-    {
-      key: 'question',
-      label: 'Question',
-      width: '320px',
-      className: 'ui-table-cell-lead',
-      render: (question) => (
-        <>
-          <div className="qp-question-text">
-            {question.groupId ? (
-              <>
-                <strong><SafeHtml html={truncateHtml(question.groupContext?.trim() || 'Question Set', 100)} /></strong>
-                <span className="qp-badge qp-badge--group" title="Fixed Question Group">
-                  Set ({groupSizes.get(question.groupId)} questions)
-                </span>
-              </>
-            ) : (
-              <SafeHtml html={truncateHtml(question.description, 120)} />
-            )}
-          </div>
+  const totalPages = Math.ceil(displayQuestions.length / ITEMS_PER_PAGE) || 1;
+  const paginatedQuestions = displayQuestions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-          {question.state === 'returned' && question.revisionNote ? (
-            <div className="qp-note qp-note--returned">
-              <strong>Revision Note:</strong> {question.revisionNote}
-            </div>
-          ) : null}
+  // Deleted or submitted questions can leave the list, which can empty the last page
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
-          {question.state === 'rejected' && question.rejectionReason ? (
-            <div className="qp-note qp-note--rejected">
-              <strong>Rejected:</strong> {question.rejectionReason}
-            </div>
-          ) : null}
-        </>
-      ),
-    },
-    {
-      key: 'subject',
-      label: 'Subject',
-      render: (question) => (
-        question.tag?.name ? (
-          <span className="qp-badge qp-badge--subject">{question.tag.name}</span>
-        ) : (
-          <span className="qp-none">(none)</span>
-        )
-      ),
-    },
-    ...(role === 'dean' ? [{
-      key: 'program',
-      label: 'Program',
-      render: (question) => (
-        question.program?.code || question.program?.name ? (
-          <span className="qp-badge qp-badge--program">
-            {question.program?.code || question.program?.name}
-          </span>
-        ) : (
-          <span className="qp-none">(none)</span>
-        )
-      ),
-    }] : []),
-    {
-      key: 'status',
-      label: 'Status',
-      render: (question) => (
-        <span className={`ui-table-status ui-table-status--${QUESTION_STATUS_TONES[question.state] || 'default'}`}>
-          {getStatusLabel(question.state)}
-        </span>
-      ),
-    },
-    {
-      key: 'updated',
-      label: 'Updated',
-      render: (question) => <span className="qp-cell-soft">{formatDate(question.updatedAt || question.createdAt)}</span>,
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (question) => {
-        const isGrouped = !!question.groupId;
-        const canSubmit = question.state === 'draft' || question.state === 'returned';
-        // When the row button is already "View Details", don't repeat it in the menu;
-        // hide the menu entirely if nothing else is left.
-        const menuItems = getQuestionActions(question).filter((item) => canSubmit || item.key !== 'view');
-        return (
-          <div className="ui-table-actions">
-            {canSubmit ? (
-              <button
-                type="button"
-                className="ui-table-btn ui-table-btn--success"
-                onClick={() => handleSubmit(question, isGrouped)}
-              >
-                {question.state === 'returned' ? 'Re-submit' : 'Submit'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="ui-table-btn ui-table-btn--secondary ui-table-btn--view"
-                onClick={() => openViewModal(question)}
-              >
-                View Details
-              </button>
-            )}
+  // Every count is in questions, like the status pills; a set is one list item but several questions
+  const listedQuestionCount = displayQuestions.reduce((sum, q) => sum + (q.groupId ? setInfo.get(q.groupId)?.size || 1 : 1), 0);
+  const isListPlural = displayQuestions.length !== 1;
+  const listItemLabel = listedQuestionCount === displayQuestions.length
+    ? (isListPlural ? 'questions' : 'question')
+    : `${isListPlural ? 'items' : 'item'} (${formatCount(listedQuestionCount, 'question')})`;
 
-            {menuItems.length > 0 && (
-              <ActionMenu
-                items={menuItems}
-                ariaLabel="More actions"
-              />
-            )}
-          </div>
-        );
-      },
-    },
-  ];
+  let emptyMessage = 'No questions found.';
+  if (!searchQuery.trim() && !subjectFilter) {
+    emptyMessage = filter === 'all'
+      ? 'No questions found. Create your first one!'
+      : `No ${getStatusLabel(filter)} questions found.`;
+  }
+
+  // The panel reads from the list, so a save, submit or delete shows there straight away
+  const selectedMembers = useMemo(() => (
+    selectedKey
+      ? baseQuestions
+        .filter((q) => getItemKey(q) === selectedKey)
+        .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0))
+      : []
+  ), [baseQuestions, selectedKey]);
+  const selectedQuestion = selectedMembers[0] || null;
+  const currentIdx = Math.min(activeGroupIdx, Math.max(selectedMembers.length - 1, 0));
+  const currentQuestion = selectedMembers[currentIdx] || null;
+  const isSelectedSet = !!selectedQuestion?.groupId;
+  const canEditSelected = selectedQuestion?.state === 'draft' || selectedQuestion?.state === 'returned';
+  const selectedNoun = isSelectedSet ? 'question set' : 'question';
+
+  function handleSelectQuestion(question) {
+    const key = getItemKey(question);
+    if (key === selectedKey) return;
+    setSelectedKey(key);
+    setActiveGroupIdx(0);
+    // A set shares one note, so opening it reads the note for all of its questions
+    markQuestionsAsRead(baseQuestions.filter((q) => getItemKey(q) === key));
+  }
 
   function closeFormModal() {
     setShowForm(false);
@@ -543,17 +455,6 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     setEditGroupQuestions(null);
     setImportedQuestions([]);
     setIsRestoringImportDraft(false);
-  }
-
-  function closeViewModal() {
-    // Escape closes an open image before the modal
-    if (viewImage) {
-      setViewImage(null);
-      return;
-    }
-    setShowViewModal(false);
-    setViewQuestion(null);
-    setViewGroupQuestions(null);
   }
 
   function closeDeleteModal() {
@@ -596,18 +497,18 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     setPendingProgramId('');
   }
 
-  function markQuestionAsRead(question) {
-    if (!question?._id) return;
-    if ((question.state === 'returned' || question.state === 'rejected') && !question.feedbackRead) {
-      apiAuth(`${BASE}/api/questions/${question._id}/mark-read`, { method: 'PATCH' })
-        .then(() => {
-          setQuestions((prev) =>
-            prev.map((q) => (q._id === question._id ? { ...q, feedbackRead: true } : q))
-          );
-          window.dispatchEvent(new CustomEvent('badge-counts-updated'));
-        })
-        .catch(() => { });
-    }
+  function markQuestionsAsRead(list) {
+    const unread = list.filter((q) => (q.state === 'returned' || q.state === 'rejected') && !q.feedbackRead);
+    if (unread.length === 0) return;
+    Promise.all(unread.map((q) => (
+      apiAuth(`${BASE}/api/questions/${q._id}/mark-read`, { method: 'PATCH' })
+        .then(() => q._id)
+        .catch(() => null)
+    ))).then((ids) => {
+      const readIds = new Set(ids.filter(Boolean));
+      setQuestions((prev) => prev.map((q) => (readIds.has(q._id) ? { ...q, feedbackRead: true } : q)));
+      window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+    });
   }
 
   function openEditModal(question) {
@@ -634,45 +535,23 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       setEditGroupQuestions(null);
       setShowForm(true);
     }
-    markQuestionAsRead(question);
-  }
-
-  function openViewModal(question) {
-    setViewGroupIdx(0);
-    setViewImage(null);
-    if (question?.groupId) {
-      const siblings = questions
-        .filter((q) => q.groupId === question.groupId)
-        .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
-
-      setViewQuestion(question);
-      setViewGroupQuestions(siblings.length > 0 ? siblings : [question]);
-      setShowViewModal(true);
-
-      apiAuth(`${BASE}/api/questions/group/${question.groupId}`)
-        .then((res) => {
-          if (Array.isArray(res?.questions) && res.questions.length > 0) {
-            setViewGroupQuestions(res.questions);
-          }
-        })
-        .catch(() => { });
-    } else {
-      setViewQuestion(question);
-      setViewGroupQuestions(null);
-      setShowViewModal(true);
-    }
-    markQuestionAsRead(question);
   }
 
   // Puts saved questions into the list: replaces the ones already shown and adds new ones on top
   function mergeSavedQuestions(savedData, isEdit) {
+    // Anything new lands at the top of the list, so show it there
+    if (!isEdit) setCurrentPage(1);
+
     if (Array.isArray(savedData)) {
       if (savedData.length > 0 && savedData[0].groupId) {
-        // Group saved/updated: update existing members or append new
+        // Group saved/updated: update existing members, drop removed ones, and add new ones
+        const { groupId } = savedData[0];
         const savedIds = new Set(savedData.map((q) => q._id));
         const savedMap = new Map(savedData.map((q) => [q._id, q]));
         setQuestions((prev) => {
-          const updated = prev.map((q) => (savedIds.has(q._id) ? savedMap.get(q._id) : q));
+          const updated = prev
+            .filter((q) => q.groupId !== groupId || savedIds.has(q._id))
+            .map((q) => (savedIds.has(q._id) ? savedMap.get(q._id) : q));
           const existingIds = new Set(prev.map((q) => q._id));
           const newlyCreated = savedData.filter((q) => !existingIds.has(q._id));
           return [...newlyCreated, ...updated];
@@ -697,7 +576,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   }
 
   function handleDelete(question) {
-    setQuestionToDelete(question);
+    setQuestionToDelete(question.groupId ? { ...question, isGroupAction: true } : question);
   }
 
   async function confirmDelete() {
@@ -710,6 +589,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         await apiAuth(`${BASE}/api/questions/${questionToDelete._id}`, { method: 'DELETE' });
         setQuestions((prev) => prev.filter((item) => item._id !== questionToDelete._id));
       }
+      notify(questionToDelete.isGroupAction ? 'Question set deleted.' : 'Question deleted.', { variant: 'success' });
+      setSelectedKey(null);
       closeDeleteModal();
       window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
@@ -739,6 +620,9 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         const data = await apiAuth(`${BASE}/api/questions/${questionToSubmit._id}/submit`, { method: 'POST' });
         setQuestions((prev) => prev.map((item) => (item._id === questionToSubmit._id ? data.question : item)));
       }
+      notify(`${questionToSubmit.isGroupAction ? 'Question set' : 'Question'} submitted for review.`, { variant: 'success' });
+      // It has left a Draft or Returned view, so the panel goes with it
+      if (filter !== 'all' && filter !== 'pending_chair') setSelectedKey(null);
       setQuestionToSubmit(null);
       window.dispatchEvent(new CustomEvent('badge-counts-updated'));
     } catch (err) {
@@ -847,7 +731,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   }
 
   return (
-    <main className="qp-page page-shell">
+    <main className="my-questions-page ca-page page-shell">
       <PageHeader
         title={getPageTitle()}
         subtitle={getPageSubtitle()}
@@ -881,7 +765,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       </PageHeader>
 
       <CapsuleFilters
-        className="qp-state-pills"
+        className="ca-state-pills"
         ariaLabel="Filter questions by status"
         options={STATE_FILTERS.map((state) => ({
           value: state,
@@ -893,7 +777,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       />
 
       <QuestionFilters
-        className="qp-filters-wrapper"
+        className="ca-filters-wrapper"
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search question"
@@ -916,28 +800,212 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
       ) : null}
 
-      <Table
-        className="qp-questions-table"
-        columns={questionColumns}
-        data={tableRows}
-        keyField="_id"
-        loading={loading}
-        emptyMessage={filter === 'all'
-          ? 'No questions found. Create your first one!'
-          : `No ${getStatusLabel(filter)} questions found.`}
-      />
+      <div className={`ca-layout ${selectedQuestion && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
+        <section className="ca-list-panel" aria-label="Questions">
+          <CardLegend states={LEGEND_STATES} />
 
-      {!loading && totalItems > 0 && (
-        <div className="ui-table-footer">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            pageSize={itemsPerPage}
-            onPageChange={setCurrentPage}
-            itemLabel="questions"
-          />
-        </div>
-      )}
+          <div className="ca-list-scroll" ref={listScrollRef}>
+            {loading ? (
+              <div className="ca-empty">Loading questions...</div>
+            ) : displayQuestions.length === 0 ? (
+              <div className="ca-empty">{emptyMessage}</div>
+            ) : (
+              /* Keyed so the cards animate in for each new view, but not while typing a search */
+              <div
+                className="ca-questions-list"
+                key={[filter, subjectFilter, programId, sortBy, currentPage].join('|')}
+              >
+                {paginatedQuestions.map((question, cardIndex) => {
+                  const isGrouped = !!question.groupId;
+                  const set = isGrouped ? setInfo.get(question.groupId) : null;
+                  const isUsedInExam = question.state === 'approved' && (isGrouped ? set?.usedInExam : question.is_used_in_exam);
+                  const updatedAt = question.updatedAt || question.createdAt;
+
+                  return (
+                    <div
+                      key={getItemKey(question)}
+                      className={`${isGrouped ? 'ca-group-header-card' : 'ca-question-card'} ${getItemKey(question) === selectedKey ? 'is-active' : ''}`}
+                      style={{ '--card-index': cardIndex }}
+                      onClick={() => handleSelectQuestion(question)}
+                    >
+                      <div className="ca-card-top">
+                        {/* Its click bubbles up to the card, so keyboard users can open the card too */}
+                        <button type="button" className="ca-card-open">
+                          <span className={`ca-card-desc ${isGrouped ? 'ca-card-desc--set' : ''}`}>
+                            {isGrouped
+                              ? (question.groupContext?.trim() ? <SafeHtml html={truncateHtml(question.groupContext.trim(), 80)} /> : 'Question Set')
+                              : <SafeHtml html={truncateHtml(question.description, 100)} />}
+                          </span>
+                        </button>
+                        <div className="ca-card-markers">
+                          {isGrouped && (
+                            <Marker className="ca-marker--count" label={formatCount(set?.size, 'question')}>{set?.size}</Marker>
+                          )}
+                          {isUsedInExam && (
+                            <Marker className="ca-marker--used" label="Used in exam">{USED_IN_EXAM_ICON}</Marker>
+                          )}
+                          <StateMarker state={question.state} />
+                        </div>
+                      </div>
+                      <div className="ca-card-meta">
+                        {role === 'dean' && <span className="ca-program-pill">{formatProgramLabel(question.program)}</span>}
+                        <span className="ca-tag-pill">{question.tag?.name || 'No subject'}</span>
+                        <span className="ca-card-meta-datetime">
+                          <span className="ca-date">{formatDate(updatedAt)}</span>
+                          <span className="ca-time">{formatTime(updatedAt)}</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {!loading && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={displayQuestions.length}
+              pageSize={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              itemLabel={listItemLabel}
+              classPrefix="ca"
+              maxPageButtons={5}
+            />
+          )}
+        </section>
+
+        {selectedQuestion ? (
+          <div className="ca-sidebar" ref={panelRef}>
+            <div className="ca-sidebar-header">
+              <h2 className="ca-sidebar-title">
+                {isSelectedSet ? `Question Set (${selectedMembers.length} Questions)` : 'Question Details'}
+              </h2>
+              <div className="ca-sidebar-header-actions">
+                <button
+                  type="button"
+                  className="ca-sidebar-expand-btn"
+                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                  title={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+                  aria-label={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+                >
+                  {isSidebarExpanded ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 14h6v6" />
+                      <path d="M20 10h-6V4" />
+                      <path d="M14 10l7-7" />
+                      <path d="M10 14l-7 7" />
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M15 3h6v6" />
+                      <path d="M9 21H3v-6" />
+                      <path d="M21 3l-7 7" />
+                      <path d="M3 21l7-7" />
+                    </svg>
+                  )}
+                </button>
+                <button type="button" className="ca-sidebar-close" aria-label="Close question details" onClick={() => setSelectedKey(null)}>x</button>
+              </div>
+            </div>
+
+            {/* Keyed so each question starts scrolled to the top */}
+            <div className="ca-sidebar-content" key={selectedKey}>
+              {/* First, since it says what to fix before the question is read again */}
+              {selectedQuestion.state === 'returned' && (currentQuestion.revisionNote || selectedQuestion.revisionNote) && (
+                <section className="ca-section ca-section--note">
+                  <h3 className="ca-section-label">Revision Note</h3>
+                  <p className="ca-note-text">{currentQuestion.revisionNote || selectedQuestion.revisionNote}</p>
+                </section>
+              )}
+
+              {selectedQuestion.state === 'rejected' && (currentQuestion.rejectionReason || selectedQuestion.rejectionReason) && (
+                <section className="ca-section ca-section--note">
+                  <h3 className="ca-section-label">Rejection Reason</h3>
+                  <p className="ca-note-text">{currentQuestion.rejectionReason || selectedQuestion.rejectionReason}</p>
+                </section>
+              )}
+
+              {selectedMembers.length > 1 && (
+                <ImportReviewBubbles
+                  questions={selectedMembers}
+                  currentIdx={currentIdx}
+                  onSelectQuestion={setActiveGroupIdx}
+                  readOnly
+                  allInOneSet
+                />
+              )}
+
+              {/* Keyed here and below so moving between a set's questions fades them in */}
+              <QuestionDetailPanels
+                key={currentQuestion._id}
+                question={organizeQuestionAnswers(currentQuestion)}
+                passage={isSelectedSet ? (currentQuestion.groupContext || '').trim() : ''}
+                passageImages={isSelectedSet ? currentQuestion.groupContextImages || [] : []}
+                onZoom={setFullscreenImage}
+              />
+
+              <section className="ca-section ca-review-metadata" key={`details-${currentQuestion._id}`}>
+                <div className="ca-meta-grid">
+                  <div>
+                    <span className="ca-meta-label">Subject</span>
+                    <div className="ca-meta-value">{currentQuestion.tag?.name || 'No subject'}</div>
+                  </div>
+                  <div>
+                    <span className="ca-meta-label">Program</span>
+                    <div className="ca-meta-value">{formatProgramLabel(currentQuestion.program)}</div>
+                  </div>
+                  <div>
+                    <span className="ca-meta-label">Status</span>
+                    <div className="ca-meta-value">{getStatusLabel(currentQuestion.state)}</div>
+                  </div>
+                  <div>
+                    <span className="ca-meta-label">Submitted</span>
+                    <div className="ca-meta-value">{currentQuestion.submittedAt ? formatDateTime(currentQuestion.submittedAt) : 'Not submitted'}</div>
+                  </div>
+                  <div>
+                    <span className="ca-meta-label">Last Edited By</span>
+                    <div className="ca-meta-value">
+                      {currentQuestion.lastEditedAt ? (currentQuestion.lastEditedBy?.name || 'Unknown') : 'Not edited'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="ca-meta-label">Last Edited</span>
+                    <div className="ca-meta-value">{formatDateTime(currentQuestion.lastEditedAt)}</div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="ca-sidebar-actions">
+              {canEditSelected ? (
+                <>
+                  <button type="button" className="ca-btn ca-btn--edit" onClick={() => openEditModal(currentQuestion)}>Edit</button>
+                  <button
+                    type="button"
+                    className="ca-btn ca-btn--approve"
+                    onClick={() => handleSubmit(selectedQuestion, isSelectedSet)}
+                  >
+                    {selectedQuestion.state === 'returned' ? 'Re-submit' : 'Submit'}
+                  </button>
+                  <TrashButton label={`Delete ${selectedNoun}`} onClick={() => handleDelete(selectedQuestion)} />
+                </>
+              ) : selectedQuestion.state === 'rejected' ? (
+                <button type="button" className="ca-btn ca-btn--reject qp-delete-btn" onClick={() => handleDelete(selectedQuestion)}>
+                  <TrashIcon />
+                  {isSelectedSet ? 'Delete Question Set' : 'Delete Question'}
+                </button>
+              ) : (
+                <p className="ca-no-actions">No actions available for this {selectedNoun}.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="ca-sidebar ca-sidebar--empty">
+            <p>Select a question to view details</p>
+          </div>
+        )}
+      </div>
 
       <Modal
         open={showForm}
@@ -983,83 +1051,19 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         />
       </Modal>
 
-      <Modal
-        open={showViewModal}
-        onClose={closeViewModal}
-        title={viewGroupQuestions ? 'View Question Set' : 'View Question'}
-      >
-        <div className="qp-modal-copy">
-          <p className="qp-modal-subtitle">
-            {viewGroupQuestions
-              ? `Review details of all ${viewGroupQuestions.length} questions in this question set. This view is read-only.`
-              : 'Review the details of your submitted question. This view is read-only.'}
-          </p>
-          {programLabel ? <span className="qp-modal-program-chip">{programLabel}</span> : null}
-        </div>
-
-        {viewQuestion && (() => {
-          const members = viewGroupQuestions || [viewQuestion];
-          const activeIdx = Math.min(viewGroupIdx, members.length - 1);
-          const activeQuestion = organizeQuestionAnswers(members[activeIdx]);
-
-          return (
-            <div className="qp-view">
-              {/* One numbered bubble per question in the set */}
-              {members.length > 1 && (
-                <ImportReviewBubbles
-                  questions={members}
-                  currentIdx={activeIdx}
-                  onSelectQuestion={setViewGroupIdx}
-                  readOnly
-                  allInOneSet
-                />
-              )}
-
-              <div className="qp-view-meta">
-                <span className="qp-badge qp-badge--subject">{activeQuestion.tag?.name || 'No subject'}</span>
-                <span className="qp-view-meta-text">
-                  {formatCount(activeQuestion.answers.length, 'answer')} | {formatCount(activeQuestion.images?.length, 'image')}
-                </span>
-              </div>
-
-              <QuestionDetailPanels
-                question={activeQuestion}
-                passage={viewGroupQuestions ? (activeQuestion.groupContext || '').trim() : ''}
-                passageImages={viewGroupQuestions ? activeQuestion.groupContextImages || [] : []}
-                onZoom={setViewImage}
-              />
-            </div>
-          );
-        })()}
-
-        <div className="modal-actions qp-view-actions">
-          <button type="button" className="modal-btn-cancel" onClick={closeViewModal}>
-            Close
-          </button>
-        </div>
-      </Modal>
-
-      {viewImage && createPortal(
+      {fullscreenImage && (
         <div
-          className="qp-image-overlay"
+          className="ca-image-overlay"
           role="dialog"
           aria-modal="true"
           aria-label="Image preview"
-          onClick={() => setViewImage(null)}
+          onClick={() => setFullscreenImage(null)}
         >
-          <div className="qp-image-modal" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              className="qp-image-close"
-              onClick={() => setViewImage(null)}
-              aria-label="Close image preview"
-            >
-              Close
-            </button>
-            <AuthImage src={viewImage} alt="Preview" className="qp-image-full" />
+          <div className="ca-image-modal" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="ca-image-close" onClick={() => setFullscreenImage(null)}>Close</button>
+            <AuthImage src={fullscreenImage} alt="Question preview" className="ca-image-full" />
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       <ConfirmationModal

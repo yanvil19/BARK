@@ -451,6 +451,12 @@
   border: 1px solid #93c5fd;
 }
 
+.ca-state--draft {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
 .ca-state--pending_chair {
   background: #fffbeb;
   color: #b45309;
