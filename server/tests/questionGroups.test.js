@@ -221,3 +221,152 @@ describe('question groups have one subject', () => {
   });
 });
 
+describe('review actions apply to the whole question set', () => {
+  let chairCookie, groupId, setIds;
+
+  const setAllStates = (state) => Question.updateMany({ groupId }, { $set: { state } });
+  const statesInSet = async () => (await Question.find({ groupId })).map((q) => q.state);
+  const standalone = (state) => Question.create({
+    description: 'A question on its own',
+    rationalization: 'Because.',
+    answers: fullAnswers(),
+    program: prog._id,
+    createdBy: prof._id,
+    tag: tagA._id,
+    state,
+  });
+
+  beforeEach(async () => {
+    ({ cookieHeader: chairCookie } = await createUserAndToken({
+      role: 'program_chair', department: prog.department, program: prog._id,
+    }));
+
+    const created = await request(app)
+      .post('/api/questions/group')
+      .set('Cookie', profCookie)
+      .send({ questions: [member(tagA._id), member(tagA._id), member(tagA._id)], groupContext: 'Passage' });
+    groupId = created.body.groupId;
+    setIds = created.body.questions.map((q) => q._id);
+  });
+
+  it('approves every question in the set through one request', async () => {
+    await setAllStates('pending_chair');
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[1]}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'approve' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.groupQuestions).toHaveLength(3);
+    expect(await statesInSet()).toEqual(['approved', 'approved', 'approved']);
+  });
+
+  it('deletes every question in a rejected set through one request', async () => {
+    await setAllStates('rejected');
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[0]}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deletedIds.sort()).toEqual([...setIds].sort());
+    expect(await Question.countDocuments({ groupId })).toBe(0);
+  });
+
+  it('leaves other questions alone when deleting a set', async () => {
+    await setAllStates('rejected');
+    const other = await standalone('rejected');
+
+    await request(app)
+      .post(`/api/questions/${setIds[0]}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(await Question.exists({ _id: other._id })).toBeTruthy();
+  });
+
+  it('does not delete a question of the set that is in another state', async () => {
+    await setAllStates('rejected');
+    await Question.updateOne({ _id: setIds[2] }, { $set: { state: 'approved' } });
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[0]}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deletedIds).toHaveLength(2);
+    expect(await statesInSet()).toEqual(['approved']);
+  });
+
+  it('deletes nothing when a rejected question of the set is used in an exam', async () => {
+    await setAllStates('rejected');
+    await Question.updateOne({ _id: setIds[2] }, { $set: { is_used_in_exam: true } });
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[0]}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(400);
+    expect(await Question.countDocuments({ groupId })).toBe(3);
+  });
+
+  it('still deletes a single question on its own', async () => {
+    const single = await standalone('rejected');
+
+    const res = await request(app)
+      .post(`/api/questions/${single._id}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deletedIds).toEqual([String(single._id)]);
+    expect(await Question.exists({ _id: single._id })).toBeNull();
+  });
+
+  it('returns every question in an approved set to its creator', async () => {
+    await setAllStates('approved');
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[0]}/dean-return`)
+      .set('Cookie', chairCookie)
+      .send({ note: 'Please revise the passage' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.groupQuestions).toHaveLength(3);
+    expect(res.body.groupQuestions.every((q) => q.state === 'returned')).toBe(true);
+
+    const saved = await Question.find({ groupId });
+    expect(saved.every((q) => q.state === 'returned' && q.revisionNote === 'Please revise the passage')).toBe(true);
+  });
+
+  it('returns nothing when any question of the set is used in an exam', async () => {
+    await setAllStates('approved');
+    await Question.updateOne({ _id: setIds[2] }, { $set: { is_used_in_exam: true } });
+
+    const res = await request(app)
+      .post(`/api/questions/${setIds[0]}/dean-return`)
+      .set('Cookie', chairCookie)
+      .send({ note: 'Please revise the passage' });
+
+    expect(res.status).toBe(400);
+    expect(await statesInSet()).toEqual(['approved', 'approved', 'approved']);
+  });
+
+  it('still returns a single approved question on its own', async () => {
+    const single = await standalone('approved');
+
+    const res = await request(app)
+      .post(`/api/questions/${single._id}/dean-return`)
+      .set('Cookie', chairCookie)
+      .send({ note: 'Please revise this' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.question.state).toBe('returned');
+    expect(res.body.groupQuestions).toBeUndefined();
+  });
+});
+

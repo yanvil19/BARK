@@ -8,9 +8,11 @@ const {
   createQuestionGroup,
   getQuestionGroup,
   updateQuestionGroup,
+  reviewEditQuestionGroup,
   submitQuestionGroup,
   deleteQuestionGroup,
   updateQuestion,
+  reviewEditQuestion,
   deleteQuestion,
   submitQuestion,
   reviewQuestion,
@@ -55,9 +57,11 @@ router.post('/', protect, authorizeRoles(...FACULTY), createQuestion);
 router.post('/group', protect, authorizeRoles(...FACULTY), createQuestionGroup);
 router.get('/group/:groupId', protect, authorizeRoles(...FACULTY), getQuestionGroup);
 router.put('/group/:groupId', protect, authorizeRoles(...FACULTY), updateQuestionGroup);
+router.put('/group/:groupId/review-edit', protect, authorizeRoles('program_chair', 'dean'), reviewEditQuestionGroup);
 router.post('/group/:groupId/submit', protect, authorizeRoles(...FACULTY), submitQuestionGroup);
 router.delete('/group/:groupId', protect, authorizeRoles(...FACULTY), deleteQuestionGroup);
 router.patch('/:id', protect, authorizeRoles(...FACULTY), updateQuestion);
+router.patch('/:id/review-edit', protect, authorizeRoles('program_chair', 'dean'), reviewEditQuestion);
 router.patch('/:id/mark-read', protect, authorizeRoles(...FACULTY), markQuestionRead);
 router.delete('/:id', protect, authorizeRoles(...FACULTY), deleteQuestion);
 router.post('/:id/submit', protect, authorizeRoles(...FACULTY), submitQuestion);

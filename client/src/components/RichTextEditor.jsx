@@ -114,14 +114,15 @@ export default function RichTextEditor({
     const current = editor.getHTML();
     const normalizedCurrent = current === '<p></p>' ? '' : current;
     if (normalizedCurrent !== value) {
-      editor.commands.setContent(value || '', false);
+      // Loading text is not an edit, so the field keeps its value until someone types
+      editor.commands.setContent(value || '', { emitUpdate: false });
     }
   }, [value, editor]);
 
   // Toggle editable when disabled prop changes
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    editor.setEditable(!disabled);
+    editor.setEditable(!disabled, false);
   }, [disabled, editor]);
 
   // Hide virtual keyboard when RichTextEditor unmounts

@@ -112,6 +112,67 @@ function keepFilledAnswers(question, decrypted) {
 
 const LOCK_STALE_MS = 10 * 60 * 1000; // 10 minutes
 
+// States a Program Chair or Dean decides on, and can also edit
+const REVIEWABLE_STATES = ['pending_chair', 'restored'];
+
+// The fields the review page shows for a question
+const REVIEW_POPULATE = [
+  { path: 'tag', select: 'name' },
+  { path: 'program', select: 'name code' },
+  { path: 'createdBy', select: 'name' },
+  { path: 'lastEditedBy', select: 'name' },
+  { path: 'currentReviewer', select: 'name role' },
+];
+
+function isLockedByOther(question, userId) {
+  if (!question.currentReviewer || String(question.currentReviewer) === String(userId)) return false;
+  return Date.now() - new Date(question.reviewStartedAt).getTime() < LOCK_STALE_MS;
+}
+
+// Why this reviewer can't edit these questions right now: { status, message }, or null when they can
+async function getReviewEditError(user, questions) {
+  const programIds = await getAccessibleProgramIds(user);
+  if (questions.some((q) => !programIds.includes(String(q.program)))) {
+    return { status: 403, message: 'Question does not belong to your accessible programs' };
+  }
+  if (questions.some((q) => !REVIEWABLE_STATES.includes(q.state))) {
+    return { status: 409, message: 'This question is no longer waiting for review.' };
+  }
+  const locked = questions.find((q) => isLockedByOther(q, user._id));
+  if (locked) {
+    const reviewer = await User.findById(locked.currentReviewer).select('name');
+    return { status: 423, message: `${reviewer?.name || 'Another reviewer'} is reviewing this question. Try again when they finish.` };
+  }
+  return null;
+}
+
+// A question in review stays ready for a decision, so a reviewer's edit follows the
+// same rules as submitting it. Expects plain text and filled answers.
+function getSubmissionContentError({ description, tag, answers }) {
+  if (!description?.trim()) return 'Question text is required';
+  if (!tag) return 'A subject must be assigned';
+  return getAnswerSubmissionError(answers);
+}
+
+// A question's content, for telling whether an edit changed anything. Text is cleaned as
+// it is on saving, so an older question saved without that cleaning doesn't count as changed.
+function getContentKey(question) {
+  const q = decryptQuestion(question);
+  return JSON.stringify({
+    description: cleanQuestionHtml(q.description),
+    rationalization: cleanQuestionHtml(q.rationalization),
+    tag: String(q.tag || ''),
+    images: q.images || [],
+    answers: (q.answers || []).filter(isFilledAnswer).map(({ text, isCorrect, image }) => ({
+      text: cleanQuestionHtml(text),
+      isCorrect: !!isCorrect,
+      image: image || null,
+    })),
+    groupContext: cleanQuestionHtml(q.groupContext),
+    groupContextImages: q.groupContextImages || [],
+  });
+}
+
 // PATCH /api/questions/:id/lock
 const lockQuestion = async (req, res) => {
   try {
@@ -223,10 +284,7 @@ const listApprovals = async (req, res) => {
     }
 
     const questions = await Question.find(filter)
-      .populate('tag', 'name')
-      .populate('program', 'name code')
-      .populate('createdBy', 'name')
-      .populate('currentReviewer', 'name role')
+      .populate(REVIEW_POPULATE)
       .sort({ submittedAt: 1, updatedAt: 1 });
 
     res.json({ questions: questions.map(decryptQuestion) });
@@ -473,8 +531,9 @@ const deleteQuestionGroup = async (req, res) => {
   }
 };
 
-// PUT /api/questions/group/:groupId — update entire question group (reorder, edit text, choices, context)
-const updateQuestionGroup = async (req, res) => {
+// Saves an edit to a whole question group (reorder, edit text, choices, context).
+// The creator's edit pulls a submitted group back to draft; a reviewer's edit leaves it in review.
+const saveQuestionGroupEdit = async (req, res, { asReviewer = false } = {}) => {
   try {
     const { groupId } = req.params;
     const { questions: questionsPayload, groupContext, groupContextImages } = req.body;
@@ -483,15 +542,20 @@ const updateQuestionGroup = async (req, res) => {
       return res.status(400).json({ message: 'A question group must have at least 2 questions' });
     }
 
-    const existingQuestions = await Question.find({ groupId, createdBy: req.user._id });
+    const existingQuestions = await Question.find(asReviewer ? { groupId } : { groupId, createdBy: req.user._id });
     if (existingQuestions.length === 0) {
       return res.status(404).json({ message: 'Question group not found' });
     }
 
-    const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
-    for (const q of existingQuestions) {
-      if (!editableStates.includes(q.state)) {
-        return res.status(400).json({ message: 'Only draft, returned, pending, or restored question groups can be edited' });
+    if (asReviewer) {
+      const accessError = await getReviewEditError(req.user, existingQuestions);
+      if (accessError) return res.status(accessError.status).json({ message: accessError.message });
+    } else {
+      const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
+      for (const q of existingQuestions) {
+        if (!editableStates.includes(q.state)) {
+          return res.status(400).json({ message: 'Only draft, returned, pending, or restored question groups can be edited' });
+        }
       }
     }
 
@@ -518,6 +582,11 @@ const updateQuestionGroup = async (req, res) => {
       const member = { ...q, description, images: normalizeImagesInput(q.images), answers: normalizeAnswersInput(q.answers) };
       const limitError = getImageLimitError(member, settings, prefix);
       if (limitError) return res.status(400).json({ message: limitError });
+
+      if (asReviewer) {
+        const contentError = getSubmissionContentError({ description, tag: groupTagId, answers: member.answers });
+        if (contentError) return res.status(400).json({ message: `${prefix}${contentError}` });
+      }
 
       members.push(member);
     }
@@ -547,41 +616,26 @@ const updateQuestionGroup = async (req, res) => {
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
 
     const existingMap = new Map(existingQuestions.map(q => [String(q._id), q]));
-    const updatedQuestions = [];
+    const contentBefore = new Map(existingQuestions.map((q) => [String(q._id), getContentKey(q)]));
+    // A question a reviewer adds joins the set as it is: same author, still in review
+    const newMemberFields = asReviewer
+      ? { createdBy: existingQuestions[0].createdBy, state: existingQuestions[0].state, submittedAt: existingQuestions[0].submittedAt }
+      : { createdBy: req.user._id, state: 'draft' };
 
     // Update or create members
-    for (let i = 0; i < members.length; i++) {
-      const qData = members[i];
+    const memberDocs = members.map((qData, i) => {
       const qId = qData._id ? String(qData._id) : null;
-      let questionDoc = qId ? existingMap.get(qId) : null;
+      const questionDoc = qId ? existingMap.get(qId) : null;
 
-      if (questionDoc) {
-        questionDoc.description = encryptText(qData.description);
-        questionDoc.rationalization = encryptRationalization(qData.rationalization);
-        questionDoc.answers = encryptAnswers(qData.answers);
-        questionDoc.tag = groupTagId || null;
-        questionDoc.images = qData.images;
-        Object.assign(questionDoc, getImageFlagFields(qData));
-        questionDoc.groupOrder = i;
-        questionDoc.groupContext = encryptedGroupContext;
-        questionDoc.groupContextImages = passageImages;
-        if (questionDoc.state === 'pending_chair' || questionDoc.state === 'restored') {
-          questionDoc.state = 'draft';
-          questionDoc.currentReviewer = null;
-          questionDoc.reviewStartedAt = null;
-        }
-        await questionDoc.save();
-        existingMap.delete(qId);
-      } else {
-        questionDoc = await Question.create({
+      if (!questionDoc) {
+        return new Question({
           description: encryptText(qData.description),
           images: qData.images,
           answers: encryptAnswers(qData.answers),
           rationalization: encryptRationalization(qData.rationalization),
           tag: groupTagId || null,
           program: programId,
-          createdBy: req.user._id,
-          state: 'draft',
+          ...newMemberFields,
           ...getImageFlagFields(qData),
           groupId,
           groupOrder: i,
@@ -590,15 +644,47 @@ const updateQuestionGroup = async (req, res) => {
         });
       }
 
-      const populated = await questionDoc.populate([
+      questionDoc.description = encryptText(qData.description);
+      questionDoc.rationalization = encryptRationalization(qData.rationalization);
+      questionDoc.answers = encryptAnswers(qData.answers);
+      questionDoc.tag = groupTagId || null;
+      questionDoc.images = qData.images;
+      Object.assign(questionDoc, getImageFlagFields(qData));
+      questionDoc.groupOrder = i;
+      questionDoc.groupContext = encryptedGroupContext;
+      questionDoc.groupContextImages = passageImages;
+      if (!asReviewer && REVIEWABLE_STATES.includes(questionDoc.state)) {
+        questionDoc.state = 'draft';
+        questionDoc.currentReviewer = null;
+        questionDoc.reviewStartedAt = null;
+      }
+      existingMap.delete(qId);
+      return questionDoc;
+    });
+
+    // Questions left in the map were removed from the group during the edit.
+    // A set is edited as one, so any change marks all of its questions.
+    const removedMembers = [...existingMap.values()];
+    const isChanged = removedMembers.length > 0
+      || memberDocs.some((doc) => doc.isNew || getContentKey(doc) !== contentBefore.get(String(doc._id)));
+    const editedAt = new Date();
+
+    const updatedQuestions = [];
+    for (const questionDoc of memberDocs) {
+      if (isChanged) {
+        questionDoc.lastEditedBy = req.user._id;
+        questionDoc.lastEditedAt = editedAt;
+      }
+      await questionDoc.save();
+
+      const populated = await questionDoc.populate(asReviewer ? REVIEW_POPULATE : [
         { path: 'tag', select: 'name' },
         { path: 'program', select: 'name code' },
       ]);
       updatedQuestions.push(decryptQuestion(populated));
     }
 
-    // Delete any questions that were removed from the group during edit
-    for (const [, removedQ] of existingMap) {
+    for (const removedQ of removedMembers) {
       await removedQ.deleteOne();
     }
 
@@ -608,6 +694,7 @@ const updateQuestionGroup = async (req, res) => {
     await logAudit(req.user._id, 'question_group_updated', 'Question', updatedQuestions[0]?._id, {
       groupId,
       questionCount: updatedQuestions.length,
+      editedByReviewer: asReviewer,
     });
 
     res.json({ questions: updatedQuestions, groupId });
@@ -616,6 +703,12 @@ const updateQuestionGroup = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
+
+// PUT /api/questions/group/:groupId
+const updateQuestionGroup = (req, res) => saveQuestionGroupEdit(req, res);
+
+// PUT /api/questions/group/:groupId/review-edit (Chair / Dean)
+const reviewEditQuestionGroup = (req, res) => saveQuestionGroupEdit(req, res, { asReviewer: true });
 
 // POST /api/questions
 const createQuestion = async (req, res) => {
@@ -694,16 +787,23 @@ const createQuestion = async (req, res) => {
   }
 };
 
-// PATCH /api/questions/:id
-const updateQuestion = async (req, res) => {
+// Saves an edit to one question. The creator's edit pulls a submitted question back
+// to draft; a reviewer's edit leaves it in review.
+const saveQuestionEdit = async (req, res, { asReviewer = false } = {}) => {
   try {
     const question = await Question.findById(req.params.id);
     if (!question) return res.status(404).json({ message: 'Question not found' });
-    if (question.createdBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: 'Not your question' });
-    const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
-    if (!editableStates.includes(question.state))
-      return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
+
+    if (asReviewer) {
+      const accessError = await getReviewEditError(req.user, [question]);
+      if (accessError) return res.status(accessError.status).json({ message: accessError.message });
+    } else {
+      if (question.createdBy.toString() !== req.user._id.toString())
+        return res.status(403).json({ message: 'Not your question' });
+      const editableStates = ['draft', 'returned', 'pending_chair', 'restored'];
+      if (!editableStates.includes(question.state))
+        return res.status(400).json({ message: 'Only draft, returned, pending, or restored questions can be edited' });
+    }
 
     const { description, answers, tagId, images, rationalization } = req.body;
     if (answers && !Array.isArray(answers))
@@ -740,6 +840,16 @@ const updateQuestion = async (req, res) => {
     }, settings);
     if (limitError) return res.status(400).json({ message: limitError });
 
+    if (asReviewer) {
+      const current = decryptQuestion(question);
+      const contentError = getSubmissionContentError({
+        description: cleanDescription || current.description,
+        tag: tagId !== undefined ? tagId : question.tag,
+        answers: answers ? next.answers : current.answers.filter(isFilledAnswer),
+      });
+      if (contentError) return res.status(400).json({ message: contentError });
+    }
+
     const nextUrls = collectQuestionImageUrls(next);
     const imageCheck = await validateImageReferences({
       urls: nextUrls,
@@ -749,6 +859,8 @@ const updateQuestion = async (req, res) => {
     });
     if (!imageCheck.ok) return res.status(400).json({ message: imageCheck.message });
 
+    const contentBefore = getContentKey(question);
+
     if (cleanDescription) question.description = encryptText(cleanDescription);
     if (rationalization !== undefined) question.rationalization = encryptRationalization(rationalization);
     if (images !== undefined) question.images = next.images;
@@ -756,11 +868,16 @@ const updateQuestion = async (req, res) => {
     if (tagId !== undefined) question.tag = tagId || null;
     Object.assign(question, getImageFlagFields(req.body));
 
-    // If a submitted question is edited, pull it back to draft so it can be re-submitted.
-    if (question.state === 'pending_chair' || question.state === 'restored') {
+    // If its creator edits a submitted question, pull it back to draft so it can be re-submitted.
+    if (!asReviewer && REVIEWABLE_STATES.includes(question.state)) {
       question.state = 'draft';
       question.currentReviewer = null;
       question.reviewStartedAt = null;
+    }
+
+    if (getContentKey(question) !== contentBefore) {
+      question.lastEditedBy = req.user._id;
+      question.lastEditedAt = new Date();
     }
 
     await question.save();
@@ -768,7 +885,7 @@ const updateQuestion = async (req, res) => {
     // Removed images are deleted only once the question has saved successfully
     await deleteUnreferencedImages(previousUrls.filter((url) => !nextUrls.includes(url)));
 
-    const populated = await question.populate([
+    const populated = await question.populate(asReviewer ? REVIEW_POPULATE : [
       { path: 'tag', select: 'name' },
       { path: 'program', select: 'name code' },
     ]);
@@ -776,6 +893,7 @@ const updateQuestion = async (req, res) => {
       programId: question.program,
       tagId: question.tag || null,
       state: question.state,
+      editedByReviewer: asReviewer,
     });
     res.json({ question: decryptQuestion(populated) });
   } catch (err) {
@@ -783,6 +901,12 @@ const updateQuestion = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };
+
+// PATCH /api/questions/:id
+const updateQuestion = (req, res) => saveQuestionEdit(req, res);
+
+// PATCH /api/questions/:id/review-edit (Chair / Dean)
+const reviewEditQuestion = (req, res) => saveQuestionEdit(req, res, { asReviewer: true });
 
 // DELETE /api/questions/:id
 const deleteQuestion = async (req, res) => {
@@ -922,15 +1046,29 @@ const reviewQuestion = async (req, res) => {
         if (!exists) return res.status(404).json({ message: 'Question not found' });
         return res.status(409).json({ message: 'This question has already been reviewed or is no longer in the expected state.' });
       }
-      await question.deleteOne();
-      await deleteUnreferencedImages(collectQuestionImageUrls(question));
 
-      await logAudit(req.user._id, 'question_reviewed', 'Question', question._id, {
-        reviewAction: action,
-        role: req.user.role,
-        programId: question.program,
-      });
-      return res.json({ message: 'Question deleted' });
+      // A set is deleted as one, like every other review action
+      const deletions = question.groupId
+        ? await Question.find({ groupId: question.groupId, state: requiredState, program: ownershipFilter.program })
+        : [question];
+      if (deletions.some((q) => q.is_used_in_exam)) {
+        return res.status(400).json({ message: 'Cannot delete a question that is currently used in an exam' });
+      }
+
+      for (const q of deletions) {
+        await q.deleteOne();
+        await logAudit(req.user._id, 'question_reviewed', 'Question', q._id, {
+          reviewAction: action,
+          role: req.user.role,
+          programId: q.program,
+          groupId: q.groupId || null,
+        });
+      }
+
+      // Images are removed only after the questions are gone
+      await deleteUnreferencedImages(deletions.flatMap(collectQuestionImageUrls));
+
+      return res.json({ message: 'Question deleted', deletedIds: deletions.map((q) => String(q._id)) });
     }
 
     // Atomic update for approve/return/reject/restore
@@ -973,18 +1111,11 @@ const reviewQuestion = async (req, res) => {
         { $set: updateSet, ...(action === 'restore' ? { $unset: { rejectionReason: 1 } } : {}) }
       );
 
-      const updatedSiblings = await Question.find({ groupId: updated.groupId })
-        .populate('tag', 'name')
-        .populate('program', 'name code')
-        .populate('createdBy', 'name');
+      const updatedSiblings = await Question.find({ groupId: updated.groupId }).populate(REVIEW_POPULATE);
       siblingQuestions = updatedSiblings.map(decryptQuestion);
     }
 
-    const populated = await updated.populate([
-      { path: 'tag', select: 'name' },
-      { path: 'program', select: 'name code' },
-      { path: 'createdBy', select: 'name' },
-    ]);
+    const populated = await updated.populate(REVIEW_POPULATE);
     await logAudit(req.user._id, 'question_reviewed', 'Question', updated._id, {
       reviewAction: action,
       role: req.user.role,
@@ -1012,12 +1143,23 @@ const deanReturnApprovedQuestion = async (req, res) => {
     }
 
     // Guard: cannot return a question that is currently in an active exam
-    const questionCheck = await Question.findById(req.params.id).select('is_used_in_exam');
+    const questionCheck = await Question.findById(req.params.id).select('is_used_in_exam groupId');
     if (!questionCheck) return res.status(404).json({ message: 'Question not found' });
-    if (questionCheck.is_used_in_exam)
+    // A set is returned as one, so none of its questions can be in an exam
+    const isInExam = questionCheck.groupId
+      ? await Question.exists({ groupId: questionCheck.groupId, is_used_in_exam: true })
+      : questionCheck.is_used_in_exam;
+    if (isInExam)
       return res.status(400).json({ message: 'Cannot return a question that is currently used in an exam' });
 
     const accessibleIds = await getAccessibleProgramIds(req.user);
+    const returnedFields = {
+      state: 'returned',
+      revisionNote: note.trim(),
+      feedbackRead: false,
+      currentReviewer: null,
+      reviewStartedAt: null,
+    };
 
     // Atomic update: only succeed if state is still 'approved'
     const updated = await Question.findOneAndUpdate(
@@ -1026,15 +1168,7 @@ const deanReturnApprovedQuestion = async (req, res) => {
         state: 'approved',
         program: { $in: accessibleIds },
       },
-      {
-        $set: {
-          state: 'returned',
-          revisionNote: note.trim(),
-          feedbackRead: false,
-          currentReviewer: null,
-          reviewStartedAt: null,
-        },
-      },
+      { $set: returnedFields },
       { returnDocument: 'after' }
     );
 
@@ -1047,17 +1181,30 @@ const deanReturnApprovedQuestion = async (req, res) => {
       return res.status(409).json({ message: 'This question is no longer in the approved state.' });
     }
 
-    const populated = await updated.populate([
-      { path: 'tag', select: 'name' },
-      { path: 'program', select: 'name code' },
-      { path: 'createdBy', select: 'name' },
-    ]);
+    let groupQuestions;
+    if (updated.groupId) {
+      await Question.updateMany(
+        {
+          groupId: updated.groupId,
+          _id: { $ne: updated._id },
+          state: 'approved',
+          program: { $in: accessibleIds },
+        },
+        { $set: returnedFields }
+      );
+
+      const members = await Question.find({ groupId: updated.groupId }).populate(REVIEW_POPULATE);
+      groupQuestions = members.map(decryptQuestion);
+    }
+
+    const populated = await updated.populate(REVIEW_POPULATE);
     await logAudit(req.user._id, 'question_dean_returned', 'Question', updated._id, {
       programId: updated.program,
       note: note.trim(),
       newState: updated.state,
+      groupId: updated.groupId || null,
     });
-    res.json({ question: decryptQuestion(populated) });
+    res.json({ question: decryptQuestion(populated), groupQuestions });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -1090,6 +1237,8 @@ module.exports = {
   createQuestionGroup,
   getQuestionGroup,
   updateQuestionGroup,
+  reviewEditQuestionGroup,
+  reviewEditQuestion,
   submitQuestionGroup,
   deleteQuestionGroup,
   updateQuestion,

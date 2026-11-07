@@ -71,7 +71,7 @@ server/controllers/mockExamResultController.js
 ```
 server/controllers/questionController.js
 ```
--> CRUD for exam questions with AES encryption of text and image fields; handles approval workflow (pending → approved/returned/rejected) and integrates with Cloudflare R2 for image storage and deletion.
+-> CRUD for exam questions with AES encryption of text and image fields; handles approval workflow (pending → approved/returned/rejected), reviewer edits that keep a question in review, last-edited tracking for real content changes, and integrates with Cloudflare R2 for image storage and deletion.
 
 ```
 server/controllers/sseController.js
@@ -155,7 +155,7 @@ server/routes/mockExamResultRoutes.js
 ```
 server/routes/questionRoutes.js
 ```
--> Mounts question CRUD routes and approval workflow routes, scoped by role (professor submits, chair/dean approves).
+-> Mounts question CRUD routes and approval workflow routes, scoped by role (professor submits, chair/dean approves or edits in review through the `review-edit` routes).
 
 ```
 server/routes/sseRoutes.js
@@ -194,7 +194,7 @@ server/models/MockBoardExam.js
 ```
 server/models/Question.js
 ```
--> Mongoose schema for exam questions with encrypted text and answer fields, image references (Cloudflare R2 keys), tag/program associations, and approval status workflow fields.
+-> Mongoose schema for exam questions with encrypted text and answer fields, image references (Cloudflare R2 keys), tag/program associations, approval status workflow fields, and who last edited the content and when (`lastEditedBy`, `lastEditedAt`).
 
 ```
 server/models/StudentExamAttempt.js
@@ -756,7 +756,7 @@ client/src/pages/shared/MyQuestions.jsx
 ```
 client/src/pages/shared/ApproveQuestions.jsx
 ```
--> Question approval queue for deans and program chairs: review submitted questions, approve, return for revision, or reject; includes a "Used in Exam" filter.
+-> Question approval queue for deans and program chairs: review submitted questions, edit them in place, approve, return for revision, or reject; shows who last edited a question and when; includes a "Used in Exam" filter.
 
 ```
 client/src/pages/shared/ManageSubject.jsx
@@ -850,7 +850,7 @@ client/src/components/ChangeCredentialsModal.jsx
 ```
 client/src/components/QuestionForm.jsx
 ```
--> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, and AI import review mode. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
+-> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, AI import review mode, and a reviewer mode (`reviewEdit`) with one Save Changes button that keeps the question in review. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
 
 ```
 client/src/components/QuestionFilters.jsx
@@ -1307,6 +1307,11 @@ README.md
 ---
 
 ## ====== DOCS FILES =======
+
+```
+docs/DESIGN.md
+```
+-> Design guide for the signed-in app: colours, type, layout, shared components, question UI rules, motion, accessibility, CSS conventions and known gaps.
 
 ```
 docs/concurrency_plan.md

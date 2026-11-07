@@ -413,6 +413,44 @@ describe('image cleanup', () => {
 });
 
 describe('answer images in exams', () => {
+  it('lets a reviewer swap images when editing a submitted question', async () => {
+    const kept = await uploadImage(profCookie);
+    const removed = await uploadImage(profCookie);
+    const created = await createDraft(profCookie, { images: [kept, removed], answers: fullAnswers() });
+    const id = created.body.question._id;
+    await request(app).post(`/api/questions/${id}/submit`).set('Cookie', profCookie);
+    const added = await uploadImage(chairCookie);
+
+    const res = await request(app)
+      .patch(`/api/questions/${id}/review-edit`)
+      .set('Cookie', chairCookie)
+      .send({ images: [kept, added], answers: fullAnswers(), tagId: tag._id });
+
+    expect(res.status).toBe(200);
+    expect(res.body.question.images).toEqual([kept, added]);
+    expect(r2Store.has(objectKey(removed))).toBe(false);
+    expect(r2Store.has(objectKey(kept))).toBe(true);
+
+    // The author can still view the image the reviewer added, once it is on their question
+    const authorView = await request(app).get(added).set('Cookie', profCookie);
+    expect(authorView.status).toBe(200);
+  });
+
+  it('refuses a reviewer attaching an image someone else uploaded', async () => {
+    const created = await createDraft(profCookie, { answers: fullAnswers() });
+    const id = created.body.question._id;
+    await request(app).post(`/api/questions/${id}/submit`).set('Cookie', profCookie);
+    const notTheirs = await uploadImage(otherProfCookie);
+
+    const res = await request(app)
+      .patch(`/api/questions/${id}/review-edit`)
+      .set('Cookie', chairCookie)
+      .send({ images: [notTheirs], answers: fullAnswers(), tagId: tag._id });
+
+    expect(res.status).toBe(400);
+    expect(r2Store.has(objectKey(notTheirs))).toBe(true);
+  });
+
   it('sends the answer image to students without revealing the correct answer', async () => {
     const url = await uploadImage(profCookie);
     const q = await Question.create({
@@ -546,6 +584,38 @@ describe('shared passage images', () => {
       .set('Cookie', profCookie);
     expect(deleted.status).toBe(200);
     expect(r2Store.has(objectKey(keep))).toBe(false);
+  });
+
+  it('deletes the passage images when a reviewer deletes a rejected set', async () => {
+    const url = await uploadImage(profCookie);
+    const created = await createGroup(profCookie, { groupContextImages: [url] });
+    await Question.updateMany({ groupId: created.body.groupId }, { state: 'rejected' });
+
+    const res = await request(app)
+      .post(`/api/questions/${created.body.questions[0]._id}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(200);
+    expect(await Question.countDocuments({ groupId: created.body.groupId })).toBe(0);
+    expect(r2Store.has(objectKey(url))).toBe(false);
+  });
+
+  it('keeps a passage image that a question left out of the delete still uses', async () => {
+    const url = await uploadImage(profCookie);
+    const created = await createGroup(profCookie, { groupContextImages: [url] });
+    const [first, second] = created.body.questions;
+    await Question.updateOne({ _id: first._id }, { state: 'rejected' });
+    await Question.updateOne({ _id: second._id }, { state: 'approved' });
+
+    const res = await request(app)
+      .post(`/api/questions/${first._id}/review`)
+      .set('Cookie', chairCookie)
+      .send({ action: 'delete' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.deletedIds).toEqual([first._id]);
+    expect(r2Store.has(objectKey(url))).toBe(true);
   });
 
   it('sends passage images to students taking the exam', async () => {

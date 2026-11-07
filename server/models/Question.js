@@ -59,6 +59,9 @@ const questionSchema = new mongoose.Schema(
     revisionNote: { type: String, default: null, trim: true },
     rejectionReason: { type: String, default: null, trim: true },
     submittedAt: { type: Date, default: null },
+    // Who last changed the content, and when. Empty until the first edit after creation.
+    lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    lastEditedAt: { type: Date, default: null },
     // Concurrency: track who is currently reviewing this question
     currentReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     reviewStartedAt: { type: Date, default: null },
