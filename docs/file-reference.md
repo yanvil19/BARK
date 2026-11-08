@@ -68,7 +68,12 @@ server/controllers/mockBoardExamController.js
 ```
 server/controllers/mockExamResultController.js
 ```
--> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data. Its exam list includes each exam's subject names, for the Exam Results subject filter and card pills.
+-> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data. Its exam list includes each exam's subject names, for the Exam Results subject filter and card pills. The working-out shared with the AI overview (the score summary, the alumni report from each alumni's highest attempt, question numbers and content) is in `services/examResultsReport.js`.
+
+```
+server/controllers/examAiOverviewController.js
+```
+-> The AI Overview of an exam's results, for deans and program chairs (a program chair only for their program's exams). `GET /api/mock-exam-results/:examId/ai-overview` returns the generations left (8 per exam, shared by everyone, never reset), the versions, whether one is being generated, and the overview asked for (`?version=n`, the latest by default) with whether the results changed since it was written. `POST` generates a new version: it reserves the next version as `generating` before calling Gemini, so two people can't go over the limit or generate at once, works out the figures (`examOverviewFacts`), has Gemini write the words (`geminiService.writeExamOverview`), saves both and logs `mock_exam_ai_overview_generated`. A try that fails is deleted, so it isn't counted: Gemini at its limits answers 429 with the overview's own message, anything else 502. A generation still running after 10 minutes is given back.
 
 ```
 server/controllers/questionController.js
@@ -153,7 +158,7 @@ server/routes/mockBoardExamRoutes.js
 ```
 server/routes/mockExamResultRoutes.js
 ```
--> Mounts routes to compute, retrieve, and delete stored mock exam results and individual reports.
+-> Mounts routes to compute, retrieve, and delete stored mock exam results and individual reports, and the AI Overview's `GET` and `POST /:examId/ai-overview` (`examAiOverviewController`).
 
 ```
 server/routes/questionRoutes.js
@@ -218,6 +223,11 @@ server/models/RequestMetric.js
 server/models/MockExamResult.js
 ```
 -> Mongoose schema for computed/aggregated exam results stored after a faculty member triggers result computation for a finished exam.
+
+```
+server/models/ExamAiOverview.js
+```
+-> One version of an exam's AI Overview: the exam, its version number, `status` (`generating` while Gemini writes it, then `ready`), the figures it was written from (`facts`), what Gemini wrote after the checks (`content`), which results it read (`basedOn`: when student results were computed, or how many alumni attempts there were), the model and who generated it. `EXAM_AI_OVERVIEW_LIMIT` is 8. Indexes allow one version number per exam and only one generation at a time.
 
 ```
 server/models/AppSettings.js
@@ -316,7 +326,22 @@ server/services/fileExtractionService.js
 ```
 server/services/geminiService.js
 ```
--> Calls the Google Gemini API once per import (`extractQuestions`): the prompt has the model count the multiple-choice questions and, when there are no more than the limit, return them as JSON for review in the same reply (`{ question_count, questions }`). `callWithFallback` sends each request to the first model in `config/geminiModels.js` that can take it. A model that answers 429 (out of quota) or 404 gets a cooldown (`cooldownFor` reads Google's QuotaFailure and RetryInfo; a daily quota waits for midnight Pacific time) and the next model is tried. A timeout, 5xx or reply that is not valid JSON is retried once on the same model, then the next model is tried; any other error is returned at once. Every request, retries included, first takes a place under its model's limits (`reserveGeminiCall`). The extract prompt copies a rationalization only when the document or its answer key gives one and never writes one. `processQuestionsWithGuardrails` also removes any rationalization that is not in the document text and flags that question for review.
+-> Calls the Google Gemini API once per import (`extractQuestions`): the prompt has the model count the multiple-choice questions and, when there are no more than the limit, return them as JSON for review in the same reply (`{ question_count, questions }`). `callWithFallback` sends each request to the first model in `config/geminiModels.js` that can take it. A model that answers 429 (out of quota) or 404 gets a cooldown (`cooldownFor` reads Google's QuotaFailure and RetryInfo; a daily quota waits for midnight Pacific time) and the next model is tried. A timeout, 5xx or reply that is not valid JSON is retried once on the same model, then the next model is tried; any other error is returned at once. Every request, retries included, first takes a place under its model's limits (`reserveGeminiCall`). The extract prompt copies a rationalization only when the document or its answer key gives one and never writes one. `processQuestionsWithGuardrails` also removes any rationalization that is not in the document text and flags that question for review. `writeExamOverview(facts)` writes an exam's AI Overview through the same models and limits, with a JSON schema for the reply and a 60-second timeout; the reply is checked by `examOverviewContent.checkOverviewContent`, and one that can't be used is retried like any passing error.
+
+```
+server/services/examResultsReport.js
+```
+-> How an exam's results are worked out, shared by `mockExamResultController` and the AI Overview so both read the same numbers: attempt percentages, the score summary (average, highest, lowest, passed, near misses, distribution), retakes, missed attempts (the expiry job's empty 0% attempts), each alumni's highest attempt, exam question numbers and content. `loadExamReport(exam, { programId })` returns the results as the Overall view shows them: a student exam's stored result, or an alumni exam's worked out from the attempts (limited to one program's alumni when `programId` is given).
+
+```
+server/services/examOverviewFacts.js
+```
+-> Works out the figures of an exam's AI Overview, so every number shown comes from the results: the summary (takers, passed, average, near misses, below 50%, missed, not taken), alumni retakes, scores by topic with the change since the previous exam, each question's share right, share per answer letter, blanks, most-picked wrong answer and how the upper and lower 27% did (with 12 or more takers), the signals that may flag a question (`check_key`, `shared_mistake`, `often_skipped`, `may_be_unclear`, `too_hard`, `too_easy`), the weakest topics of the near-miss group, and a trend of up to five exams. The previous exam is the program's latest earlier exam for the same audience that has results. No names, IDs or question or answer text are included. `currentBasis` tells which results an overview read.
+
+```
+server/services/examOverviewContent.js
+```
+-> What Gemini is told for an exam's AI Overview (`OVERVIEW_INSTRUCTION`), the shape it answers in (`OVERVIEW_SCHEMA`: summary, findings, topics note, questions to review, progress note, support note, next steps) and `checkOverviewContent`, which keeps only plain text, drops any sentence or item with a number that isn't in the figures, keeps only questions and topics that exist, and lets a question be flagged only for one of its own signals. An answer with no usable summary is refused so it is tried again.
 
 ```
 server/services/importStateService.js
@@ -497,6 +522,11 @@ server/tests/mockBoardExam.test.js
 server/tests/mockExamResults.test.js
 ```
 -> Tests for result computation, individual report generation, and result deletion on finished exams.
+
+```
+server/tests/examAiOverview.test.js
+```
+-> Tests for the AI Overview with Gemini replaced: student and alumni exams, the figures it is written from, no question text, answer text or names in what is sent, the comparison with an earlier exam, out of date after recomputing or a new alumni attempt, the limit of 8 shared by dean and program chair, failed and busy tries not counted, an unusable answer retried, one generation at a time, versions, access, and `checkOverviewContent`.
 
 ```
 server/tests/questionCRUD.test.js
@@ -819,12 +849,17 @@ client/src/pages/shared/ExamRunner.jsx
 ```
 client/src/pages/shared/ExamResults.jsx
 ```
--> Exam results page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). Exams can be filtered by result state (Ready, To compute, Pending), program (deans), subject, audience and search text, and sorted Newest or Oldest by exam date. A card shows the exam's name, its question count, audience and result-state markers, program (deans only), first subject + "+N", and start date. Once an exam has results, an Overall, Questions and Individual toggle sits beside its name in the panel: Overall has the summary, score distribution, scores by topic (a topic opens its questions) and the exam's details; Questions steps through the exam with `QuestionStepper` and each answer's count; Individual is `IndividualReportView`. Without results, the panel says why and shows the details, with Compute Results when a student exam has ended. Once an exam has results, Download Excel saves them: students get one row each (score, status, and a column per subject), alumni get their attempts. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen, covering the navbar and footer. Program chairs only see their own program's exams.
+-> Exam results page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). Exams can be filtered by result state (Ready, To compute, Pending), program (deans), subject, audience and search text, and sorted Newest or Oldest by exam date. A card shows the exam's name, its question count, audience and result-state markers, program (deans only), first subject + "+N", and start date. Once an exam has results, an Overall, Questions and Individual toggle sits beside its name in the panel: Overall has the summary, score distribution, scores by topic (a topic opens its questions) and the exam's details; Questions steps through the exam with `QuestionStepper` and each answer's count; Individual is `IndividualReportView`; AI Overview is `AiOverviewView`, with Regenerate (and the generations left) beside Download Excel, after a confirmation. Without results, the panel says why and shows the details, with Compute Results when a student exam has ended. Once an exam has results, Download Excel saves them: students get one row each (score, status, and a column per subject), alumni get their attempts. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen, covering the navbar and footer. Program chairs only see their own program's exams.
 
 ```
 client/src/pages/shared/IndividualReportView.jsx
 ```
--> The Individual view of the Exam Results panel: everyone eligible for the exam as rows split by lines, filtered by whether they took it, searched and sorted. Opening a row shows that person in the same panel: score, attempts (alumni), scores by topic and their answers through `QuestionStepper`.
+-> The Individual view of the Exam Results panel: everyone eligible for the exam as rows split by lines, filtered by whether they took it, searched and sorted. Opening a row shows that person in the same panel: score, attempts (alumni), scores by topic and their answers through `QuestionStepper`. `initialList` sets the starting filter and sort, for the AI Overview's "Open in Individual" buttons.
+
+```
+client/src/pages/shared/AiOverviewView.jsx
+```
+-> The AI Overview view of the Exam Results panel, for student and alumni exams. Before there is one: what it covers, the generations left and Generate. While one is written (here or by someone else): the steps and the shape of what is coming. Then a strip with who generated it, the version picker and the generations left; banners for an older version, out of date results, no generations left and a failed try; and the sections Summary, What Stands Out, Topics (since the previous exam, or by score), Questions to Review, Progress Across Exams (two or more exams), Who Needs Support, Suggested Next Steps and About This Overview. Its numbers, charts and tables come from the overview's figures; the AI's words sit beside them, and a question it names opens in the Questions view.
 
 ---
 
@@ -943,7 +978,7 @@ client/src/components/QuestionMarkers.jsx
 ```
 client/src/components/PanelHeader.jsx
 ```
--> The header of a list page's side panel: a `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch what the panel shows (none when `views` is empty), then `children` (Approve Questions' bulk arrows) and the full-screen and close buttons on the right, framed 32px buttons (`ca-panel-btn`). The tab hides while full screen. Used by all seven list-and-panel pages, with `usePanelLayout`.
+-> The header of a list page's side panel: a `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch what the panel shows (none when `views` is empty; a view may have an `icon`, such as the AI Overview's sparkle), then `children` (Approve Questions' bulk arrows) and the full-screen and close buttons on the right, framed 32px buttons (`ca-panel-btn`). The tab hides while full screen. Used by all seven list-and-panel pages, with `usePanelLayout`.
 
 ```
 client/src/components/QuestionStepper.jsx
@@ -1011,7 +1046,7 @@ client/src/lib/idFormats.js
 ```
 client/src/services/mockExamResultService.js
 ```
--> API service module for exam result operations: list exams with status, fetch a single result, trigger result computation with a passing threshold, and delete a result.
+-> API service module for exam result operations: list exams with status, fetch a single result, trigger result computation with a passing threshold, and delete a result. `getExamAiOverview(examId, version)` and `generateExamAiOverview(examId)` for the AI Overview.
 
 ---
 
@@ -1026,6 +1061,11 @@ client/src/hooks/useLocalStorage.js
 client/src/hooks/usePanelLayout.js
 ```
 -> Custom React hook for the side panel of the list-and-panel pages (Approve Questions, My Questions, Board Exams, Manage Subjects, Exam Results, Logs, Student Registration). It keeps whether the panel is widened over the list and whether it is full screen. The expand button, and opening or closing an item while the panel is set wide, turn on `is-gliding` so the columns glide; it comes off when the glide ends (or after 400ms where nothing glides, such as with reduced motion), so the page can scroll the open card back into view. Full screen zooms in from the panel's place and back out to it (the panel's edges move, so its text keeps its size), unless reduced motion is on; the full-screen button passes its click so the hook knows which panel to zoom. Escape leaves full screen the same way unless a window, image or menu is open above it, and full screen ends at once when the panel closes.
+
+```
+client/src/hooks/useExamAiOverview.js
+```
+-> The AI Overview of the exam open on Exam Results: loads it the first time its view opens, keeps it while the exam stays open, shows another version on request, and generates a new one. While one is being generated by someone else it checks every 4 seconds until it is ready. A failed try's message stays until another exam opens.
 
 ```
 client/src/hooks/useCalendarExams.js
@@ -1219,6 +1259,11 @@ client/src/styles/shared/CreateExams.css
 client/src/styles/shared/ExamResults.css
 ```
 -> What the exam results page adds to the shared `ca-` layout (`er-` classes): the result-state markers, the summary notes, the score distribution chart and the attempts list. Its numbers, pills and people rows are the shared "Panel parts" in `QuestionApprovals.css`.
+
+```
+client/src/styles/shared/AiOverview.css
+```
+-> The AI Overview's styles (`aio-` classes): the strip about the overview, banners, findings, the topics chart (this exam's dot, the previous exam's ring, the passing line), the progress line chart with its hover card, the questions table (cards on phones), and the empty and generating states. Its sections and numbers are the shared `question-panel` and `ca-stats`. Rules that change a shared part start with `.ca-page`, because this file can load before `QuestionApprovals.css`.
 
 ```
 client/src/styles/shared/StudentRegister.css

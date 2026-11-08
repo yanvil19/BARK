@@ -1,0 +1,1370 @@
+/* The AI Overview view of Exam Results (pages/shared/AiOverviewView.jsx). Its sections are the
+   app's question-panel sections and ca-stat numbers; what is new here is the strip about the
+   overview, the banners, the findings, the two charts, the questions table and the states before
+   an overview exists. Rules that change a shared ca- part start with .ca-page, because this file
+   can load before the shared styles. Chart colours were checked for colour-blind readers: series
+   1 #4A56B8, series 2 #0F9488. */
+
+.aio-view,
+.aio-gen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: opacity 0.15s;
+}
+
+/* Another version loading: the one shown stays, a little faded */
+.aio-view.is-loading {
+  opacity: 0.6;
+}
+
+.aio-spark {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.aio-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.aio-muted {
+  color: #6b7280;
+}
+
+/* ── The view's button in the panel header ─────────────────────────────── */
+
+.ca-page .ca-view-toggle button.has-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ca-view-toggle button .aio-spark {
+  width: 13px;
+  height: 13px;
+  color: var(--primary-bg);
+}
+
+.ca-view-toggle button.is-active .aio-spark {
+  color: var(--accent-yellow);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.aio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.aio-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.aio-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.aio-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.aio-btn--primary {
+  background: var(--primary-bg);
+  color: #fff;
+  border: 1px solid var(--primary-bg);
+}
+
+.aio-btn--primary:hover:not(:disabled) {
+  background: #2b3577;
+}
+
+.aio-btn--primary .aio-spark {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-yellow);
+}
+
+.aio-btn--plain {
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.aio-btn--plain:hover:not(:disabled) {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+/* Regenerate, in the panel's action bar beside Download Excel */
+.ca-page .ca-sidebar-actions .aio-regenerate {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 16px;
+  padding-right: 16px;
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.ca-page .ca-sidebar-actions .aio-regenerate:hover:not(:disabled) {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+.aio-regenerate .aio-spark {
+  color: var(--primary-bg);
+}
+
+.aio-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── About the overview: who wrote it, the version, the generations left ── */
+
+.aio-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #f9faff;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.aio-meta strong {
+  color: #1f2947;
+  font-family: var(--font-title);
+  font-weight: 600;
+}
+
+.aio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: var(--primary-bg);
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.aio-badge .aio-spark {
+  width: 13px;
+  height: 13px;
+  color: var(--accent-yellow);
+}
+
+.aio-meta-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.aio-version {
+  width: auto;
+  min-width: 190px;
+}
+
+.aio-version .dd-select {
+  height: 30px;
+  font-size: 12px;
+}
+
+.aio-version-one {
+  color: #1f2947;
+  font-weight: 600;
+}
+
+.aio-meta-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.aio-quota {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1f2947;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aio-pips {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.aio-pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+}
+
+.aio-pips i.is-used {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(53, 64, 142, 0.3);
+}
+
+/* ── Banners: out of date, an older version, no generations left, a failed try ── */
+
+.aio-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #7a3e06;
+  font-size: 13px;
+}
+
+.aio-banner > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: #b45309;
+}
+
+.aio-banner p {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.aio-banner strong {
+  font-family: var(--font-title);
+  font-weight: 600;
+}
+
+.aio-banner .aio-btn {
+  height: 34px;
+}
+
+.aio-banner--bad {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.aio-banner--bad > svg {
+  color: #b91c1c;
+}
+
+.aio-banner--muted {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.aio-banner--muted > svg {
+  color: #475569;
+}
+
+/* ── Section parts ─────────────────────────────────────────────────────── */
+
+/* A section title with a short note on the right */
+.aio-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.aio-label small {
+  color: #6b7280;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+}
+
+.aio-prose {
+  margin: 0;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* The AI's words under a chart or the numbers */
+.aio-note {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+  background: #fbfbff;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.aio-note .aio-spark {
+  margin-top: 3px;
+  color: #5a63a8;
+}
+
+/* A question named in the AI's words, opening it */
+.aio-qlink {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--primary-bg);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(53, 64, 142, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.aio-qlink:hover {
+  background: #eef0fb;
+  text-decoration-color: var(--primary-bg);
+}
+
+.aio-qlink:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 1px;
+}
+
+/* Numbers in a row, like the Overall view's, with a line above */
+.ca-page .aio-stats {
+  --ca-stat-columns: 4;
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.ca-page .aio-stats--groups {
+  --ca-stat-columns: 3;
+  border-top: 0;
+}
+
+.aio-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.aio-delta svg {
+  width: 10px;
+  height: 10px;
+}
+
+.aio-delta.is-up {
+  color: #15803d;
+}
+
+.aio-delta.is-down {
+  color: #b91c1c;
+}
+
+.aio-link-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aio-link-btn:hover {
+  text-decoration: underline;
+}
+
+.aio-link-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── What stands out ───────────────────────────────────────────────────── */
+
+.aio-findings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aio-finding {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.aio-finding + .aio-finding {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.aio-finding-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+}
+
+.aio-finding-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.aio-finding-icon.is-good {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.aio-finding-icon.is-warn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+.aio-finding-icon.is-bad {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.aio-finding-text {
+  margin: 0;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.aio-finding-title {
+  display: block;
+  margin-bottom: 1px;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aio-finding-title.is-good {
+  color: #15803d;
+}
+
+.aio-finding-title.is-warn {
+  color: #b45309;
+}
+
+.aio-finding-title.is-bad {
+  color: #b91c1c;
+}
+
+.aio-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.aio-ref {
+  padding: 2px 8px;
+  border: 1px solid rgba(53, 64, 142, 0.25);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aio-ref:hover {
+  background: #eef0fb;
+}
+
+.aio-ref:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 1px;
+}
+
+.aio-ref--topic {
+  background: #eef2ff;
+  border-color: transparent;
+  color: #5966ac;
+}
+
+/* ── Chart legends and keys ────────────────────────────────────────────── */
+
+.aio-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  color: #5a63a8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aio-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aio-key-dot,
+.aio-key-ring {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4a56b8;
+}
+
+.aio-key-ring {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #4a56b8;
+}
+
+.aio-key-line {
+  flex-shrink: 0;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: #4a56b8;
+}
+
+.aio-key-line.is-2 {
+  background: #0f9488;
+}
+
+.aio-key-dash {
+  flex-shrink: 0;
+  width: 0;
+  height: 12px;
+  border-left: 2px dashed rgba(53, 64, 142, 0.6);
+}
+
+/* A chart's hover card */
+.aio-tip {
+  position: absolute;
+  z-index: 3;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  padding: 8px 10px;
+  border: 1px solid #d8def2;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(26, 31, 75, 0.14);
+  color: #6b7280;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.aio-tip.is-start {
+  transform: translateX(-12px);
+}
+
+.aio-tip.is-end {
+  transform: translateX(calc(-100% + 12px));
+}
+
+.aio-tip-title {
+  margin-bottom: 2px;
+  color: #1f2947;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aio-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aio-tip-row b {
+  min-width: 44px;
+  color: #1f2947;
+  font-family: var(--font-title);
+  font-size: 13px;
+}
+
+/* ── Topics: then and now ──────────────────────────────────────────────── */
+
+.aio-db {
+  --aio-db-columns: minmax(110px, 190px) minmax(120px, 1fr) 44px 62px;
+}
+
+.aio-db.is-single {
+  --aio-db-columns: minmax(110px, 190px) minmax(120px, 1fr) 44px;
+}
+
+.aio-db-row,
+.aio-db-axis {
+  display: grid;
+  grid-template-columns: var(--aio-db-columns);
+  align-items: center;
+  gap: 12px;
+}
+
+.aio-db-row {
+  position: relative;
+  margin: 0 -6px;
+  padding: 7px 6px;
+  border-radius: 8px;
+  outline: none;
+}
+
+.aio-db-row.is-hovered {
+  z-index: 2;
+  background: #f9faff;
+}
+
+.aio-db-row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary-bg);
+}
+
+.aio-db-name {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.aio-db-track {
+  position: relative;
+  height: 22px;
+}
+
+.aio-db-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #e6e9f4;
+}
+
+.aio-db-threshold {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 2px dashed rgba(53, 64, 142, 0.6);
+  transform: translateX(-1px);
+}
+
+.aio-db-link {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background: #c9cee8;
+}
+
+.aio-db-prev,
+.aio-db-now {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+}
+
+.aio-db-prev {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #4a56b8, 0 0 0 2px #fff;
+}
+
+.aio-db-now {
+  background: #4a56b8;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.aio-db-row.is-hovered .aio-db-now {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(74, 86, 184, 0.25);
+}
+
+.aio-db-track .aio-tip {
+  bottom: calc(100% + 6px);
+}
+
+.aio-db-val {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.aio-db-delta {
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.aio-db-axis {
+  margin-top: 2px;
+}
+
+.aio-db-ticks {
+  position: relative;
+  height: 16px;
+  color: #6b7280;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aio-db-ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+/* ── Progress across exams ─────────────────────────────────────────────── */
+
+.aio-trend {
+  position: relative;
+}
+
+.aio-trend svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.aio-trend text {
+  fill: #6b7280;
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.aio-trend .aio-trend-end {
+  fill: #1f2947;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aio-trend .aio-trend-x {
+  fill: #2b3552;
+  font-weight: 600;
+}
+
+.aio-trend .aio-trend-x.is-current {
+  fill: var(--primary-bg);
+  font-family: var(--font-title);
+}
+
+.aio-trend-grid {
+  stroke: #e6e9f4;
+  stroke-width: 1;
+}
+
+.aio-trend-threshold {
+  stroke: rgba(53, 64, 142, 0.6);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+.aio-trend-cross {
+  stroke: #b8bedd;
+  stroke-width: 1;
+}
+
+.aio-trend-series path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.aio-trend-series circle {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.aio-trend-series.is-1 path {
+  stroke: #4a56b8;
+}
+
+.aio-trend-series.is-1 circle {
+  fill: #4a56b8;
+}
+
+.aio-trend-series.is-2 path {
+  stroke: #0f9488;
+}
+
+.aio-trend-series.is-2 circle {
+  fill: #0f9488;
+}
+
+.aio-trend-hit {
+  fill: transparent;
+  cursor: crosshair;
+  outline: none;
+}
+
+.aio-trend-hit:focus-visible {
+  fill: rgba(53, 64, 142, 0.05);
+}
+
+.aio-tip--chart {
+  bottom: auto;
+  transform: translate(12px, calc(-100% - 10px));
+}
+
+.aio-tip--chart.is-end {
+  transform: translate(calc(-100% - 12px), calc(-100% - 10px));
+}
+
+/* "Show the numbers" under a chart */
+.aio-numbers {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.aio-numbers summary {
+  padding: 9px 14px;
+  color: var(--primary-bg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.aio-numbers summary:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.aio-numbers .aio-table-wrap {
+  padding: 0 14px 12px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+
+.aio-table-wrap {
+  overflow-x: auto;
+}
+
+.aio-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #2b3552;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aio-table th {
+  padding: 9px 12px;
+  border-bottom: 2px solid var(--accent-yellow);
+  background: var(--primary-bg);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.aio-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf0f5;
+  vertical-align: top;
+}
+
+.aio-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.aio-table .is-num {
+  text-align: right;
+}
+
+.aio-table--mini th {
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  background: #f9faff;
+  color: var(--primary-bg);
+}
+
+.aio-table--mini td {
+  padding: 7px 12px;
+}
+
+.aio-q-row {
+  cursor: pointer;
+}
+
+.aio-q-row:hover td {
+  background: #f9faff;
+}
+
+.aio-q-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.aio-q-num {
+  display: block;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.aio-q-topic {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.aio-q-why {
+  min-width: 220px;
+  color: #4a5268;
+  line-height: 1.5;
+}
+
+.aio-q-reason {
+  display: block;
+  margin-top: 4px;
+}
+
+.aio-corr {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.aio-corr-bar {
+  position: relative;
+  width: 44px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f7;
+}
+
+.aio-corr-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: #4a56b8;
+}
+
+/* ── Next steps and notes ──────────────────────────────────────────────── */
+
+.aio-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: aio-step;
+}
+
+.aio-steps li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.aio-steps li + li {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.aio-steps li::before {
+  counter-increment: aio-step;
+  content: counter(aio-step);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aio-about {
+  margin: 0;
+  padding: 12px 14px 12px 32px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── Before there is an overview ───────────────────────────────────────── */
+
+.aio-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 36px 24px;
+  border: 1px dashed rgba(53, 64, 142, 0.3);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfbff, #fff);
+  text-align: center;
+}
+
+.aio-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--primary-bg);
+  box-shadow: 0 8px 22px rgba(53, 64, 142, 0.28);
+}
+
+.aio-empty-icon .aio-spark {
+  width: 28px;
+  height: 28px;
+  color: var(--accent-yellow);
+}
+
+.aio-empty h3 {
+  margin: 4px 0 0;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.aio-empty p {
+  max-width: 520px;
+  margin: 0;
+  color: #4a5268;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.aio-includes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aio-includes li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--primary-bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aio-fine {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Generating: what it is doing, and the shape of what is coming */
+.aio-gen-card {
+  padding: 18px;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.aio-gen-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.aio-gen-head h3 {
+  margin: 0;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.aio-gen-head p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.aio-spinner {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #eef2ff;
+  border-top-color: var(--primary-bg);
+  border-radius: 50%;
+  animation: aio-spin 0.9s linear infinite;
+}
+
+.aio-gen-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.aio-gen-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+}
+
+.aio-gen-steps i {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgba(53, 64, 142, 0.3);
+}
+
+.aio-gen-steps li.is-done {
+  color: #4a5268;
+}
+
+.aio-gen-steps li.is-done i {
+  background: #15803d;
+  box-shadow: none;
+}
+
+.aio-gen-steps li.is-done svg {
+  width: 11px;
+  height: 11px;
+  color: #fff;
+}
+
+.aio-gen-steps li.is-now {
+  color: #1f2947;
+  font-weight: 700;
+}
+
+.aio-gen-steps li.is-now i {
+  box-shadow: inset 0 0 0 2px var(--primary-bg);
+}
+
+.aio-skeleton {
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.aio-sk-head {
+  height: 38px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  background: #f9faff;
+}
+
+.aio-sk-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.aio-sk-line {
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef0f7 0%, #f7f8fc 40%, #eef0f7 80%);
+  background-size: 200% 100%;
+  animation: aio-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes aio-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes aio-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aio-sk-line,
+  .aio-spinner {
+    animation: none;
+  }
+
+  .aio-view,
+  .aio-btn {
+    transition: none;
+  }
+}
+
+/* ── Narrow panels ─────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .ca-page .aio-stats {
+    --ca-stat-columns: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ca-page .aio-stats .ca-stat:nth-child(3) {
+    border-left: 0;
+  }
+
+  .ca-page .aio-stats .ca-stat:nth-child(n + 3) {
+    border-top: 1px solid rgba(53, 64, 142, 0.08);
+  }
+
+  .ca-page .aio-stats--groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ca-page .aio-stats--groups .ca-stat + .ca-stat {
+    border-left: 0;
+    border-top: 1px solid rgba(53, 64, 142, 0.08);
+  }
+}
+
+/* The shared rule stacks numbers in one column here; the summary keeps two side by side */
+@media (max-width: 480px) {
+  .ca-page .aio-stats:not(.aio-stats--groups) .ca-stat:nth-child(2) {
+    border-top: 0;
+    border-left: 1px solid rgba(53, 64, 142, 0.08);
+  }
+
+  .ca-page .aio-stats:not(.aio-stats--groups) .ca-stat:nth-child(4) {
+    border-left: 1px solid rgba(53, 64, 142, 0.08);
+  }
+}
+
+@media (max-width: 560px) {
+  .aio-meta-grow {
+    flex-basis: 100%;
+  }
+
+  .aio-version {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .aio-db,
+  .aio-db.is-single {
+    --aio-db-columns: minmax(0, 1fr) 40px 56px;
+  }
+
+  .aio-db.is-single {
+    --aio-db-columns: minmax(0, 1fr) 40px;
+  }
+
+  .aio-db-row {
+    row-gap: 4px;
+  }
+
+  .aio-db-name {
+    grid-column: 1 / -1;
+  }
+
+  .aio-db-axis > span:first-child {
+    display: none;
+  }
+
+  .aio-label {
+    flex-wrap: wrap;
+  }
+
+  .aio-label small {
+    text-align: left;
+  }
+
+  /* Questions to review: each question becomes a small card instead of a table row */
+  .aio-table:not(.aio-table--mini) thead {
+    display: none;
+  }
+
+  .aio-table:not(.aio-table--mini) tbody,
+  .aio-table:not(.aio-table--mini) td {
+    display: block;
+  }
+
+  .aio-table:not(.aio-table--mini) tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #edf0f5;
+  }
+
+  .aio-table:not(.aio-table--mini) tr:last-child {
+    border-bottom: 0;
+  }
+
+  .aio-table:not(.aio-table--mini) td {
+    padding: 0;
+    border: 0;
+  }
+
+  .aio-table:not(.aio-table--mini) td:nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+
+  .aio-q-why {
+    min-width: 0;
+  }
+}

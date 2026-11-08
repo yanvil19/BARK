@@ -20,3 +20,15 @@ export const computeExamResult = async (examId, passingThreshold = 70) => {
 export const getExamStudentResults = async (examId) => {
   return await apiAuth(`${BASE}/${examId}/students`);
 };
+
+// The AI overview of an exam's results: its versions, how many generations are left, and the
+// overview asked for (the latest unless version is given)
+export const getExamAiOverview = async (examId, version = null) => {
+  const query = version ? `?version=${encodeURIComponent(version)}` : '';
+  return await apiAuth(`${BASE}/${examId}/ai-overview${query}`);
+};
+
+// Generates a new version of the AI overview, using one of the exam's generations
+export const generateExamAiOverview = async (examId) => {
+  return await apiAuth(`${BASE}/${examId}/ai-overview`, { method: 'POST', body: {} });
+};

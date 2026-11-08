@@ -184,11 +184,21 @@ function PersonResult({ entry, audience, threshold, questionContent, onBack, bac
   );
 }
 
-export default function IndividualReportView({ data, threshold, audience = 'student', onRefresh, onZoom, scrollRef }) {
+// initialList sets how the list starts, as { takenFilter, sortOrder } (the AI Overview's "Open in
+// Individual" buttons); the view remounts each time it opens
+export default function IndividualReportView({
+  data,
+  threshold,
+  audience = 'student',
+  onRefresh,
+  onZoom,
+  scrollRef,
+  initialList = null,
+}) {
   const { loading, error, students, questions: questionContent, examEnded } = data;
-  const [takenFilter, setTakenFilter] = useState('all');
+  const [takenFilter, setTakenFilter] = useState(initialList?.takenFilter || 'all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState('name_asc');
+  const [sortOrder, setSortOrder] = useState(initialList?.sortOrder || 'name_asc');
   // One person open at a time, in place of the list
   const [openKey, setOpenKey] = useState(null);
   const listScrollTop = useRef(0);
