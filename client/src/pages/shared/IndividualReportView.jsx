@@ -34,22 +34,22 @@ function scrollBehavior() {
 }
 
 function ResultPill({ passed }) {
-  return <span className={`er-pill er-pill--${passed ? 'good' : 'bad'}`}>{passed ? 'Passed' : 'Failed'}</span>;
+  return <span className={`ca-tone-pill ca-tone-pill--${passed ? 'good' : 'bad'}`}>{passed ? 'Passed' : 'Failed'}</span>;
 }
 
 // Whether the person got the question shown right, beside the bubbles
 function AnswerPill({ question }) {
-  if (!question.userAnswer) return <span className="er-pill er-pill--muted">No answer</span>;
+  if (!question.userAnswer) return <span className="ca-tone-pill ca-tone-pill--muted">No answer</span>;
   return question.isCorrect
-    ? <span className="er-pill er-pill--good">Correct</span>
-    : <span className="er-pill er-pill--bad">Incorrect</span>;
+    ? <span className="ca-tone-pill ca-tone-pill--good">Correct</span>
+    : <span className="ca-tone-pill ca-tone-pill--bad">Incorrect</span>;
 }
 
 function PersonName({ student }) {
   return (
-    <span className="er-person-name">
+    <span className="ca-person-name">
       {student.name}
-      {student.studentId && <span className="er-person-id">{student.studentId}</span>}
+      {student.studentId && <span className="ca-person-id">{student.studentId}</span>}
     </span>
   );
 }
@@ -111,19 +111,19 @@ function PersonResult({ entry, audience, threshold, questionContent, onBack, bac
   return (
     <>
       <section className="question-panel">
-        <div className="question-panel-label er-section-head">
+        <div className="question-panel-label ca-section-head">
           <span>{isAlumni ? 'Alumni' : 'Student'}</span>
-          <button type="button" className="er-head-btn" onClick={onBack} ref={backRef}>
+          <button type="button" className="ca-head-btn" onClick={onBack} ref={backRef}>
             <span aria-hidden="true">‹</span> All {noun}
           </button>
         </div>
-        <div className="question-panel-body er-person-head">
-          <span className="er-person-text">
+        <div className="question-panel-body ca-person-head">
+          <span className="ca-person-text">
             <PersonName student={entry.student} />
-            <span className="er-person-meta">{entry.student.email}</span>
+            <span className="ca-person-meta">{entry.student.email}</span>
           </span>
-          <span className="er-person-result">
-            <strong className="er-person-score">{score}%</strong>
+          <span className="ca-person-result">
+            <strong className="ca-person-score">{score}%</strong>
             <ResultPill passed={passed} />
           </span>
         </div>
@@ -141,7 +141,7 @@ function PersonResult({ entry, audience, threshold, questionContent, onBack, bac
                 onChange={selectAttempt}
               />
             )}
-            <span className="er-hint">
+            <span className="ca-hint">
               Attempt {attempt.attemptNumber}
               {attempt === bestAttempt && sortedAttempts.length > 1 && ' · Highest score'}
               {attempt.submittedAt && ` · Submitted ${formatDateTime(attempt.submittedAt)}`}
@@ -250,9 +250,9 @@ export default function IndividualReportView({ data, threshold, audience = 'stud
   if (loading) return <p className="ca-panel-note">Loading individual results...</p>;
   if (error) {
     return (
-      <div className="er-retry">
+      <div className="ca-retry">
         <p className="ca-panel-note ca-panel-note--error" role="alert">{error}</p>
-        <button type="button" className="ca-btn er-plain-btn" onClick={onRefresh}>Try again</button>
+        <button type="button" className="ca-btn ca-btn--plain" onClick={onRefresh}>Try again</button>
       </div>
     );
   }
@@ -274,7 +274,7 @@ export default function IndividualReportView({ data, threshold, audience = 'stud
 
   return (
     <>
-      <div className="er-people-tools">
+      <div className="ca-people-tools">
         <CapsuleFilters
           ariaLabel={`Filter ${audienceNoun} by whether they took the exam`}
           options={[
@@ -285,32 +285,32 @@ export default function IndividualReportView({ data, threshold, audience = 'stud
           value={takenFilter}
           onChange={setTakenFilter}
         />
-        <div className="er-people-controls">
+        <div className="ca-people-controls">
           <SearchBar
-            className="er-people-search"
+            className="ca-people-search"
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={`Search ${audienceNoun} by name, ID, or email...`}
           />
           <DropdownSelect
-            className="er-people-sort"
+            className="ca-people-sort"
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value)}
             ariaLabel={`Sort ${audienceNoun}`}
             options={SORT_OPTIONS}
           />
-          <button type="button" className="ca-btn er-plain-btn" onClick={onRefresh}>Refresh</button>
+          <button type="button" className="ca-btn ca-btn--plain" onClick={onRefresh}>Refresh</button>
         </div>
       </div>
 
       <section className="question-panel">
         <p className="question-panel-label">{isAlumni ? 'Alumni' : 'Students'} ({filteredAndSorted.length})</p>
         {filteredAndSorted.length === 0 ? (
-          <p className="er-hint er-hint--section">
+          <p className="ca-hint ca-hint--section">
             {students.length === 0 ? `No ${audienceNoun} are eligible for this exam.` : `No ${audienceNoun} match your search.`}
           </p>
         ) : (
-          <ul className="er-people-list">
+          <ul className="ca-people-list">
             {filteredAndSorted.map((entry) => {
               const key = getPersonKey(entry);
               const { student } = entry;
@@ -318,34 +318,34 @@ export default function IndividualReportView({ data, threshold, audience = 'stud
               if (!hasResult(entry)) {
                 const { label, tone } = getPendingStatus(entry, examEnded);
                 return (
-                  <li key={key} className="er-people-item">
-                    <div className="er-person-row is-pending">
-                      <span className="er-person-text">
+                  <li key={key} className="ca-people-item">
+                    <div className="ca-person-row is-pending">
+                      <span className="ca-person-text">
                         <PersonName student={student} />
-                        <span className="er-person-meta">{student.email}</span>
+                        <span className="ca-person-meta">{student.email}</span>
                       </span>
-                      <span className={`er-pill er-pill--${tone}`}>{label}</span>
-                      <span className="er-row-chevron" aria-hidden="true" />
+                      <span className={`ca-tone-pill ca-tone-pill--${tone}`}>{label}</span>
+                      <span className="ca-row-chevron" aria-hidden="true" />
                     </div>
                   </li>
                 );
               }
 
               return (
-                <li key={key} className="er-people-item">
-                  <button type="button" className="er-person-row" data-person-key={key} onClick={() => openPerson(key)}>
-                    <span className="er-person-text">
+                <li key={key} className="ca-people-item">
+                  <button type="button" className="ca-person-row" data-person-key={key} onClick={() => openPerson(key)}>
+                    <span className="ca-person-text">
                       <PersonName student={student} />
-                      <span className="er-person-meta">
+                      <span className="ca-person-meta">
                         {student.email}
                         {isAlumni && ` · ${plural(entry.attemptCount || 0, 'attempt')}`}
                       </span>
                     </span>
-                    <span className="er-person-result">
-                      <span className="er-person-score">{entry.overallPercentage}%</span>
+                    <span className="ca-person-result">
+                      <span className="ca-person-score">{entry.overallPercentage}%</span>
                       <ResultPill passed={entry.passed} />
                     </span>
-                    <span className="er-row-chevron" aria-hidden="true">›</span>
+                    <span className="ca-row-chevron" aria-hidden="true">›</span>
                   </button>
                 </li>
               );

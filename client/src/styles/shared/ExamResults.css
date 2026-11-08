@@ -33,22 +33,17 @@
   margin: 0;
 }
 
-/* Quiet buttons: clear the filters, refresh the people, try again */
-.er-page .er-clear-filters,
-.er-page .er-plain-btn {
+/* A quiet button that clears the filters (styled like the shared .ca-btn--plain) */
+.er-page .er-clear-filters {
+  margin-top: 14px;
   background: #fff;
   color: var(--primary-bg);
   border: 1px solid rgba(53, 64, 142, 0.35);
 }
 
-.er-page .er-clear-filters:hover,
-.er-page .er-plain-btn:hover {
+.er-page .er-clear-filters:hover {
   background: #eef1ff;
   border-color: var(--primary-bg);
-}
-
-.er-page .er-clear-filters {
-  margin-top: 14px;
 }
 
 /* ---------- Panel: shared pieces ---------- */
@@ -59,60 +54,8 @@
   flex-shrink: 0;
 }
 
-/* A short note, readable at 4.8:1 */
-.er-hint {
-  margin: 0;
-  color: #6b7280;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-/* As the first line of a section that has no body padding */
-.er-hint--section {
-  padding: 12px 14px 0;
-}
-
-.er-hint--section:last-child {
-  padding-bottom: 14px;
-}
-
-/* A status spelled out, in the colors of the question states */
-.er-pill {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  box-sizing: border-box;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.er-pill--good {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #86efac;
-}
-
-.er-pill--warn {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fcd34d;
-}
-
-.er-pill--bad {
-  background: #fff1f2;
-  color: #be123c;
-  border: 1px solid #fda4af;
-}
-
-.er-pill--muted {
-  background: #f8fafc;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-}
+/* Notes, status pills, numbers and the people rows are shared: see "Panel parts" in
+   QuestionApprovals.css */
 
 /* Beside the bubbles: the question's subject, and how it went */
 .er-aside {
@@ -130,45 +73,6 @@
 }
 
 /* ---------- Overall: summary ---------- */
-
-/* Passed, average and turnout, split by lines */
-.er-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.er-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 14px;
-}
-
-.er-stat + .er-stat {
-  border-left: 1px solid rgba(53, 64, 142, 0.08);
-}
-
-.er-stat-label {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.er-stat-value {
-  color: var(--primary-bg);
-  font-family: var(--font-title);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-
-.er-stat-sub {
-  color: #6b7280;
-  font-size: 12px;
-  line-height: 1.4;
-}
 
 .er-gap {
   display: inline-flex;
@@ -415,188 +319,7 @@
   font-size: 12px;
 }
 
-/* ---------- Individual: the list ---------- */
-
-.er-people-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.er-people-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.er-people-search {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-
-.er-people-sort {
-  min-width: 140px;
-}
-
-.er-page .er-plain-btn {
-  height: var(--control-height);
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.er-people-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.er-people-item + .er-people-item {
-  border-top: 1px solid rgba(53, 64, 142, 0.08);
-}
-
-.er-person-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 14px;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-}
-
-button.er-person-row {
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-button.er-person-row:hover {
-  background: #f9faff;
-}
-
-button.er-person-row:focus-visible {
-  outline: 2px solid var(--primary-bg);
-  outline-offset: -2px;
-}
-
-.er-person-text {
-  display: grid;
-  flex: 1;
-  gap: 2px;
-  min-width: 0;
-}
-
-.er-person-name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  color: #1a1f4b;
-  font-family: var(--font-title);
-  font-size: 14px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.er-person-id {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: #eef0fb;
-  color: var(--primary-bg);
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.er-person-meta {
-  color: #6b7280;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.er-person-result {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.er-person-score {
-  color: #1a1f4b;
-  font-family: var(--font-title);
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Keeps the pills of rows that can't open in line with the ones that can */
-.er-row-chevron {
-  width: 10px;
-  flex-shrink: 0;
-  color: var(--control-icon);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.er-retry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
 /* ---------- Individual: one person ---------- */
-
-/* A header bar with its small action on the right */
-.er-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
-.er-head-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgba(53, 64, 142, 0.35);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--primary-bg);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.er-head-btn:hover {
-  background: #eef1ff;
-  border-color: var(--primary-bg);
-}
-
-.er-head-btn:focus-visible {
-  outline: 2px solid var(--primary-bg);
-  outline-offset: 2px;
-}
-
-.er-person-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.er-person-head .er-person-score {
-  font-size: 20px;
-}
 
 /* An alumni's attempts, under a line */
 .er-attempts {
@@ -615,26 +338,5 @@ button.er-person-row:focus-visible {
     grid-column: 1 / -1;
     width: 100%;
     min-width: 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .er-stats {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .er-stat + .er-stat {
-    border-top: 1px solid rgba(53, 64, 142, 0.08);
-    border-left: 0;
-  }
-
-  .er-person-row,
-  .er-person-head {
-    flex-wrap: wrap;
-  }
-
-  .er-people-sort,
-  .er-page .er-plain-btn {
-    flex: 1 1 0;
   }
 }

@@ -1896,6 +1896,317 @@
   border-color: #6366f1;
 }
 
+/* ── Panel parts: notes, status pills, numbers, people ───────── */
+/* Built for Exam Results and shared with Logs: a panel that lists people, each opening into their
+   own view with a back button. */
+
+/* A short note, readable at 4.8:1 */
+.ca-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* As the first line of a section that has no body padding */
+.ca-hint--section {
+  padding: 12px 14px 0;
+}
+
+.ca-hint--section:last-child {
+  padding-bottom: 14px;
+}
+
+/* A status spelled out, in the colors of the question states */
+.ca-tone-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ca-tone-pill--good {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.ca-tone-pill--warn {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.ca-tone-pill--bad {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+.ca-tone-pill--muted {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Numbers side by side, split by lines. Three by default; set --ca-stat-columns for another count. */
+/* Passed, average and turnout, split by lines */
+.ca-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--ca-stat-columns, 3), minmax(0, 1fr));
+}
+
+.ca-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.ca-stat + .ca-stat {
+  border-left: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.ca-stat-label {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ca-stat-value {
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.ca-stat-sub {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Quiet buttons: refresh the people, try again */
+.ca-page .ca-btn--plain {
+  height: var(--control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.ca-page .ca-btn--plain:hover {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+/* People: the search, filters and refresh above the list */
+.ca-people-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ca-people-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ca-people-search {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.ca-people-sort {
+  min-width: 140px;
+}
+
+/* People: rows split by lines, each opening that person */
+.ca-people-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ca-people-item + .ca-people-item {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.ca-person-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.ca-person-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+button.ca-person-row:hover {
+  background: #f9faff;
+}
+
+button.ca-person-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.ca-person-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ca-person-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ca-person-id {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eef0fb;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ca-person-meta {
+  color: #6b7280;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ca-person-result {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ca-person-score {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keeps the pills of rows that can't open in line with the ones that can */
+.ca-row-chevron {
+  width: 10px;
+  flex-shrink: 0;
+  color: var(--control-icon);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ca-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* One person: their header, with the way back */
+/* A header bar with its small action on the right */
+.ca-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.ca-head-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(53, 64, 142, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ca-head-btn:hover {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+.ca-head-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.ca-person-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ca-person-head .ca-person-score {
+  font-size: 20px;
+}
+
+@media (max-width: 480px) {
+  .ca-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ca-stat + .ca-stat {
+    border-top: 1px solid rgba(53, 64, 142, 0.08);
+    border-left: 0;
+  }
+
+  .ca-person-row,
+  .ca-person-head {
+    flex-wrap: wrap;
+  }
+
+  .ca-people-sort,
+  .ca-page .ca-btn--plain {
+    flex: 1 1 0;
+  }
+}
+
 /* ── Motion ──────────────────────────────────────────────── */
 /* Only transform and opacity move, so nothing here shifts the layout. Entrances fill backwards
    only: a fill that lasted past the end would hold its transform over the hover lift. */

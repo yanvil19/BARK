@@ -250,11 +250,11 @@ function getExamFacts(exam, report) {
 // How far the average is from the passing threshold, told by an arrow and words, not color alone
 function ThresholdGap({ average, threshold }) {
   const gap = average - threshold;
-  if (gap === 0) return <span className="er-stat-sub er-gap is-above">Right at the threshold</span>;
+  if (gap === 0) return <span className="ca-stat-sub er-gap is-above">Right at the threshold</span>;
 
   const isAbove = gap > 0;
   return (
-    <span className={`er-stat-sub er-gap ${isAbove ? 'is-above' : 'is-below'}`}>
+    <span className={`ca-stat-sub er-gap ${isAbove ? 'is-above' : 'is-below'}`}>
       <svg viewBox="0 0 12 12" aria-hidden="true">
         <path d={isAbove ? 'M6 2 11 10H1z' : 'M6 10 1 2h10z'} fill="currentColor" />
       </svg>
@@ -268,7 +268,7 @@ function ThresholdGap({ average, threshold }) {
 // count above it, and its range and split on hover or keyboard focus.
 function ScoreDistribution({ ranges, threshold, lowest, highest }) {
   const [activeIdx, setActiveIdx] = useState(null);
-  if (!ranges?.length) return <p className="er-hint">No scores to chart yet.</p>;
+  if (!ranges?.length) return <p className="ca-hint">No scores to chart yet.</p>;
 
   const maxCount = Math.max(1, ...ranges.map((range) => range.below + range.passed));
 
@@ -789,24 +789,24 @@ export default function ExamResults({ me }) {
       <>
         <section className="question-panel">
           <p className="question-panel-label">Summary</p>
-          {isAlumniExam && <p className="er-hint er-hint--section">Based on each alumni&apos;s highest score.</p>}
-          <div className="er-stats">
-            <div className="er-stat">
-              <span className="er-stat-label">Passed</span>
-              <strong className="er-stat-value">{summary.passRate}%</strong>
-              <span className="er-stat-sub">{summary.passedCount} of {plural(summary.takers, 'taker')}</span>
+          {isAlumniExam && <p className="ca-hint ca-hint--section">Based on each alumni&apos;s highest score.</p>}
+          <div className="ca-stats">
+            <div className="ca-stat">
+              <span className="ca-stat-label">Passed</span>
+              <strong className="ca-stat-value">{summary.passRate}%</strong>
+              <span className="ca-stat-sub">{summary.passedCount} of {plural(summary.takers, 'taker')}</span>
             </div>
-            <div className="er-stat">
-              <span className="er-stat-label">Average score</span>
-              <strong className="er-stat-value">{summary.overallAvg}%</strong>
+            <div className="ca-stat">
+              <span className="ca-stat-label">Average score</span>
+              <strong className="ca-stat-value">{summary.overallAvg}%</strong>
               <ThresholdGap average={summary.overallAvg} threshold={threshold} />
             </div>
-            <div className="er-stat">
-              <span className="er-stat-label">Took the exam</span>
-              <strong className="er-stat-value">
+            <div className="ca-stat">
+              <span className="ca-stat-label">Took the exam</span>
+              <strong className="ca-stat-value">
                 {summary.participation !== null ? `${summary.participation}%` : summary.takers}
               </strong>
-              <span className="er-stat-sub">
+              <span className="ca-stat-sub">
                 {summary.participation !== null
                   ? `${summary.takers} of ${summary.totalEligible} eligible ${audienceNoun}`
                   : `Eligible ${audienceNoun} count unavailable`}
@@ -871,7 +871,7 @@ export default function ExamResults({ me }) {
               selectLabel={(topic) => `Show the questions of ${topic.name}`}
             />
           ) : (
-            <p className="er-hint er-hint--section">This exam has no topics to break down.</p>
+            <p className="ca-hint ca-hint--section">This exam has no topics to break down.</p>
           )}
         </section>
 
@@ -895,7 +895,7 @@ export default function ExamResults({ me }) {
           return (
             <span className="er-aside">
               <span className="ca-tag-pill">{question.subjectName || 'No subject'}</span>
-              <span className={`er-pill er-pill--${tone}`} title={text}>{question.correctRate || 0}% correct</span>
+              <span className={`ca-tone-pill ca-tone-pill--${tone}`} title={text}>{question.correctRate || 0}% correct</span>
             </span>
           );
         }}
