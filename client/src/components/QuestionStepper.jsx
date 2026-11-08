@@ -9,7 +9,9 @@ import { groupQuestionsForDisplay } from '../lib/groupQuestionsForDisplay.js';
 // capsule, and its shared passage repeats above whichever of them is shown.
 //
 // renderAside goes in the bubbles' header bar and renderDetails below the question; both get the
-// question shown. Keep questions stable between renders, since they are sorted and lettered here.
+// question shown. getPanelProps(question) passes the result props of QuestionDetailPanels
+// (selectedAnswerId, answerCounts, unansweredCount). Keep questions stable between renders, since
+// they are sorted and lettered here.
 export default function QuestionStepper({
   questions,
   activeIdx,
@@ -17,6 +19,7 @@ export default function QuestionStepper({
   onZoom,
   renderAside,
   renderDetails,
+  getPanelProps,
 }) {
   const ordered = useMemo(() => (
     groupQuestionsForDisplay(questions.map((question) => organizeQuestionAnswers(question)))
@@ -49,6 +52,7 @@ export default function QuestionStepper({
         passage={(current.groupContext || firstInSet?.groupContext || '').trim()}
         passageImages={current.groupContextImages || firstInSet?.groupContextImages || []}
         onZoom={onZoom}
+        {...getPanelProps?.(current)}
       />
 
       {renderDetails?.(current)}

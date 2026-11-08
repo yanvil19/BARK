@@ -66,7 +66,7 @@ server/controllers/mockBoardExamController.js
 ```
 server/controllers/mockExamResultController.js
 ```
--> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data.
+-> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data. Its exam list includes each exam's subject names, for the Exam Results subject filter and card pills.
 
 ```
 server/controllers/questionController.js
@@ -761,17 +761,17 @@ client/src/pages/alumni/AlumniExamResults.jsx
 ```
 client/src/pages/shared/MyQuestions.jsx
 ```
--> "My Questions" page used by professors, chairs, and deans: question cards with status capsules and a legend beside a preview panel, sharing the Approve Questions layout and animations; submit, edit and delete from the panel, create/edit via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review.
+-> "My Questions" page used by professors, chairs, and deans: question cards with status capsules and a legend beside a preview panel, sharing the Approve Questions layout and animations; submit, edit and delete from the panel, create/edit via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/ApproveQuestions.jsx
 ```
--> Question approval queue for deans and program chairs: review submitted questions, edit them in place, approve, return for revision, or reject; shows who last edited a question and when; includes a "Used in Exam" filter.
+-> Question approval queue for deans and program chairs: review submitted questions, edit them in place, approve, return for revision, or reject; shows who last edited a question and when; includes a "Used in Exam" filter. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen. A set's note sits under the title, and the bulk arrows sit before the full-screen and close buttons.
 
 ```
 client/src/pages/shared/ManageSubject.jsx
 ```
--> Subject page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). A dean picks a program first. A card shows the subject's name with its question and exam counts. A Questions and Exams toggle sits beside the subject's name in the panel: Questions steps through all its submitted questions with `QuestionStepper`, showing each one's status, professor, submitted date and last edit; Exams lists the exams that use it. Subjects are added and renamed in a window, and deleted from the panel, which is blocked while questions use them. It loads every question and exam once (`/api/questions/approvals`, `/api/mock-board-exams`) and works out each subject's share itself, so drafts aren't included.
+-> Subject page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). A dean picks a program first. A card shows the subject's name with its question and exam counts. A Questions and Exams toggle sits beside the subject's name in the panel: Questions steps through all its submitted questions with `QuestionStepper`, showing each one's status, professor, submitted date and last edit; Exams lists the exams that use it. Subjects are added and renamed in a window, and deleted from the panel, which is blocked while questions use them. It loads every question and exam once (`/api/questions/approvals`, `/api/mock-board-exams`) and works out each subject's share itself, so drafts aren't included. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/StudentRegister.jsx
@@ -791,7 +791,7 @@ client/src/pages/shared/LearnerDashboard.jsx
 ```
 client/src/pages/shared/BoardExams.jsx
 ```
--> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `QuestionStepper`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete.
+-> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `QuestionStepper`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/CreateExams.jsx
@@ -816,12 +816,12 @@ client/src/pages/shared/ExamRunner.jsx
 ```
 client/src/pages/shared/ExamResults.jsx
 ```
--> Exam result overview: trigger result computation, view pass/fail breakdowns, and open individual reports. Program chairs only see their own program's exams.
+-> Exam results page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). Exams can be filtered by result state (Ready, To compute, Pending), program (deans), subject, audience and search text, and sorted Newest or Oldest by exam date. A card shows the exam's name, its question count, audience and result-state markers, program (deans only), first subject + "+N", and start date. Once an exam has results, an Overall, Questions and Individual toggle sits beside its name in the panel: Overall has the summary, score distribution, scores by topic (a topic opens its questions) and the exam's details; Questions steps through the exam with `QuestionStepper` and each answer's count; Individual is `IndividualReportView`. Without results, the panel says why and shows the details, with Compute Results when a student exam has ended. Once an exam has results, Download Excel saves them: students get one row each (score, status, and a column per subject), alumni get their attempts. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen, covering the navbar and footer. Program chairs only see their own program's exams.
 
 ```
 client/src/pages/shared/IndividualReportView.jsx
 ```
--> Detailed per-student result report showing per-subject scores and answer breakdown.
+-> The Individual view of the Exam Results panel: everyone eligible for the exam as rows split by lines, filtered by whether they took it, searched and sorted. Opening a row shows that person in the same panel: score, attempts (alumni), scores by topic and their answers through `QuestionStepper`.
 
 ---
 
@@ -935,17 +935,22 @@ client/src/components/ImportReviewBubbles.jsx
 ```
 client/src/components/QuestionMarkers.jsx
 ```
--> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions, Board Exams and Manage Subjects. Also the pills that spell a question's or an exam's status out, and the exam statuses' labels and icons (`EXAM_STATUSES`).
+-> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions, Board Exams, Manage Subjects and Exam Results. Also the pills that spell a question's or an exam's status out, and the exam statuses' labels and icons (`EXAM_STATUSES`).
 
 ```
 client/src/components/PanelHeader.jsx
 ```
--> The header of a list page's side panel: the title, buttons beside it that switch what the panel shows, and the expand and close buttons. Used by Board Exams and Manage Subjects.
+-> The header of a list page's side panel: a `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch what the panel shows (none when `views` is empty), an optional `subtitle` line, then `children` (Approve Questions' bulk arrows) and the full-screen and close buttons on the right. The tab hides while full screen. Used by all five list-and-panel pages, with `usePanelLayout`.
 
 ```
 client/src/components/QuestionStepper.jsx
 ```
--> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar and `renderDetails` goes below the question. Used by Board Exams for a whole exam and Manage Subjects for a whole subject.
+-> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar, `renderDetails` goes below the question, and `getPanelProps` passes the result props of `QuestionDetailPanels`. Used by Board Exams for a whole exam, Manage Subjects for a whole subject and Exam Results for an exam's or a person's answers.
+
+```
+client/src/components/TopicScoreRows.jsx
+```
+-> An exam result's score per topic as rows split by lines: name, "N/M correct", a bar with a tick at the passing threshold, and the percentage. With `onSelect` each row is a button. Used by the Exam Results Overall and Individual views.
 
 ```
 client/src/components/QuestionNavBubbles.jsx
@@ -1013,6 +1018,11 @@ client/src/services/mockExamResultService.js
 client/src/hooks/useLocalStorage.js
 ```
 -> Custom React hook that syncs a state value to `localStorage` with an optional write debounce delay, used to persist draft data across page reloads.
+
+```
+client/src/hooks/usePanelLayout.js
+```
+-> Custom React hook for the side panel of the list-and-panel pages (Approve Questions, My Questions, Board Exams, Manage Subjects, Exam Results). It keeps whether the panel is widened over the list and whether it is full screen. The expand button turns on `is-gliding` so the columns glide, and the hook reports when the glide ends so the page can scroll the open card back into view. Escape leaves full screen unless a window, image or menu is open above it, and full screen ends when the panel closes.
 
 ```
 client/src/hooks/useCalendarExams.js
@@ -1158,6 +1168,11 @@ client/src/styles/components/QuestionNavBubbles.css
 -> Styles for `QuestionNavBubbles` (`qnb-*`): standalone circles, the question-set capsule with its progress fill (it wraps inside itself when too long for the row), the active, done and flagged states, and the flag badge.
 
 ```
+client/src/styles/components/TopicScoreRows.css
+```
+-> Styles for `TopicScoreRows` (`tsr-*`): the rows split by lines, the bar with its green, amber or red fill and threshold tick, and the bar on a line of its own on small phones.
+
+```
 client/src/styles/components/PrivacyNotice.css
 ```
 -> Styles for the privacy consent banner layout and accept button.
@@ -1175,7 +1190,7 @@ client/src/styles/shared/AvailableExams.css
 ```
 client/src/styles/shared/BoardExams.css
 ```
--> What the board exam page adds to the shared `ca-` layout: the audience marker, the size of the List and Calendar toggle, the exam details, and the publish conflict message.
+-> What the board exam page adds to the shared `ca-` layout: the size of the List and Calendar toggle, the exam details, and the publish conflict message.
 
 ```
 client/src/styles/shared/LearnerDashboard.css
@@ -1200,7 +1215,7 @@ client/src/styles/shared/CreateExams.css
 ```
 client/src/styles/shared/ExamResults.css
 ```
--> Styles for the exam results overview and report navigation (deans and chairs).
+-> What the exam results page adds to the shared `ca-` layout (`er-` classes): the result-state markers, the summary numbers, the score distribution chart, the pills, and the Individual view's people rows and person header.
 
 ```
 client/src/styles/shared/StudentRegister.css
@@ -1215,7 +1230,7 @@ client/src/styles/shared/MockBoardExamPreview.css
 ```
 client/src/styles/shared/QuestionApprovals.css
 ```
--> Styles for the list, markers, status pills, side panel and its header toggle, fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions, My Questions, Board Exams and Manage Subjects; also the exam status colours (`--exam-status-*`), `ca-page--stepper` for panels using `QuestionStepper`, the approve/return/reject buttons and bulk toolbar.
+-> Styles for the list, markers, status pills, side panel and its header toggle, the full-screen panel (`is-fullscreen`), the panel width (`--ca-panel-width`, registered with `@property` so the expand button's `is-gliding` can animate it) and the edge tab (`ca-sidebar-width-btn`; the panel doesn't clip, so its first and last parts round their own corners), fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions, My Questions, Board Exams, Manage Subjects and Exam Results; also the audience marker, the exam status colours (`--exam-status-*`), `ca-page--stepper` for panels using `QuestionStepper`, the approve/return/reject buttons and bulk toolbar.
 
 ```
 client/src/styles/shared/StudentExamResult.css

@@ -15,6 +15,8 @@ import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import PanelHeader from '../../components/PanelHeader.jsx';
+import usePanelLayout from '../../hooks/usePanelLayout.js';
 import { CardLegend, EVALUATING_DOT, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 const BASE = import.meta.env.VITE_API_URL;
@@ -91,7 +93,8 @@ export default function QuestionApprovals({ me }) {
   const [warningModal, setWarningModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [actionTaken, setActionTaken] = useState(false);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  // Widened over the list, or covering the whole window
+  const panelLayout = usePanelLayout(selectedQuestion);
   const [returnModal, setReturnModal] = useState(null);
   const [returnNote, setReturnNote] = useState('');
   const [returnSubmitting, setReturnSubmitting] = useState(false);
@@ -119,7 +122,7 @@ export default function QuestionApprovals({ me }) {
   // ...and the open question's card stays in view as the review moves on or the columns change
   useEffect(() => {
     listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [selectedQuestion?._id, currentPage, isSidebarExpanded]);
+  }, [selectedQuestion?._id, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
 
   // Windows too short to fit the page scroll it, which can leave the panel partly off screen
   const panelRef = useRef(null);
@@ -976,7 +979,7 @@ export default function QuestionApprovals({ me }) {
         onSortChange={setSortBy}
       />
 
-      <div className={`ca-layout ${selectedQuestion && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
+      <div className={panelLayout.layoutClass(Boolean(selectedQuestion))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
         <section className="ca-list-panel" aria-label="Questions">
           <CardLegend states={STATE_FILTERS.filter((state) => state !== 'all')} showEvaluating />
 
@@ -1149,18 +1152,17 @@ export default function QuestionApprovals({ me }) {
           const isUsedInExam = groupSiblingsReview.some((q) => q.is_used_in_exam);
 
           return (
-            <div className="ca-sidebar" ref={panelRef}>
-              <div className="ca-sidebar-header">
-                <div>
-                  <h2 className="ca-sidebar-title">
-                    {isGroupedReview ? `Review Question Set (${groupSiblingsReview.length} Questions)` : 'Review Question'}
-                  </h2>
-                  {isGroupedReview && (
-                    <span style={{ fontSize: '11px', fontWeight: 600 }}>
-                      ⚡ Review actions apply atomically to all questions in this set
-                    </span>
-                  )}
-                </div>
+            <div className={panelLayout.sidebarClass} ref={panelRef}>
+              <PanelHeader
+                title={isGroupedReview ? `Review Question Set (${groupSiblingsReview.length} Questions)` : 'Review Question'}
+                subtitle={isGroupedReview ? '⚡ Review actions apply atomically to all questions in this set' : null}
+                isExpanded={panelLayout.isExpanded}
+                onToggleExpanded={panelLayout.toggleExpanded}
+                isFullscreen={panelLayout.isFullscreen}
+                onToggleFullscreen={panelLayout.toggleFullscreen}
+                onClose={handleCloseSidebar}
+                closeLabel="Close question review"
+              >
                 {bulkSelectedQuestions.length > 1 && bulkNavIndex !== -1 && (
                   <div className="ca-bulk-nav">
                     <button
@@ -1184,32 +1186,7 @@ export default function QuestionApprovals({ me }) {
                     </button>
                   </div>
                 )}
-                <div className="ca-sidebar-header-actions">
-                  <button
-                    type="button"
-                    className="ca-sidebar-expand-btn"
-                    onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                    title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-                  >
-                    {isSidebarExpanded ? (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 14h6v6" />
-                        <path d="M20 10h-6V4" />
-                        <path d="M14 10l7-7" />
-                        <path d="M10 14l-7 7" />
-                      </svg>
-                    ) : (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M15 3h6v6" />
-                        <path d="M9 21H3v-6" />
-                        <path d="M21 3l-7 7" />
-                        <path d="M3 21l7-7" />
-                      </svg>
-                    )}
-                  </button>
-                  <button className="ca-sidebar-close" onClick={handleCloseSidebar}>x</button>
-                </div>
-              </div>
+              </PanelHeader>
 
               {/* Keyed so each question starts scrolled to the top */}
               <div className="ca-sidebar-content" key={selectedQuestion.groupId || selectedQuestion._id}>

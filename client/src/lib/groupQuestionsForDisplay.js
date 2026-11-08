@@ -35,6 +35,15 @@ export function groupQuestionsForDisplay(questions = []) {
   return orderedItems;
 }
 
+// Questions in exam order (by questionNumber, unnumbered ones last), with each set's questions
+// together: the order QuestionStepper shows them in, so an index here is its bubble's index
+export function orderByExamNumber(questions = []) {
+  const number = (question) => question.questionNumber ?? Number.MAX_SAFE_INTEGER;
+  const sorted = [...questions].sort((a, b) => number(a) - number(b));
+  return groupQuestionsForDisplay(sorted)
+    .flatMap((item) => (item.type === 'group' ? item.questions.map((member) => member.question) : [item.question]));
+}
+
 export function getQuestionSetPart(question) {
   return Number.isInteger(question?.groupOrder) ? question.groupOrder + 1 : null;
 }

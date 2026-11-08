@@ -157,13 +157,17 @@ Use these for new work.
 
 ### Work queues
 
-A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions, Board Exams and Manage Subjects do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
+A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions, Board Exams, Manage Subjects and Exam Results do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
 
-These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all four pages, so check them all.
+These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all five pages, so check them all.
 
-Board Exams and Manage Subjects also add `ca-page--stepper` to the root. Their panels open with `PanelHeader`, whose buttons beside the title switch what the panel shows, and step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
+All five panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it.
+
+Board Exams, Manage Subjects and Exam Results also add `ca-page--stepper` to the root. Their `PanelHeader` has buttons beside the title that switch what the panel shows, and they step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
 
 Board Exams also has a calendar view, which needs normal page scrolling, so the page drops `ca-page` while the calendar shows.
+
+Exam Results shows its toggle only once an exam has results: Overall, Questions and Individual. Without results the panel says why, shows the exam's details, and offers Compute Results when a student exam has ended. Once results exist, the action bar offers Download Excel for student and alumni exams alike. Its panel sections sit straight in the scrolling content, so `ExamResults.css` stops them shrinking, since a section that clips its corners would otherwise shrink to nothing when the content is taller than the panel.
 
 ## Shape, shadow and layers
 
@@ -202,8 +206,9 @@ Layers, lowest to highest:
 | More actions | `ActionMenu` | 32×32 button with three dots; no page uses it at the moment |
 | Delete or remove | `TrashButton` | Used for every delete and remove |
 | Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them; `StatePill` and `ExamStatePill` spell a status out where there's no legend |
-| Side panel header | `PanelHeader` | Title, buttons beside it that switch the panel's view, expand and close |
-| Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them |
+| Side panel header | `PanelHeader` | A `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch the panel's view (none when `views` is empty), an optional `subtitle`, and `children` (Approve Questions' bulk arrows) before the full-screen and close buttons. Full screen puts `is-fullscreen` on `ca-sidebar`, which then covers the whole window, navbar and footer included. The tab and the full-screen button hide at 1024px and below, where the panel already covers the screen. Pair it with `usePanelLayout` |
+| Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them, and `getPanelProps` passes result props such as answer counts |
+| Score per topic | `TopicScoreRows` | Rows split by lines, each with a bar and a tick at the passing threshold; `onSelect` makes each row a button |
 | Dialog | `Modal` | `size="compact"` for short ones; Escape or a click outside closes it |
 | Ask before acting | `ConfirmationModal` | `confirmVariant` is `danger` by default, or `primary` |
 | Message to acknowledge | `FeedbackModal` | `tone`: info, success, warning or danger |
@@ -255,7 +260,7 @@ Use `QuestionDetailPanels`. It stacks bordered sections in this order: Shared Pa
 
 - **Navigator:** `QuestionNavBubbles` everywhere, with a circle per question and a capsule per set. Active is navy with yellow text. Flagged is a red number with a badge. Don't write bubble markup by hand.
 - **Forms and read-only views:** the bubbles sit inside `ImportReviewBubbles`, a bordered section headed "Question X of N". Its `aside` prop adds something to the right of the header.
-- **A whole exam or subject:** `QuestionStepper` steps through all of them with these bubbles, numbered across the list, with a capsule per set. A long list's bubbles scroll inside their section. On Board Exams the header shows the question's subject, and a Questions and Details toggle beside the exam name swaps them for the exam's information. On Manage Subjects the header shows the question's status, and a Questions and Exams toggle beside the subject name swaps them for the exams using it. Drafts aren't listed, because they stay private to whoever is writing them.
+- **A whole exam or subject:** `QuestionStepper` steps through all of them with these bubbles, numbered across the list, with a capsule per set. A long list's bubbles scroll inside their section. On Board Exams the header shows the question's subject, and a Questions and Details toggle beside the exam name swaps them for the exam's information. On Manage Subjects the header shows the question's status, and a Questions and Exams toggle beside the subject name swaps them for the exams using it. Drafts aren't listed, because they stay private to whoever is writing them. On Exam Results the header shows the question's subject with its correct rate, and each answer shows how many takers picked it; one person's answers show their pick and whether they got it right.
 - **Exam runners:** the bubbles sit in a `.mbep-nav-bar` card.
 - **One at a time:** show one question, with the shared passage repeated above it.
 - **Numbering:** keep exam numbering ("Question 3", "Questions 4–6"). Bubbles count 1–N within the set. Don't use "Part N" labels.
@@ -272,7 +277,7 @@ Use `QuestionDetailPanels`. It stacks bordered sections in this order: Shared Pa
 - The container around the questions has no box. Approve Questions and My Questions are the exceptions: their questions sit in a bordered scrolling section with a legend.
 - A question inside an open set is not its own card.
 - Stacked question blocks in a form are split by a line, not boxed.
-- Drill-downs follow the same idea: person card → subject rows split by lines → question cards, with one item open at a time.
+- Drill-downs follow the same idea. On Exam Results, the people are rows split by lines; opening one replaces the list with that person in the same panel, with a button back to the list.
 
 ### Forms
 
@@ -291,13 +296,14 @@ Navy gradient with a white title, as `Modal` provides. Don't restyle it per page
 
 ## Motion
 
-Approve Questions is the reference, and My Questions, Board Exams and Manage Subjects share its animations: see the Motion section at the end of `QuestionApprovals.css`.
+Approve Questions is the reference, and My Questions, Board Exams, Manage Subjects and Exam Results share its animations: see the Motion section at the end of `QuestionApprovals.css`.
 
 | Moment | Motion | Duration |
 | --- | --- | --- |
 | Page arrives | Fade and rise 6px | 280ms |
 | Cards enter | Fade and rise 6px, 28ms apart | 240ms |
 | Side panel opens | Fade and slide 14px | 260ms |
+| Expand button widens or narrows the panel | Columns glide to their new widths, quick then settling | 260ms |
 | Full-screen panel opens | Rises from the bottom, stays solid | 260ms |
 | Next question in a panel | Fade only | 180ms |
 | Hover on a card or main button | Lift 1px | 150–200ms |
@@ -306,7 +312,7 @@ Approve Questions is the reference, and My Questions, Board Exams and Manage Sub
 **Rules:**
 
 - Animate only `transform` and `opacity`. They can't shift the layout.
-- Don't animate column widths. On Approve Questions this pushed the open card out of view.
+- The one exception is the expand button's glide, which moves the column widths (`--ca-panel-width`, only while `is-gliding` is on). Opening and closing an item still change the columns at once. Moving column widths once pushed the open card out of view on Approve Questions, so each page scrolls the open card back into view when the glide ends (`usePanelLayout`'s `isGliding`). Keep that if you touch it.
 - Use `backwards` fill on entrances. A fill that lasts past the end holds its transform over the hover lift.
 - Don't fade anything that covers other content. The content behind shows through its text.
 - Animate new views, but not each keystroke of a search. Key the list by the view, and leave the search text out of the key.
@@ -326,7 +332,7 @@ Approve Questions is the reference, and My Questions, Board Exams and Manage Sub
 All page styles load together, so every class is global, and a rule in one page's file can affect another page. For example, `.ca-bulk-toolbar` is styled in both `CreateExams.css` and `QuestionApprovals.css`.
 
 - Prefix a page's classes, and scope its rules under its root class, such as `.ca-page .ca-btn`.
-- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions, Board Exams and Manage Subjects), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `st-` (the rest of Manage Subjects), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
+- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions, Board Exams, Manage Subjects and Exam Results), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `st-` (the rest of Manage Subjects), `er-` (the rest of Exam Results), `tsr-` (`TopicScoreRows`), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
 - Prefix keyframe names as well, because they're global too.
 - Name the properties in a transition rather than using `transition: all`.
 - Use a token instead of repeating its value.
@@ -341,8 +347,8 @@ These are places where the code doesn't yet match this guide. Fix them when work
 - **Returned status:** its table tone is orange, but its marker is red. No table shows this status today, so settle on one before a table needs it.
 - **Font weights:** many rules ask for Nunito 700 or weights of 800 and 900, which aren't loaded.
 - **Button radius:** buttons use 6, 8, 10 and 12px depending on the page.
-- **Breakpoints:** older styles also use 1100, 900, 860, 760, 720, 600 and 560px.
-- **`transition: all`:** still used in 36 rules.
+- **Breakpoints:** older styles also use 1200, 1100, 960, 900, 860, 760, 720, 600, 560 and 520px.
+- **`transition: all`:** still used in 32 rules, not counting the landing and login pages.
 - **Reduced motion:** only `QuestionApprovals.css` handles it, plus `Table.css` if a page uses it again. Toasts and other animated pages don't.
 - **Approve Questions and My Questions:**
     - List cards don't follow the card rules above: no number, no "N answers | N images", no ▾, no All/Single/Group filter.

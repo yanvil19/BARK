@@ -70,16 +70,26 @@
 }
 
 /* ── Main Layout ────────────────────────────────────────── */
+/* The panel's widest size, registered so the expand button can glide it (see Motion). Where
+   @property isn't supported, the width still changes, at once. */
+@property --ca-panel-width {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 550px;
+}
+
 .ca-layout {
+  --ca-panel-width: 550px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 550px);
+  grid-template-columns: minmax(0, 1fr) minmax(420px, var(--ca-panel-width));
   gap: 20px;
   flex: 1;
   align-items: start;
 }
 
+/* Widened, the panel takes everything but 420px of list (the 20px is the gap) */
 .ca-layout.is-sidebar-expanded {
-  grid-template-columns: 420px minmax(0, 1fr);
+  --ca-panel-width: calc(100% - 440px);
 }
 
 /* ── Questions List Panel ────────────────────────────────– */
@@ -451,6 +461,13 @@
   border: 1px solid #93c5fd;
 }
 
+/* An exam's audience, students or alumni (Board Exams, Exam Results) */
+.ca-marker--audience {
+  background: #f9faff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.25);
+}
+
 .ca-state--draft {
   background: #f8fafc;
   color: #475569;
@@ -746,11 +763,13 @@
 }
 
 /* ── Sidebar ─────────────────────────────────────────────– */
+/* The panel doesn't clip, so its edge tab (PanelHeader) can sit half outside it. Its first and
+   last parts round their own corners instead, inside the 1px border. */
 .ca-sidebar {
+  --ca-panel-inner-radius: calc(var(--card-radius) - 1px);
   background: #fff;
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
-  overflow: hidden;
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
@@ -760,6 +779,16 @@
   scroll-margin-top: 106px;
   max-height: calc(100vh - 140px);
   grid-template-columns: minmax(0, 1fr) minmax(420px, 550px);
+}
+
+.ca-sidebar > :first-child {
+  border-top-left-radius: var(--ca-panel-inner-radius);
+  border-top-right-radius: var(--ca-panel-inner-radius);
+}
+
+.ca-sidebar > :last-child {
+  border-bottom-left-radius: var(--ca-panel-inner-radius);
+  border-bottom-right-radius: var(--ca-panel-inner-radius);
 }
 
 .ca-sidebar--empty {
@@ -992,6 +1021,49 @@
   background: rgba(53, 64, 142, 0.08);
 }
 
+/* PanelHeader's widen/narrow tab, centred on the panel's left border: half of it sits in the gap
+   beside the list, and it rides the edge as the columns glide */
+.ca-sidebar-width-btn {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(53, 64, 142, 0.14);
+  color: var(--primary-bg);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ca-sidebar-width-btn:hover {
+  background: #f4f6ff;
+  border-color: rgba(53, 64, 142, 0.4);
+  color: #3f4ab8;
+}
+
+.ca-sidebar-width-btn:focus-visible {
+  outline: 2px solid #3f4ab8;
+  outline-offset: 2px;
+}
+
+/* A line under the title, such as a set's review note on Approve Questions */
+.ca-panel-subtitle {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5966ac;
+}
+
 .ca-sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -999,6 +1071,32 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* Full screen (PanelHeader's full-screen button): the panel covers the whole window, navbar and
+   footer included, like the panel at 1024px and below. Its header, content and actions share one
+   centred column, so lines stay readable on a wide screen. It changes at once, without motion. */
+.ca-page .ca-sidebar.is-fullscreen {
+  --ca-fullscreen-gutter: max(24px, calc((100vw - 1120px) / 2));
+  --ca-panel-inner-radius: 0px;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-header,
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-content,
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-actions {
+  padding-left: var(--ca-fullscreen-gutter);
+  padding-right: var(--ca-fullscreen-gutter);
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-content {
+  overscroll-behavior: contain;
 }
 
 /* Question panels in the review sidebar; spacing comes from the sidebar's gap */
@@ -1475,10 +1573,12 @@
     max-height: none;
     border: none;
     border-radius: 0;
+    --ca-panel-inner-radius: 0px;
   }
 
   .ca-sidebar--empty,
-  .ca-sidebar-expand-btn {
+  .ca-sidebar-expand-btn,
+  .ca-sidebar-width-btn {
     display: none;
   }
 
@@ -1589,10 +1689,13 @@
   }
 }
 
-/* The panel fills its side of the page; at 1024px and below it is the full-screen overlay */
+/* The panel fills its side of the page; at 1024px and below it is the full-screen overlay.
+   Relative rather than static, for its edge tab; top: auto drops the sticky offset, which
+   relative positioning would otherwise apply. */
 @media (min-width: 1025px) and (min-height: 640px) {
   .ca-sidebar {
-    position: static;
+    position: relative;
+    top: auto;
     min-height: 0;
     max-height: none;
   }
@@ -1851,6 +1954,13 @@
     animation: fadeIn 0.18s ease-out backwards;
   }
 
+  /* The expand button glides the columns to their new widths: quick off the mark, settling
+     softly. The one place a layout property moves, since moving snapshots of the list and panel
+     instead would stretch or double their text. is-gliding is only on for the button's change. */
+  .ca-page .ca-layout.is-gliding {
+    transition: --ca-panel-width 0.26s cubic-bezier(0.2, 0, 0, 1);
+  }
+
   .ca-page .ca-bulk-btn {
     transition: opacity 0.15s, background 0.15s, transform 0.15s;
   }
@@ -1884,6 +1994,11 @@
   .ca-page .ca-pagination-btn:active:not(:disabled),
   .ca-page .ca-pagination-page:active {
     transform: scale(0.97);
+  }
+
+  /* The edge tab keeps the shift that centres it on the border */
+  .ca-page .ca-sidebar-width-btn:active {
+    transform: translate(-50%, -50%) scale(0.92);
   }
 }
 

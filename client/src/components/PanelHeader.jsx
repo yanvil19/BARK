@@ -1,61 +1,83 @@
-// The header of a list page's side panel: the title, buttons beside it that switch what the panel
-// shows, and the expand and close buttons. Its styles are in styles/shared/QuestionApprovals.css.
+// The header of a list page's side panel. The expand button is a tab on the panel's left edge,
+// the side the panel widens toward, so it moves with the edge as the columns glide; then the title, buttons beside it that switch what the panel shows (none
+// when views is empty) and an optional subtitle; children (such as Approve Questions' bulk
+// navigation) come before the full-screen and close buttons on the right. With
+// onToggleFullscreen it has the full-screen button; the page puts is-fullscreen on the panel,
+// which then covers the whole window, navbar and footer included (hooks/usePanelLayout.js keeps
+// both states). Its styles are in styles/shared/QuestionApprovals.css.
 export default function PanelHeader({
   title,
-  views,
+  subtitle,
+  views = [],
   view,
   onViewChange,
   isExpanded,
   onToggleExpanded,
+  isFullscreen = false,
+  onToggleFullscreen,
   onClose,
   closeLabel,
+  children,
 }) {
   const expandLabel = isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar';
+  const fullscreenLabel = isFullscreen ? 'Exit full screen' : 'Full screen';
 
   return (
     <div className="ca-sidebar-header">
-      <div className="ca-panel-heading">
-        <h2 className="ca-sidebar-title">{title}</h2>
-        <div className="ca-view-toggle ca-panel-toggle" role="group" aria-label="Show in this panel">
-          {views.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              className={view === value ? 'is-active' : ''}
-              onClick={() => onViewChange(value)}
-              aria-pressed={view === value}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ca-sidebar-header-actions">
+      {/* A tab on the panel's left edge, pointing the way the edge will move: < widens the
+          panel over the list, > gives the list its room back. Widening means nothing while the
+          panel covers the window. */}
+      {!isFullscreen && (
         <button
           type="button"
-          className="ca-sidebar-expand-btn"
+          className="ca-sidebar-width-btn"
           onClick={onToggleExpanded}
           title={expandLabel}
           aria-label={expandLabel}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            {isExpanded ? (
-              <>
-                <path d="M4 14h6v6" />
-                <path d="M20 10h-6V4" />
-                <path d="M14 10l7-7" />
-                <path d="M10 14l-7 7" />
-              </>
-            ) : (
-              <>
-                <path d="M15 3h6v6" />
-                <path d="M9 21H3v-6" />
-                <path d="M21 3l-7 7" />
-                <path d="M3 21l7-7" />
-              </>
-            )}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={isExpanded ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'} />
           </svg>
         </button>
+      )}
+      <div className="ca-panel-heading">
+        <h2 className="ca-sidebar-title">{title}</h2>
+        {views.length > 0 && (
+          <div className="ca-view-toggle ca-panel-toggle" role="group" aria-label="Show in this panel">
+            {views.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                className={view === value ? 'is-active' : ''}
+                onClick={() => onViewChange(value)}
+                aria-pressed={view === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {subtitle && <p className="ca-panel-subtitle">{subtitle}</p>}
+      </div>
+      {children}
+      <div className="ca-sidebar-header-actions">
+        {onToggleFullscreen && (
+          <button
+            type="button"
+            className="ca-sidebar-expand-btn ca-sidebar-fullscreen-btn"
+            onClick={onToggleFullscreen}
+            title={fullscreenLabel}
+            aria-label={fullscreenLabel}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {isFullscreen ? (
+                <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3" />
+              ) : (
+                <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+              )}
+            </svg>
+          </button>
+        )}
         <button type="button" className="ca-sidebar-close" aria-label={closeLabel} onClick={onClose}>x</button>
       </div>
     </div>

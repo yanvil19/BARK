@@ -399,9 +399,11 @@ exports.listExamsWithStatus = async (req, res) => {
       examQuery.program = req.user.program;
     }
 
+    // Subject names feed the page's subject filter and the subject pills on its cards
     const exams = await MockBoardExam.find(examQuery)
       .populate('program', 'name code')
       .populate('createdBy', 'name')
+      .populate('subjectTags', 'name')
       .sort({ startDateTime: -1 });
 
     const resultQuery = { department: req.user.department };

@@ -11,6 +11,7 @@ import PageHeader from '../../components/PageHeader.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
 import PanelHeader from '../../components/PanelHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import usePanelLayout from '../../hooks/usePanelLayout.js';
 import { ExamStatePill, Marker, MarkerLegend, StatePill, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import { formatDateTime } from '../../utils/dateFormat.js';
 import '../../styles/components/QuestionFilters.css';
@@ -116,7 +117,8 @@ export default function ManageSubject({ me }) {
   const [selectedTagId, setSelectedTagId] = useState(null);
   const [panelView, setPanelView] = useState('questions');
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  // Widened over the list, or covering the whole window
+  const panelLayout = usePanelLayout(selectedTagId);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   // The add or edit window: { tag, name, error }, where tag is empty for a new subject
   const [subjectForm, setSubjectForm] = useState(null);
@@ -201,10 +203,10 @@ export default function ManageSubject({ me }) {
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
   }, [currentPage, searchQuery, programId]);
 
-  // ...and the open subject's card stays in view when the columns change
+  // ...and the open subject's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
     listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [selectedTagId, currentPage, isSidebarExpanded]);
+  }, [selectedTagId, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
 
   // Windows too short to fit the page scroll it, which can leave the panel partly off screen
   const panelRef = useRef(null);
@@ -461,7 +463,7 @@ export default function ManageSubject({ me }) {
         )}
       </div>
 
-      <div className={`ca-layout ${selectedTag && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
+      <div className={panelLayout.layoutClass(Boolean(selectedTag))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
         <section className="ca-list-panel" aria-label="Subjects">
           <MarkerLegend items={LEGEND_ITEMS} ariaLabel="What the subject markers mean" />
 
@@ -498,14 +500,16 @@ export default function ManageSubject({ me }) {
         </section>
 
         {selectedTag ? (
-          <div className="ca-sidebar" ref={panelRef}>
+          <div className={panelLayout.sidebarClass} ref={panelRef}>
             <PanelHeader
               title={selectedTag.name}
               views={PANEL_VIEWS}
               view={panelView}
               onViewChange={setPanelView}
-              isExpanded={isSidebarExpanded}
-              onToggleExpanded={() => setIsSidebarExpanded(!isSidebarExpanded)}
+              isExpanded={panelLayout.isExpanded}
+              onToggleExpanded={panelLayout.toggleExpanded}
+              isFullscreen={panelLayout.isFullscreen}
+              onToggleFullscreen={panelLayout.toggleFullscreen}
               onClose={() => setSelectedTagId(null)}
               closeLabel="Close subject panel"
             />

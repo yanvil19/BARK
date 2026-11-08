@@ -15,6 +15,7 @@ import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import usePanelLayout from '../../hooks/usePanelLayout.js';
 import { AudienceIcon } from '../../components/CalendarIcons.jsx';
 import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 // The list, panel and motion are the same as Approve Questions, so they share its styles
@@ -50,7 +51,7 @@ const LEGEND_ITEMS = [
   })),
   ...Object.entries(AUDIENCE_LABELS).map(([audience, label]) => ({
     text: label,
-    className: 'ambe-marker--audience',
+    className: 'ca-marker--audience',
     content: <AudienceMarkerIcon audience={audience} />,
   })),
 ];
@@ -174,7 +175,8 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [panelView, setPanelView] = useState('questions');
   const [loadedQuestions, setLoadedQuestions] = useState({ examId: null, questions: [], error: '' });
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  // Widened over the list, or covering the whole window
+  const panelLayout = usePanelLayout(selectedExamId);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [schedulingExamId, setSchedulingExamId] = useState(null);
   const [confirmationModal, setConfirmationModal] = useState(null);
@@ -212,10 +214,10 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
   }, [currentPage, searchQuery, selectedProgramId, selectedStatus, selectedAudience, selectedSubject, sortBy]);
 
-  // ...and the open exam's card stays in view when the columns change
+  // ...and the open exam's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
     listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [selectedExamId, currentPage, isSidebarExpanded]);
+  }, [selectedExamId, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
 
   // Windows too short to fit the page scroll it, which can leave the panel partly off screen
   const panelRef = useRef(null);
@@ -741,7 +743,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
           </button>
           <div className="ca-card-markers">
             <Marker className="ca-marker--count" label={formatCount(questionCount, 'question')}>{questionCount}</Marker>
-            <Marker className="ambe-marker--audience" label={AUDIENCE_LABELS[audience]}>
+            <Marker className="ca-marker--audience" label={AUDIENCE_LABELS[audience]}>
               <AudienceMarkerIcon audience={audience} />
             </Marker>
             <Marker className={`ca-exam-state--${exam.status}`} label={formatStatusLabel(exam.status)}>
@@ -895,7 +897,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       </div>
 
       {viewMode === 'list' && (
-        <div className={`ca-layout ${selectedExam && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
+        <div className={panelLayout.layoutClass(Boolean(selectedExam))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
           <section className="ca-list-panel" aria-label="Exams">
             <MarkerLegend items={LEGEND_ITEMS} ariaLabel="What the exam markers mean" />
 
@@ -940,14 +942,16 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
           </section>
 
           {selectedExam ? (
-            <div className="ca-sidebar" ref={panelRef}>
+            <div className={panelLayout.sidebarClass} ref={panelRef}>
               <PanelHeader
                 title={selectedExam.name}
                 views={PANEL_VIEWS}
                 view={panelView}
                 onViewChange={setPanelView}
-                isExpanded={isSidebarExpanded}
-                onToggleExpanded={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                isExpanded={panelLayout.isExpanded}
+                onToggleExpanded={panelLayout.toggleExpanded}
+                isFullscreen={panelLayout.isFullscreen}
+                onToggleFullscreen={panelLayout.toggleFullscreen}
                 onClose={() => setSelectedExamId(null)}
                 closeLabel="Close exam panel"
               />

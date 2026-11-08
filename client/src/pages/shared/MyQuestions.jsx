@@ -40,6 +40,8 @@ import { CardLegend, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../compon
 import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
 import TrashButton, { TrashIcon } from '../../components/TrashButton.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import PanelHeader from '../../components/PanelHeader.jsx';
+import usePanelLayout from '../../hooks/usePanelLayout.js';
 // The list, panel and motion are the same as Approve Questions, so they share its styles
 import '../../styles/shared/QuestionApprovals.css';
 import '../../styles/shared/MyQuestions.css';
@@ -108,7 +110,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   // The panel: the open question or set, the question shown from a set, and the image opened full size
   const [selectedKey, setSelectedKey] = useState(null);
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  // Widened over the list, or covering the whole window
+  const panelLayout = usePanelLayout(selectedKey);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   // Import-related state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -149,10 +152,10 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
   }, [currentPage, filter, searchQuery, subjectFilter, sortBy, programId]);
 
-  // ...and the open question's card stays in view when the columns change
+  // ...and the open question's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
     listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [selectedKey, currentPage, isSidebarExpanded]);
+  }, [selectedKey, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
 
   // Windows too short to fit the page scroll it, which can leave the panel partly off screen
   const panelRef = useRef(null);
@@ -800,7 +803,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         <p className="qp-helper-note">Choose a program filter, or click Create/Import and select a program from the modal.</p>
       ) : null}
 
-      <div className={`ca-layout ${selectedQuestion && isSidebarExpanded ? 'is-sidebar-expanded' : ''}`}>
+      <div className={panelLayout.layoutClass(Boolean(selectedQuestion))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
         <section className="ca-list-panel" aria-label="Questions">
           <CardLegend states={LEGEND_STATES} />
 
@@ -876,38 +879,16 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
         </section>
 
         {selectedQuestion ? (
-          <div className="ca-sidebar" ref={panelRef}>
-            <div className="ca-sidebar-header">
-              <h2 className="ca-sidebar-title">
-                {isSelectedSet ? `Question Set (${selectedMembers.length} Questions)` : 'Question Details'}
-              </h2>
-              <div className="ca-sidebar-header-actions">
-                <button
-                  type="button"
-                  className="ca-sidebar-expand-btn"
-                  onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                  title={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
-                  aria-label={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
-                >
-                  {isSidebarExpanded ? (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M4 14h6v6" />
-                      <path d="M20 10h-6V4" />
-                      <path d="M14 10l7-7" />
-                      <path d="M10 14l-7 7" />
-                    </svg>
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M15 3h6v6" />
-                      <path d="M9 21H3v-6" />
-                      <path d="M21 3l-7 7" />
-                      <path d="M3 21l7-7" />
-                    </svg>
-                  )}
-                </button>
-                <button type="button" className="ca-sidebar-close" aria-label="Close question details" onClick={() => setSelectedKey(null)}>x</button>
-              </div>
-            </div>
+          <div className={panelLayout.sidebarClass} ref={panelRef}>
+            <PanelHeader
+              title={isSelectedSet ? `Question Set (${selectedMembers.length} Questions)` : 'Question Details'}
+              isExpanded={panelLayout.isExpanded}
+              onToggleExpanded={panelLayout.toggleExpanded}
+              isFullscreen={panelLayout.isFullscreen}
+              onToggleFullscreen={panelLayout.toggleFullscreen}
+              onClose={() => setSelectedKey(null)}
+              closeLabel="Close question details"
+            />
 
             {/* Keyed so each question starts scrolled to the top */}
             <div className="ca-sidebar-content" key={selectedKey}>
