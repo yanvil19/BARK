@@ -161,7 +161,7 @@ A page where people work through a list can fit the screen: the list scrolls ins
 
 These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all seven pages, so check them all.
 
-All seven panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it.
+All seven panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right, framed 32px buttons like the tab. The header is one slim row (8px top and bottom), with no line under the title. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it. Going in and out, the panel zooms between its place beside the list and the window, like a macOS window.
 
 Board Exams, Manage Subjects and Exam Results also add `ca-page--stepper` to the root. Their `PanelHeader` has buttons beside the title that switch what the panel shows, and they step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
 
@@ -173,7 +173,9 @@ The parts these panels build from are shared under "Panel parts" in `QuestionApp
 
 Logs lists the program's published, ongoing and finished exams. Its panel shows how the takers are doing (started, in progress, submitted, missed, and window focus lost), then the takers as rows; opening one shows their activity, oldest first. A running exam's activity reloads every 25 seconds while it is open.
 
-Student Registration lists the students and alumni, with Students, Alumni and Locked tabs counted by the server, and the account's details in the panel, where a locked account can be unlocked. "+ Register Accounts" opens a window (`BulkRegister`) built from the form's headed sections: the account type, the program for deans, and a row per person. A bad field is marked on its own row. The rows stay as a draft in the browser until they are sent. The window shows the progress and then how it went, and the registering carries on if it is closed.
+Student Registration lists the students and alumni, with Students, Alumni and Locked tabs, and the account's details in the panel. The panel's Activity section shows their last sign-in (time over date), how long that visit lasted in hours and minutes ("so far" while they are online), and the last exam they answered with its status. A locked account gets an action bar that says until when, beside Unlock Sign-in. "+ Register Accounts" opens a window (`BulkRegister`) built from the form's headed sections: the account type, the program for deans, and a row per person. A bad field is marked on its own row. The rows stay as a draft in the browser until they are sent. The window shows the progress and then how it went, and the registering carries on if it is closed.
+
+Like the other list pages, these load their whole list once and filter, count, sort and page it in the browser, so a tab, search or page shows at once. Fetching a page from the server on each click made Student Registration wait on every click, and stand out from the rest.
 
 ## Shape, shadow and layers
 
@@ -212,7 +214,7 @@ Layers, lowest to highest:
 | More actions | `ActionMenu` | 32×32 button with three dots; no page uses it at the moment |
 | Delete or remove | `TrashButton` | Used for every delete and remove |
 | Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them; `StatePill` and `ExamStatePill` spell a status out where there's no legend |
-| Side panel header | `PanelHeader` | A `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch the panel's view (none when `views` is empty), an optional `subtitle`, and `children` (Approve Questions' bulk arrows) before the full-screen and close buttons. Full screen puts `is-fullscreen` on `ca-sidebar`, which then covers the whole window, navbar and footer included. The tab and the full-screen button hide at 1024px and below, where the panel already covers the screen. Pair it with `usePanelLayout` |
+| Side panel header | `PanelHeader` | A `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch the panel's view (none when `views` is empty), and `children` (Approve Questions' bulk arrows) before the full-screen and close buttons (`ca-panel-btn`). Full screen puts `is-fullscreen` on `ca-sidebar`, which then covers the whole window, navbar and footer included. The tab and the full-screen button hide at 1024px and below, where the panel already covers the screen. Pair it with `usePanelLayout` |
 | Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them, and `getPanelProps` passes result props such as answer counts |
 | Score per topic | `TopicScoreRows` | Rows split by lines, each with a bar and a tick at the passing threshold; `onSelect` makes each row a button |
 | Dialog | `Modal` | `size="compact"` for short ones; Escape or a click outside closes it |
@@ -309,8 +311,9 @@ Approve Questions is the reference, and My Questions, Board Exams, Manage Subjec
 | Page arrives | Fade and rise 6px | 280ms |
 | Cards enter | Fade and rise 6px, 28ms apart | 240ms |
 | Side panel opens | Fade and slide 14px | 260ms |
-| Expand button widens or narrows the panel | Columns glide to their new widths, quick then settling | 260ms |
-| Full-screen panel opens | Rises from the bottom, stays solid | 260ms |
+| Expand button widens or narrows the panel, or an item opens or closes on a widened panel | Columns glide to their new widths, quick then settling | 260ms |
+| Full screen, in and out (above 1024px) | The panel's edges move between its place and the window, with rounded corners and a soft shadow on the way, quick then a long settle (`cubic-bezier(0.32, 0.72, 0, 1)`) | 440ms in, 380ms out |
+| Full-screen panel opens (1024px and below) | Rises from the bottom, stays solid | 260ms |
 | Next question in a panel | Fade only | 180ms |
 | Hover on a card or main button | Lift 1px | 150–200ms |
 | Press on a button | Scale to 0.97 | 150–200ms |
@@ -318,7 +321,8 @@ Approve Questions is the reference, and My Questions, Board Exams, Manage Subjec
 **Rules:**
 
 - Animate only `transform` and `opacity`. They can't shift the layout.
-- The one exception is the expand button's glide, which moves the column widths (`--ca-panel-width`, only while `is-gliding` is on). Opening and closing an item still change the columns at once. Moving column widths once pushed the open card out of view on Approve Questions, so each page scrolls the open card back into view when the glide ends (`usePanelLayout`'s `isGliding`). Keep that if you touch it.
+- The one exception is the columns' glide, which moves the column widths (`--ca-panel-width`, only while `is-gliding` is on): when the expand button is pressed, and when an item opens or closes while the panel is set wide. Going from item to item doesn't change the widths, so nothing glides then. Moving column widths once pushed the open card out of view on Approve Questions, so each page scrolls the open card back into view when the glide ends (`usePanelLayout`'s `isGliding`). Keep that if you touch it.
+- The other exception is the full-screen zoom, which moves the panel's edges (`usePanelLayout` animates `top`, `right`, `bottom` and `left`). Scaling it instead would shrink the full-screen layout into the panel's place, so its text would pop to a new size at the start or the end. Its side margins are measured from the panel's own width for the same reason. Reduced motion skips it.
 - Use `backwards` fill on entrances. A fill that lasts past the end holds its transform over the hover lift.
 - Don't fade anything that covers other content. The content behind shows through its text.
 - Animate new views, but not each keystroke of a search. Key the list by the view, and leave the search text out of the key.

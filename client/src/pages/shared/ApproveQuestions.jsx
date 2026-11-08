@@ -1155,7 +1155,6 @@ export default function QuestionApprovals({ me }) {
             <div className={panelLayout.sidebarClass} ref={panelRef}>
               <PanelHeader
                 title={isGroupedReview ? `Review Question Set (${groupSiblingsReview.length} Questions)` : 'Review Question'}
-                subtitle={isGroupedReview ? '⚡ Review actions apply atomically to all questions in this set' : null}
                 isExpanded={panelLayout.isExpanded}
                 onToggleExpanded={panelLayout.toggleExpanded}
                 isFullscreen={panelLayout.isFullscreen}

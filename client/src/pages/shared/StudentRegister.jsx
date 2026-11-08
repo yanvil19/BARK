@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -16,7 +16,6 @@ import '../../styles/shared/QuestionApprovals.css';
 import '../../styles/shared/StudentRegister.css';
 
 const PAGE_SIZE = 10;
-const SEARCH_DELAY_MS = 300;
 
 const TYPE_LABELS = { student: 'Student', alumni: 'Alumni' };
 
@@ -56,16 +55,99 @@ function formatProgramLabel(program) {
   return program?.name || program?.code || '-';
 }
 
-function describeCredentials(account) {
-  if (account.credentialsSent) {
-    return account.credentialsSentAt ? `Sent ${formatDateTime(account.credentialsSentAt)}` : 'Sent';
+// Hours and minutes, the way the panel says how long a visit lasted
+function formatHoursMinutes(ms) {
+  const totalMinutes = Math.floor(ms / 60000);
+  if (totalMinutes < 1) return '< 1m';
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+const EXAM_STATUS = {
+  submitted: { label: 'Submitted', tone: 'good' },
+  in_progress: { label: 'In progress', tone: 'warn' },
+  abandoned: { label: 'Abandoned', tone: 'muted' },
+};
+
+// Last sign-in, how long that visit lasted, and the last exam they took
+function AccountActivity({ accountId }) {
+  const [activity, setActivity] = useState({ loading: true, error: '', data: null });
+  const [loadCount, setLoadCount] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+    setActivity({ loading: true, error: '', data: null });
+    apiAuth(`/api/auth/users/${encodeURIComponent(accountId)}/activity`)
+      .then((data) => {
+        if (!ignore) setActivity({ loading: false, error: '', data });
+      })
+      .catch((err) => {
+        if (!ignore) setActivity({ loading: false, error: err.message || 'The activity could not be loaded.', data: null });
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [accountId, loadCount]);
+
+  if (activity.loading) return <p className="ca-hint ca-hint--section">Loading activity...</p>;
+  if (activity.error) {
+    return (
+      <div className="ca-retry sm-activity-retry">
+        <p className="ca-panel-note ca-panel-note--error" role="alert">{activity.error}</p>
+        <button type="button" className="ca-btn ca-btn--plain" onClick={() => setLoadCount((count) => count + 1)}>Try again</button>
+      </div>
+    );
   }
-  if (account.credentialEmailError) return `Not sent: ${account.credentialEmailError}`;
-  return 'Not sent yet';
+
+  const { lastLoginAt, sessionMs, online, lastExam } = activity.data;
+  const examStatus = lastExam ? EXAM_STATUS[lastExam.status] || { label: lastExam.status, tone: 'muted' } : null;
+  const finished = lastExam?.status === 'submitted' && lastExam.endTime;
+
+  return (
+    <>
+      <div className="ca-stats" style={{ '--ca-stat-columns': 2 }}>
+        <div className="ca-stat">
+          <span className="ca-stat-label">Last Sign-in</span>
+          <strong className="ca-stat-value">{lastLoginAt ? formatTime(lastLoginAt) : '-'}</strong>
+          <span className="ca-stat-sub">{lastLoginAt ? formatDate(lastLoginAt) : 'Not recorded yet'}</span>
+        </div>
+        <div className="ca-stat">
+          <span className="ca-stat-label">Time Signed In</span>
+          <strong className="ca-stat-value">{lastLoginAt ? formatHoursMinutes(sessionMs) : '-'}</strong>
+          <span className="ca-stat-sub">
+            {!lastLoginAt ? 'Not recorded yet' : online ? 'so far, online now' : 'on their last visit'}
+          </span>
+        </div>
+      </div>
+      <div className="question-panel-body ca-person-head sm-last-exam">
+        <span className="ca-person-text">
+          <span className="ca-stat-label">Last Exam Answered</span>
+          {lastExam ? (
+            <>
+              <span className="ca-person-name">
+                {lastExam.name}
+                {lastExam.attemptNumber > 1 && <span className="ca-person-id">Attempt {lastExam.attemptNumber}</span>}
+              </span>
+              <span className="ca-person-meta">
+                {finished ? 'Submitted' : 'Started'} {formatDateTime(finished ? lastExam.endTime : lastExam.startTime)}
+              </span>
+            </>
+          ) : (
+            <span className="ca-person-meta">No exams taken yet</span>
+          )}
+        </span>
+        {examStatus && (
+          <span className="ca-person-result">
+            <span className={`ca-tone-pill ca-tone-pill--${examStatus.tone}`}>{examStatus.label}</span>
+          </span>
+        )}
+      </div>
+    </>
+  );
 }
 
 function AccountDetails({ account }) {
-  const locked = isLoginLocked(account);
   const isAlumni = account.role === 'alumni';
   const facts = [
     { label: 'Email', value: account.email },
@@ -81,25 +163,8 @@ function AccountDetails({ account }) {
   return (
     <>
       <section className="question-panel">
-        <p className="question-panel-label">Sign-in</p>
-        <div className="question-panel-body sm-signin">
-          <span className={`ca-tone-pill ca-tone-pill--${locked ? 'bad' : 'good'}`}>
-            {locked ? 'Locked' : 'Can sign in'}
-          </span>
-          <p className="ca-hint">
-            {locked
-              ? `${lockedUntilLabel(account)}, after too many wrong passwords. Unlock it to let them try again now.`
-              : account.loginFailedAttempts > 0
-                ? `${account.loginFailedAttempts} wrong password ${account.loginFailedAttempts === 1 ? 'try' : 'tries'} since their last sign-in.`
-                : 'No recent wrong passwords.'}
-          </p>
-        </div>
-        <div className="question-panel-body sm-signin sm-signin--email">
-          <span className="ca-meta-label">Sign-in Details Email</span>
-          <span className={`ca-meta-value${!account.credentialsSent && account.credentialEmailError ? ' sm-value--bad' : ''}`}>
-            {describeCredentials(account)}
-          </span>
-        </div>
+        <p className="question-panel-label">Activity</p>
+        <AccountActivity accountId={account._id} />
       </section>
 
       <section className="ca-section ca-review-metadata">
@@ -122,15 +187,11 @@ export default function StudentManager({ me }) {
   const scope = isDean ? 'department' : 'program';
 
   const [accounts, setAccounts] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
 
   const [tab, setTab] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [programFilter, setProgramFilter] = useState('');
   const [programs, setPrograms] = useState([]);
   const [sortBy, setSortBy] = useState('newest');
@@ -142,11 +203,6 @@ export default function StudentManager({ me }) {
   const [registerOpen, setRegisterOpen] = useState(false);
   const selectedId = selectedAccount?._id || null;
   const panelLayout = usePanelLayout(selectedId);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // A dean can narrow the list to one of their department's programs
   useEffect(() => {
@@ -166,55 +222,70 @@ export default function StudentManager({ me }) {
     };
   }, [isDean, me?.department, notify]);
 
+  // Every account is loaded once, the way the other list pages load theirs, so the tabs, search,
+  // sort and pages work in the browser without waiting on the server. It loads again after a batch
+  // is registered.
+  const loadAccounts = useCallback(async () => {
+    try {
+      const data = await apiAuth('/api/auth/users?role=student,alumni&all=true');
+      const users = data.users || [];
+      setAccounts(users);
+      setListError('');
+      // Keep the open account current
+      setSelectedAccount((current) => (current ? users.find((user) => user._id === current._id) || current : current));
+    } catch (err) {
+      setListError(err.message || 'Failed to load the accounts.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAccounts();
+  }, [loadAccounts]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [tab, debouncedSearch, programFilter, sortBy]);
+  }, [tab, searchQuery, programFilter, sortBy]);
 
-  // The server pages, filters, sorts and counts the accounts
-  useEffect(() => {
-    let ignore = false;
-    const params = new URLSearchParams({
-      role: 'student,alumni',
-      page: String(currentPage),
-      limit: String(PAGE_SIZE),
-      counts: 'true',
+  // Everything but the tab, so each tab's count says what picking it would show
+  const filteredExceptTab = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return accounts.filter((account) => {
+      if (isDean && programFilter && String(getId(account.program)) !== String(programFilter)) return false;
+      if (!query) return true;
+      return [account.name, account.email, account.studentId, account.alumniId]
+        .some((value) => (value || '').toLowerCase().includes(query));
     });
-    if (tab === 'locked') params.set('locked', 'true');
-    else if (tab) params.set('type', tab);
-    if (debouncedSearch) params.set('search', debouncedSearch);
-    if (isDean && programFilter) params.set('program', programFilter);
-    if (sortBy === 'oldest') params.set('sort', 'oldest');
+  }, [accounts, searchQuery, programFilter, isDean]);
 
-    setLoading(true);
-    apiAuth(`/api/auth/users?${params}`)
-      .then((data) => {
-        if (ignore) return;
-        const users = data.users || [];
-        setAccounts(users);
-        setTotal(data.total || 0);
-        setCounts(data.counts || {});
-        setListError('');
-        setLoading(false);
-        // Keep the open account current when it is on this page
-        setSelectedAccount((current) => (current ? users.find((user) => user._id === current._id) || current : current));
-      })
-      .catch((err) => {
-        if (ignore) return;
-        setListError(err.message || 'Failed to load the accounts.');
-        setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [tab, debouncedSearch, programFilter, sortBy, currentPage, isDean, reloadKey]);
+  const counts = useMemo(() => ({
+    all: filteredExceptTab.length,
+    student: filteredExceptTab.filter((account) => account.role === 'student').length,
+    alumni: filteredExceptTab.filter((account) => account.role === 'alumni').length,
+    locked: filteredExceptTab.filter((account) => isLoginLocked(account)).length,
+  }), [filteredExceptTab]);
 
-  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+  // Newest registered first, or oldest; accounts registered together keep their order
+  const visibleAccounts = useMemo(() => {
+    const listed = filteredExceptTab.filter((account) => {
+      if (tab === 'locked') return isLoginLocked(account);
+      return !tab || account.role === tab;
+    });
+    const registeredAt = (account) => new Date(account.createdAt || 0).getTime();
+    return [...listed].sort((a, b) => {
+      const order = registeredAt(a) - registeredAt(b) || String(a._id).localeCompare(String(b._id));
+      return sortBy === 'oldest' ? order : -order;
+    });
+  }, [filteredExceptTab, tab, sortBy]);
+
+  const paginatedAccounts = visibleAccounts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // The list scrolls on its own: each page or filter starts at the top...
   const listScrollRef = useRef(null);
   useEffect(() => {
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-  }, [currentPage, tab, debouncedSearch, programFilter, sortBy]);
+  }, [currentPage, tab, searchQuery, programFilter, sortBy]);
 
   // ...and the open account's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
@@ -239,7 +310,6 @@ export default function StudentManager({ me }) {
       setSelectedAccount((current) => (current?._id === account._id ? unlocked : current));
       setAccounts((current) => current.map((item) => (item._id === account._id ? unlocked : item)));
       notify(`${account.name || account.email} can sign in again.`, { variant: 'success', title: 'Unlocked' });
-      reload();
     } catch (err) {
       notify(err.message || 'The account could not be unlocked.', { variant: 'error', title: 'Unlock' });
     } finally {
@@ -315,7 +385,7 @@ export default function StudentManager({ me }) {
       <CapsuleFilters
         className="ca-state-pills"
         ariaLabel="Filter accounts"
-        options={TABS.map((item) => ({ value: item.value, label: item.label, count: counts[item.countKey] ?? 0 }))}
+        options={TABS.map((item) => ({ value: item.value, label: item.label, count: counts[item.countKey] }))}
         value={tab}
         onChange={setTab}
       />
@@ -340,16 +410,16 @@ export default function StudentManager({ me }) {
           <div className="ca-list-scroll" ref={listScrollRef} aria-busy={loading}>
             {listError ? (
               <div className="ca-empty" role="alert">{listError}</div>
-            ) : loading && accounts.length === 0 ? (
+            ) : loading ? (
               <div className="ca-empty">Loading accounts...</div>
-            ) : accounts.length === 0 ? (
+            ) : visibleAccounts.length === 0 ? (
               <div className="ca-empty">
                 <p className="sm-empty-text">
-                  {hasActiveFilters
-                    ? 'No accounts match your filters.'
-                    : `No students or alumni are registered for your ${scope} yet. Use Register Accounts to add them.`}
+                  {accounts.length === 0
+                    ? `No students or alumni are registered for your ${scope} yet. Use Register Accounts to add them.`
+                    : 'No accounts match your filters.'}
                 </p>
-                {hasActiveFilters && (
+                {accounts.length > 0 && hasActiveFilters && (
                   <button type="button" className="ca-btn ca-btn--plain sm-clear-filters" onClick={clearFilters}>
                     Clear filters
                   </button>
@@ -358,18 +428,18 @@ export default function StudentManager({ me }) {
             ) : (
               /* Keyed so the cards animate in for each new view, but not while typing a search */
               <div className="ca-questions-list" key={[tab, programFilter, sortBy, currentPage].join('|')}>
-                {accounts.map(renderAccountCard)}
+                {paginatedAccounts.map(renderAccountCard)}
               </div>
             )}
           </div>
 
-          {!listError && total > 0 && (
+          {!loading && !listError && (
             <Pagination
               currentPage={currentPage}
-              totalItems={total}
+              totalItems={visibleAccounts.length}
               pageSize={PAGE_SIZE}
               onPageChange={setCurrentPage}
-              itemLabel={total === 1 ? 'account' : 'accounts'}
+              itemLabel={visibleAccounts.length === 1 ? 'account' : 'accounts'}
               classPrefix="ca"
               maxPageButtons={5}
             />
@@ -394,7 +464,8 @@ export default function StudentManager({ me }) {
             </div>
 
             {selectedLocked && (
-              <div className="ca-sidebar-actions">
+              <div className="ca-sidebar-actions sm-unlock-bar">
+                <p className="ca-hint">{lockedUntilLabel(selectedAccount)}, after too many wrong passwords.</p>
                 <button type="button" className="ca-btn ca-btn--approve" onClick={handleUnlock} disabled={unlocking}>
                   {unlocking ? 'Unlocking...' : 'Unlock Sign-in'}
                 </button>
@@ -412,7 +483,7 @@ export default function StudentManager({ me }) {
         user={me}
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
-        onFinished={reload}
+        onFinished={loadAccounts}
       />
     </main>
   );

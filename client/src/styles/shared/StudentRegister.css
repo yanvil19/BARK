@@ -50,24 +50,29 @@
 }
 
 /* Whether they can sign in, and whether their sign-in details reached them */
-.sm-signin {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.sm-signin .ca-hint {
-  flex: 1;
-  min-width: 0;
-}
-
-.sm-signin--email {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+/* The last exam, under the sign-in numbers */
+.sm-last-exam {
   border-top: 1px solid rgba(53, 64, 142, 0.08);
 }
 
-.sm-value--bad {
-  color: #be123c;
+.sm-last-exam .ca-person-text {
+  gap: 4px;
+}
+
+.sm-activity-retry {
+  padding: 14px;
+}
+
+/* The lock spelled out beside the button that lifts it */
+.sm-unlock-bar {
+  align-items: center;
+}
+
+.sm-unlock-bar .ca-hint {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.sm-unlock-bar .ca-btn {
+  flex: 0 0 auto;
 }

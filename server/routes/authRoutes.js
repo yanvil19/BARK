@@ -13,6 +13,7 @@ const {
   deactivateUser,
   activateUser,
   unlockUserLogin,
+  getUserActivity,
   deleteUser,
   bulkRegister,
   getBulkRegisterSummary,
@@ -239,6 +240,10 @@ router.patch('/users/:id/activate', protect, authorizeRoles('super_admin'), acti
 // @route   PATCH /api/auth/users/:id/unlock
 // @access  Private - Super Admin; Dean and Program Chair for students and alumni they manage
 router.patch('/users/:id/unlock', protect, authorizeRoles('super_admin', 'dean', 'program_chair'), unlockUserLogin);
+
+// @route   GET /api/auth/users/:id/activity
+// @desc    A student's or alumnus's last sign-in, visit length and last exam (scoped like unlock)
+router.get('/users/:id/activity', protect, authorizeRoles('super_admin', 'dean', 'program_chair'), getUserActivity);
 
 // @route   DELETE /api/auth/users/:id
 // @access  Private - Super Admin only

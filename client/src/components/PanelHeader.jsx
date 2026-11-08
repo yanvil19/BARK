@@ -1,13 +1,13 @@
 // The header of a list page's side panel. The expand button is a tab on the panel's left edge,
-// the side the panel widens toward, so it moves with the edge as the columns glide; then the title, buttons beside it that switch what the panel shows (none
-// when views is empty) and an optional subtitle; children (such as Approve Questions' bulk
-// navigation) come before the full-screen and close buttons on the right. With
-// onToggleFullscreen it has the full-screen button; the page puts is-fullscreen on the panel,
-// which then covers the whole window, navbar and footer included (hooks/usePanelLayout.js keeps
-// both states). Its styles are in styles/shared/QuestionApprovals.css.
+// the side the panel widens toward, so it moves with the edge as the columns glide; then the
+// title and buttons beside it that switch what the panel shows (none when views is empty);
+// children (such as Approve Questions' bulk navigation) come before the full-screen and close
+// buttons on the right. With onToggleFullscreen it has the full-screen button; the page puts
+// is-fullscreen on the panel, which then zooms to cover the whole window, navbar and footer
+// included (hooks/usePanelLayout.js keeps both states and plays the zoom). Its styles are in
+// styles/shared/QuestionApprovals.css.
 export default function PanelHeader({
   title,
-  subtitle,
   views = [],
   view,
   onViewChange,
@@ -57,14 +57,13 @@ export default function PanelHeader({
             ))}
           </div>
         )}
-        {subtitle && <p className="ca-panel-subtitle">{subtitle}</p>}
       </div>
       {children}
       <div className="ca-sidebar-header-actions">
         {onToggleFullscreen && (
           <button
             type="button"
-            className="ca-sidebar-expand-btn ca-sidebar-fullscreen-btn"
+            className="ca-panel-btn ca-sidebar-expand-btn ca-sidebar-fullscreen-btn"
             onClick={onToggleFullscreen}
             title={fullscreenLabel}
             aria-label={fullscreenLabel}
@@ -78,7 +77,11 @@ export default function PanelHeader({
             </svg>
           </button>
         )}
-        <button type="button" className="ca-sidebar-close" aria-label={closeLabel} onClick={onClose}>x</button>
+        <button type="button" className="ca-panel-btn ca-sidebar-close" aria-label={closeLabel} title="Close" onClick={onClose}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
       </div>
     </div>
   );
