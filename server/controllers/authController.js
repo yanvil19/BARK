@@ -12,6 +12,8 @@ const { logAudit } = require('../utils/auditLogger');
 const { sendEmail } = require('../utils/emailService');
 const { welcomeCredentialsHtml } = require('../emails/templates/welcomeCredentialsTemplate');
 const { recordFailedLogin, recordSuccessfulLogin } = require('../middleware/loginIpRateLimit');
+const StudentExamAttempt = require('../models/StudentExamAttempt');
+const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 
 const BULK_REGISTER_MAX_ENTRIES = 500;
 const bulkRegistrationBatches = new Map();
@@ -446,6 +448,7 @@ const loginUser = async (req, res) => {
     user.loginFailedAttempts = 0;
     user.loginLockedUntil = null;
     user.loginLastFailedAt = null;
+    user.lastLoginAt = new Date();
     await user.save();
 
     // Generate token, set it as an httpOnly cookie (never in response body)
@@ -642,9 +645,18 @@ const requestPasswordChangeOTP = async (req, res) => {
   }
 };
 
+// What a list page shows of each account when it loads them all at once (see `all` below)
+const USER_LIST_FIELDS = [
+  'name', 'email', 'role', 'studentId', 'alumniId', 'department', 'program', 'isActive', 'createdAt',
+  'last_active_at', 'loginLockedUntil',
+].join(' ');
+
 // @desc    List users (admin view)
 // @route   GET /api/auth/users
-// @access  Private (Super Admin only — enforced in route)
+// @access  Private (Super Admin, Dean, Program Chair — enforced in route)
+// Query: page, limit, role (comma list), department, program, isActive, search. With all=true it
+// skips the paging and returns every matching user, newest first, with only the fields a list page
+// needs, so the page can filter, count and page them itself, as the other list pages do.
 const listUsers = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -653,28 +665,32 @@ const listUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    
-    // Authorization: Restrict data access by role
+
+    // Authorization: deans see their department and chairs their program. The department and
+    // program filters can only narrow that: a dean's program filter still keeps their department,
+    // and a chair's scope can't be changed at all.
     if (req.user.role === 'dean' && req.user.department) {
       filter.department = req.user.department;
+      if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
     } else if (req.user.role === 'program_chair' && req.user.program) {
       filter.program = req.user.program;
-    } else if (req.user.role !== 'super_admin') {
+    } else if (req.user.role === 'super_admin') {
+      if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
+      if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
+    } else {
       // Only super_admin, dean, and program_chair can view user lists
       return res.status(403).json({ message: 'Access denied.' });
     }
-    
+
     // Handle comma-separated roles (e.g., "student,alumni")
     if (req.query.role) {
-      const roles = req.query.role.split(',').map((r) => r.trim()).filter((r) => r);
+      const roles = String(req.query.role).split(',').map((r) => r.trim()).filter((r) => r);
       if (roles.length === 1) {
         filter.role = roles[0];
       } else if (roles.length > 1) {
         filter.role = { $in: roles };
       }
     }
-    if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
-    if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
     if (req.query.isActive === 'true') filter.isActive = true;
     if (req.query.isActive === 'false') filter.isActive = false;
 
@@ -687,6 +703,16 @@ const listUsers = async (req, res) => {
         { studentId: new RegExp(safe, 'i') },
         { alumniId: new RegExp(safe, 'i') },
       ];
+    }
+
+    if (req.query.all === 'true') {
+      const users = await User.find(filter)
+        .select(USER_LIST_FIELDS)
+        .populate('department', 'name code')
+        .populate('program', 'name code department')
+        .sort({ createdAt: -1, _id: -1 })
+        .lean();
+      return res.status(200).json({ total: users.length, users });
     }
 
     const [total, users] = await Promise.all([
@@ -921,6 +947,66 @@ const unlockUserLogin = async (req, res) => {
       message: 'Account unlocked',
       user: { _id: user._id, loginFailedAttempts: 0, loginLockedUntil: null },
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+// Someone counts as online while their heartbeat is this recent, the same window the system metrics use
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
+// @desc    One student's or alumnus's activity: last sign-in, how long that visit lasted, and their last exam
+// @route   GET /api/auth/users/:id/activity
+// @access  Private (Super Admin, Dean for their department, Program Chair for their program)
+const getUserActivity = async (req, res) => {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(404).json({ message: 'User not found' });
+
+    const user = await User.findById(req.params.id)
+      .select('role department program lastLoginAt last_active_at')
+      .lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isLearner = user.role === 'student' || user.role === 'alumni';
+    if (req.user.role !== 'super_admin') {
+      const scopeField = req.user.role === 'dean' ? 'department' : 'program';
+      const inScope = Boolean(req.user[scopeField]) && String(user[scopeField]) === String(req.user[scopeField]);
+      if (!isLearner || !inScope) {
+        return res.status(403).json({ message: `You can only view students and alumni in your ${scopeField}.` });
+      }
+    }
+
+    const lastLoginAt = user.lastLoginAt || null;
+    const lastActiveAt = user.last_active_at || null;
+    // The visit runs from signing in to the last heartbeat after it; no heartbeat yet means it just began
+    const sessionMs = lastLoginAt
+      ? Math.max(0, new Date(lastActiveAt || 0).getTime() - new Date(lastLoginAt).getTime())
+      : null;
+    const online = Boolean(lastLoginAt && lastActiveAt) && Date.now() - new Date(lastActiveAt).getTime() <= ONLINE_WINDOW_MS;
+
+    let lastExam = null;
+    if (isLearner) {
+      const Attempt = user.role === 'alumni' ? AlumniExamAttempt : StudentExamAttempt;
+      const ownerField = user.role === 'alumni' ? 'alumni' : 'student';
+      const attempt = await Attempt.findOne({ [ownerField]: user._id })
+        .select('exam status startTime endTime attemptNumber')
+        .sort({ startTime: -1, _id: -1 })
+        .populate('exam', 'name')
+        .lean();
+      if (attempt) {
+        lastExam = {
+          examId: attempt.exam?._id || null,
+          name: attempt.exam?.name || 'Deleted exam',
+          status: attempt.status,
+          startTime: attempt.startTime || null,
+          endTime: attempt.endTime || null,
+          attemptNumber: attempt.attemptNumber || null,
+        };
+      }
+    }
+
+    res.status(200).json({ lastLoginAt, lastActiveAt, sessionMs, online, lastExam });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
@@ -1694,6 +1780,7 @@ module.exports = {
   deactivateUser,
   activateUser,
   unlockUserLogin,
+  getUserActivity,
   deleteUser,
   bulkRegister,
   getBulkRegisterSummary,

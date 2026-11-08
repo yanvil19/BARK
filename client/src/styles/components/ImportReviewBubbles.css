@@ -15,6 +15,10 @@
 }
 
 .import-review-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(53, 64, 142, 0.15);
   background: #f9faff;

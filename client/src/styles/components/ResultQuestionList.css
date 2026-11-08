@@ -1,5 +1,4 @@
-/* Result question cards (ResultQuestionList), same look as the question cards of
-   the Exam Details modal (BoardExams.css) */
+/* Result question cards (ResultQuestionList) */
 .rql-list {
   display: flex;
   flex-direction: column;

@@ -665,7 +665,7 @@ const getExamActivityLogs = async (req, res) => {
       StudentExamAttempt.find({ exam: examId })
         .populate({
           path: 'student',
-          select: 'name firstName lastName email program role userType',
+          select: 'name firstName lastName email program role userType studentId',
           match: { program: programId },
         })
         .select('student startTime endTime status answers randomizedQuestions violations progressMilestones autoSubmitted')
@@ -674,7 +674,7 @@ const getExamActivityLogs = async (req, res) => {
       AlumniExamAttempt.find({ exam: examId })
         .populate({
           path: 'alumni',
-          select: 'name firstName lastName email program role userType',
+          select: 'name firstName lastName email program role userType alumniId',
         })
         .select('alumni startTime endTime status answers randomizedQuestions attemptNumber score createdAt')
         .sort({ startTime: -1 })
@@ -714,6 +714,7 @@ const getExamActivityLogs = async (req, res) => {
           studentId: attempt.student._id,
           studentName: buildStudentDisplayName(attempt.student),
           studentEmail: attempt.student.email || '',
+          schoolId: attempt.student.studentId || '',
           userType: isAlumni ? 'Alumni' : 'Student',
           studentType: isAlumni ? 'alumni' : 'student',
           status: inferredStatus,
@@ -748,6 +749,8 @@ const getExamActivityLogs = async (req, res) => {
           studentId: attempt.alumni._id,
           studentName: buildStudentDisplayName(attempt.alumni),
           studentEmail: attempt.alumni.email || '',
+          schoolId: attempt.alumni.alumniId || '',
+          attemptNumber: attempt.attemptNumber || null,
           userType: 'Alumni',
           studentType: 'alumni',
           status: attempt.status,

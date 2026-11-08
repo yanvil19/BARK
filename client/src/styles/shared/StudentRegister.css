@@ -1,236 +1,78 @@
-.sm-page {
-  min-height: 100%;
-}
+/* ===== STUDENT REGISTRATION PAGE (sm-) =====
+   The list, cards and panel are the shared ca- layout (QuestionApprovals.css), and the register
+   window has its own file (BulkRegister.css). This file only has what the page adds. */
 
-.sm-page-header {
-  padding: 18px 32px 12px;
-  background: #f9faff;
-  border-bottom: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.sm-page-header h1 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 24px;
-  color: var(--primary-bg);
-}
-
-.sm-page-header p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #8b92bc;
-}
-
-.sm-tabs {
+.sm-header-actions {
   display: flex;
-  gap: 0;
-  padding: 0 24px;
-  background: var(--primary-bg);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 3px solid #d5a800;
-}
-
-.sm-tab {
-  border: none;
-  background: transparent;
-  color: #f6f7ff;
-  padding: 14px 18px 12px;
-  font-family: var(--font-title);
-  font-size: 14px;
-  cursor: pointer;
-  position: relative;
-}
-
-.sm-tab.is-active {
-  color: #fff;
-}
-
-.sm-tab.is-active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -3px;
-  height: 3px;
-  background: #f3c316;
-}
-
-.sm-content {
-  padding: 16px 0 0;
-}
-
-.sm-card {
-  background: #fff;
-  border: 1px solid #bec5e3;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(34, 41, 91, 0.16);
-  overflow: hidden;
-}
-
-.sm-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px 12px;
-}
-
-.sm-card-header h3 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 18px;
-  color: var(--primary-bg);
-}
-
-.sm-card-header p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #98a0c9;
-}
-
-.sm-card-summary {
-  min-width: 120px;
-  padding: 12px 16px;
-  border: 1px solid #7a85c4;
-  border-left: 6px solid var(--primary-bg);
-  border-radius: 4px;
-  text-align: center;
-  background: #fefefe;
-}
-
-.sm-card-summary-label {
-  display: block;
-  font-size: 13px;
-  color: #5f69a7;
-}
-
-.sm-card-summary-value {
-  display: block;
-  font-family: var(--font-title);
-  font-size: 36px;
-  line-height: 1;
-  color: var(--primary-bg);
-}
-
-.sm-table-wrap {
-  overflow-x: auto;
-}
-
-.sm-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.sm-table thead tr {
-  background: #eef1fb;
-}
-
-.sm-table th {
-  padding: 14px 16px;
-  text-align: left;
-  font-family: var(--font-title);
-  font-size: 13px;
-  color: #5f69a7;
-  border-top: 1px solid #d9dff1;
-  border-bottom: 1px solid #d9dff1;
-}
-
-.sm-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e3e7f5;
-  vertical-align: middle;
-  font-size: 13px;
-  color: #4f5680;
-}
-
-.sm-user-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.sm-user-cell strong {
-  color: #3b4a93;
-}
-
-.sm-user-cell span {
-  color: #98a0c9;
-  font-size: 12px;
-}
-
-.sm-role-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 78px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid transparent;
-}
-
-.sm-role-pill--student {
-  color: #4f4ad1;
-  background: #e9e7ff;
-  border-color: #837bed;
-}
-
-.sm-role-pill--alumni {
-  color: #1c78c8;
-  background: #dff0ff;
-  border-color: #7ebdfa;
-}
-
-.sm-action-row {
-  display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
-.sm-btn {
-  min-width: 122px;
-  padding: 6px 12px;
-  border-radius: 3px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.sm-btn--approve {
-  border: 1px solid #7ad67a;
-  color: #3f9c3f;
-}
-
-.sm-btn--reject {
-  border: 1px solid #ff7d7d;
-  color: #d43f3f;
-}
-
-.sm-feedback,
-.sm-empty {
-  padding: 24px 18px;
-  color: #667085;
-}
-
-.sm-feedback--error {
-  color: #d92d20;
-}
-
-@media (max-width: 860px) {
-  .sm-page-header {
-    padding-left: 18px;
-    padding-right: 18px;
+@media (max-width: 980px) {
+  /* Nothing sits beside the sort, so it takes the whole row */
+  .sm-filters .qf-sort {
+    grid-column: 1 / -1;
   }
+}
 
-  .sm-tabs {
-    padding: 0 18px;
-    overflow-x: auto;
-  }
+/* ---------- List ---------- */
 
-  .sm-card-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* Locked out of signing in: red, like the rejected marker */
+.sm-page .sm-marker--locked,
+.sm-page .ca-legend .sm-marker--locked {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+/* A long email gives way to the date instead of pushing it to its own line */
+.sm-card-email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-empty-text {
+  margin: 0;
+}
+
+.sm-page .sm-clear-filters {
+  margin-top: 14px;
+}
+
+/* ---------- Panel ---------- */
+
+.sm-page .ca-sidebar-content > * {
+  flex-shrink: 0;
+}
+
+/* Whether they can sign in, and whether their sign-in details reached them */
+/* The last exam, under the sign-in numbers */
+.sm-last-exam {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.sm-last-exam .ca-person-text {
+  gap: 4px;
+}
+
+.sm-activity-retry {
+  padding: 14px;
+}
+
+/* The lock spelled out beside the button that lifts it */
+.sm-unlock-bar {
+  align-items: center;
+}
+
+.sm-unlock-bar .ca-hint {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.sm-unlock-bar .ca-btn {
+  flex: 0 0 auto;
 }

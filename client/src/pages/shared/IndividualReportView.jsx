@@ -1,332 +1,358 @@
-import React, { useEffect, useState, useMemo, memo } from 'react';
-import { getExamStudentResults } from '../../services/mockExamResultService';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
-import ResultQuestionList from '../../components/ResultQuestionList.jsx';
-import SearchBar from '../../components/SearchBar.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
+import QuestionStepper from '../../components/QuestionStepper.jsx';
+import SearchBar from '../../components/SearchBar.jsx';
+import TopicScoreRows from '../../components/TopicScoreRows.jsx';
+import { orderByExamNumber } from '../../lib/groupQuestionsForDisplay.js';
+import { formatDateTime } from '../../utils/dateFormat.js';
 
-// Same colors as the topics of the Overall tab
-const getStatusClass = (avg, threshold) => {
-  if (avg >= threshold) return 'green';
-  if (avg >= threshold * 0.7) return 'orange';
-  return 'red';
-};
+// The Individual view of the Exam Results panel: everyone eligible for the exam, as rows split by
+// lines, and one person's result in the same panel when their row is opened.
 
-const formatSubmittedAt = (dateStr) => {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
+const SORT_OPTIONS = [
+  { value: 'name_asc', label: 'Sort A-Z' },
+  { value: 'name_desc', label: 'Sort Z-A' },
+  { value: 'score_desc', label: 'Highest Score' },
+  { value: 'score_asc', label: 'Lowest Score' },
+];
 
-// Whether the person got the question right, on its card
-const renderAnswerResult = (question) => {
-  if (!question.userAnswer) return <span className="er-q-tag tag-gray">No answer</span>;
-  return question.isCorrect
-    ? <span className="er-q-tag tag-green">Correct</span>
-    : <span className="er-q-tag tag-red">Incorrect</span>;
-};
-
-const renderSetScore = (questions) => (
-  <span className="rql-meta-text">
-    {questions.filter((question) => question.isCorrect).length}/{questions.length} correct
-  </span>
-);
-
-const getSelectionProps = (question) => ({ selectedAnswerId: question.userAnswer || null });
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 // Whether the person has a result (the others are eligible but have not submitted it)
 const hasResult = (entry) => !entry.status || entry.status === 'taken';
 
-const ChevronIcon = ({ isExpanded }) => (
-  <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  </div>
-);
+const getPersonKey = (entry) => String(entry.attemptId || entry.student?._id);
 
-// A subject of one person's attempt, as a topic row of the Overall tab
-const SubjectBreakdownRow = memo(({ subject, threshold, questionContent, isExpanded, onToggle }) => {
-  const statusClass = getStatusClass(subject.percentage, threshold);
-  // The exam's question content, with this person's answer
-  const questions = useMemo(
-    () => (subject.questions || []).map((answer) => ({ ...questionContent[answer.questionId], ...answer })),
-    [subject.questions, questionContent]
-  );
+function getPendingStatus(entry, examEnded) {
+  if (entry.status === 'in_progress') return { label: 'In progress', tone: 'warn' };
+  return { label: examEnded ? 'Did not take' : 'Not taken yet', tone: 'muted' };
+}
 
+function scrollBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function ResultPill({ passed }) {
+  return <span className={`ca-tone-pill ca-tone-pill--${passed ? 'good' : 'bad'}`}>{passed ? 'Passed' : 'Failed'}</span>;
+}
+
+// Whether the person got the question shown right, beside the bubbles
+function AnswerPill({ question }) {
+  if (!question.userAnswer) return <span className="ca-tone-pill ca-tone-pill--muted">No answer</span>;
+  return question.isCorrect
+    ? <span className="ca-tone-pill ca-tone-pill--good">Correct</span>
+    : <span className="ca-tone-pill ca-tone-pill--bad">Incorrect</span>;
+}
+
+function PersonName({ student }) {
   return (
-    <div className="er-topic-wrapper">
-      <button type="button" className="er-topic-row" onClick={onToggle} aria-expanded={isExpanded}>
-        <div className="er-topic-main">
-          <div className={`er-topic-name status-${statusClass}`}>{subject.subjectName}</div>
-          <div className="er-topic-mini-meta">{subject.correct}/{subject.total} correct</div>
-        </div>
-        <div className="er-topic-bar-col">
-          <div className="er-topic-bar-bg">
-            <div className={`er-topic-bar-fill bg-${statusClass}`} style={{ width: `${subject.percentage}%` }} />
-          </div>
-        </div>
-        <div className="er-topic-score-group">
-          <div className={`er-topic-pct status-${statusClass}`}>{subject.percentage}%</div>
-        </div>
-        <ChevronIcon isExpanded={isExpanded} />
-      </button>
-      {isExpanded && (
-        <div className="er-questions-list">
-          <ResultQuestionList
-            questions={questions}
-            renderMeta={renderAnswerResult}
-            renderSetMeta={renderSetScore}
-            getPanelProps={getSelectionProps}
-          />
-        </div>
-      )}
-    </div>
+    <span className="ca-person-name">
+      {student.name}
+      {student.studentId && <span className="ca-person-id">{student.studentId}</span>}
+    </span>
   );
-});
+}
 
-// A person's card: the header opens it, then its subjects are rows split by lines.
-// Alumni pick one attempt at a time from capsules (their highest is shown first).
-const StudentResultCard = memo(({ studentData, threshold, questionContent, isCardExpanded, onToggleCard, audience }) => {
-  const { student, overallPercentage, passed, subjectBreakdowns, attempts } = studentData;
+// One person's result: who they are and their score, their attempts (alumni), their score per topic,
+// then their answers through the bubbles
+function PersonResult({ entry, audience, threshold, questionContent, onBack, backRef, onZoom }) {
   const isAlumni = audience === 'alumni';
-  const [openSubjectId, setOpenSubjectId] = useState(null);
-
   const sortedAttempts = useMemo(
-    () => (attempts || []).slice().sort((a, b) => (a.attemptNumber || 0) - (b.attemptNumber || 0)),
-    [attempts]
+    () => (entry.attempts || []).slice().sort((a, b) => (a.attemptNumber || 0) - (b.attemptNumber || 0)),
+    [entry.attempts]
   );
-  const bestAttempt = sortedAttempts.find((attempt) => attempt.attemptNumber === studentData.attemptNumber)
-    || sortedAttempts[0];
-  const [selectedAttemptId, setSelectedAttemptId] = useState(bestAttempt ? String(bestAttempt.attemptId) : null);
-  const selectedAttempt = sortedAttempts.find((attempt) => String(attempt.attemptId) === selectedAttemptId) || bestAttempt;
-  const subjects = isAlumni ? (selectedAttempt?.subjectBreakdowns || []) : subjectBreakdowns;
+  // An alumni's highest score is shown first
+  const bestAttempt = sortedAttempts.find((attempt) => attempt.attemptNumber === entry.attemptNumber) || sortedAttempts[0];
+  const [attemptId, setAttemptId] = useState(bestAttempt ? String(bestAttempt.attemptId) : null);
+  const [questionIdx, setQuestionIdx] = useState(0);
+
+  const attempt = isAlumni
+    ? sortedAttempts.find((item) => String(item.attemptId) === attemptId) || bestAttempt
+    : null;
+  const subjects = isAlumni ? attempt?.subjectBreakdowns : entry.subjectBreakdowns;
+  const score = attempt ? attempt.overallPercentage : entry.overallPercentage;
+  const passed = attempt ? attempt.passed : entry.passed;
+
+  // The exam's question content, with this person's answer
+  const questions = useMemo(() => orderByExamNumber((subjects || []).flatMap((subject) => (
+    (subject.questions || []).map((answer) => ({
+      ...questionContent[answer.questionId],
+      ...answer,
+      _id: String(answer.questionId),
+      subjectName: subject.subjectName,
+    }))
+  ))), [subjects, questionContent]);
+
+  const topics = (subjects || []).map((subject) => ({
+    key: subject.subjectId,
+    name: subject.subjectName,
+    correct: subject.correct,
+    total: subject.total,
+    percentage: subject.percentage,
+  }));
+
+  function selectAttempt(nextAttemptId) {
+    setAttemptId(nextAttemptId);
+    setQuestionIdx(0);
+  }
+
+  // A topic row moves the bubbles to that topic's first question and brings them into view
+  function showTopic(topic, event) {
+    const index = questions.findIndex((question) => question.subjectName === topic.name);
+    setQuestionIdx(Math.max(index, 0));
+    event?.currentTarget.closest('.ca-sidebar-content')
+      ?.querySelector('.import-review-bubble-wrapper')
+      ?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+  }
+
+  const noun = isAlumni ? 'alumni' : 'students';
 
   return (
-    <div className={`er-ind-student-card ${isCardExpanded ? 'is-open' : ''}`}>
-      <button type="button" className="er-ind-student-header" onClick={onToggleCard} aria-expanded={isCardExpanded}>
-        <div className="er-ind-student-info">
-          <div className="er-ind-student-name">
-            {student.name}
-            {student.studentId && <span className="er-ind-student-badge">{student.studentId}</span>}
-            {isAlumni && (
-              <span className="er-ind-student-badge">
-                {studentData.attemptCount || 0} attempt{Number(studentData.attemptCount || 0) === 1 ? '' : 's'}
-              </span>
+    <>
+      <section className="question-panel">
+        <div className="question-panel-label ca-section-head">
+          <span>{isAlumni ? 'Alumni' : 'Student'}</span>
+          <button type="button" className="ca-head-btn" onClick={onBack} ref={backRef}>
+            <span aria-hidden="true">‹</span> All {noun}
+          </button>
+        </div>
+        <div className="question-panel-body ca-person-head">
+          <span className="ca-person-text">
+            <PersonName student={entry.student} />
+            <span className="ca-person-meta">{entry.student.email}</span>
+          </span>
+          <span className="ca-person-result">
+            <strong className="ca-person-score">{score}%</strong>
+            <ResultPill passed={passed} />
+          </span>
+        </div>
+        {isAlumni && attempt && (
+          <div className="er-attempts">
+            {sortedAttempts.length > 1 && (
+              <CapsuleFilters
+                ariaLabel={`Attempts of ${entry.student.name}`}
+                options={sortedAttempts.map((item) => ({
+                  value: String(item.attemptId),
+                  label: `Attempt ${item.attemptNumber}`,
+                  count: `${item.overallPercentage}%`,
+                }))}
+                value={String(attempt.attemptId)}
+                onChange={selectAttempt}
+              />
             )}
+            <span className="ca-hint">
+              Attempt {attempt.attemptNumber}
+              {attempt === bestAttempt && sortedAttempts.length > 1 && ' · Highest score'}
+              {attempt.submittedAt && ` · Submitted ${formatDateTime(attempt.submittedAt)}`}
+            </span>
           </div>
-          <div className="er-ind-student-email">{student.email}</div>
-        </div>
-        <div className="er-ind-student-score">
-          <div className="er-ind-student-pct">{overallPercentage}% / 100%</div>
-          <div className={`er-ind-student-status-badge ${passed ? 'passed' : 'failed'}`}>
-            {passed ? 'passed' : 'failed'}
-          </div>
-        </div>
-        <ChevronIcon isExpanded={isCardExpanded} />
-      </button>
-      {isCardExpanded && (
-        <div className="er-ind-student-body">
-          {isAlumni && selectedAttempt && (
-            <div className="er-ind-attempt-bar">
-              {sortedAttempts.length > 1 && (
-                <CapsuleFilters
-                  ariaLabel={`Attempts of ${student.name}`}
-                  options={sortedAttempts.map((attempt) => ({
-                    value: String(attempt.attemptId),
-                    label: `Attempt ${attempt.attemptNumber}`,
-                    count: `${attempt.overallPercentage}%`,
-                  }))}
-                  value={String(selectedAttempt.attemptId)}
-                  onChange={setSelectedAttemptId}
-                />
-              )}
-              <div className="er-ind-attempt-meta">
-                <span className="er-ind-attempt-name">Attempt {selectedAttempt.attemptNumber}</span>
-                <span className={`er-ind-student-status-badge ${selectedAttempt.passed ? 'passed' : 'failed'}`}>
-                  {selectedAttempt.passed ? 'passed' : 'failed'}
-                </span>
-                {selectedAttempt === bestAttempt && sortedAttempts.length > 1 && (
-                  <span className="er-ind-student-badge">Highest score</span>
-                )}
-                {selectedAttempt.submittedAt && (
-                  <span className="er-ind-attempt-date">Submitted {formatSubmittedAt(selectedAttempt.submittedAt)}</span>
-                )}
-              </div>
-            </div>
-          )}
-          {subjects.map(subject => (
-            <SubjectBreakdownRow
-              key={subject.subjectId}
-              subject={subject}
-              threshold={threshold}
-              questionContent={questionContent}
-              isExpanded={openSubjectId === subject.subjectId}
-              onToggle={() => setOpenSubjectId((prev) => (prev === subject.subjectId ? null : subject.subjectId))}
-            />
-          ))}
-        </div>
+        )}
+      </section>
+
+      {topics.length > 0 && (
+        <section className="question-panel">
+          <p className="question-panel-label">Scores by Topic</p>
+          <TopicScoreRows
+            topics={topics}
+            threshold={threshold}
+            onSelect={showTopic}
+            selectLabel={(topic) => `Show the questions of ${topic.name}`}
+          />
+        </section>
       )}
-    </div>
+
+      {questions.length > 0 ? (
+        <QuestionStepper
+          key={attempt ? String(attempt.attemptId) : 'result'}
+          questions={questions}
+          activeIdx={questionIdx}
+          onSelectQuestion={setQuestionIdx}
+          onZoom={onZoom}
+          getPanelProps={(question) => ({ selectedAnswerId: question.userAnswer || null })}
+          renderAside={(question) => (
+            <span className="er-aside">
+              <span className="ca-tag-pill">{question.subjectName || 'No subject'}</span>
+              <AnswerPill question={question} />
+            </span>
+          )}
+        />
+      ) : (
+        <p className="ca-panel-note">No answers to show for this result.</p>
+      )}
+    </>
   );
-});
+}
 
-// Someone eligible without a result: nothing to open, only where they stand
-const PendingResultCard = memo(({ studentData, examEnded }) => {
-  const { student, status } = studentData;
-  const isTaking = status === 'in_progress';
-  let label = examEnded ? 'Did not take' : 'Not taken yet';
-  if (isTaking) label = 'In progress';
-
-  return (
-    <div className="er-ind-student-card is-pending">
-      <div className="er-ind-student-header">
-        <div className="er-ind-student-info">
-          <div className="er-ind-student-name">
-            {student.name}
-            {student.studentId && <span className="er-ind-student-badge">{student.studentId}</span>}
-          </div>
-          <div className="er-ind-student-email">{student.email}</div>
-        </div>
-        <div className={`er-ind-student-status-badge ${isTaking ? 'in-progress' : 'not-taken'}`}>{label}</div>
-        <span className="er-ind-chevron-spacer" aria-hidden="true" />
-      </div>
-    </div>
-  );
-});
-
-export default function IndividualReportView({ examId, threshold, audience = 'student' }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [studentsData, setStudentsData] = useState([]);
-  // Each question of the exam (text, images, answer choices), keyed by question id
-  const [questionContent, setQuestionContent] = useState({});
-  // Whether the exam has closed, for the ones who have not taken it
-  const [examEnded, setExamEnded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+export default function IndividualReportView({ data, threshold, audience = 'student', onRefresh, onZoom, scrollRef }) {
+  const { loading, error, students, questions: questionContent, examEnded } = data;
   const [takenFilter, setTakenFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('name_asc');
-  // One person open at a time
-  const [openCardId, setOpenCardId] = useState(null);
+  // One person open at a time, in place of the list
+  const [openKey, setOpenKey] = useState(null);
+  const listScrollTop = useRef(0);
+  const backRef = useRef(null);
+  const isAlumni = audience === 'alumni';
+  const audienceNoun = isAlumni ? 'alumni' : 'students';
 
-  const fetchResults = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await getExamStudentResults(examId);
-      setStudentsData(res.students || []);
-      setQuestionContent(res.questions || {});
-      setExamEnded(Boolean(res.examEnded));
-    } catch (err) {
-      setError(err.message || 'Failed to fetch individual results.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchResults();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examId]);
-
-  const takenCount = useMemo(() => studentsData.filter(hasResult).length, [studentsData]);
+  const takenCount = useMemo(() => students.filter(hasResult).length, [students]);
 
   const filteredAndSorted = useMemo(() => {
-    let filtered = studentsData;
+    let filtered = students;
     if (takenFilter !== 'all') {
       filtered = filtered.filter((entry) => hasResult(entry) === (takenFilter === 'taken'));
     }
-    if (searchQuery.trim()) {
-      const lowerQ = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter(d =>
-        d.student.name.toLowerCase().includes(lowerQ) ||
-        (d.student.studentId && d.student.studentId.toLowerCase().includes(lowerQ)) ||
-        d.student.email.toLowerCase().includes(lowerQ)
-      );
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      filtered = filtered.filter(({ student }) => (
+        (student.name || '').toLowerCase().includes(query)
+        || (student.studentId || '').toLowerCase().includes(query)
+        || (student.email || '').toLowerCase().includes(query)
+      ));
     }
 
     return filtered.slice().sort((a, b) => {
-      if (sortOrder === 'name_asc') return a.student.name.localeCompare(b.student.name);
-      if (sortOrder === 'name_desc') return b.student.name.localeCompare(a.student.name);
+      if (sortOrder === 'name_asc') return (a.student.name || '').localeCompare(b.student.name || '');
+      if (sortOrder === 'name_desc') return (b.student.name || '').localeCompare(a.student.name || '');
       // No score to rank: after the ones with a result
       if (hasResult(a) !== hasResult(b)) return hasResult(a) ? -1 : 1;
       if (sortOrder === 'score_asc') return a.overallPercentage - b.overallPercentage;
-      if (sortOrder === 'score_desc') return b.overallPercentage - a.overallPercentage;
-      return 0;
+      return b.overallPercentage - a.overallPercentage;
     });
-  }, [studentsData, searchQuery, takenFilter, sortOrder]);
+  }, [students, searchQuery, takenFilter, sortOrder]);
 
-  const audienceNoun = audience === 'alumni' ? 'alumni' : 'students';
+  const openEntry = openKey
+    ? students.find((entry) => hasResult(entry) && getPersonKey(entry) === openKey) || null
+    : null;
 
-  if (loading) return <div className="er-ind-loading">Loading individual results...</div>;
-  if (error) return <div className="er-ind-error">{error}</div>;
+  // Opening a person starts the panel at the top, with focus on the way back; going back returns to
+  // the same place in the list, with focus on that person's row
+  const lastOpenKey = useRef(null);
+  useEffect(() => {
+    const container = scrollRef?.current;
+    if (openEntry) {
+      if (container) container.scrollTop = 0;
+      backRef.current?.focus({ preventScroll: true });
+      lastOpenKey.current = openKey;
+    } else if (lastOpenKey.current) {
+      if (container) container.scrollTop = listScrollTop.current;
+      container?.querySelector(`[data-person-key="${CSS.escape(lastOpenKey.current)}"]`)?.focus({ preventScroll: true });
+      lastOpenKey.current = null;
+    }
+  }, [openEntry, openKey, scrollRef]);
+
+  function openPerson(key) {
+    listScrollTop.current = scrollRef?.current?.scrollTop || 0;
+    setOpenKey(key);
+  }
+
+  if (loading) return <p className="ca-panel-note">Loading individual results...</p>;
+  if (error) {
+    return (
+      <div className="ca-retry">
+        <p className="ca-panel-note ca-panel-note--error" role="alert">{error}</p>
+        <button type="button" className="ca-btn ca-btn--plain" onClick={onRefresh}>Try again</button>
+      </div>
+    );
+  }
+
+  if (openEntry) {
+    return (
+      <PersonResult
+        key={openKey}
+        entry={openEntry}
+        audience={audience}
+        threshold={threshold}
+        questionContent={questionContent}
+        onBack={() => setOpenKey(null)}
+        backRef={backRef}
+        onZoom={onZoom}
+      />
+    );
+  }
 
   return (
-    <div className="er-ind-container">
-      <CapsuleFilters
-        ariaLabel={`Filter ${audienceNoun} by whether they took the exam`}
-        options={[
-          { value: 'all', label: 'All', count: studentsData.length },
-          { value: 'taken', label: 'Took the exam', count: takenCount },
-          { value: 'not_taken', label: 'Not taken', count: studentsData.length - takenCount },
-        ]}
-        value={takenFilter}
-        onChange={setTakenFilter}
-      />
-
-      <div className="er-ind-controls">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={`Search ${audienceNoun} by name, ID, or email...`}
-          className="er-ind-search"
-        />
-        <DropdownSelect
-          value={sortOrder}
-          onChange={e => setSortOrder(e.target.value)}
-          className="er-ind-sort"
-          ariaLabel={`Sort ${audienceNoun}`}
+    <>
+      <div className="ca-people-tools">
+        <CapsuleFilters
+          ariaLabel={`Filter ${audienceNoun} by whether they took the exam`}
           options={[
-            { value: 'name_asc', label: 'Sort A-Z' },
-            { value: 'name_desc', label: 'Sort Z-A' },
-            { value: 'score_desc', label: 'Highest Score' },
-            { value: 'score_asc', label: 'Lowest Score' },
+            { value: 'all', label: 'All', count: students.length },
+            { value: 'taken', label: 'Took the exam', count: takenCount },
+            { value: 'not_taken', label: 'Not taken', count: students.length - takenCount },
           ]}
+          value={takenFilter}
+          onChange={setTakenFilter}
         />
-        <button onClick={fetchResults} className="er-ind-refresh-btn">Refresh</button>
+        <div className="ca-people-controls">
+          <SearchBar
+            className="ca-people-search"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={`Search ${audienceNoun} by name, ID, or email...`}
+          />
+          <DropdownSelect
+            className="ca-people-sort"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value)}
+            ariaLabel={`Sort ${audienceNoun}`}
+            options={SORT_OPTIONS}
+          />
+          <button type="button" className="ca-btn ca-btn--plain" onClick={onRefresh}>Refresh</button>
+        </div>
       </div>
 
-      <div className="er-ind-list">
+      <section className="question-panel">
+        <p className="question-panel-label">{isAlumni ? 'Alumni' : 'Students'} ({filteredAndSorted.length})</p>
         {filteredAndSorted.length === 0 ? (
-          <div className="er-ind-empty">No {audienceNoun} found matching your criteria.</div>
+          <p className="ca-hint ca-hint--section">
+            {students.length === 0 ? `No ${audienceNoun} are eligible for this exam.` : `No ${audienceNoun} match your search.`}
+          </p>
         ) : (
-          filteredAndSorted.map(data => {
-            const cardId = String(data.attemptId || data.student._id);
+          <ul className="ca-people-list">
+            {filteredAndSorted.map((entry) => {
+              const key = getPersonKey(entry);
+              const { student } = entry;
 
-            if (!hasResult(data)) {
-              return <PendingResultCard key={cardId} studentData={data} examEnded={examEnded} />;
-            }
+              if (!hasResult(entry)) {
+                const { label, tone } = getPendingStatus(entry, examEnded);
+                return (
+                  <li key={key} className="ca-people-item">
+                    <div className="ca-person-row is-pending">
+                      <span className="ca-person-text">
+                        <PersonName student={student} />
+                        <span className="ca-person-meta">{student.email}</span>
+                      </span>
+                      <span className={`ca-tone-pill ca-tone-pill--${tone}`}>{label}</span>
+                      <span className="ca-row-chevron" aria-hidden="true" />
+                    </div>
+                  </li>
+                );
+              }
 
-            return (
-              <StudentResultCard
-                key={cardId}
-                studentData={data}
-                threshold={threshold}
-                questionContent={questionContent}
-                audience={audience}
-                isCardExpanded={openCardId === cardId}
-                onToggleCard={() => setOpenCardId((prev) => (prev === cardId ? null : cardId))}
-              />
-            );
-          })
+              return (
+                <li key={key} className="ca-people-item">
+                  <button type="button" className="ca-person-row" data-person-key={key} onClick={() => openPerson(key)}>
+                    <span className="ca-person-text">
+                      <PersonName student={student} />
+                      <span className="ca-person-meta">
+                        {student.email}
+                        {isAlumni && ` · ${plural(entry.attemptCount || 0, 'attempt')}`}
+                      </span>
+                    </span>
+                    <span className="ca-person-result">
+                      <span className="ca-person-score">{entry.overallPercentage}%</span>
+                      <ResultPill passed={entry.passed} />
+                    </span>
+                    <span className="ca-row-chevron" aria-hidden="true">›</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
-    </div>
+      </section>
+    </>
   );
 }

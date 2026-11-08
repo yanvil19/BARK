@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import PrivacyNotice from './components/PrivacyNotice.jsx';
 import Login from './pages/Login.jsx';
-import StudentManager from './pages/shared/StudentRegister.jsx';
 import SchoolsPrograms from './pages/superadmin/SAdminSchoolsPrograms.jsx';
 import AdminUsers from './pages/superadmin/SAdminUsers.jsx';
 import AdminSettings from './pages/superadmin/SAdminSettings.jsx';
@@ -30,6 +29,9 @@ import AlumniAvailableExams from './pages/alumni/AlumniAvailableExams.jsx';
 import AlumniExamRunner from './pages/alumni/AlumniExamRunner.jsx';
 import AlumniExamResult from './pages/alumni/AlumniExamResult.jsx';
 import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
+// After the pages that load the shared list and form styles, so importing it doesn't move those
+// styles earlier in the bundle (an earlier stylesheet loses ties to the ones after it)
+import StudentManager from './pages/shared/StudentRegister.jsx';
 import Credits from './pages/Credits.jsx';
 import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
@@ -317,7 +319,7 @@ export default function App() {
   if (route === 'adminMetrics') page = me?.role === 'super_admin' ? <AdminMetrics /> : <Dashboard me={me} onNavigate={setRoute} onRoute={setRoute} />;
   if (route === 'chairTags') page = <ManageSubject me={me} />;
   if (route === 'chairQuestionApprovals') page = <QuestionApprovals me={me} />;
-  if (route === 'chairCheatingLogs') page = <ChairCheatingLogs />;
+  if (route === 'chairCheatingLogs') page = <ChairCheatingLogs me={me} />;
   if (route === 'deanQuestionApprovals') page = <QuestionApprovals me={me} />;
   if (route === 'profQuestions') page = <ProfessorQuestions me={me} />;
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;

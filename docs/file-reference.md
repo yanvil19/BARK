@@ -41,6 +41,8 @@ server/controllers/authController.js
 ```
 -> Handles all authentication flows: user login with escalating lockout protection, password reset via OTP, bulk and individual registration, credential changes, and email/ID validation helpers. `updateBoardExamCountdown` saves (or clears, with `targetAt: null`) the board exam countdown a student or alumni sets on their dashboard; the date must be in the future.
 -> Manages bulk registration batch sessions in memory and streams progress updates to the client via SSE.
+-> `listUsers` (`GET /api/auth/users`) keeps deans to their department and chairs to their program: a dean's `program` filter only narrows inside the department, and a chair's query can't change the scope; only the super admin can pick any department or program. It pages by default (`page`, `limit` up to 100). With `all=true` it returns every matching user at once, newest first, with only the fields a list page shows (no password, reset codes or other private fields); Student Registration loads its list this way.
+-> `getUserActivity` (`GET /api/auth/users/:id/activity`), scoped like unlock, gives one student's or alumnus's `lastLoginAt`, `lastActiveAt`, `sessionMs` (from that sign-in to their last heartbeat), `online` (a heartbeat in the last 5 minutes, the system metrics' window) and `lastExam` (their latest attempt: exam name, status, start and end, attempt number). `loginUser` sets `lastLoginAt` on every successful sign-in.
 
 ```
 server/controllers/adminSettingsController.js
@@ -66,12 +68,12 @@ server/controllers/mockBoardExamController.js
 ```
 server/controllers/mockExamResultController.js
 ```
--> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data.
+-> Computes, stores, and retrieves mock exam results; aggregates per-subject scores; generates individual and aggregate reports from student and alumni attempt data. Its exam list includes each exam's subject names, for the Exam Results subject filter and card pills.
 
 ```
 server/controllers/questionController.js
 ```
--> CRUD for exam questions with AES encryption of text and image fields; handles approval workflow (pending → approved/returned/rejected) and integrates with Cloudflare R2 for image storage and deletion.
+-> CRUD for exam questions with AES encryption of text and image fields; handles approval workflow (pending → approved/returned/rejected), reviewer edits that keep a question in review, last-edited tracking for real content changes, and integrates with Cloudflare R2 for image storage and deletion.
 
 ```
 server/controllers/sseController.js
@@ -82,6 +84,7 @@ server/controllers/sseController.js
 server/controllers/statsController.js
 ```
 -> Returns aggregate summary statistics (user counts, question counts, exam counts, audit log entries) used on dashboards and the public landing page.
+-> `getExamActivityLogs` (`GET /api/stats/program-chair/exam-logs[?examId=]`, chairs) lists the program's published, ongoing and finished exams, and with `examId` that exam's takers: status (in progress, submitted, or missed when it was auto-submitted with nothing done), school ID, answered count, time taken, alumni attempt number, and their events (started, progress milestones, window focus lost, submitted), plus whether the exam is live.
 
 ```
 server/controllers/systemMetricsController.js
@@ -101,7 +104,7 @@ server/controllers/alumniExamController.js
 ```
 server/controllers/tagController.js
 ```
--> CRUD for subject tags (topics) scoped to accessible programs; resolves program access based on the requesting user's role (professor, program_chair, dean).
+-> CRUD for subject tags (topics) scoped to accessible programs; resolves program access based on the requesting user's role (professor, program_chair, dean). A subject used by any question can't be deleted; deleting one also takes it off the exams that list it.
 
 ---
 
@@ -110,7 +113,7 @@ server/controllers/tagController.js
 ```
 server/routes/authRoutes.js
 ```
--> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes, plus `PATCH /me/board-exam-countdown` for students and alumni and `PATCH /users/:id/unlock`, which clears a login lockout (super admin for anyone; dean and program chair for students and alumni in their department or program).
+-> Mounts auth endpoints: login, logout, OTP request/verify, registration management, bulk-register SSE stream, and credential update routes, plus `PATCH /me/board-exam-countdown` for students and alumni `PATCH /users/:id/unlock`, which clears a login lockout (super admin for anyone; dean and program chair for students and alumni in their department or program), and `GET /users/:id/activity` with the same scope.
 
 ```
 server/routes/adminCatalogRoutes.js
@@ -155,7 +158,7 @@ server/routes/mockExamResultRoutes.js
 ```
 server/routes/questionRoutes.js
 ```
--> Mounts question CRUD routes and approval workflow routes, scoped by role (professor submits, chair/dean approves).
+-> Mounts question CRUD routes and approval workflow routes, scoped by role (professor submits, chair/dean approves or edits in review through the `review-edit` routes).
 
 ```
 server/routes/sseRoutes.js
@@ -184,7 +187,7 @@ server/routes/tagRoutes.js
 ```
 server/models/User.js
 ```
--> Mongoose schema for all user types (super_admin, dean, program_chair, professor, student, alumni) with hashed passwords, lockout fields, OTP fields, email/ID fields, role-based department/program references, and the learner's `boardExamCountdown` (`label`, `targetAt`).
+-> Mongoose schema for all user types (super_admin, dean, program_chair, professor, student, alumni) with hashed passwords, lockout fields, `lastLoginAt` (the last successful sign-in) and `last_active_at` (the last heartbeat), OTP fields, email/ID fields, role-based department/program references, and the learner's `boardExamCountdown` (`label`, `targetAt`).
 
 ```
 server/models/MockBoardExam.js
@@ -194,7 +197,7 @@ server/models/MockBoardExam.js
 ```
 server/models/Question.js
 ```
--> Mongoose schema for exam questions with encrypted text and answer fields, image references (Cloudflare R2 keys), tag/program associations, and approval status workflow fields.
+-> Mongoose schema for exam questions with encrypted text and answer fields, image references (Cloudflare R2 keys), tag/program associations, approval status workflow fields, and who last edited the content and when (`lastEditedBy`, `lastEditedAt`).
 
 ```
 server/models/StudentExamAttempt.js
@@ -501,6 +504,16 @@ server/tests/questionCRUD.test.js
 -> Tests the full question CRUD and approval workflow: create by professor, review by chair, approve/return/reject by dean, and encryption round-trip verification.
 
 ```
+server/tests/myQuestionsList.test.js
+```
+-> Tests for the list My Questions loads: every question and whole sets, only the user's own, who last edited, and reading feedback leaving the date alone.
+
+```
+server/tests/questionReviewEdit.test.js
+```
+-> Tests for a chair or dean editing a submitted question: it stays in review, who may edit, set edits, locks and last-edited tracking.
+
+```
 server/tests/questions.test.js
 ```
 -> Additional question listing and filtering tests across different role permissions.
@@ -523,7 +536,7 @@ server/tests/tags.test.js
 ```
 server/tests/userManagement.test.js
 ```
--> Tests super-admin user management: list, activate/deactivate, delete users, and role-based filtering.
+-> Tests super-admin user management: list, activate/deactivate, delete users, and role-based filtering; the Student Registration list's scope and `all=true`; and the activity endpoint (sign-in time recorded at login, visit length, online, last exam, scope).
 
 ```
 server/tests/systemMetrics.test.js
@@ -676,7 +689,7 @@ client/src/pages/programchair/PCMyQuestions.jsx
 ```
 client/src/pages/programchair/PCLogs.jsx
 ```
--> Audit log / activity log viewer for program chairs showing admin actions within their scope.
+-> The Logs page for program chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). Exams can be filtered by status (Published, Ongoing, Finished), audience and name, and sorted Newest or Oldest by start date. The panel shows how the takers are doing (started, in progress, submitted, missed, window focus lost), then the takers as rows that can be filtered, searched and sorted (latest start, name, most focus lost); opening one shows their numbers and activity, oldest first, with a button back to the list. A live exam reloads every 25 seconds while open, and Refresh reloads it at once. The panel opens with `PanelHeader` and `usePanelLayout`.
 
 > Other program chair pages (approvals, subjects, registration, exams, results) live in `pages/shared/`.
 
@@ -751,27 +764,27 @@ client/src/pages/alumni/AlumniExamResults.jsx
 ```
 client/src/pages/shared/MyQuestions.jsx
 ```
--> "My Questions" page used by professors, chairs, and deans: question list with status capsules, create/edit/view via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review.
+-> "My Questions" page used by professors, chairs, and deans: question cards with status capsules and a legend beside a preview panel, sharing the Approve Questions layout and animations; submit, edit and delete from the panel, create/edit via `QuestionForm`, and AI-assisted import from PDF/DOCX with live review. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/ApproveQuestions.jsx
 ```
--> Question approval queue for deans and program chairs: review submitted questions, approve, return for revision, or reject; includes a "Used in Exam" filter.
+-> Question approval queue for deans and program chairs: review submitted questions, edit them in place, approve, return for revision, or reject; shows who last edited a question and when; includes a "Used in Exam" filter. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen. The bulk arrows sit before the full-screen and close buttons.
 
 ```
 client/src/pages/shared/ManageSubject.jsx
 ```
--> Subject (tag) CRUD page for creating, editing, and deactivating subject tags within a program (deans and chairs).
+-> Subject page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). A dean picks a program first. A card shows the subject's name with its question and exam counts. A Questions and Exams toggle sits beside the subject's name in the panel: Questions steps through all its submitted questions with `QuestionStepper`, showing each one's status, professor, submitted date and last edit; Exams lists the exams that use it. Subjects are added and renamed in a window, and deleted from the panel, which is blocked while questions use them. It loads every question and exam once (`/api/questions/approvals`, `/api/mock-board-exams`) and works out each subject's share itself, so drafts aren't included. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/StudentRegister.jsx
 ```
--> Student Registration page for deans and chairs; wraps `BulkRegister` with a role-aware subtitle (department vs. program).
+-> Student Registration page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). It loads every student and alumni account once (`/api/auth/users?all=true`) and filters, counts, sorts and pages them in the browser, like the other list pages, so tabs, search and pages show at once: All, Students, Alumni and Locked tabs, search, program (deans) and Newest or Oldest. A card shows the name, type and lock markers, program (deans), ID, email and registered date. The panel's Activity section loads `/api/auth/users/:id/activity` when an account opens: Last Sign-in, Time Signed In in hours and minutes, and Last Exam Answered with its status pill; accounts that haven't signed in since sign-in times were recorded say "Not recorded yet". Then their details. A locked account gets an action bar saying until when, with Unlock Sign-in. "+ Register Accounts" opens `BulkRegister`, and the list reloads when a batch finishes. The panel opens with `PanelHeader` and `usePanelLayout`. `App.jsx` imports it after the other pages, so it doesn't move their shared stylesheets earlier in the CSS bundle.
 
 ```
 client/src/pages/shared/BulkRegister.jsx
 ```
--> Bulk registration form allowing authorized faculty to upload or manually enter a list of users for batch account creation. Its Registered Accounts list shows a Lockout column with an Unlock button for students and alumni locked after too many wrong passwords.
+-> The "Register Accounts" window opened from Student Registration: the account type (students or alumni), the program (deans pick one of their department's; a chair's is their own), and a row per person (full name, email, Student or Alumni ID as YYYY-XXXXXX). Rows are checked before sending, and only the fields at fault are marked; the server's own row errors are mapped back to their rows. The rows are kept in `localStorage` (`draft_bulk_registration`) until sent. After sending it polls the batch, then shows how it went: registered, skipped, email not sent and not created, with the names under each. Closing it while it runs is fine: a toast says how it went and the page's list reloads.
 
 ```
 client/src/pages/shared/LearnerDashboard.jsx
@@ -781,7 +794,7 @@ client/src/pages/shared/LearnerDashboard.jsx
 ```
 client/src/pages/shared/BoardExams.jsx
 ```
--> Board exam listing page for deans and chairs to view exams filtered by program, status, audience, and subject. The table view stacks related data in 8 columns: Exam (name + audience), Program, Created (creator + date), Subjects (first 2 + "+N more"), Schedule (date, times, and duration or alumni per-attempt limit), Activity (questions + submissions/attempts), Status (+ results release date), and Actions.
+-> Board exam page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles) and a calendar view. Exams can be filtered by status, program, subject, audience and search text, and sorted Newest or Oldest. A card shows the exam's name, its question count, audience and status markers, program (deans only), first subject + "+N", and start date. A Questions and Details toggle sits beside the exam name in the panel. Questions steps through the whole exam with `QuestionStepper`, loading the questions when an exam is opened. Details shows the exam's information (program, audience, creator, created date, start, end, duration, passing threshold, question count, submissions or attempts, status, results release, subjects, description, instructions). The actions depend on the status: Publish, Edit, Test Run, Schedule or Reschedule Results, Create Copy, Archive, End Exam Early and Delete. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen.
 
 ```
 client/src/pages/shared/CreateExams.jsx
@@ -806,12 +819,12 @@ client/src/pages/shared/ExamRunner.jsx
 ```
 client/src/pages/shared/ExamResults.jsx
 ```
--> Exam result overview: trigger result computation, view pass/fail breakdowns, and open individual reports. Program chairs only see their own program's exams.
+-> Exam results page for deans and chairs, with the list and panel layout of Approve Questions (shared `ca-` styles). Exams can be filtered by result state (Ready, To compute, Pending), program (deans), subject, audience and search text, and sorted Newest or Oldest by exam date. A card shows the exam's name, its question count, audience and result-state markers, program (deans only), first subject + "+N", and start date. Once an exam has results, an Overall, Questions and Individual toggle sits beside its name in the panel: Overall has the summary, score distribution, scores by topic (a topic opens its questions) and the exam's details; Questions steps through the exam with `QuestionStepper` and each answer's count; Individual is `IndividualReportView`. Without results, the panel says why and shows the details, with Compute Results when a student exam has ended. Once an exam has results, Download Excel saves them: students get one row each (score, status, and a column per subject), alumni get their attempts. The panel opens with `PanelHeader` and `usePanelLayout`: it can be widened over the list (the columns glide) or go full screen, covering the navbar and footer. Program chairs only see their own program's exams.
 
 ```
 client/src/pages/shared/IndividualReportView.jsx
 ```
--> Detailed per-student result report showing per-subject scores and answer breakdown.
+-> The Individual view of the Exam Results panel: everyone eligible for the exam as rows split by lines, filtered by whether they took it, searched and sorted. Opening a row shows that person in the same panel: score, attempts (alumni), scores by topic and their answers through `QuestionStepper`.
 
 ---
 
@@ -850,12 +863,12 @@ client/src/components/ChangeCredentialsModal.jsx
 ```
 client/src/components/QuestionForm.jsx
 ```
--> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, and AI import review mode. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
+-> Rich question editor form supporting text fields, multiple answer options, correct-answer selection, image uploads to R2, an optional rationalization, AI import review mode, and a reviewer mode (`reviewEdit`) with one Save Changes button that keeps the question in review. New questions are saved one at a time (a set as one group): each leaves the form and its draft as soon as it is saved, so retrying after a failure does not create duplicates.
 
 ```
 client/src/components/QuestionFilters.jsx
 ```
--> Filter bar component for the question list: filters by subject tag, approval status, and search text.
+-> Filter bar with search, subject, program (deans only) and sort, used by My Questions, Approve Questions, Board Exams, Exam Results, Logs and Student Registration. The subject filter shows only when `onSubjectChange` is given. A page can add its own filters before the sort (`extraFilters`) and controls at the end of the row (children).
 
 ```
 client/src/components/CapsuleFilters.jsx
@@ -920,7 +933,27 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions) and the read-only question set views (My Questions, Approve Questions, Create Exams, Board Exams, exam results). While editing, a question with no flags counts as ready.
+-> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and `QuestionStepper`. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar.
+
+```
+client/src/components/QuestionMarkers.jsx
+```
+-> The small round markers on list cards and the legend that explains them, shared by Approve Questions, My Questions, Board Exams, Manage Subjects and Exam Results. Also the pills that spell a question's or an exam's status out, and the exam statuses' labels and icons (`EXAM_STATUSES`).
+
+```
+client/src/components/PanelHeader.jsx
+```
+-> The header of a list page's side panel: a `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch what the panel shows (none when `views` is empty), then `children` (Approve Questions' bulk arrows) and the full-screen and close buttons on the right, framed 32px buttons (`ca-panel-btn`). The tab hides while full screen. Used by all seven list-and-panel pages, with `usePanelLayout`.
+
+```
+client/src/components/QuestionStepper.jsx
+```
+-> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar, `renderDetails` goes below the question, and `getPanelProps` passes the result props of `QuestionDetailPanels`. Used by Board Exams for a whole exam, Manage Subjects for a whole subject and Exam Results for an exam's or a person's answers.
+
+```
+client/src/components/TopicScoreRows.jsx
+```
+-> An exam result's score per topic as rows split by lines: name, "N/M correct", a bar with a tick at the passing threshold, and the percentage. With `onSelect` each row is a button. Used by the Exam Results Overall and Individual views.
 
 ```
 client/src/components/QuestionNavBubbles.jsx
@@ -990,6 +1023,11 @@ client/src/hooks/useLocalStorage.js
 -> Custom React hook that syncs a state value to `localStorage` with an optional write debounce delay, used to persist draft data across page reloads.
 
 ```
+client/src/hooks/usePanelLayout.js
+```
+-> Custom React hook for the side panel of the list-and-panel pages (Approve Questions, My Questions, Board Exams, Manage Subjects, Exam Results, Logs, Student Registration). It keeps whether the panel is widened over the list and whether it is full screen. The expand button, and opening or closing an item while the panel is set wide, turn on `is-gliding` so the columns glide; it comes off when the glide ends (or after 400ms where nothing glides, such as with reduced motion), so the page can scroll the open card back into view. Full screen zooms in from the panel's place and back out to it (the panel's edges move, so its text keeps its size), unless reduced motion is on; the full-screen button passes its click so the hook knows which panel to zoom. Escape leaves full screen the same way unless a window, image or menu is open above it, and full screen ends at once when the panel closes.
+
+```
 client/src/hooks/useCalendarExams.js
 ```
 -> Custom React hook that loads the exams scheduled in a calendar month from the calendar endpoint for the user's role (dean, program chair, or learner). Used by `ExamCalendar` and `DateTimePicker`.
@@ -1004,6 +1042,11 @@ client/src/utils/calendarUtils.js
 -> Helper functions for the exam calendar and date & time picker: the visible month range, which exams fall on a day, exam time-range and date formatting, and schedule-conflict flags.
 
 ```
+client/src/utils/dateFormat.js
+```
+-> How the question pages write dates and times (`formatDate`, `formatTime`, `formatDateTime`).
+
+```
 client/src/utils/statusLabels.js
 ```
 -> Maps internal exam and question status strings (e.g. `pending_review`, `returned_for_revision`) to human-readable display labels used throughout the UI.
@@ -1015,7 +1058,7 @@ client/src/utils/statusLabels.js
 ```
 client/src/styles/global.css
 ```
--> Global CSS variables, resets, and base typography/color tokens applied across the entire application. Owns page spacing: `--page-gutter` (32px, 16px on phones) and `--page-end-space`, applied by the `.page-shell` class that every page root carries. `.page-content` itself has no padding.
+-> Global CSS variables, resets, and base typography/color tokens applied across the entire application, including the `*` rule that gives every element (buttons and inputs too) the body font. Owns page spacing: `--page-gutter` (32px, 16px on phones) and `--page-end-space`, applied by the `.page-shell` class that every page root carries. `.page-content` itself has no padding.
 
 ```
 client/src/styles/LandingPage.css
@@ -1128,6 +1171,11 @@ client/src/styles/components/QuestionNavBubbles.css
 -> Styles for `QuestionNavBubbles` (`qnb-*`): standalone circles, the question-set capsule with its progress fill (it wraps inside itself when too long for the row), the active, done and flagged states, and the flag badge.
 
 ```
+client/src/styles/components/TopicScoreRows.css
+```
+-> Styles for `TopicScoreRows` (`tsr-*`): the rows split by lines, the bar with its green, amber or red fill and threshold tick, and the bar on a line of its own on small phones.
+
+```
 client/src/styles/components/PrivacyNotice.css
 ```
 -> Styles for the privacy consent banner layout and accept button.
@@ -1145,7 +1193,7 @@ client/src/styles/shared/AvailableExams.css
 ```
 client/src/styles/shared/BoardExams.css
 ```
--> Styles for the board exam faculty listing page with status filters, the stacked-cell exam table (`.ambe-stack`), and exam card grid.
+-> What the board exam page adds to the shared `ca-` layout: the size of the List and Calendar toggle, the exam details, and the publish conflict message.
 
 ```
 client/src/styles/shared/LearnerDashboard.css
@@ -1155,12 +1203,12 @@ client/src/styles/shared/LearnerDashboard.css
 ```
 client/src/styles/shared/BulkRegister.css
 ```
--> Styles for the bulk registration page: file upload zone, user list table, and progress indicator.
+-> What the "Register Accounts" window adds (`br-` classes): the rows of people (stacked on phones), the spinner while it registers, and the result lists. Its sections, inputs and small buttons come from `QuestionForm.css`, and its numbers from the shared `ca-stats`.
 
 ```
 client/src/styles/shared/MyQuestions.css
 ```
--> Styles for the My Questions page (`qp-*` classes): question list, import modal, and action toolbar.
+-> Styles for the My Questions page (`qp-*` classes): header buttons, import modal, and panel buttons. Its list and panel use `QuestionApprovals.css`. Approve Questions, Manage Subjects and the question form also use its `.qp-modal-*` window parts.
 
 ```
 client/src/styles/shared/CreateExams.css
@@ -1170,12 +1218,12 @@ client/src/styles/shared/CreateExams.css
 ```
 client/src/styles/shared/ExamResults.css
 ```
--> Styles for the exam results overview and report navigation (deans and chairs).
+-> What the exam results page adds to the shared `ca-` layout (`er-` classes): the result-state markers, the summary notes, the score distribution chart and the attempts list. Its numbers, pills and people rows are the shared "Panel parts" in `QuestionApprovals.css`.
 
 ```
 client/src/styles/shared/StudentRegister.css
 ```
--> Styles for the Student Registration page (deans and chairs).
+-> What Student Registration adds to the shared `ca-` layout (`sm-` classes): the header buttons, the red lock marker, the card's email, the panel's last exam row, and the locked account's action bar.
 
 ```
 client/src/styles/shared/MockBoardExamPreview.css
@@ -1185,7 +1233,7 @@ client/src/styles/shared/MockBoardExamPreview.css
 ```
 client/src/styles/shared/QuestionApprovals.css
 ```
--> Styles for the question approval queue: status badge chips, comment thread, and approve/return/reject button row.
+-> Styles for the list, markers, status pills, side panel and its header toggle, the full-screen panel (`is-fullscreen`, whose side margins are measured from the panel's own width so they grow with the zoom), the header's framed buttons (`ca-panel-btn`), the panel width (`--ca-panel-width`, registered with `@property` so `is-gliding` can animate it when the expand button is pressed or an item opens or closes) and the edge tab (`ca-sidebar-width-btn`; the panel doesn't clip, so its first and last parts round their own corners), fit-to-screen layout and animations (`ca-*` classes), shared by Approve Questions, My Questions, Board Exams, Manage Subjects, Exam Results, Logs and Student Registration; also the "Panel parts" (`ca-hint`, `ca-tone-pill`, `ca-stats`, `ca-btn--plain`, and the people rows `ca-people-*` / `ca-person-*`), the audience marker, the exam status colours (`--exam-status-*`), `ca-page--stepper` for panels using `QuestionStepper`, the approve/return/reject buttons and bulk toolbar.
 
 ```
 client/src/styles/shared/StudentExamResult.css
@@ -1200,7 +1248,7 @@ client/src/styles/shared/StudentExamResults.css
 ```
 client/src/styles/shared/SubjectTags.css
 ```
--> Styles for the subject tag management page: tag chips, edit inline form, and deactivate toggle.
+-> What the Manage Subjects page adds to the shared `ca-` layout: the dean's program picker, the exam count marker, the list of exams using a subject, and the add and edit window. Other pages also rely on its `.qp-btn-add`, `.error-text` and `.qp-warning-text`.
 
 ```
 client/src/styles/dean/DeanDashboard.css
@@ -1210,7 +1258,7 @@ client/src/styles/dean/DeanDashboard.css
 ```
 client/src/styles/programchair/PCLogs.css
 ```
--> Styles for the audit log viewer page: log entry rows, action type badges, and timestamp display.
+-> What Logs adds to the shared `ca-` layout (`el-` classes): the audience filter, the summary notes with the Live dot, and a taker's activity list with its icons.
 
 ```
 client/src/styles/alumni/AlumniAvailableExams.css
@@ -1307,6 +1355,11 @@ README.md
 ---
 
 ## ====== DOCS FILES =======
+
+```
+docs/DESIGN.md
+```
+-> Design guide for the signed-in app: colours, type, layout, shared components, question UI rules, motion, accessibility, CSS conventions and known gaps.
 
 ```
 docs/concurrency_plan.md

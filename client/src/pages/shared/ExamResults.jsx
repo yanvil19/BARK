@@ -1,234 +1,283 @@
-import React, { useEffect, useState, useMemo, memo, useCallback } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
-import '../../styles/shared/ExamResults.css';
+import AuthImage from '../../components/AuthImage.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
-import ResultQuestionList from '../../components/ResultQuestionList.jsx';
-import SearchBar from '../../components/SearchBar.jsx';
-import DropdownSelect from '../../components/DropdownSelect.jsx';
+import PanelHeader from '../../components/PanelHeader.jsx';
+import QuestionFilters from '../../components/QuestionFilters.jsx';
+import QuestionStepper from '../../components/QuestionStepper.jsx';
+import { ExamStatePill, Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
+import TopicScoreRows from '../../components/TopicScoreRows.jsx';
+import { AudienceIcon } from '../../components/CalendarIcons.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import IndividualReportView from "./IndividualReportView.jsx";
+import usePanelLayout from '../../hooks/usePanelLayout.js';
+import { orderByExamNumber } from '../../lib/groupQuestionsForDisplay.js';
+import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
+import IndividualReportView from './IndividualReportView.jsx';
+// The list, panel and motion are the same as Approve Questions, so they share its styles
+import '../../styles/shared/QuestionApprovals.css';
+import '../../styles/shared/ExamResults.css';
 
-const EXAMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 // A taker this many points or fewer under the threshold "nearly passed" (same as the server)
 const NEAR_MISS_POINTS = 5;
 const SCORE_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+// How often an exam without results checks for them while it is open
+const POLL_MS = 30000;
+
+// Where an exam's results stand: ready (computed, or an alumni exam with an attempt), to compute
+// (a student exam that has ended without results) or pending (everything else)
+const RESULT_STATES = {
+  ready: { label: 'Ready', icon: <path d="M6 20V11M12 20V5M18 20v-6" /> },
+  to_compute: { label: 'To compute', icon: <><path d="M12 6.5v7" /><path d="M12 17.5h.01" /></> },
+  pending: { label: 'Pending', icon: <path d="M12 6v6l4 2" /> },
+};
+
+const AUDIENCE_LABELS = { student: 'Student exam', alumni: 'Alumni exam' };
+
+const STATE_TABS = [
+  { value: '', label: 'All' },
+  ...Object.entries(RESULT_STATES).map(([value, { label }]) => ({ value, label })),
+];
+
+function AudienceMarkerIcon({ audience }) {
+  return <AudienceIcon audience={audience} width="13" height="13" strokeWidth="2.4" />;
+}
+
+const LEGEND_ITEMS = [
+  { text: 'Questions', className: 'ca-marker--count', content: '#' },
+  ...Object.entries(RESULT_STATES).map(([state, { label, icon }]) => ({
+    text: label,
+    className: `er-result--${state}`,
+    content: <MarkerIcon>{icon}</MarkerIcon>,
+  })),
+  ...Object.entries(AUDIENCE_LABELS).map(([audience, label]) => ({
+    text: label,
+    className: 'ca-marker--audience',
+    content: <AudienceMarkerIcon audience={audience} />,
+  })),
+];
+
+const PANEL_VIEWS = [
+  { value: 'overall', label: 'Overall' },
+  { value: 'questions', label: 'Questions' },
+  { value: 'individual', label: 'Individual' },
+];
+
+const NO_INDIVIDUAL = { examId: null, loading: false, error: '', students: [], questions: {}, examEnded: false };
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
-const getStatusClass = (avg, threshold) => {
-  if (avg >= threshold) return 'green';
-  if (avg >= threshold * 0.7) return 'orange';
-  return 'red';
-};
+function getAudience(exam) {
+  return exam?.targetAudience || 'student';
+}
 
-const getQuestionTagInfo = (rate) => {
-  if (rate >= 75) return { text: 'Most got this right', className: 'tag-green' };
-  if (rate >= 50) return { text: 'Mixed results', className: 'tag-yellow' };
-  return { text: 'Most got this wrong', className: 'tag-red' };
-};
+function getThreshold(exam) {
+  return exam?.passingThreshold ?? 70;
+}
 
-const formatDateTime = (dateStr) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
+function formatProgramLabel(program) {
+  return program?.name || program?.code || '-';
+}
 
-const formatShortDate = (dateStr) => {
-  if (!dateStr) return 'No date';
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
+function getProgramId(exam) {
+  return String(exam.program?._id || exam.program || '');
+}
 
-const getComputationLabel = (exam) => {
-  if (exam.computationStatus === 'computed') return 'Ready';
-  if ((exam.targetAudience || 'student') === 'alumni') return 'No attempts';
-  if (exam.status === 'finished') return 'Ready to compute';
-  return 'Pending';
-};
+function subjectKey(tag) {
+  return String(tag?._id || tag?.name || '');
+}
 
-const getComputationTone = (exam) => {
+// Subjects with a name; an older server sends only their ids
+function getNamedSubjects(exam) {
+  return (exam.subjectTags || []).filter((tag) => tag?.name);
+}
+
+function hasEnded(exam) {
+  if (exam.status === 'draft') return false;
+  if (exam.status === 'finished' || exam.status === 'archived') return true;
+  return Boolean(exam.endDateTime) && new Date(exam.endDateTime) < new Date();
+}
+
+function getResultState(exam) {
   if (exam.computationStatus === 'computed') return 'ready';
-  if (exam.status === 'finished') return 'action';
+  if (getAudience(exam) === 'student' && hasEnded(exam)) return 'to_compute';
   return 'pending';
-};
+}
 
-const getAudienceLabel = (exam) => ((exam.targetAudience || 'student') === 'alumni' ? 'Alumni' : 'Students');
+// What the panel says about an exam that has no results to show yet
+function getNoResultsMessage(exam) {
+  if (getAudience(exam) === 'alumni') {
+    return "No alumni have submitted an attempt yet. Results show here after the first one, based on each alumni's highest score.";
+  }
+  if (getResultState(exam) === 'to_compute') {
+    return 'This exam has ended. Compute its results to see the scores, the topics and how each question was answered.';
+  }
+  if (exam.endDateTime) {
+    return `Results can be computed once the exam ends on ${formatDateTime(exam.endDateTime)}.`;
+  }
+  return 'Results can be computed once the exam has been scheduled and has ended.';
+}
 
-// A report question in the shape of the shared question views. Its answer choices
-// come from the answer counts
-const toReportQuestion = (question) => ({
-  ...question,
-  answers: (question.answerCounts || []).map((answer) => ({
-    _id: answer.answerId,
-    text: answer.text,
-    image: answer.image,
-    isCorrect: answer.isCorrect,
-  })),
-});
+function getRateTone(rate) {
+  if (rate >= 75) return { tone: 'good', text: 'Most got this right' };
+  if (rate >= 50) return { tone: 'warn', text: 'Mixed results' };
+  return { tone: 'bad', text: 'Most got this wrong' };
+}
 
-// How the takers did on a question, on its card
-const renderQuestionRate = (question) => {
-  const tagInfo = getQuestionTagInfo(question.correctRate);
-  const takers = (question.answerCounts || []).reduce((sum, answer) => sum + (answer.count || 0), 0)
-    + (question.unansweredCount || 0);
+// The questions of a report in the shape of the shared question views. Their answer choices come
+// from the answer counts.
+function getReportQuestions(report) {
+  if (!report) return [];
+  const questions = (report.subjects || []).flatMap((subject) => (subject.questions || []).map((question) => ({
+    ...question,
+    _id: String(question.questionId),
+    subjectName: subject.name,
+    answers: (question.answerCounts || []).map((answer) => ({
+      _id: answer.answerId,
+      text: answer.text,
+      image: answer.image,
+      isCorrect: answer.isCorrect,
+    })),
+  })));
+  return orderByExamNumber(questions);
+}
 
-  return (
-    <>
-      <span className={`er-q-tag ${tagInfo.className}`}>{tagInfo.text}</span>
-      <span className="rql-meta-text">{question.correctRate}% correct | {takers} takers</span>
-    </>
-  );
-};
+function getAnswerCountProps(question) {
+  return {
+    answerCounts: Object.fromEntries(
+      (question.answerCounts || []).map((answer) => [String(answer.answerId), answer.count || 0])
+    ),
+    unansweredCount: question.unansweredCount || 0,
+  };
+}
 
-const renderSetRate = (questions) => {
-  const average = Math.round(questions.reduce((sum, question) => sum + (question.correctRate || 0), 0) / questions.length);
-  return <span className="rql-meta-text">{average}% correct</span>;
-};
+// Whether someone on the individual results has a score (the others are eligible but have not
+// submitted the exam)
+function hasScore(entry) {
+  return !entry.status || entry.status === 'taken';
+}
 
-const getAnswerCountProps = (question) => ({
-  answerCounts: Object.fromEntries(
-    (question.answerCounts || []).map((answer) => [String(answer.answerId), answer.count || 0])
-  ),
-  unansweredCount: question.unansweredCount || 0,
-});
+// The Excel rows of an alumni exam: each alumni's highest score, then every attempt
+function buildAlumniSheetRows(data) {
+  const maxAttempts = data.reduce((max, item) => Math.max(max, item.attemptCount || 0), 0);
 
-const TopicRow = memo(({ subject, isExpanded, onToggle }) => {
-  const status = getStatusClass(subject.averageScore, subject.threshold);
-  const questions = useMemo(() => (subject.questions || []).map(toReportQuestion), [subject.questions]);
+  return data.map((item) => {
+    let status = item.passed ? 'Passed' : 'Failed';
+    if (!hasScore(item)) status = item.status === 'in_progress' ? 'In progress' : 'Not taken';
 
-  return (
-    <div className="er-topic-wrapper">
-      <button type="button" className="er-topic-row" onClick={onToggle}>
-        <div className="er-topic-main">
-          <div className={`er-topic-name status-${status}`}>{subject.name}</div>
-          <div className="er-topic-mini-meta">
-            <span>{subject.correctCount}/{subject.totalItems} correct</span>
-          </div>
-        </div>
+    const row = {
+      'Alumni Name': item.student?.name || 'N/A',
+      'Alumni Email': item.student?.email || 'N/A',
+      'Alumni ID': item.student?.alumniId || item.student?.studentId || 'N/A',
+      'Attempt Count': item.attemptCount || 0,
+      'Highest Score (%)': hasScore(item) ? (item.overallPercentage || 0) : '',
+      Status: status,
+    };
 
-        <div className="er-topic-bar-col">
-          <div className="er-topic-bar-bg">
-            <div
-              className={`er-topic-bar-fill bg-${status}`}
-              style={{ width: `${subject.averageScore}%` }}
-            />
-          </div>
-        </div>
+    const sortedAttempts = (item.attempts || []).slice().sort((a, b) => {
+      if (a.attemptNumber !== undefined && b.attemptNumber !== undefined) {
+        return a.attemptNumber - b.attemptNumber;
+      }
+      return new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0);
+    });
 
-        <div className="er-topic-score-group">
-          <div className={`er-topic-pct status-${status}`}>{subject.averageScore}%</div>
-          <div className="er-topic-fraction">{subject.correctCount}/{subject.totalItems}</div>
-        </div>
+    for (let i = 0; i < maxAttempts; i += 1) {
+      const attempt = sortedAttempts[i];
+      row[`Attempt ${i + 1} Score (%)`] = attempt ? attempt.overallPercentage : '';
+      row[`Attempt ${i + 1} Status`] = attempt ? (attempt.passed ? 'Passed' : 'Failed') : '';
+    }
+    return row;
+  });
+}
 
-        <div className={`er-chevron ${isExpanded ? 'expanded' : ''}`}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </button>
+// The Excel rows of a student exam: each student's score and status, the same words as the
+// Individual view, then a column per subject
+function buildStudentSheetRows(data, examEnded) {
+  const subjectNames = [];
+  data.forEach((item) => {
+    (item.subjectBreakdowns || []).forEach((subject) => {
+      if (!subjectNames.includes(subject.subjectName)) subjectNames.push(subject.subjectName);
+    });
+  });
 
-      {isExpanded && (
-        <div className="er-questions-list">
-          <ResultQuestionList
-            questions={questions}
-            renderMeta={renderQuestionRate}
-            renderSetMeta={renderSetRate}
-            getPanelProps={getAnswerCountProps}
-          />
-        </div>
-      )}
-    </div>
-  );
-});
+  return data.map((item) => {
+    let status = item.passed ? 'Passed' : 'Failed';
+    if (!hasScore(item)) {
+      if (item.status === 'in_progress') status = 'In progress';
+      else status = examEnded ? 'Did not take' : 'Not taken yet';
+    }
 
-const EmptyStatePanel = ({ eyebrow, title, message, action, children, compact = false }) => (
-  <section className={`er-empty-state-card ${compact ? 'compact' : ''}`}>
-    {eyebrow && <span className="er-empty-eyebrow">{eyebrow}</span>}
-    <h2 className="er-empty-title">{title}</h2>
-    <p className="er-empty-message">{message}</p>
-    {children}
-    {action}
-  </section>
-);
+    const row = {
+      'Student Name': item.student?.name || 'N/A',
+      'Student Email': item.student?.email || 'N/A',
+      'Student ID': item.student?.studentId || 'N/A',
+      'Score (%)': hasScore(item) ? (item.overallPercentage || 0) : '',
+      Status: status,
+    };
 
-const SidebarExamItem = memo(({ exam, isActive, onSelect }) => {
-  const tone = getComputationTone(exam);
+    subjectNames.forEach((name) => {
+      const subject = (item.subjectBreakdowns || []).find((entry) => entry.subjectName === name);
+      row[`${name} (%)`] = subject ? subject.percentage : '';
+    });
+    return row;
+  });
+}
 
-  return (
-    <div
-      className={`er-sidebar-item ${isActive ? 'active' : ''}`}
-      onClick={() => onSelect(exam._id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect(exam._id);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <div className="er-sidebar-item-top">
-        <div>
-          <div className="er-side-name">{exam.name}</div>
-          <div className="er-side-meta">{formatShortDate(exam.startDateTime)}</div>
-        </div>
-        <span className={`er-status-pill tone-${tone}`}>{getComputationLabel(exam)}</span>
-      </div>
-
-      <div className="er-sidebar-item-bottom">
-        <span className="er-side-threshold">Threshold {exam.passingThreshold ?? 70}%</span>
-        <span className="er-side-threshold">{getAudienceLabel(exam)}</span>
-      </div>
-    </div>
-  );
-});
+// The labelled values at the bottom of the Overall view, or on their own while there are no results
+function getExamFacts(exam, report) {
+  const isAlumni = getAudience(exam) === 'alumni';
+  return [
+    { label: 'Program', value: formatProgramLabel(exam.program) },
+    { label: 'Audience', value: isAlumni ? 'Alumni' : 'Students' },
+    { label: 'Created By', value: exam.createdBy?.name || '-' },
+    { label: 'Created', value: formatDateTime(exam.createdAt) },
+    { label: 'Exam Start', value: exam.startDateTime ? formatDateTime(exam.startDateTime) : 'Not scheduled' },
+    { label: 'Exam End', value: exam.endDateTime ? formatDateTime(exam.endDateTime) : 'Not scheduled' },
+    { label: 'Passing Threshold', value: `${getThreshold(exam)}%` },
+    { label: 'Questions', value: plural(exam.questions?.length || 0, 'question') },
+    // Alumni results are worked out on each visit, so only student results have a computed date
+    isAlumni
+      ? { label: 'Latest Attempt', value: formatDateTime(report?.dateConducted) }
+      : { label: 'Last Computed', value: formatDateTime(report?.computedAt) },
+    { label: 'Exam Status', value: <ExamStatePill status={exam.status} /> },
+  ];
+}
 
 // How far the average is from the passing threshold, told by an arrow and words, not color alone
-const ThresholdGap = ({ average, threshold }) => {
+function ThresholdGap({ average, threshold }) {
   const gap = average - threshold;
-  if (gap === 0) return <span className="er-hero-delta is-above">Right at the threshold</span>;
+  if (gap === 0) return <span className="ca-stat-sub er-gap is-above">Right at the threshold</span>;
 
   const isAbove = gap > 0;
   return (
-    <span className={`er-hero-delta ${isAbove ? 'is-above' : 'is-below'}`}>
+    <span className={`ca-stat-sub er-gap ${isAbove ? 'is-above' : 'is-below'}`}>
       <svg viewBox="0 0 12 12" aria-hidden="true">
         <path d={isAbove ? 'M6 2 11 10H1z' : 'M6 10 1 2h10z'} fill="currentColor" />
       </svg>
       {Math.abs(gap)} {Math.abs(gap) === 1 ? 'pt' : 'pts'} {isAbove ? 'above' : 'below'} the threshold
     </span>
   );
-};
+}
 
-// Takers per 10-point score range. A range's bar is split into the takers who passed and
-// those below the threshold, and a dashed line marks the threshold on the score axis.
-// Each bar shows its count above it, and its range and split on hover or keyboard focus
-const ScoreDistribution = ({ ranges, threshold, lowest, highest }) => {
+// Takers per 10-point score range. A range's bar is split into the takers who passed and those
+// below the threshold, and a dashed line marks the threshold on the score axis. Each bar shows its
+// count above it, and its range and split on hover or keyboard focus.
+function ScoreDistribution({ ranges, threshold, lowest, highest }) {
   const [activeIdx, setActiveIdx] = useState(null);
-  if (!ranges?.length) return null;
+  if (!ranges?.length) return <p className="ca-hint">No scores to chart yet.</p>;
 
   const maxCount = Math.max(1, ...ranges.map((range) => range.below + range.passed));
 
   return (
     <figure className="er-dist">
-      <figcaption className="er-dist-head">
-        <span className="er-dist-title">Score distribution</span>
-        <span className="er-dist-legend">
-          <span className="er-dist-key"><span className="er-dist-swatch is-passed" />Passed</span>
-          <span className="er-dist-key"><span className="er-dist-swatch is-below" />Below threshold</span>
-          <span className="er-dist-key"><span className="er-dist-line-key" />Threshold {threshold}%</span>
-        </span>
+      <figcaption className="er-dist-legend">
+        <span className="er-dist-key"><span className="er-dist-swatch is-passed" />Passed</span>
+        <span className="er-dist-key"><span className="er-dist-swatch is-below" />Below threshold</span>
+        <span className="er-dist-key"><span className="er-dist-line-key" />Threshold {threshold}%</span>
       </figcaption>
 
       <div className="er-dist-plot">
@@ -289,7 +338,7 @@ const ScoreDistribution = ({ ranges, threshold, lowest, highest }) => {
       </div>
     </figure>
   );
-};
+}
 
 const NOTE_ICONS = {
   nearMiss: (
@@ -312,109 +361,222 @@ const NOTE_ICONS = {
   ),
 };
 
-const HeroNote = ({ icon, children }) => (
-  <li className="er-hero-note">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {NOTE_ICONS[icon]}
-    </svg>
-    <span>{children}</span>
-  </li>
-);
+function SummaryNote({ icon, children }) {
+  return (
+    <li className="er-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {NOTE_ICONS[icon]}
+      </svg>
+      <span>{children}</span>
+    </li>
+  );
+}
 
-const ReportTabToggle = ({ activeTab, onChange, showIndividual = true }) => (
-  <div className="er-report-tab-toggle">
-    <button 
-      className={`er-tab-btn ${activeTab === 'overall' ? 'active' : ''}`}
-      onClick={() => onChange('overall')}
-    >
-      Overall
-    </button>
-    {showIndividual && (
-      <button
-        className={`er-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
-        onClick={() => onChange('individual')}
-      >
-        Individual
-      </button>
-    )}
-  </div>
-);
-
-const ExamResults = ({ me }) => {
+export default function ExamResults({ me }) {
   const { notify } = useToast();
-  const [exams, setExams] = useState([]);
-  const [selectedExamId, setSelectedExamId] = useState(null);
-  const [activeReport, setActiveReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [computingId, setComputingId] = useState(null);
-  const [threshold, setThreshold] = useState(70);
-  const [expandedSubjectName, setExpandedSubjectName] = useState(null);
-  
+  const isDean = me?.role === 'dean';
   const isProgramChair = me?.role === 'program_chair';
-  const userProgramId = me?.program?._id || me?.program;
-  const initialProgramId = isProgramChair && userProgramId ? String(userProgramId) : 'all';
-  
-  const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId);
-  const [selectedAudience, setSelectedAudience] = useState('all');
-  const [examSearch, setExamSearch] = useState('');
-  const [sidebarPage, setSidebarPage] = useState(1);
-  const [activeTab, setActiveTab] = useState('overall');
+
+  const [exams, setExams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedAudience, setSelectedAudience] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  // The panel: the open exam, its view, its results once loaded, the question shown, and the image
+  // opened full size. The view stays as it is when another exam opens.
+  const [selectedExamId, setSelectedExamId] = useState(null);
+  const [panelView, setPanelView] = useState('overall');
+  // Widened over the list, or covering the whole window
+  const panelLayout = usePanelLayout(selectedExamId);
+  const [reportState, setReportState] = useState({ examId: null, report: null, error: '' });
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+  const [individual, setIndividual] = useState(NO_INDIVIDUAL);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [computingId, setComputingId] = useState(null);
   const [exportingExcel, setExportingExcel] = useState(false);
 
-  const handleExportExcel = async () => {
+  const fetchExams = useCallback(async () => {
+    try {
+      const data = await listExamsWithStatus();
+      let allExams = data.exams || [];
+      // Program chairs only see exams for their own program
+      if (isProgramChair) {
+        const myProgramId = String(me?.program?._id || me?.program || '');
+        allExams = allExams.filter((exam) => getProgramId(exam) === myProgramId);
+      }
+      setExams(allExams);
+    } catch (err) {
+      console.error('Failed to fetch exams:', err);
+      notify(err.message || 'The exams could not be loaded. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [isProgramChair, me?.program, notify]);
+
+  useEffect(() => {
+    fetchExams();
+  }, [fetchExams]);
+
+  // The list has everything about an exam except its results. A slow answer for an exam that is no
+  // longer open is ignored.
+  useEffect(() => {
+    if (!selectedExamId) return undefined;
+    let ignore = false;
+
+    getExamResult(selectedExamId)
+      .then((data) => {
+        if (!ignore) setReportState({ examId: selectedExamId, report: data.result || null, error: '' });
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setReportState({
+            examId: selectedExamId,
+            report: null,
+            error: err.message || 'The results of this exam could not be loaded.',
+          });
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedExamId]);
+
+  const isLoadingReport = Boolean(selectedExamId) && reportState.examId !== selectedExamId;
+  const report = isLoadingReport ? null : reportState.report;
+  const reportError = isLoadingReport ? '' : reportState.error;
+
+  // An open exam without results checks for them now and then, such as alumni's first attempt
+  useEffect(() => {
+    if (!selectedExamId || isLoadingReport || report || reportError) return undefined;
+    const examId = selectedExamId;
+
+    const timer = setInterval(async () => {
+      try {
+        const data = await getExamResult(examId);
+        if (!data.result) return;
+        setReportState((prev) => (prev.examId === examId ? { examId, report: data.result, error: '' } : prev));
+        fetchExams();
+      } catch {
+        // Keep checking quietly while the results are unavailable
+      }
+    }, POLL_MS);
+
+    return () => clearInterval(timer);
+  }, [selectedExamId, isLoadingReport, report, reportError, fetchExams]);
+
+  const loadIndividual = useCallback(async (examId) => {
+    setIndividual({ ...NO_INDIVIDUAL, examId, loading: true });
+    try {
+      const res = await getExamStudentResults(examId);
+      setIndividual((prev) => (prev.examId === examId ? {
+        examId,
+        loading: false,
+        error: '',
+        students: res.students || [],
+        questions: res.questions || {},
+        examEnded: Boolean(res.examEnded),
+      } : prev));
+    } catch (err) {
+      setIndividual((prev) => (prev.examId === examId ? {
+        ...prev,
+        loading: false,
+        error: err.message || 'The individual results could not be loaded.',
+      } : prev));
+    }
+  }, []);
+
+  // Each person's results load the first time the Individual view opens for an exam
+  useEffect(() => {
+    if (panelView !== 'individual' || !report || !selectedExamId) return;
+    if (individual.examId !== selectedExamId) loadIndividual(selectedExamId);
+  }, [panelView, report, selectedExamId, individual.examId, loadIndividual]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedState, selectedProgramId, selectedAudience, selectedSubject, sortBy]);
+
+  // The list scrolls on its own: each page or filter starts at the top...
+  const listScrollRef = useRef(null);
+  useEffect(() => {
+    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
+  }, [currentPage, searchQuery, selectedState, selectedProgramId, selectedAudience, selectedSubject, sortBy]);
+
+  // ...and the open exam's card stays in view when the columns change, once they finish gliding
+  useEffect(() => {
+    listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+  }, [selectedExamId, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
+
+  // Windows too short to fit the page scroll it, which can leave the panel partly off screen
+  const panelRef = useRef(null);
+  useEffect(() => {
     if (!selectedExamId) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panelRef.current?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [selectedExamId]);
+
+  // The Individual view scrolls it when a person opens and closes
+  const panelContentRef = useRef(null);
+
+  // Escape closes the image opened full size (before full screen ends: see usePanelLayout)
+  useEffect(() => {
+    if (!fullscreenImage) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setFullscreenImage(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [fullscreenImage]);
+
+  function handleSelectExam(exam) {
+    if (exam._id === selectedExamId) return;
+    setSelectedExamId(exam._id);
+    setActiveQuestionIdx(0);
+  }
+
+  function clearFilters() {
+    setSearchQuery('');
+    setSelectedState('');
+    setSelectedAudience('');
+    setSelectedSubject('');
+  }
+
+  async function handleCompute(exam) {
+    setComputingId(exam._id);
+    try {
+      const data = await computeExamResult(exam._id, getThreshold(exam));
+      setReportState((prev) => (prev.examId === exam._id ? { ...prev, report: data.result || null, error: '' } : prev));
+      notify(`Results computed for ${exam.name}.`, { variant: 'success' });
+      fetchExams();
+    } catch (err) {
+      notify(`Computation failed: ${err.message || 'Unknown error'}`, { variant: 'error' });
+    } finally {
+      setComputingId(null);
+    }
+  }
+
+  async function handleExportExcel(exam) {
+    const isAlumni = getAudience(exam) === 'alumni';
     setExportingExcel(true);
     try {
-      const res = await getExamStudentResults(selectedExamId);
+      const res = await getExamStudentResults(exam._id);
       const data = res.students || [];
       if (data.length === 0) {
-        notify('No alumni results found to export.', { variant: 'info' });
+        notify(`No ${isAlumni ? 'alumni' : 'student'} results found to export.`, { variant: 'info' });
         return;
       }
 
-      const maxAttempts = data.reduce((max, item) => Math.max(max, item.attemptCount || 0), 0);
-
-      const exportData = data.map(item => {
-        // Eligible alumni without a submitted attempt have no score
-        const hasScore = !item.status || item.status === 'taken';
-        let status = item.passed ? 'Passed' : 'Failed';
-        if (!hasScore) status = item.status === 'in_progress' ? 'In progress' : 'Not taken';
-
-        const row = {
-          'Alumni Name': item.student?.name || 'N/A',
-          'Alumni Email': item.student?.email || 'N/A',
-          'Alumni ID': item.student?.alumniId || item.student?.studentId || 'N/A',
-          'Attempt Count': item.attemptCount || 0,
-          'Highest Score (%)': hasScore ? (item.overallPercentage || 0) : '',
-          'Status': status,
-        };
-
-        const sortedAttempts = (item.attempts || []).slice().sort((a, b) => {
-          if (a.attemptNumber !== undefined && b.attemptNumber !== undefined) {
-            return a.attemptNumber - b.attemptNumber;
-          }
-          return new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0);
-        });
-
-        for (let i = 0; i < maxAttempts; i++) {
-          const attempt = sortedAttempts[i];
-          if (attempt) {
-            row[`Attempt ${i + 1} Score (%)`] = attempt.overallPercentage;
-            row[`Attempt ${i + 1} Status`] = attempt.passed ? 'Passed' : 'Failed';
-          } else {
-            row[`Attempt ${i + 1} Score (%)`] = '';
-            row[`Attempt ${i + 1} Status`] = '';
-          }
-        }
-        return row;
-      });
-
+      const exportData = isAlumni ? buildAlumniSheetRows(data) : buildStudentSheetRows(data, Boolean(res.examEnded));
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Alumni Results");
-      
-      const examNameSafe = (activeReport?.examName || 'Exam').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      XLSX.writeFile(wb, `${examNameSafe}_alumni_results.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, isAlumni ? 'Alumni Results' : 'Student Results');
+
+      const examNameSafe = (report?.examName || exam.name || 'Exam').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      XLSX.writeFile(wb, `${examNameSafe}_${isAlumni ? 'alumni' : 'student'}_results.xlsx`);
       notify('Exported successfully.', { variant: 'success' });
     } catch (err) {
       console.error('Export error:', err);
@@ -422,585 +584,526 @@ const ExamResults = ({ me }) => {
     } finally {
       setExportingExcel(false);
     }
-  };
+  }
 
-  const fetchExams = useCallback(async () => {
-    try {
-      const data = await listExamsWithStatus();
-      let allExams = data.exams || [];
-      // Program chairs only see exams for their own program
-      if (me?.role === 'program_chair') {
-        const myProgramId = me?.program?._id || me?.program;
-        allExams = allExams.filter((e) => String(e.program?._id || e.program) === String(myProgramId));
-      }
-      setExams(allExams);
-    } catch (err) {
-      console.error('Failed to fetch exams:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [me?.role, me?.program]);
-
-  const handleViewReport = useCallback(async (examId) => {
-    setSelectedExamId(examId);
-    setLoading(true);
-
-    const exam = exams.find((item) => item._id === examId);
-    if (exam && exam.passingThreshold !== undefined && exam.passingThreshold !== null) {
-      setThreshold(exam.passingThreshold);
-    }
-
-    try {
-      const data = await getExamResult(examId);
-      setActiveReport(data.result || null);
-      setExpandedSubjectName(null);
-      setActiveTab('overall');
-    } catch (err) {
-      setActiveReport(null);
-      console.warn('Could not load report:', err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [exams]);
-
-  useEffect(() => {
-    fetchExams();
-  }, [fetchExams]);
-
-  useEffect(() => {
-    if (!selectedExamId || (activeReport && activeReport.status === 'computed')) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const data = await getExamResult(selectedExamId);
-        if (data.result) {
-          setActiveReport(data.result);
-          fetchExams();
-        }
-      } catch (err) {
-        // Keep polling quietly while a report is still unavailable.
-      }
-    }, 30000);
-
-    return () => clearInterval(pollInterval);
-  }, [selectedExamId, activeReport?.status, fetchExams]);
-
-  const handleCompute = async (examId) => {
-    setComputingId(examId);
-    try {
-      const data = await computeExamResult(examId, threshold);
-      fetchExams();
-      if (selectedExamId === examId) setActiveReport(data.result);
-    } catch (err) {
-      notify('Computation failed: ' + (err.message || 'Unknown error'), { variant: 'error' });
-    } finally {
-      setComputingId(null);
-    }
-  };
-
+  // The panel reads from the list, so a computed result shows on its card straight away
   const selectedExam = useMemo(
-    () => exams.find((exam) => exam._id === selectedExamId) || null,
+    () => (selectedExamId ? exams.find((exam) => exam._id === selectedExamId) || null : null),
     [exams, selectedExamId]
   );
 
-  const programs = useMemo(() => {
-    const programMap = new Map();
-
+  const programOptions = useMemo(() => {
+    const byId = new Map();
     exams.forEach((exam) => {
-      const programId = exam.program?._id || exam.program;
-      if (!programId || programMap.has(String(programId))) return;
-
-      programMap.set(String(programId), {
-        _id: String(programId),
-        name: exam.program?.name || exam.program?.code || `Program ${String(programId).slice(-6)}`,
+      const programId = getProgramId(exam);
+      if (!programId || byId.has(programId)) return;
+      byId.set(programId, {
+        _id: programId,
+        name: exam.program?.name || `Program ${programId.slice(-6)}`,
+        code: exam.program?.code,
       });
     });
-
-    return [...programMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [exams]);
 
-  const filteredExams = useMemo(() => {
-    let next = exams;
-    if (selectedProgramId !== 'all') {
-      next = next.filter((exam) => String(exam.program?._id || exam.program) === String(selectedProgramId));
-    }
-    if (selectedAudience !== 'all') {
-      next = next.filter((exam) => (exam.targetAudience || 'student') === selectedAudience);
-    }
-    return next;
-  }, [exams, selectedProgramId, selectedAudience]);
+  const programExams = useMemo(() => (
+    selectedProgramId ? exams.filter((exam) => getProgramId(exam) === selectedProgramId) : exams
+  ), [exams, selectedProgramId]);
 
-  const searchedExams = useMemo(() => {
-    const query = examSearch.trim().toLowerCase();
-    if (!query) return filteredExams;
-    return filteredExams.filter((exam) => (exam.name || '').toLowerCase().includes(query));
-  }, [filteredExams, examSearch]);
-
-  useEffect(() => {
-    setSidebarPage(1);
-  }, [selectedProgramId, selectedAudience, examSearch]);
-
-  const pagedExams = useMemo(() => {
-    const totalPages = Math.max(1, Math.ceil(searchedExams.length / EXAMS_PER_PAGE));
-    const page = Math.min(sidebarPage, totalPages);
-    return searchedExams.slice((page - 1) * EXAMS_PER_PAGE, page * EXAMS_PER_PAGE);
-  }, [searchedExams, sidebarPage]);
-
-  const examStats = useMemo(() => {
-    const total = filteredExams.length;
-    const studentExams = filteredExams.filter((exam) => (exam.targetAudience || 'student') === 'student');
-    const ready = studentExams.filter((exam) => exam.computationStatus === 'computed').length;
-    const readyToCompute = studentExams.filter((exam) => exam.computationStatus !== 'computed' && exam.status === 'finished').length;
-    return { total, ready, readyToCompute };
-  }, [filteredExams]);
+  const subjectOptions = useMemo(() => {
+    const byKey = new Map();
+    programExams.forEach((exam) => {
+      getNamedSubjects(exam).forEach((tag) => {
+        const key = subjectKey(tag);
+        if (key && !byKey.has(key)) byKey.set(key, tag.name);
+      });
+    });
+    return Array.from(byKey, ([id, name]) => ({ id, name }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+  }, [programExams]);
 
   useEffect(() => {
-    if (!selectedExamId) return;
-    const selectedStillVisible = filteredExams.some((exam) => exam._id === selectedExamId);
-    if (!selectedStillVisible) {
-      setSelectedExamId(null);
-      setActiveReport(null);
-      setExpandedSubjectName(null);
+    if (selectedSubject && !subjectOptions.some((option) => option.id === selectedSubject)) {
+      setSelectedSubject('');
     }
-  }, [filteredExams, selectedExamId]);
+  }, [subjectOptions, selectedSubject]);
 
-  const enrichedSubjects = useMemo(() => {
-    if (!activeReport) return [];
-    return activeReport.subjects.map((subject) => ({
-      ...subject,
-      threshold
-    }));
-  }, [activeReport, threshold]);
+  const filteredExceptState = useMemo(() => {
+    let filtered = programExams;
+    const query = searchQuery.trim().toLowerCase();
+    if (query) filtered = filtered.filter((exam) => (exam.name || '').toLowerCase().includes(query));
+    if (selectedAudience) filtered = filtered.filter((exam) => getAudience(exam) === selectedAudience);
+    if (selectedSubject) {
+      filtered = filtered.filter((exam) => getNamedSubjects(exam).some((tag) => subjectKey(tag) === selectedSubject));
+    }
+    return filtered;
+  }, [programExams, searchQuery, selectedAudience, selectedSubject]);
+
+  const stateCounts = useMemo(() => {
+    const counts = { all: filteredExceptState.length };
+    filteredExceptState.forEach((exam) => {
+      const state = getResultState(exam);
+      counts[state] = (counts[state] || 0) + 1;
+    });
+    return counts;
+  }, [filteredExceptState]);
+
+  // Newest is the latest exam date first; exams without a date go last either way
+  const visibleExams = useMemo(() => {
+    const listed = selectedState
+      ? filteredExceptState.filter((exam) => getResultState(exam) === selectedState)
+      : filteredExceptState;
+    const examTime = (exam) => (exam.startDateTime ? new Date(exam.startDateTime).getTime() : null);
+    return [...listed].sort((a, b) => {
+      const timeA = examTime(a);
+      const timeB = examTime(b);
+      if (timeA === null || timeB === null) return (timeA === null) - (timeB === null);
+      return sortBy === 'oldest' ? timeA - timeB : timeB - timeA;
+    });
+  }, [filteredExceptState, selectedState, sortBy]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim() || selectedState || selectedAudience || selectedSubject);
+  const totalPages = Math.ceil(visibleExams.length / ITEMS_PER_PAGE) || 1;
+  const paginatedExams = visibleExams.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const threshold = getThreshold(selectedExam);
+  const isAlumniExam = getAudience(selectedExam) === 'alumni';
+  const audienceNoun = isAlumniExam ? 'alumni' : 'students';
+  const reportQuestions = useMemo(() => getReportQuestions(report), [report]);
 
   const summary = useMemo(() => {
-    if (!activeReport) return null;
-
-    const takers = activeReport.totalTakers || 0;
-    const totalEligible = activeReport.totalEligibleStudents || 0;
-    const passedCount = activeReport.passedCount || 0;
-
+    if (!report) return null;
+    const takers = report.totalTakers || 0;
+    const totalEligible = report.totalEligibleStudents || 0;
+    const passedCount = report.passedCount || 0;
     return {
-      overallAvg: activeReport.overallAverageScore ?? 0,
-      highestScore: activeReport.highestScore ?? 0,
-      lowestScore: activeReport.lowestScore ?? 0,
+      overallAvg: report.overallAverageScore ?? 0,
+      highestScore: report.highestScore ?? 0,
+      lowestScore: report.lowestScore ?? 0,
       takers,
       totalEligible,
       // Share of the eligible students (or alumni) who took it, when the counts add up
       participation: totalEligible > 0 && takers <= totalEligible ? Math.round((takers / totalEligible) * 100) : null,
       passedCount,
       passRate: takers > 0 ? Math.round((passedCount / takers) * 100) : 0,
-      nearMissCount: activeReport.nearMissCount || 0,
-      scoreDistribution: activeReport.scoreDistribution || [],
-      totalAttempts: activeReport.totalAttempts || 0,
-      retakes: activeReport.retakes || null,
-      date: formatShortDate(activeReport.dateConducted),
-      computedAt: formatDateTime(activeReport.computedAt)
+      nearMissCount: report.nearMissCount || 0,
+      scoreDistribution: report.scoreDistribution || [],
+      totalAttempts: report.totalAttempts || 0,
+      retakes: report.retakes || null,
     };
-  }, [activeReport]);
+  }, [report]);
+
+  const topics = useMemo(() => (report?.subjects || []).map((subject) => ({
+    key: subject.name,
+    name: subject.name,
+    correct: subject.correctCount,
+    total: subject.totalItems,
+    percentage: subject.averageScore,
+  })), [report]);
 
   // Topics under the threshold, lowest first
-  const weakSubjects = useMemo(
-    () => enrichedSubjects
-      .filter((subject) => subject.averageScore < threshold)
-      .sort((a, b) => a.averageScore - b.averageScore),
-    [enrichedSubjects, threshold]
+  const weakTopics = useMemo(
+    () => topics.filter((topic) => topic.percentage < threshold).sort((a, b) => a.percentage - b.percentage),
+    [topics, threshold]
   );
 
-  const isAlumniReport = activeReport?.targetAudience === 'alumni';
-  const audienceNoun = isAlumniReport ? 'alumni' : 'students';
+  // A topic row opens the Questions view on that topic's first question
+  function showTopicQuestions(topic) {
+    const index = reportQuestions.findIndex((question) => question.subjectName === topic.name);
+    setActiveQuestionIdx(Math.max(index, 0));
+    setPanelView('questions');
+  }
+
+  function renderExamCard(exam, cardIndex) {
+    const subjects = getNamedSubjects(exam);
+    const audience = getAudience(exam);
+    const questionCount = exam.questions?.length || 0;
+    const state = getResultState(exam);
+
+    return (
+      <div
+        key={exam._id}
+        className={`ca-question-card ${exam._id === selectedExamId ? 'is-active' : ''}`}
+        style={{ '--card-index': cardIndex }}
+        onClick={() => handleSelectExam(exam)}
+      >
+        <div className="ca-card-top">
+          {/* Its click bubbles up to the card, so keyboard users can open the card too */}
+          <button type="button" className="ca-card-open">
+            <span className="ca-card-title">{exam.name}</span>
+          </button>
+          <div className="ca-card-markers">
+            <Marker className="ca-marker--count" label={plural(questionCount, 'question')}>{questionCount}</Marker>
+            <Marker className="ca-marker--audience" label={AUDIENCE_LABELS[audience]}>
+              <AudienceMarkerIcon audience={audience} />
+            </Marker>
+            <Marker className={`er-result--${state}`} label={`Results: ${RESULT_STATES[state].label}`}>
+              <MarkerIcon>{RESULT_STATES[state].icon}</MarkerIcon>
+            </Marker>
+          </div>
+        </div>
+        <div className="ca-card-meta">
+          {isDean && <span className="ca-program-pill">{formatProgramLabel(exam.program)}</span>}
+          {subjects.length > 0 && <span className="ca-tag-pill">{subjects[0].name}</span>}
+          {subjects.length > 1 && (
+            <span className="ca-tag-pill" title={subjects.slice(1).map((tag) => tag.name).join(', ')}>
+              +{subjects.length - 1}
+            </span>
+          )}
+          <span className="ca-card-meta-datetime">
+            {exam.startDateTime ? (
+              <>
+                <span className="ca-date">{formatDate(exam.startDateTime)}</span>
+                <span className="ca-time">{formatTime(exam.startDateTime)}</span>
+              </>
+            ) : (
+              <span className="ca-date">Not scheduled</span>
+            )}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function renderFacts(exam) {
+    return (
+      <section className="ca-section ca-review-metadata">
+        <div className="ca-meta-grid">
+          {getExamFacts(exam, report).map(({ label, value }) => (
+            <div key={label}>
+              <span className="ca-meta-label">{label}</span>
+              <div className="ca-meta-value">{value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderOverallView(exam) {
+    return (
+      <>
+        <section className="question-panel">
+          <p className="question-panel-label">Summary</p>
+          {isAlumniExam && <p className="ca-hint ca-hint--section">Based on each alumni&apos;s highest score.</p>}
+          <div className="ca-stats">
+            <div className="ca-stat">
+              <span className="ca-stat-label">Passed</span>
+              <strong className="ca-stat-value">{summary.passRate}%</strong>
+              <span className="ca-stat-sub">{summary.passedCount} of {plural(summary.takers, 'taker')}</span>
+            </div>
+            <div className="ca-stat">
+              <span className="ca-stat-label">Average score</span>
+              <strong className="ca-stat-value">{summary.overallAvg}%</strong>
+              <ThresholdGap average={summary.overallAvg} threshold={threshold} />
+            </div>
+            <div className="ca-stat">
+              <span className="ca-stat-label">Took the exam</span>
+              <strong className="ca-stat-value">
+                {summary.participation !== null ? `${summary.participation}%` : summary.takers}
+              </strong>
+              <span className="ca-stat-sub">
+                {summary.participation !== null
+                  ? `${summary.takers} of ${summary.totalEligible} eligible ${audienceNoun}`
+                  : `Eligible ${audienceNoun} count unavailable`}
+              </span>
+            </div>
+          </div>
+          <ul className="er-notes">
+            <SummaryNote icon="nearMiss">
+              {summary.nearMissCount > 0 ? (
+                <>
+                  <strong>{plural(summary.nearMissCount, 'taker')}</strong>
+                  {summary.nearMissCount === 1 ? ' is' : ' are'} within {NEAR_MISS_POINTS} points of passing.
+                </>
+              ) : `No taker is within ${NEAR_MISS_POINTS} points of passing.`}
+            </SummaryNote>
+            <SummaryNote icon="topics">
+              {weakTopics.length > 0 ? (
+                <>
+                  Needs attention:{' '}
+                  {weakTopics.slice(0, 3).map((topic, idx) => (
+                    <Fragment key={topic.key}>
+                      {idx > 0 && ' · '}
+                      <strong>{topic.name}</strong> {topic.percentage}%
+                    </Fragment>
+                  ))}
+                  {weakTopics.length > 3 && ` · ${weakTopics.length - 3} more below the threshold`}
+                </>
+              ) : 'Every topic is at or above the threshold.'}
+            </SummaryNote>
+            {isAlumniExam && summary.retakes && (
+              <SummaryNote icon="retakes">
+                {summary.retakes.retakers > 0 ? (
+                  <>
+                    <strong>{summary.retakes.improved} of {summary.retakes.retakers}</strong> alumni who retook it
+                    raised their score ({plural(summary.totalAttempts, 'attempt')} in all).
+                  </>
+                ) : `No retakes yet (${plural(summary.totalAttempts, 'attempt')} in all).`}
+              </SummaryNote>
+            )}
+          </ul>
+        </section>
+
+        <section className="question-panel">
+          <p className="question-panel-label">Score Distribution</p>
+          <div className="question-panel-body">
+            <ScoreDistribution
+              ranges={summary.scoreDistribution}
+              threshold={threshold}
+              lowest={summary.lowestScore}
+              highest={summary.highestScore}
+            />
+          </div>
+        </section>
+
+        <section className="question-panel">
+          <p className="question-panel-label">Scores by Topic</p>
+          {topics.length > 0 ? (
+            <TopicScoreRows
+              topics={topics}
+              threshold={threshold}
+              onSelect={showTopicQuestions}
+              selectLabel={(topic) => `Show the questions of ${topic.name}`}
+            />
+          ) : (
+            <p className="ca-hint ca-hint--section">This exam has no topics to break down.</p>
+          )}
+        </section>
+
+        {renderFacts(exam)}
+      </>
+    );
+  }
+
+  function renderQuestionsView() {
+    if (reportQuestions.length === 0) return <p className="ca-panel-note">These results have no questions to show.</p>;
+
+    return (
+      <QuestionStepper
+        questions={reportQuestions}
+        activeIdx={activeQuestionIdx}
+        onSelectQuestion={setActiveQuestionIdx}
+        onZoom={setFullscreenImage}
+        getPanelProps={getAnswerCountProps}
+        renderAside={(question) => {
+          const { tone, text } = getRateTone(question.correctRate || 0);
+          return (
+            <span className="er-aside">
+              <span className="ca-tag-pill">{question.subjectName || 'No subject'}</span>
+              <span className={`ca-tone-pill ca-tone-pill--${tone}`} title={text}>{question.correctRate || 0}% correct</span>
+            </span>
+          );
+        }}
+      />
+    );
+  }
+
+  function renderPanelContent(exam) {
+    if (isLoadingReport) return <p className="ca-panel-note">Loading results...</p>;
+    if (reportError) return <p className="ca-panel-note ca-panel-note--error" role="alert">{reportError}</p>;
+    if (!report) {
+      return (
+        <>
+          <p className="ca-panel-note er-no-results">{getNoResultsMessage(exam)}</p>
+          {renderFacts(exam)}
+        </>
+      );
+    }
+    if (panelView === 'questions') return renderQuestionsView();
+    if (panelView === 'individual') {
+      return (
+        <IndividualReportView
+          data={individual.examId === exam._id ? individual : { ...NO_INDIVIDUAL, loading: true }}
+          threshold={threshold}
+          audience={getAudience(exam)}
+          onRefresh={() => loadIndividual(exam._id)}
+          onZoom={setFullscreenImage}
+          scrollRef={panelContentRef}
+        />
+      );
+    }
+    return renderOverallView(exam);
+  }
+
+  function renderPanelActions(exam) {
+    const canCompute = !report && !isLoadingReport && getResultState(exam) === 'to_compute';
+    const canExport = Boolean(report);
+    if (!canCompute && !canExport) return null;
+
+    const isComputing = computingId === exam._id;
+    return (
+      <div className="ca-sidebar-actions">
+        {canCompute && (
+          <button
+            type="button"
+            className="ca-btn ca-btn--approve"
+            onClick={() => handleCompute(exam)}
+            disabled={isComputing}
+          >
+            {isComputing ? 'Computing results...' : 'Compute Results'}
+          </button>
+        )}
+        {canExport && (
+          <button
+            type="button"
+            className="ca-btn ca-btn--edit"
+            onClick={() => handleExportExcel(exam)}
+            disabled={exportingExcel}
+            title={`Download the ${getAudience(exam) === 'alumni' ? 'alumni' : 'student'} results of this exam as an Excel file (.xlsx)`}
+          >
+            {exportingExcel ? 'Preparing file...' : 'Download Excel (.xlsx)'}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="er-page page-shell">
+    <main className="er-page ca-page ca-page--stepper page-shell">
       <PageHeader
         title="Mock Board Exam Results"
-        subtitle="Review computed analytics, pending exams, and topic-level performance in one place."
+        subtitle="Compute and review each exam's results: scores, topics, questions and every taker."
+      >
+        {isProgramChair && <span className="ca-program-chip">{me?.program?.name || 'Your Program'}</span>}
+      </PageHeader>
+
+      <CapsuleFilters
+        className="ca-state-pills"
+        ariaLabel="Filter exams by their results"
+        options={STATE_TABS.map((tab) => ({
+          value: tab.value,
+          label: tab.label,
+          count: tab.value ? (stateCounts[tab.value] || 0) : stateCounts.all,
+        }))}
+        value={selectedState}
+        onChange={setSelectedState}
       />
 
-      <div className="er-layout">
-        <aside className="er-sidebar">
-          <div className="er-sidebar-card">
-            <div className="er-sidebar-header">
-              <div>
-                <h3>Exams</h3>
-                <p>Choose an exam to inspect or compute results.</p>
+      <QuestionFilters
+        className="ca-filters-wrapper"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search exams by name..."
+        role={me?.role}
+        subjectFilter={selectedSubject}
+        onSubjectChange={setSelectedSubject}
+        subjectOptions={subjectOptions}
+        programFilter={selectedProgramId}
+        onProgramChange={setSelectedProgramId}
+        programOptions={programOptions}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        extraFilters={(
+          <DropdownSelect
+            className="er-filter-audience"
+            value={selectedAudience}
+            onChange={(event) => setSelectedAudience(event.target.value)}
+            ariaLabel="Filter exams by audience"
+            placeholder="Filter: All Audiences"
+            options={[
+              { value: 'student', label: 'Student Exams' },
+              { value: 'alumni', label: 'Alumni Exams' },
+            ]}
+          />
+        )}
+      />
+
+      <div className={panelLayout.layoutClass(Boolean(selectedExam))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
+        <section className="ca-list-panel" aria-label="Exams">
+          <MarkerLegend items={LEGEND_ITEMS} ariaLabel="What the exam markers mean" />
+
+          <div className="ca-list-scroll" ref={listScrollRef}>
+            {loading ? (
+              <div className="ca-empty">Loading exams...</div>
+            ) : visibleExams.length === 0 ? (
+              <div className="ca-empty">
+                <p className="er-empty-text">
+                  {exams.length === 0
+                    ? 'No mock board exams yet. Exams created for your programs will appear here.'
+                    : 'No exams match your filters.'}
+                </p>
+                {exams.length > 0 && hasActiveFilters && (
+                  <button type="button" className="ca-btn er-clear-filters" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                )}
               </div>
-              <div className="er-sidebar-count">{examStats.total}</div>
-            </div>
-
-            <div className="er-sidebar-summary">
-              <div className="er-sidebar-summary-card">
-                <span className="er-summary-label">Computed</span>
-                <strong>{examStats.ready}</strong>
+            ) : (
+              /* Keyed so the cards animate in for each new view, but not while typing a search */
+              <div
+                className="ca-questions-list"
+                key={[selectedState, selectedSubject, selectedAudience, selectedProgramId, sortBy, currentPage].join('|')}
+              >
+                {paginatedExams.map(renderExamCard)}
               </div>
-              <div className="er-sidebar-summary-card">
-                <span className="er-summary-label">To compute</span>
-                <strong>{examStats.readyToCompute}</strong>
-              </div>
-            </div>
-
-            <div className="er-program-filter">
-              <span>Search</span>
-              <SearchBar
-                value={examSearch}
-                onChange={setExamSearch}
-                placeholder="Search exams by name..."
-                className="er-sidebar-search"
-              />
-            </div>
-
-            <label className="er-program-filter">
-              <span>Program</span>
-              <DropdownSelect
-                className="dd-full-width"
-                value={selectedProgramId}
-                onChange={(event) => setSelectedProgramId(event.target.value)}
-                disabled={isProgramChair}
-                options={[
-                  { value: 'all', label: 'All programs' },
-                  ...programs.map((program) => ({ value: program._id, label: program.name })),
-                ]}
-              />
-            </label>
-
-            <label className="er-program-filter">
-              <span>Exam Audience</span>
-              <DropdownSelect
-                className="dd-full-width"
-                value={selectedAudience}
-                onChange={(event) => setSelectedAudience(event.target.value)}
-                options={[
-                  { value: 'all', label: 'All Audiences' },
-                  { value: 'student', label: 'Student Exams' },
-                  { value: 'alumni', label: 'Alumni Exams' },
-                ]}
-              />
-            </label>
-
-            <div className="er-sidebar-scroll">
-              {!loading && filteredExams.length === 0 && (
-                <EmptyStatePanel
-                  compact
-                  eyebrow="No Exams"
-                  title="No exam records yet"
-                  message="Once mock board exams are created, they will appear here for analysis."
-                />
-              )}
-
-              {!loading && filteredExams.length > 0 && searchedExams.length === 0 && (
-                <EmptyStatePanel
-                  compact
-                  eyebrow="No Matches"
-                  title="No exams match your search"
-                  message="Try another exam name, or clear the search to see every exam."
-                />
-              )}
-
-              {pagedExams.map((exam) => (
-                <SidebarExamItem
-                  key={exam._id}
-                  exam={exam}
-                  isActive={selectedExamId === exam._id}
-                  onSelect={handleViewReport}
-                />
-              ))}
-            </div>
-
-            {searchedExams.length > EXAMS_PER_PAGE && (
-              <Pagination
-                currentPage={sidebarPage}
-                totalItems={searchedExams.length}
-                pageSize={EXAMS_PER_PAGE}
-                onPageChange={setSidebarPage}
-                itemLabel="exams"
-                classPrefix="er-side"
-                maxPageButtons={5}
-              />
             )}
           </div>
-        </aside>
 
-        <main className="er-content">
-          {loading && filteredExams.length === 0 && (
-            <EmptyStatePanel
-              eyebrow="Loading"
-              title="Loading exam results"
-              message="We're gathering the latest mock board exam records and analytics."
+          {!loading && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={visibleExams.length}
+              pageSize={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              itemLabel={visibleExams.length === 1 ? 'exam' : 'exams'}
+              classPrefix="ca"
+              maxPageButtons={5}
             />
           )}
+        </section>
 
-          {!loading && filteredExams.length > 0 && !selectedExamId && (
-            <EmptyStatePanel
-              eyebrow="Nothing Selected"
-              title="Choose an exam to open its report"
-              message="Select any exam from the left panel to view computed results, topic breakdowns, and threshold tracking."
-            >
-              <div className="er-empty-chip-row">
-                <span className="er-empty-chip">Computed results</span>
-                <span className="er-empty-chip">Topic breakdowns</span>
-                <span className="er-empty-chip">Threshold tracking</span>
-              </div>
-            </EmptyStatePanel>
-          )}
-
-          {selectedExamId && loading && (
-            <EmptyStatePanel
-              eyebrow="Loading"
-              title="Preparing exam analytics"
-              message="Fetching the latest result snapshot for the exam you selected."
+        {selectedExam ? (
+          <div className={panelLayout.sidebarClass} ref={panelRef}>
+            <PanelHeader
+              title={selectedExam.name}
+              views={report ? PANEL_VIEWS : []}
+              view={panelView}
+              onViewChange={setPanelView}
+              isExpanded={panelLayout.isExpanded}
+              onToggleExpanded={panelLayout.toggleExpanded}
+              isFullscreen={panelLayout.isFullscreen}
+              onToggleFullscreen={panelLayout.toggleFullscreen}
+              onClose={() => setSelectedExamId(null)}
+              closeLabel="Close exam panel"
             />
-          )}
 
-          {selectedExamId && !loading && selectedExam?.targetAudience === 'alumni' && !activeReport && (
-            <EmptyStatePanel
-              eyebrow="No Attempts"
-              title="No alumni attempts yet"
-              message="Once alumni submit attempts for this exam, this page will show the average of each alumni's highest score."
+            {/* Keyed so each exam and each view starts scrolled to the top */}
+            <div
+              className="ca-sidebar-content"
+              key={`${selectedExam._id}-${report ? panelView : 'none'}`}
+              ref={panelContentRef}
             >
-              <div className="er-empty-meta-grid">
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Exam</span>
-                  <strong>{selectedExam?.name || 'Selected exam'}</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Audience</span>
-                  <strong>Alumni</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Threshold</span>
-                  <strong>{threshold}%</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Creator</span>
-                  <strong>{selectedExam?.createdBy?.name || '-'}</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Created Date</span>
-                  <strong>{formatDateTime(selectedExam?.createdAt) || '-'}</strong>
-                </div>
-              </div>
-            </EmptyStatePanel>
-          )}
-
-          {selectedExamId && !loading && selectedExam?.targetAudience !== 'alumni' && !activeReport && (
-            <EmptyStatePanel
-              eyebrow="Analysis Pending"
-              title="This exam does not have computed results yet"
-              message="Generate the analytical breakdown to unlock topic performance, averages, and question-level insight."
-              action={(
-                <button
-                  className="er-primary-btn"
-                  onClick={() => handleCompute(selectedExamId)}
-                  disabled={computingId === selectedExamId}
-                >
-                  {computingId === selectedExamId ? 'Starting analysis...' : 'Generate analysis'}
-                </button>
-              )}
-            >
-              <div className="er-empty-meta-grid">
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Exam</span>
-                  <strong>{selectedExam?.name || 'Selected exam'}</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Date</span>
-                  <strong>{formatShortDate(selectedExam?.startDateTime)}</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Threshold</span>
-                  <strong>{threshold}%</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Creator</span>
-                  <strong>{selectedExam?.createdBy?.name || '-'}</strong>
-                </div>
-                <div className="er-empty-meta-card">
-                  <span className="er-empty-meta-label">Created Date</span>
-                  <strong>{formatDateTime(selectedExam?.createdAt) || '-'}</strong>
-                </div>
-              </div>
-            </EmptyStatePanel>
-          )}
-
-          {activeReport && summary && (
-            <>
-              <div style={{ display: 'flex' }}>
-                <ReportTabToggle
-                  activeTab={activeTab}
-                  onChange={setActiveTab}
-                  showIndividual
-                />
-              </div>
-              <div className="er-report-view">
-                <div className="er-report-header">
-                  <div className="er-report-title-row">
-                    <div className="er-report-title-group">
-                      <span className="er-report-kicker">
-                        {activeReport.targetAudience === 'alumni' ? 'Alumni Highest Score Report' : 'Computed Report'}
-                      </span>
-                      <h2 className="er-report-title">{activeReport.examName}</h2>
-                    </div>
-
-                    {activeReport.targetAudience === 'alumni' && (
-                      <button
-                        type="button"
-                        className="er-download-btn"
-                        onClick={handleExportExcel}
-                        disabled={exportingExcel}
-                        title="Download the alumni results of this exam as an Excel file (.xlsx)"
-                      >
-                        <svg className="er-download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                          <path d="M14 3v5h5" />
-                          <rect x="8" y="11" width="8" height="7" rx="0.6" />
-                          <path d="M8 14.5h8M12 11v7" />
-                        </svg>
-                        <span className="er-download-text">
-                          <span className="er-download-label">{exportingExcel ? 'Preparing file...' : 'Download Excel'}</span>
-                          <span className="er-download-hint">Alumni results (.xlsx)</span>
-                        </span>
-                        <span className="er-download-arrow" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 4v11" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M5 20h14" />
-                          </svg>
-                        </span>
-                      </button>
-                    )}
-                  </div>
-
-                  <dl className="er-report-facts">
-                    <div className="er-report-fact">
-                      <dt>Created by</dt>
-                      <dd>{selectedExam?.createdBy?.name || '-'}</dd>
-                    </div>
-                    <div className="er-report-fact">
-                      <dt>Created on</dt>
-                      <dd>{formatDateTime(selectedExam?.createdAt) || '-'}</dd>
-                    </div>
-                    <div className="er-report-fact">
-                      <dt>Last computed</dt>
-                      <dd>{summary.computedAt || '-'}</dd>
-                    </div>
-                    <div className="er-report-fact">
-                      <dt>{isAlumniReport ? 'Latest attempt' : 'Date conducted'}</dt>
-                      <dd>{summary.date}</dd>
-                    </div>
-                    <div className="er-report-fact">
-                      <dt>Passing threshold</dt>
-                      <dd><span className="er-threshold-badge">{threshold}%</span></dd>
-                    </div>
-                  </dl>
-                </div>
-
-              {activeTab === 'overall' ? (
-                <>
-                  <section className="er-hero-card">
-                    <div className="er-hero-topline">
-                      <span className="er-hero-eyebrow">
-                        {isAlumniReport ? "Based on each alumni's highest score" : 'Overall performance snapshot'}
-                      </span>
-                    </div>
-
-                    <div className="er-hero-stats">
-                      <div className="er-hero-stat">
-                        <span className="er-hero-stat-label">Passed</span>
-                        <strong className="er-hero-stat-value">{summary.passRate}%</strong>
-                        <span className="er-hero-stat-sub">{summary.passedCount} of {plural(summary.takers, 'taker')}</span>
-                      </div>
-                      <div className="er-hero-stat">
-                        <span className="er-hero-stat-label">Average score</span>
-                        <strong className="er-hero-stat-value">{summary.overallAvg}%</strong>
-                        <ThresholdGap average={summary.overallAvg} threshold={threshold} />
-                      </div>
-                      <div className="er-hero-stat">
-                        <span className="er-hero-stat-label">Took the exam</span>
-                        <strong className="er-hero-stat-value">
-                          {summary.participation !== null ? `${summary.participation}%` : summary.takers}
-                        </strong>
-                        <span className="er-hero-stat-sub">
-                          {summary.participation !== null
-                            ? `${summary.takers} of ${summary.totalEligible} eligible ${audienceNoun}`
-                            : `Eligible ${audienceNoun} count unavailable`}
-                        </span>
-                      </div>
-                    </div>
-
-                    <ScoreDistribution
-                      ranges={summary.scoreDistribution}
-                      threshold={threshold}
-                      lowest={summary.lowestScore}
-                      highest={summary.highestScore}
-                    />
-
-                    <ul className="er-hero-notes">
-                      <HeroNote icon="nearMiss">
-                        {summary.nearMissCount > 0 ? (
-                          <>
-                            <strong>{plural(summary.nearMissCount, 'taker')}</strong>
-                            {summary.nearMissCount === 1 ? ' is' : ' are'} within {NEAR_MISS_POINTS} points of passing.
-                          </>
-                        ) : `No taker is within ${NEAR_MISS_POINTS} points of passing.`}
-                      </HeroNote>
-                      <HeroNote icon="topics">
-                        {weakSubjects.length > 0 ? (
-                          <>
-                            Needs attention:{' '}
-                            {weakSubjects.slice(0, 3).map((subject, idx) => (
-                              <React.Fragment key={subject.name}>
-                                {idx > 0 && ' · '}
-                                <strong>{subject.name}</strong> {subject.averageScore}%
-                              </React.Fragment>
-                            ))}
-                            {weakSubjects.length > 3 && ` · ${weakSubjects.length - 3} more below the threshold`}
-                          </>
-                        ) : 'Every topic is at or above the threshold.'}
-                      </HeroNote>
-                      {isAlumniReport && summary.retakes && (
-                        <HeroNote icon="retakes">
-                          {summary.retakes.retakers > 0 ? (
-                            <>
-                              <strong>{summary.retakes.improved} of {summary.retakes.retakers}</strong> alumni who retook it
-                              raised their score ({plural(summary.totalAttempts, 'attempt')} in all).
-                            </>
-                          ) : `No retakes yet (${plural(summary.totalAttempts, 'attempt')} in all).`}
-                        </HeroNote>
-                      )}
-                    </ul>
-                  </section>
-
-                  <section className="er-breakdown-card">
-                    <div className="er-breakdown-header">
-                      <h2>Score Breakdown by Topic</h2>
-                      <p>Performance across each subject area in this exam. Expand a row to inspect question-level trends.</p>
-                    </div>
-
-                    <div className="er-topic-list">
-                      {enrichedSubjects.map((subject, idx) => (
-                        <TopicRow
-                          key={idx}
-                          subject={subject}
-                          isExpanded={expandedSubjectName === subject.name}
-                          onToggle={() => setExpandedSubjectName((prev) => (prev === subject.name ? null : subject.name))}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                </>
-              ) : (
-                <IndividualReportView
-                  examId={selectedExamId}
-                  threshold={threshold}
-                  audience={activeReport.targetAudience === 'alumni' ? 'alumni' : 'student'}
-                />
-              )}
+              {renderPanelContent(selectedExam)}
             </div>
-            </>
-          )}
-        </main>
-      </div>
-    </div>
-  );
-};
 
-export default ExamResults;
+            {renderPanelActions(selectedExam)}
+          </div>
+        ) : (
+          <div className="ca-sidebar ca-sidebar--empty">
+            <p>Select an exam to view its results</p>
+          </div>
+        )}
+      </div>
+
+      {fullscreenImage && (
+        <div
+          className="ca-image-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div className="ca-image-modal" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="ca-image-close" onClick={() => setFullscreenImage(null)}>Close</button>
+            <AuthImage src={fullscreenImage} alt="Question preview" className="ca-image-full" />
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

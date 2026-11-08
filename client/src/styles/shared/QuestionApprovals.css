@@ -1,6 +1,5 @@
 /* ── Page Shell ─────────────────────────────────────────── */
 .ca-page {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -61,7 +60,7 @@
 
 /* ── Status Pills (CapsuleFilters) ──────────────────────── */
 .ca-state-pills {
-  padding: 16px 0;
+  padding: 0 0 16px;
 }
 
 
@@ -71,29 +70,95 @@
 }
 
 /* ── Main Layout ────────────────────────────────────────── */
-.ca-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 550px);
-  gap: 20px;
-  padding: 16px 0 0;
-  flex: 1;
-  align-items: start;
-  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* The panel's widest size, registered so the expand button can glide it (see Motion). Where
+   @property isn't supported, the width still changes, at once. */
+@property --ca-panel-width {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 550px;
 }
 
+.ca-layout {
+  --ca-panel-width: 550px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, var(--ca-panel-width));
+  gap: 20px;
+  flex: 1;
+  align-items: start;
+}
+
+/* Widened, the panel takes everything but 420px of list (the 20px is the gap) */
 .ca-layout.is-sidebar-expanded {
-  grid-template-columns: 420px minmax(0, 1fr);
+  --ca-panel-width: calc(100% - 440px);
 }
 
 /* ── Questions List Panel ────────────────────────────────– */
 .ca-list-panel {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.ca-list-scroll {
+  padding: 12px;
 }
 
 .ca-questions-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* The toolbar and empty message are shared with other pages, so only change them in this section */
+.ca-list-panel .ca-bulk-toolbar {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+.ca-list-panel .ca-empty {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* ── Legend ─────────────────────────────────────────────── */
+.ca-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 8px 14px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+  flex-shrink: 0;
+}
+
+.ca-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a63a8;
+  white-space: nowrap;
+}
+
+.ca-legend .ca-marker {
+  min-width: 18px;
+  height: 18px;
+}
+
+.ca-legend .ca-marker svg {
+  width: 11px;
+  height: 11px;
 }
 
 /* ── Exam-use sub-filter pills ─────────────────────────────────── */
@@ -218,14 +283,13 @@
   background: #fff;
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
-  padding: 18px 22px;
+  padding: 12px 14px;
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  animation: cardIn 0.2s ease;
 }
 
 @keyframes cardIn {
@@ -258,6 +322,21 @@
   gap: 12px;
 }
 
+/* The card's text as a real button, so a card can be opened from the keyboard */
+.ca-card-open {
+  all: unset;
+  display: block;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.ca-question-card:has(.ca-card-open:focus-visible),
+.ca-group-header-card:has(.ca-card-open:focus-visible) {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
 .ca-card-title {
   font-family: var(--font-title);
   font-size: 15px;
@@ -281,12 +360,16 @@
   word-break: break-word;
 }
 
+.ca-card-desc--set {
+  font-weight: 600;
+  color: #1e1b4b;
+}
+
 .ca-card-meta {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
 }
 
 .ca-program-pill {
@@ -341,24 +424,54 @@
   font-weight: 500;
 }
 
-/* ── State Badges ────────────────────────────────────────– */
-.ca-card-badges {
+/* ── Markers ─────────────────────────────────────────────– */
+.ca-card-markers {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-.ca-state-badge {
-  padding: 4px 11px;
+/* A circle, stretching into a pill when a set's count has two digits */
+.ca-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
   border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.ca-marker--count {
+  padding: 0 5px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
   font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ca-marker--used,
+.ca-marker--evaluating {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+/* An exam's audience, students or alumni (Board Exams, Exam Results) */
+.ca-marker--audience {
+  background: #f9faff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.25);
+}
+
+.ca-state--draft {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
 
 .ca-state--pending_chair {
@@ -403,21 +516,74 @@
   border: 1px solid #cbd5e1;
 }
 
-/* ── Being Evaluated Badge ──────────────────────────────── */
-.ca-evaluating-badge {
+/* An exam's status, in the colours the exam calendar uses (ExamMonthGrid.css) */
+.ca-page {
+  --exam-status-draft: #94a3b8;
+  --exam-status-draft-text: #5b6684;
+  --exam-status-draft-bg: #fff;
+  --exam-status-published: #3b82f6;
+  --exam-status-published-text: #1d4ed8;
+  --exam-status-published-bg: #e8f0ff;
+  --exam-status-ongoing: #f59e0b;
+  --exam-status-ongoing-text: #a16207;
+  --exam-status-ongoing-bg: #fff3d6;
+  --exam-status-finished: #0f766e;
+  --exam-status-finished-text: #0f766e;
+  --exam-status-finished-bg: #e6f4f1;
+  --exam-status-archived: #cbd5e1;
+  --exam-status-archived-text: #6b7280;
+  --exam-status-archived-bg: #e1e5ec;
+}
+
+.ca-exam-state--draft {
+  background: var(--exam-status-draft-bg);
+  color: var(--exam-status-draft-text);
+  border: 1px solid var(--exam-status-draft);
+}
+
+.ca-exam-state--published {
+  background: var(--exam-status-published-bg);
+  color: var(--exam-status-published-text);
+  border: 1px solid var(--exam-status-published);
+}
+
+.ca-exam-state--ongoing {
+  background: var(--exam-status-ongoing-bg);
+  color: var(--exam-status-ongoing-text);
+  border: 1px solid var(--exam-status-ongoing);
+}
+
+.ca-exam-state--finished {
+  background: var(--exam-status-finished-bg);
+  color: var(--exam-status-finished-text);
+  border: 1px solid var(--exam-status-finished);
+}
+
+.ca-exam-state--archived {
+  background: var(--exam-status-archived-bg);
+  color: var(--exam-status-archived-text);
+  border: 1px solid var(--exam-status-archived);
+}
+
+/* A status spelled out with its icon, where no legend explains the markers */
+.ca-status-pill {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #93c5fd;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.ca-status-pill svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .ca-evaluating-dot {
@@ -480,17 +646,19 @@
 /* ── Pagination ────────────────────────────────────────── */
 .ca-pagination {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  margin-top: 24px;
-  padding: 16px 0;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 6px 14px;
+  padding: 8px 14px;
+  background: #f9faff;
+  border-top: 1px solid rgba(53, 64, 142, 0.15);
+  flex-shrink: 0;
 }
 
 .ca-pagination-info {
-  text-align: center;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -498,8 +666,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ca-pagination-gap {
+  color: #8b92bc;
+  font-size: 12px;
+  padding: 0 2px;
 }
 
 .ca-pagination-pages {
@@ -511,13 +685,14 @@
 /* buttons */
 .ca-pagination-btn,
 .ca-pagination-page {
-  padding: 8px 14px;
+  height: 30px;
+  padding: 0 12px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
   background: #fff !important;
   color: #5a63a8;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -526,8 +701,7 @@
 
 /* number boxes */
 .ca-pagination-page {
-  min-width: 34px;
-  height: 34px;
+  min-width: 30px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -589,20 +763,32 @@
 }
 
 /* ── Sidebar ─────────────────────────────────────────────– */
+/* The panel doesn't clip, so its edge tab (PanelHeader) can sit half outside it. Its first and
+   last parts round their own corners instead, inside the 1px border. */
 .ca-sidebar {
+  --ca-panel-inner-radius: calc(var(--card-radius) - 1px);
   background: #fff;
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
-  overflow: hidden;
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
+  /* Screens too short to fit the page scroll it: the panel stays in view, clear of the navbar */
+  position: sticky;
+  top: 106px;
+  scroll-margin-top: 106px;
   max-height: calc(100vh - 140px);
   grid-template-columns: minmax(0, 1fr) minmax(420px, 550px);
 }
 
-.ca-state-pills {
-  margin-bottom: 16px;
+.ca-sidebar > :first-child {
+  border-top-left-radius: var(--ca-panel-inner-radius);
+  border-top-right-radius: var(--ca-panel-inner-radius);
+}
+
+.ca-sidebar > :last-child {
+  border-bottom-left-radius: var(--ca-panel-inner-radius);
+  border-bottom-right-radius: var(--ca-panel-inner-radius);
 }
 
 .ca-sidebar--empty {
@@ -615,13 +801,15 @@
   text-align: center;
 }
 
+/* Slim: one row of 32px controls */
 .ca-sidebar-header {
-  padding: 18px 20px 14px;
+  padding: 8px 14px 8px 20px;
   background: #f9faff;
   border-bottom: 1px solid rgba(53, 64, 142, 0.15);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .ca-sidebar-title {
@@ -634,20 +822,155 @@
   word-break: break-word;
 }
 
-.ca-sidebar-close {
-  background: transparent;
-  border: none;
-  font-size: 18px;
-  color: #8b92bc;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s;
+/* PanelHeader: the toggle sits beside the title; a title too long to share the line pushes it underneath */
+.ca-panel-heading {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
 }
 
-.ca-sidebar-close:hover {
+/* Joined buttons, with the current choice filled */
+.ca-view-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1.5px solid rgba(53, 64, 142, 0.22);
+  border-radius: 6px;
+  background: #f9faff;
+}
+
+.ca-view-toggle button {
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #5966ac;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ca-view-toggle button.is-active {
+  background: var(--primary-bg);
+  color: #fff;
+}
+
+/* Inside the toggle, which clips anything drawn outside it */
+.ca-view-toggle button:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.ca-view-toggle button.is-active:focus-visible {
+  outline-color: var(--accent-yellow);
+}
+
+.ca-panel-toggle {
+  height: 32px;
+}
+
+.ca-panel-toggle button {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* In the panel's content, instead of its questions: while they load, or when there are none */
+.ca-panel-note {
+  margin: 0;
+  padding: 28px 16px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.ca-panel-note--error {
+  color: #b91c1c;
+}
+
+/* ── Panels that step through many questions (QuestionStepper) ─────────── */
+
+/* A long list's bubbles scroll inside their section, so the question stays near the top */
+.ca-page--stepper .import-review-nav-bar {
+  box-sizing: border-box;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Short laptop screens: the panel always has bubbles, so without this they fill it and the question
+   starts below the fold */
+@media (max-height: 760px) and (min-width: 1025px) {
+  .ca-page--stepper .ca-sidebar-content {
+    padding: 14px 20px;
+    gap: 14px;
+  }
+
+  .ca-page--stepper .import-review-progress {
+    padding: 6px 14px;
+  }
+
+  .ca-page--stepper .import-review-nav-bar {
+    max-height: 88px;
+    padding: 8px 14px;
+  }
+
+  .ca-page--stepper .ca-sidebar-actions {
+    padding: 8px 20px;
+  }
+}
+
+/* These panels' actions share the row evenly, unlike a question's narrower Edit */
+.ca-page--stepper .ca-sidebar-actions .ca-btn--edit {
+  flex: 1 1 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.ca-page--stepper .ca-sidebar-actions .trash-btn {
+  width: 40px;
+  height: auto;
+  min-height: 38px;
+}
+
+/* The header's full-screen and close buttons: framed like the edge tab, so they read as buttons */
+.ca-panel-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(53, 64, 142, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(53, 64, 142, 0.1);
+  color: var(--primary-bg);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.ca-panel-btn:hover {
+  background: #eef0fb;
+  border-color: rgba(53, 64, 142, 0.45);
   color: #3f4ab8;
-  background: rgba(53, 64, 142, 0.08);
+  box-shadow: 0 2px 6px rgba(53, 64, 142, 0.16);
+}
+
+.ca-panel-btn:active {
+  transform: scale(0.94);
+  box-shadow: none;
+}
+
+.ca-panel-btn:focus-visible {
+  outline: 2px solid #3f4ab8;
+  outline-offset: 2px;
 }
 
 .ca-sidebar-header-actions {
@@ -697,22 +1020,38 @@
   letter-spacing: 0.02em;
 }
 
-.ca-sidebar-expand-btn {
-  background: transparent;
-  border: none;
+/* PanelHeader's widen/narrow tab, centred on the panel's left border: half of it sits in the gap
+   beside the list, and it rides the edge as the columns glide */
+.ca-sidebar-width-btn {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  border-radius: 6px;
-  color: #8b92bc;
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(53, 64, 142, 0.14);
+  color: var(--primary-bg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.ca-sidebar-expand-btn:hover {
+.ca-sidebar-width-btn:hover {
+  background: #f4f6ff;
+  border-color: rgba(53, 64, 142, 0.4);
   color: #3f4ab8;
-  background: rgba(53, 64, 142, 0.08);
+}
+
+.ca-sidebar-width-btn:focus-visible {
+  outline: 2px solid #3f4ab8;
+  outline-offset: 2px;
 }
 
 .ca-sidebar-content {
@@ -722,6 +1061,44 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* Full screen (PanelHeader's full-screen button): the panel covers the whole window, navbar and
+   footer included, like the panel at 1024px and below. Its header, content and actions share one
+   centred column, so lines stay readable on a wide screen. usePanelLayout zooms it in from its
+   place beside the list and back out to it, like a macOS window; with reduced motion it changes
+   at once. */
+.ca-page .ca-sidebar.is-fullscreen {
+  /* Measured from the panel's own width (its parts' padding percentages), so while it zooms the
+     margins grow from the panel's usual ones; each part keeps at least its usual padding */
+  --ca-fullscreen-gutter: calc((100% - 1120px) / 2);
+  --ca-panel-inner-radius: 0px;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-header {
+  padding-left: max(20px, var(--ca-fullscreen-gutter));
+  padding-right: max(14px, var(--ca-fullscreen-gutter));
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-content {
+  padding-left: max(24px, var(--ca-fullscreen-gutter));
+  padding-right: max(24px, var(--ca-fullscreen-gutter));
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-actions {
+  padding-left: max(20px, var(--ca-fullscreen-gutter));
+  padding-right: max(20px, var(--ca-fullscreen-gutter));
+}
+
+.ca-page .ca-sidebar.is-fullscreen .ca-sidebar-content {
+  overscroll-behavior: contain;
 }
 
 /* Question panels in the review sidebar; spacing comes from the sidebar's gap */
@@ -816,16 +1193,22 @@
   word-break: break-word;
 }
 
+/* One row of buttons when they fit, so they leave more room for the question */
 .ca-sidebar-actions {
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-top: 1px solid rgba(53, 64, 142, 0.15);
   background: #f9faff;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
+.ca-sidebar-actions .ca-btn {
+  flex: 1;
+}
+
 .ca-no-actions {
+  width: 100%;
   margin: 0;
   font-size: 13px;
   color: #8b92bc;
@@ -842,6 +1225,26 @@
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+}
+
+.ca-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Not a decision, so it stays quieter and narrower than the decision buttons */
+.ca-sidebar-actions .ca-btn--edit {
+  flex: 0 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.ca-sidebar-actions .ca-btn--edit:hover:not(:disabled) {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
 }
 
 .ca-btn--approve {
@@ -903,6 +1306,7 @@
 .ca-sidebar-action-row {
   display: flex;
   gap: 10px;
+  width: 100%;
 }
 
 .ca-sidebar-action-row .ca-btn {
@@ -998,6 +1402,12 @@
   flex-direction: column;
   gap: 18px;
   min-width: 0;
+}
+
+.ca-modal-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .ca-form-group {
@@ -1156,17 +1566,31 @@
     flex-direction: column;
   }
 
+  /* The open question takes the whole screen; closing it returns to the same place in the list */
   .ca-sidebar {
-    order: -1;
-    max-height: 400px;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    scroll-margin-top: 0;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    --ca-panel-inner-radius: 0px;
+  }
+
+  .ca-sidebar--empty,
+  .ca-sidebar-expand-btn,
+  .ca-sidebar-width-btn {
+    display: none;
+  }
+
+  .ca-sidebar-content {
+    padding: 16px;
+    overscroll-behavior: contain;
   }
 }
 
 @media (max-width: 980px) {
-
-  .ca-state-pills {
-    padding: 0;
-  }
 
   .ca-filters {
     display: grid;
@@ -1205,30 +1629,6 @@
     box-sizing: border-box;
   }
 
-  .ca-pagination {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .ca-pagination-info {
-    text-align: center;
-  }
-
-  .ca-pagination-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
-
-  .ca-pagination-pages {
-    display: flex;
-    gap: 6px;
-  }
-
 }
 
 @media (max-width: 768px) {
@@ -1243,47 +1643,76 @@
     justify-content: flex-start;
   }
 
-  .ca-pagination-pages {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+  .ca-list-scroll {
+    padding: 10px;
+  }
+
+  .ca-legend {
+    padding: 8px 12px;
   }
 }
 
-@media (max-width: 1024px) {
+/* ── Fit to the screen ───────────────────────────────────── */
+/* The questions scroll inside their section, and the page itself stops scrolling. Phones and
+   short windows keep the normal page scroll: the filters alone would take most of their height. */
+@media (min-width: 981px) and (min-height: 640px), (min-width: 769px) and (min-height: 760px) {
+  .app-container:has(.ca-page) {
+    min-height: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
 
-  .ca-layout {
+  .page-content:has(.ca-page) {
     display: flex;
     flex-direction: column;
-    padding: 16px 0 0;
+    min-height: 0;
   }
 
+  .ca-page {
+    flex: 1;
+    min-height: 0;
+    --page-end-space: 16px;
+  }
+
+  .ca-layout {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .ca-list-panel {
+    min-height: 0;
+  }
+
+  .ca-list-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* The panel fills its side of the page; at 1024px and below it is the full-screen overlay.
+   Relative rather than static, for its edge tab; top: auto drops the sticky offset, which
+   relative positioning would otherwise apply. */
+@media (min-width: 1025px) and (min-height: 640px) {
   .ca-sidebar {
-    width: 100%;
-    box-sizing: border-box;
+    position: relative;
+    top: auto;
+    min-height: 0;
+    max-height: none;
   }
-
 }
 
 /* ── Bulk Select ─────────────────────────────────────────── */
 
-/* Checkbox wrapper on each pending_chair card */
+/* Checkbox column on each card */
 .ca-card-checkbox-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
   margin-right: 6px;
-}
-
-/* Show checkbox on card hover or when checked */
-.ca-question-card:hover .ca-card-checkbox-wrap,
-.ca-group-header-card:hover .ca-card-checkbox-wrap,
-.ca-card-checkbox-wrap.is-checked {
-  opacity: 1;
 }
 
 .ca-checkbox {
@@ -1292,6 +1721,15 @@
   cursor: pointer;
   accent-color: var(--primary-bg);
   flex-shrink: 0;
+}
+
+.ca-card-checkbox-wrap.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ca-card-checkbox-wrap.is-disabled .ca-checkbox {
+  cursor: not-allowed;
 }
 
 /* Checked card gets a subtle highlight */
@@ -1304,6 +1742,9 @@
 .ca-select-all-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   padding: 8px 12px;
   margin-bottom: 8px;
   background: #f9faff;
@@ -1320,6 +1761,11 @@
   color: #5a63a8;
   cursor: pointer;
   user-select: none;
+}
+
+.ca-select-all-hint {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 /* Bulk Toolbar */
@@ -1424,11 +1870,11 @@
   background: #ffffff;
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
-  padding: 18px 22px;
+  padding: 12px 14px;
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -1452,12 +1898,432 @@
   border-color: #6366f1;
 }
 
-.ca-group-badge {
-  background: #e0e7ff;
-  color: #3730a3;
-  padding: 3px 10px;
+/* ── Panel parts: notes, status pills, numbers, people ───────── */
+/* Built for Exam Results and shared with Logs: a panel that lists people, each opening into their
+   own view with a back button. */
+
+/* A short note, readable at 4.8:1 */
+.ca-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* As the first line of a section that has no body padding */
+.ca-hint--section {
+  padding: 12px 14px 0;
+}
+
+.ca-hint--section:last-child {
+  padding-bottom: 14px;
+}
+
+/* A status spelled out, in the colors of the question states */
+.ca-tone-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 3px 9px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.ca-tone-pill--good {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.ca-tone-pill--warn {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.ca-tone-pill--bad {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+.ca-tone-pill--muted {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Numbers side by side, split by lines. Three by default; set --ca-stat-columns for another count. */
+.ca-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--ca-stat-columns, 3), minmax(0, 1fr));
+}
+
+.ca-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.ca-stat + .ca-stat {
+  border-left: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.ca-stat-label {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ca-stat-value {
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.ca-stat-sub {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Quiet buttons: refresh the people, try again */
+.ca-page .ca-btn--plain {
+  height: var(--control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.ca-page .ca-btn--plain:hover {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+/* People: the search, filters and refresh above the list */
+.ca-people-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ca-people-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ca-people-search {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.ca-people-sort {
+  min-width: 140px;
+}
+
+/* People: rows split by lines, each opening that person */
+.ca-people-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ca-people-item + .ca-people-item {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.ca-person-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.ca-person-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+button.ca-person-row:hover {
+  background: #f9faff;
+}
+
+button.ca-person-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.ca-person-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ca-person-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ca-person-id {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eef0fb;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ca-person-meta {
+  color: #6b7280;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ca-person-result {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ca-person-score {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keeps the pills of rows that can't open in line with the ones that can */
+.ca-row-chevron {
+  width: 10px;
+  flex-shrink: 0;
+  color: var(--control-icon);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ca-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* One person: their header, with the way back */
+/* A header bar with its small action on the right */
+.ca-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.ca-head-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(53, 64, 142, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ca-head-btn:hover {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+.ca-head-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.ca-person-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ca-person-head .ca-person-score {
+  font-size: 20px;
+}
+
+@media (max-width: 480px) {
+  .ca-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ca-stat + .ca-stat {
+    border-top: 1px solid rgba(53, 64, 142, 0.08);
+    border-left: 0;
+  }
+
+  .ca-person-row,
+  .ca-person-head {
+    flex-wrap: wrap;
+  }
+
+  .ca-people-sort,
+  .ca-page .ca-btn--plain {
+    flex: 1 1 0;
+  }
+}
+
+/* ── Motion ──────────────────────────────────────────────── */
+/* Only transform and opacity move, so nothing here shifts the layout. Entrances fill backwards
+   only: a fill that lasted past the end would hold its transform over the hover lift. */
+@keyframes caPanelIn {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Stays solid: this panel covers the list, which would show through its text in a fade */
+@keyframes caPanelUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* The page arriving */
+  .ca-page .ca-state-pills,
+  .ca-page .ca-filters-wrapper,
+  .ca-page .ca-list-panel {
+    animation: cardIn 0.28s ease-out backwards;
+  }
+
+  /* Cards come in one after another on each load, page or filter */
+  .ca-page .ca-question-card,
+  .ca-page .ca-group-header-card {
+    animation: cardIn 0.24s ease-out backwards;
+    animation-delay: calc(var(--card-index, 0) * 28ms);
+  }
+
+  .ca-page .ca-empty,
+  .ca-page .ca-select-all-row,
+  .ca-page .ca-sidebar--empty {
+    animation: fadeIn 0.2s ease-out backwards;
+  }
+
+  /* The panel slides in when it opens. Going from question to question only fades the content,
+     since a review moves through many in a row. */
+  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+    animation: caPanelIn 0.26s ease-out backwards;
+  }
+
+  .ca-page .ca-sidebar-content > * {
+    animation: fadeIn 0.18s ease-out backwards;
+  }
+
+  /* The columns glide to their new widths, quick off the mark and settling softly, when the
+     expand button is pressed or an item opens or closes on a widened panel. The one place a layout
+     property moves, since moving snapshots of the list and panel instead would stretch or double
+     their text. usePanelLayout turns is-gliding on only for those changes. */
+  .ca-page .ca-layout.is-gliding {
+    transition: --ca-panel-width 0.26s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .ca-page .ca-bulk-btn {
+    transition: opacity 0.15s, background 0.15s, transform 0.15s;
+  }
+}
+
+/* At this width the panel covers the whole screen, so it rises from the bottom instead */
+@media (prefers-reduced-motion: no-preference) and (max-width: 1024px) {
+  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+    animation-name: caPanelUp;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+
+  .ca-page .ca-question-card:hover,
+  .ca-page .ca-group-header-card:hover {
+    transform: translateY(-1px);
+  }
+
+  .ca-page .ca-sidebar-actions .ca-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(53, 64, 142, 0.14);
+  }
+}
+
+/* After the hover rules, so a press shows on a hovered button too */
+@media (prefers-reduced-motion: no-preference) {
+
+  .ca-page .ca-sidebar-actions .ca-btn:active:not(:disabled),
+  .ca-page .ca-bulk-btn:active:not(:disabled),
+  .ca-page .ca-pagination-btn:active:not(:disabled),
+  .ca-page .ca-pagination-page:active {
+    transform: scale(0.97);
+  }
+
+  /* The edge tab keeps the shift that centres it on the border */
+  .ca-page .ca-sidebar-width-btn:active {
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+}
+
+/* Scoped to the page because CreateExams.css animates the bulk toolbar as well */
+@media (prefers-reduced-motion: reduce) {
+
+  .ca-page .ca-evaluating-dot,
+  .ca-page .ca-bulk-toolbar,
+  .ca-page .ca-modal-overlay,
+  .ca-page .ca-modal,
+  .ca-page .ca-image-overlay,
+  .ca-page .ca-image-full {
+    animation: none;
+  }
 }

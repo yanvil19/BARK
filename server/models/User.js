@@ -124,6 +124,11 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // When the user last signed in successfully. With last_active_at it gives how long that visit lasted.
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
     // Most recent heartbeat/active timestamp for presence tracking
     last_active_at: {
       type: Date,

@@ -230,6 +230,9 @@ export default function QuestionForm({
   maxImages = 5,
   maxAnswerImages = 5,
   maxGroupContextImages = 5,
+  // A Program Chair or Dean editing a submitted question. It stays in review, so
+  // there is one Save button and the question must stay ready to submit.
+  reviewEdit = false,
 }) {
   const isImportMode = (importedQuestions && importedQuestions.length > 0) || isImportDraft;
   
@@ -912,6 +915,8 @@ export default function QuestionForm({
   }
 
   function validate(isSubmit = false) {
+    const finishing = reviewEdit ? 'saving' : 'submitting';
+
     // [GROUPED QUESTIONS] the server rejects groups that mix subjects
     if (isGrouped && !readOnly && new Set(questionsData.map((q) => q.tagId || '')).size > 1) {
       return 'Pick one subject for the whole group.';
@@ -959,7 +964,7 @@ export default function QuestionForm({
         const allFlags = getQuestionFlags(q);
         const firstBlocker = allFlags.find(f => f.severity === 'BLOCKER');
         if (firstBlocker) {
-          return `${prefix}${sanitizeFlagMessage(firstBlocker.message)} Please resolve this before submitting.`;
+          return `${prefix}${sanitizeFlagMessage(firstBlocker.message)} Please resolve this before ${finishing}.`;
         }
       }
 
@@ -968,7 +973,7 @@ export default function QuestionForm({
         const flags = getVisibleQuestionFlags(q);
         const firstError = flags.find(f => f.severity === 'ERROR');
         if (firstError) {
-          return `${prefix}${sanitizeFlagMessage(firstError.message)} Please resolve all errors before submitting.`;
+          return `${prefix}${sanitizeFlagMessage(firstError.message)} Please resolve all errors before ${finishing}.`;
         }
       }
     }
@@ -1071,9 +1076,11 @@ export default function QuestionForm({
 
   // Saves changes to the question or group being edited
   async function saveEdits(submit) {
+    const editRoute = reviewEdit ? '/review-edit' : '';
+
     if (isGrouped) {
       const targetGroupId = initialGroupQuestions?.[0]?.groupId || initialData?.groupId;
-      const data = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}`, {
+      const data = await apiAuth(`${BASE}/api/questions/group/${targetGroupId}${editRoute}`, {
         method: 'PUT',
         body: {
           questions: questionsData.map((q) => ({ _id: q._id, ...toQuestionPayload(q) })),
@@ -1088,7 +1095,7 @@ export default function QuestionForm({
       return subData.questions;
     }
 
-    const data = await apiAuth(`${BASE}/api/questions/${initialData._id}`, {
+    const data = await apiAuth(`${BASE}/api/questions/${initialData._id}${editRoute}`, {
       method: 'PATCH',
       body: { ...toQuestionPayload(questionsData[0]), ...(programId ? { programId } : {}) },
     });
@@ -1147,7 +1154,7 @@ export default function QuestionForm({
 
   async function save(submit = false) {
     if (readOnly) return;
-    const err = validate(submit);
+    const err = validate(submit || reviewEdit);
     if (err) {
       showFeedback({
         message: err,
@@ -1883,7 +1890,17 @@ export default function QuestionForm({
         <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={saving}>
           {readOnly ? 'Close' : 'Cancel'}
         </button>
-        {!readOnly && (
+        {reviewEdit && (
+          <button
+            type="button"
+            className="qf-submit-btn"
+            onClick={() => save()}
+            disabled={saving || anyUploading}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        )}
+        {!readOnly && !reviewEdit && (
           <>
             <button
               type="button"

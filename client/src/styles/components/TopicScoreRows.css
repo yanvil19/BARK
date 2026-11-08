@@ -1,0 +1,129 @@
+/* TopicScoreRows: an exam result's score per topic, as rows split by lines inside a section */
+.tsr-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tsr-item + .tsr-item {
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+}
+
+.tsr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(80px, 1fr) 46px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.tsr-row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(80px, 1fr) 46px 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+button.tsr-row:hover {
+  background: #f9faff;
+}
+
+button.tsr-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -2px;
+}
+
+.tsr-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tsr-name {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tsr-meta {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* The track, with the fill from the left and a tick at the passing threshold */
+.tsr-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef0f7;
+}
+
+.tsr-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+}
+
+.tsr-fill--good {
+  background: #16a34a;
+}
+
+.tsr-fill--warn {
+  background: #d97706;
+}
+
+.tsr-fill--bad {
+  background: #dc2626;
+}
+
+.tsr-threshold {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #1f2947;
+}
+
+.tsr-pct {
+  color: #1a1f4b;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tsr-chevron {
+  color: var(--control-icon);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Small phones: the bar takes a line of its own under the name */
+@media (max-width: 480px) {
+  .tsr-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  button.tsr-row {
+    grid-template-columns: minmax(0, 1fr) auto 10px;
+  }
+
+  .tsr-bar {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}

@@ -20,7 +20,11 @@ export default function QuestionFilters({
   sortOptions = [
     { value: 'newest', label: 'Sort: Newest' },
     { value: 'oldest', label: 'Sort: Oldest' }
-  ]
+  ],
+  // Filters only this page has, placed before the sort; children go at the end of the row.
+  // Without onSubjectChange there is no subject filter, and without onSortChange no sort control.
+  extraFilters = null,
+  children = null,
 }) {
   return (
     <div className={`qf-filters ${className}`}>
@@ -31,13 +35,15 @@ export default function QuestionFilters({
         onChange={onSearchChange}
       />
 
-      <DropdownSelect
-        className="qf-filter-select--subject"
-        value={subjectFilter}
-        onChange={(e) => onSubjectChange(e.target.value)}
-        placeholder="Filter: All Subjects"
-        options={subjectOptions.map((tag) => ({ value: tag.id, label: tag.name }))}
-      />
+      {onSubjectChange && (
+        <DropdownSelect
+          className="qf-filter-select--subject"
+          value={subjectFilter}
+          onChange={(e) => onSubjectChange(e.target.value)}
+          placeholder="Filter: All Subjects"
+          options={subjectOptions.map((tag) => ({ value: tag.id, label: tag.name }))}
+        />
+      )}
 
       {role === 'dean' && (
         <DropdownSelect
@@ -52,12 +58,18 @@ export default function QuestionFilters({
         />
       )}
 
-      <DropdownSelect
-        className="qf-sort"
-        value={sortBy}
-        onChange={(e) => onSortChange(e.target.value)}
-        options={sortOptions}
-      />
+      {extraFilters}
+
+      {onSortChange && (
+        <DropdownSelect
+          className="qf-sort"
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value)}
+          options={sortOptions}
+        />
+      )}
+
+      {children}
     </div>
   );
 }
