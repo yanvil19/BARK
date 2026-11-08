@@ -340,3 +340,11 @@
     min-width: 0;
   }
 }
+
+/* Four views (with AI Overview) on a phone: a little less room around each, so they clear the
+   close button */
+@media (max-width: 480px) {
+  .er-page .ca-panel-toggle button {
+    padding: 0 8px;
+  }
+}

@@ -1,6 +1,7 @@
 // The header of a list page's side panel. The expand button is a tab on the panel's left edge,
 // the side the panel widens toward, so it moves with the edge as the columns glide; then the
-// title and buttons beside it that switch what the panel shows (none when views is empty);
+// title and buttons beside it that switch what the panel shows (none when views is empty; a view
+// may have an icon before its label);
 // children (such as Approve Questions' bulk navigation) come before the full-screen and close
 // buttons on the right. With onToggleFullscreen it has the full-screen button; the page puts
 // is-fullscreen on the panel, which then zooms to cover the whole window, navbar and footer
@@ -44,14 +45,15 @@ export default function PanelHeader({
         <h2 className="ca-sidebar-title">{title}</h2>
         {views.length > 0 && (
           <div className="ca-view-toggle ca-panel-toggle" role="group" aria-label="Show in this panel">
-            {views.map(({ value, label }) => (
+            {views.map(({ value, label, icon }) => (
               <button
                 key={value}
                 type="button"
-                className={view === value ? 'is-active' : ''}
+                className={[view === value ? 'is-active' : '', icon ? 'has-icon' : ''].filter(Boolean).join(' ')}
                 onClick={() => onViewChange(value)}
                 aria-pressed={view === value}
               >
+                {icon}
                 {label}
               </button>
             ))}

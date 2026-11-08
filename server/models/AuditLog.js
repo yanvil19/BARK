@@ -42,7 +42,8 @@ const auditLogSchema = new mongoose.Schema({
       'mock_exam_updated',
       'mock_exam_deleted',
       'mock_exam_archived',
-      'mock_exam_results_release_scheduled'
+      'mock_exam_results_release_scheduled',
+      'mock_exam_ai_overview_generated'
     ]
   },
   targetType: {

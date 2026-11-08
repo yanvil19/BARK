@@ -9,8 +9,16 @@ const {
 } = require('./importStateService');
 const { getGeminiModels } = require('../config/geminiModels');
 const { nextPacificMidnight } = require('../utils/pacificTime');
+const {
+    OVERVIEW_INSTRUCTION,
+    OVERVIEW_SCHEMA,
+    buildOverviewPrompt,
+    checkOverviewContent,
+} = require('./examOverviewContent');
 
 const MINUTE_MS = 60 * 1000;
+// An overview request that takes longer is given up and tried again
+const EXAM_OVERVIEW_TIMEOUT_MS = 60 * 1000;
 
 // ── Choosing a model ────────────────────────────────────────────────────────
 // Requests go to the models in config/geminiModels.js in order. A model that is
@@ -413,6 +421,34 @@ class GeminiService {
 
             return readExtraction(this.parseModelJson(response.response.text()));
         }, { retryDelayMs: 3000 });
+    }
+
+    /**
+     * Writes the words of an exam's AI overview from its figures (services/
+     * examOverviewFacts.js). The answer is checked against the figures before it is
+     * returned (services/examOverviewContent.js); one that cannot be used is tried
+     * again like any passing error. Returns { model, content }.
+     */
+    async writeExamOverview(facts) {
+        const prompt = buildOverviewPrompt(facts);
+
+        return this.callWithFallback('exam overview', async (modelName) => {
+            const response = await this.client.getGenerativeModel(
+                { model: modelName, systemInstruction: OVERVIEW_INSTRUCTION },
+                { timeout: EXAM_OVERVIEW_TIMEOUT_MS }
+            ).generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    responseSchema: OVERVIEW_SCHEMA,
+                    // Some freedom in the wording, none in the facts
+                    temperature: 0.3
+                }
+            });
+
+            const content = checkOverviewContent(this.parseModelJson(response.response.text()), facts);
+            return { model: modelName, content };
+        }, { retryDelayMs: 2000 });
     }
 
     addGuardrailFlags(question) {

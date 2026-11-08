@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
 import AuthImage from '../../components/AuthImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Pagination from '../../components/Pagination.jsx';
@@ -14,9 +15,11 @@ import TopicScoreRows from '../../components/TopicScoreRows.jsx';
 import { AudienceIcon } from '../../components/CalendarIcons.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import usePanelLayout from '../../hooks/usePanelLayout.js';
+import useExamAiOverview from '../../hooks/useExamAiOverview.js';
 import { orderByExamNumber } from '../../lib/groupQuestionsForDisplay.js';
 import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 import IndividualReportView from './IndividualReportView.jsx';
+import AiOverviewView, { SparkleIcon } from './AiOverviewView.jsx';
 // The list, panel and motion are the same as Approve Questions, so they share its styles
 import '../../styles/shared/QuestionApprovals.css';
 import '../../styles/shared/ExamResults.css';
@@ -65,6 +68,8 @@ const PANEL_VIEWS = [
   { value: 'overall', label: 'Overall' },
   { value: 'questions', label: 'Questions' },
   { value: 'individual', label: 'Individual' },
+  // Written by AI from the results' figures, with a limited number of generations per exam
+  { value: 'ai', label: 'AI Overview', icon: <SparkleIcon /> },
 ];
 
 const NO_INDIVIDUAL = { examId: null, loading: false, error: '', students: [], questions: {}, examEnded: false };
@@ -398,6 +403,9 @@ export default function ExamResults({ me }) {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [computingId, setComputingId] = useState(null);
   const [exportingExcel, setExportingExcel] = useState(false);
+  // How the Individual list starts when the AI Overview opens it on a group of takers
+  const [individualList, setIndividualList] = useState(null);
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
   const fetchExams = useCallback(async () => {
     try {
@@ -449,6 +457,9 @@ export default function ExamResults({ me }) {
   const isLoadingReport = Boolean(selectedExamId) && reportState.examId !== selectedExamId;
   const report = isLoadingReport ? null : reportState.report;
   const reportError = isLoadingReport ? '' : reportState.error;
+
+  // The AI overview loads the first time its view opens for an exam
+  const aiOverview = useExamAiOverview(selectedExamId, panelView === 'ai' && Boolean(report));
 
   // An open exam without results checks for them now and then, such as alumni's first attempt
   useEffect(() => {
@@ -718,6 +729,36 @@ export default function ExamResults({ me }) {
     setPanelView('questions');
   }
 
+  function changePanelView(view) {
+    setIndividualList(null);
+    setPanelView(view);
+  }
+
+  // The AI Overview names questions by their number in the exam
+  function showQuestionNumber(number) {
+    const index = reportQuestions.findIndex((question) => question.questionNumber === number);
+    if (index < 0) return;
+    setActiveQuestionIdx(index);
+    setPanelView('questions');
+  }
+
+  function showIndividualList(list) {
+    setIndividualList(list);
+    setPanelView('individual');
+  }
+
+  async function generateAiOverview(exam) {
+    setConfirmingRegenerate(false);
+    const result = await aiOverview.generate();
+    if (result.ok) notify(`AI overview ready for ${exam.name}.`, { variant: 'success' });
+  }
+
+  // A first overview is generated at once (its view says what it uses); another asks first
+  function requestAiOverview(exam) {
+    if (aiOverview.data?.versions?.length) setConfirmingRegenerate(true);
+    else generateAiOverview(exam);
+  }
+
   function renderExamCard(exam, cardIndex) {
     const subjects = getNamedSubjects(exam);
     const audience = getAudience(exam);
@@ -924,6 +965,20 @@ export default function ExamResults({ me }) {
           onRefresh={() => loadIndividual(exam._id)}
           onZoom={setFullscreenImage}
           scrollRef={panelContentRef}
+          initialList={individualList}
+        />
+      );
+    }
+    if (panelView === 'ai') {
+      return (
+        <AiOverviewView
+          ai={aiOverview}
+          takers={report.totalTakers || 0}
+          questionCount={reportQuestions.length}
+          onGenerate={() => requestAiOverview(exam)}
+          onOpenQuestion={showQuestionNumber}
+          onOpenTopic={(name) => showTopicQuestions({ name })}
+          onOpenIndividual={showIndividualList}
         />
       );
     }
@@ -936,8 +991,26 @@ export default function ExamResults({ me }) {
     if (!canCompute && !canExport) return null;
 
     const isComputing = computingId === exam._id;
+    // Once there is an overview, another can be generated from here while generations are left
+    const aiData = panelView === 'ai' && report ? aiOverview.data : null;
+    const canRegenerate = Boolean(aiData?.versions?.length);
     return (
       <div className="ca-sidebar-actions">
+        {canRegenerate && (
+          <button
+            type="button"
+            className="ca-btn aio-regenerate"
+            onClick={() => requestAiOverview(exam)}
+            disabled={aiOverview.isGenerating || aiData.remaining === 0}
+            title={aiData.remaining === 0
+              ? `All ${aiData.limit} generations for this exam are used`
+              : 'Write a new version of the AI overview'}
+          >
+            <SparkleIcon />
+            {aiOverview.isGenerating ? 'Generating...' : 'Regenerate'}
+            <span className="aio-count">{aiData.remaining}/{aiData.limit}</span>
+          </button>
+        )}
         {canCompute && (
           <button
             type="button"
@@ -1063,7 +1136,7 @@ export default function ExamResults({ me }) {
               title={selectedExam.name}
               views={report ? PANEL_VIEWS : []}
               view={panelView}
-              onViewChange={setPanelView}
+              onViewChange={changePanelView}
               isExpanded={panelLayout.isExpanded}
               onToggleExpanded={panelLayout.toggleExpanded}
               isFullscreen={panelLayout.isFullscreen}
@@ -1089,6 +1162,20 @@ export default function ExamResults({ me }) {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        open={confirmingRegenerate && Boolean(selectedExam) && Boolean(aiOverview.data)}
+        onClose={() => setConfirmingRegenerate(false)}
+        onConfirm={() => generateAiOverview(selectedExam)}
+        title="Regenerate the AI overview?"
+        message={aiOverview.data
+          ? `This uses 1 of the ${aiOverview.data.remaining} generations left for this exam (${aiOverview.data.remaining - 1} left after). Everyone who can see this exam shares them.`
+          : ''}
+        confirmLabel="Regenerate"
+        confirmVariant="primary"
+      >
+        <p className="ca-hint">The current overview stays in the version list, so you can still open it.</p>
+      </ConfirmationModal>
 
       {fullscreenImage && (
         <div
