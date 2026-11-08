@@ -5,8 +5,12 @@
    can load before the shared styles. Chart colours were checked for colour-blind readers: series
    1 #4A56B8, series 2 #0F9488. */
 
+/* Positioned, so the absolutely placed parts inside (the screen-reader labels, .aio-sr) are placed
+   and clipped within the panel's scrolling content. Without it they are placed against the panel
+   instead, which doesn't clip, and one far down the content made the whole page scroll. */
 .aio-view,
 .aio-gen {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
