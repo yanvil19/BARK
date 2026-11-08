@@ -48,6 +48,12 @@ body {
 
 }
 
+/* Controls (buttons, inputs, selects) don't inherit the body font on their own. This rule used to
+   sit at the top of PCLogs.css, which loads with the app, so it already applied everywhere. */
+* {
+  font-family: var(--font-body);
+}
+
 /* ─── Custom Scrollbar Styling ─────────────────────────────── */
 /* Webkit browsers (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {

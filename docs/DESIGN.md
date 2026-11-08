@@ -157,17 +157,23 @@ Use these for new work.
 
 ### Work queues
 
-A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions, Board Exams, Manage Subjects and Exam Results do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
+A page where people work through a list can fit the screen: the list scrolls inside its own section, so the page doesn't move. Approve Questions, My Questions, Board Exams, Manage Subjects, Exam Results, Logs and Student Registration do this, with the media queries under "Fit to the screen" in `QuestionApprovals.css`. Phones and short windows keep normal page scrolling, because the filters alone would take most of their height.
 
-These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all five pages, so check them all.
+These pages share one layout: cards under a legend on one side, and the open item in a panel on the other, which takes the whole screen at 1024px and below. To use it on another page, put `ca-page` on the page root, import `QuestionApprovals.css` and use `QuestionMarkers`. Don't copy the CSS. A change to these `ca-` rules reaches all seven pages, so check them all.
 
-All five panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it.
+All seven panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it.
 
 Board Exams, Manage Subjects and Exam Results also add `ca-page--stepper` to the root. Their `PanelHeader` has buttons beside the title that switch what the panel shows, and they step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
 
 Board Exams also has a calendar view, which needs normal page scrolling, so the page drops `ca-page` while the calendar shows.
 
-Exam Results shows its toggle only once an exam has results: Overall, Questions and Individual. Without results the panel says why, shows the exam's details, and offers Compute Results when a student exam has ended. Once results exist, the action bar offers Download Excel for student and alumni exams alike. Its panel sections sit straight in the scrolling content, so `ExamResults.css` stops them shrinking, since a section that clips its corners would otherwise shrink to nothing when the content is taller than the panel.
+Exam Results shows its toggle only once an exam has results: Overall, Questions and Individual. Without results the panel says why, shows the exam's details, and offers Compute Results when a student exam has ended. Once results exist, the action bar offers Download Excel for student and alumni exams alike. Its panel sections sit straight in the scrolling content, so `ExamResults.css` stops them shrinking, since a section that clips its corners would otherwise shrink to nothing when the content is taller than the panel. Logs and Student Registration do the same in their own files.
+
+The parts these panels build from are shared under "Panel parts" in `QuestionApprovals.css`: notes (`ca-hint`), status pills (`ca-tone-pill` in good, warn, bad or muted), numbers side by side (`ca-stats`, three by default, or set `--ca-stat-columns`), the quiet button (`ca-btn--plain`), and people as rows split by lines (`ca-people-tools`, `ca-person-row` and the rest). Exam Results, Logs and the register window use them.
+
+Logs lists the program's published, ongoing and finished exams. Its panel shows how the takers are doing (started, in progress, submitted, missed, and window focus lost), then the takers as rows; opening one shows their activity, oldest first. A running exam's activity reloads every 25 seconds while it is open.
+
+Student Registration lists the students and alumni, with Students, Alumni and Locked tabs counted by the server, and the account's details in the panel, where a locked account can be unlocked. "+ Register Accounts" opens a window (`BulkRegister`) built from the form's headed sections: the account type, the program for deans, and a row per person. A bad field is marked on its own row. The rows stay as a draft in the browser until they are sent. The window shows the progress and then how it went, and the registering carries on if it is closed.
 
 ## Shape, shadow and layers
 
@@ -277,7 +283,7 @@ Use `QuestionDetailPanels`. It stacks bordered sections in this order: Shared Pa
 - The container around the questions has no box. Approve Questions and My Questions are the exceptions: their questions sit in a bordered scrolling section with a legend.
 - A question inside an open set is not its own card.
 - Stacked question blocks in a form are split by a line, not boxed.
-- Drill-downs follow the same idea. On Exam Results, the people are rows split by lines; opening one replaces the list with that person in the same panel, with a button back to the list.
+- Drill-downs follow the same idea. On Exam Results and Logs, the people are rows split by lines; opening one replaces the list with that person in the same panel, with a button back to the list.
 
 ### Forms
 
@@ -296,7 +302,7 @@ Navy gradient with a white title, as `Modal` provides. Don't restyle it per page
 
 ## Motion
 
-Approve Questions is the reference, and My Questions, Board Exams, Manage Subjects and Exam Results share its animations: see the Motion section at the end of `QuestionApprovals.css`.
+Approve Questions is the reference, and My Questions, Board Exams, Manage Subjects, Exam Results, Logs and Student Registration share its animations: see the Motion section at the end of `QuestionApprovals.css`.
 
 | Moment | Motion | Duration |
 | --- | --- | --- |
@@ -332,8 +338,9 @@ Approve Questions is the reference, and My Questions, Board Exams, Manage Subjec
 All page styles load together, so every class is global, and a rule in one page's file can affect another page. For example, `.ca-bulk-toolbar` is styled in both `CreateExams.css` and `QuestionApprovals.css`.
 
 - Prefix a page's classes, and scope its rules under its root class, such as `.ca-page .ca-btn`.
-- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions, Board Exams, Manage Subjects and Exam Results), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `st-` (the rest of Manage Subjects), `er-` (the rest of Exam Results), `tsr-` (`TopicScoreRows`), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
+- Existing prefixes include `ca-` (Approve Questions, and the list and panel of My Questions, Board Exams, Manage Subjects, Exam Results, Logs and Student Registration), `qp-` (the rest of My Questions), `ambe-` (the rest of Board Exams), `st-` (the rest of Manage Subjects), `er-` (the rest of Exam Results), `el-` (the rest of Logs), `sm-` (the rest of Student Registration), `br-` (the register window), `tsr-` (`TopicScoreRows`), `qf-` (question form and filters), `mbe-` (Create Exams) and `ui-` (shared table and menu).
 - Prefix keyframe names as well, because they're global too.
+- All CSS ships as one bundle, in the order each file is first imported, starting from `App.jsx`. A page imported early pulls the shared stylesheets it uses ahead of the others, which changes who wins between equal selectors. That's why `App.jsx` imports Student Registration after the other pages.
 - Name the properties in a transition rather than using `transition: all`.
 - Use a token instead of repeating its value.
 

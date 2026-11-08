@@ -1,762 +1,552 @@
-import { useEffect, useState, useRef } from 'react';
-import { apiAuth } from '../../lib/api';
-import { Modal } from '../../components/Modal';
-import SearchBar from '../../components/SearchBar';
-import DropdownSelect from '../../components/DropdownSelect';
-import Pagination from '../../components/Pagination';
-import PageHeader from '../../components/PageHeader';
-import TrashButton from '../../components/TrashButton';
-import { useToast } from '../../components/Toast';
-import { isLoginLocked, lockedUntilLabel, unlockUserLogin, withLoginUnlocked } from '../../lib/loginLock';
+import { useEffect, useRef, useState } from 'react';
+import { apiAuth } from '../../lib/api.js';
+import { Modal } from '../../components/Modal.jsx';
+import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import DropdownSelect from '../../components/DropdownSelect.jsx';
+import FieldCheck from '../../components/FieldCheck.jsx';
+import TrashButton from '../../components/TrashButton.jsx';
+import { useToast } from '../../components/Toast.jsx';
+import '../../styles/components/QuestionForm.css';
 import '../../styles/shared/BulkRegister.css';
 
-const BULK_REGISTRATION_DRAFT_KEY = 'draft_bulk_registration';
-const EMPTY_ENTRY = { name: '', email: '', studentId: '', alumniId: '' };
+const DRAFT_KEY = 'draft_bulk_registration';
+// How often a running batch is asked whether it has finished
+const POLL_MS = 1500;
+// The server's limit for one batch
+const MAX_ROWS = 500;
+// The server checks the same: 4-digit year, dash, 6-digit number
+const ID_PATTERN = /^\d{4}-\d{6}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function BulkRegister({ user }) {
-  const [role, setRole] = useState('student');
+const ROLE_OPTIONS = [
+  { value: 'student', label: 'Students' },
+  { value: 'alumni', label: 'Alumni' },
+];
 
-  // Department/Program Selection
-  const [departments, setDepartments] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [departmentId, setDepartmentId] = useState('');
-  const [programId, setProgramId] = useState('');
+let nextRowId = 1;
+function newRow(values = {}) {
+  return { id: nextRowId++, name: '', email: '', studentId: '', alumniId: '', ...values };
+}
 
-  // Row entries
-  const [entries, setEntries] = useState([EMPTY_ENTRY]);
+function idField(role) {
+  return role === 'alumni' ? 'alumniId' : 'studentId';
+}
 
-  // Submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+function idLabel(role) {
+  return role === 'alumni' ? 'Alumni ID' : 'Student ID';
+}
 
-  // Result state
-  const [batchResult, setBatchResult] = useState(null); // null | { status, counts, registered, skippedDuplicates, emailFailures, insertFailures }
-  const [showResultModal, setShowResultModal] = useState(false);
+function isRowStarted(row) {
+  return Boolean(row.name.trim() || row.email.trim() || row.studentId.trim() || row.alumniId.trim());
+}
 
-  // View toggle state
-  const [activeView, setActiveView] = useState('form'); // 'form' or 'list'
-  const [registeredAccounts, setRegisteredAccounts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState(''); // 'student', 'alumni', or ''
-  const [listFilterProgram, setListFilterProgram] = useState(''); // For dean to filter by program in list view
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [unlockBusyById, setUnlockBusyById] = useState({});
-  const { notify } = useToast();
+function plural(count, singular, pluralForm = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
 
-  const pollRef = useRef(null);
-  const hasLoadedDraftRef = useRef(false);
-
-  // TODO: temporary demo pattern - for production, consider autosaving drafts to the backend instead of localStorage, since this content is confidential and shouldn't persist client-side long-term
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(BULK_REGISTRATION_DRAFT_KEY);
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      if (draft.role) setRole(draft.role);
-      if (draft.departmentId) setDepartmentId(draft.departmentId);
-      if (draft.programId) setProgramId(draft.programId);
-      if (Array.isArray(draft.entries) && draft.entries.length > 0) setEntries(draft.entries);
-    } catch (err) {
-      console.warn('Failed to restore bulk registration draft:', err);
-    } finally {
-      hasLoadedDraftRef.current = true;
+// What is wrong with each started row, by row id: [{ field: 'name' | 'email' | 'id', message }]
+function checkRows(rows, role) {
+  const errors = {};
+  rows.forEach((row) => {
+    const problems = [];
+    if (!row.name.trim()) problems.push({ field: 'name', message: 'Enter the full name.' });
+    if (!EMAIL_PATTERN.test(row.email.trim())) problems.push({ field: 'email', message: 'Enter a valid email.' });
+    if (!ID_PATTERN.test(row[idField(role)].trim())) {
+      problems.push({ field: 'id', message: `Enter the ${idLabel(role)} as YYYY-XXXXXX.` });
     }
-  }, []);
+    if (problems.length > 0) errors[row.id] = problems;
+  });
+  return errors;
+}
+
+// The field a server message is about, or null when it doesn't say
+function fieldOfMessage(message) {
+  if (/name/i.test(message)) return 'name';
+  if (/email/i.test(message)) return 'email';
+  if (/\bID\b/.test(message)) return 'id';
+  return null;
+}
+
+function readDraft() {
+  try {
+    const draft = JSON.parse(window.localStorage.getItem(DRAFT_KEY) || 'null');
+    if (!draft) return null;
+    const rows = Array.isArray(draft.entries)
+      ? draft.entries.map((entry) => newRow({
+        name: entry.name || '',
+        email: entry.email || '',
+        studentId: entry.studentId || '',
+        alumniId: entry.alumniId || '',
+      }))
+      : [];
+    return {
+      role: draft.role === 'alumni' ? 'alumni' : 'student',
+      programId: draft.programId || '',
+      rows: rows.length > 0 ? rows : [newRow()],
+    };
+  } catch {
+    return null;
+  }
+}
+
+// The list of names under a result: who was registered, and who wasn't and why
+function ResultList({ title, items, describe }) {
+  if (items.length === 0) return null;
+  return (
+    <section className="qf-section">
+      <div className="qf-section-header">
+        <h3 className="qf-section-title">{title} ({items.length})</h3>
+      </div>
+      <ul className="br-result-list">
+        {items.map((item, index) => (
+          <li key={`${item.email}-${index}`} className="br-result-item">
+            <span className="br-result-name">{item.name || item.email}</span>
+            <span className="br-result-detail">{describe(item)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// The "Register Accounts" window: who to register (students or alumni), into which program (deans
+// pick one; a chair's is their own), and a row per person. The rows are kept as a draft in this
+// browser until they are registered. The registering carries on if the window is closed, and the
+// page hears when it finishes.
+export default function BulkRegister({ user, open, onClose, onFinished }) {
+  const { notify } = useToast();
+  const isDean = user?.role === 'dean';
+  const [draft] = useState(readDraft);
+  const [role, setRole] = useState(draft?.role || 'student');
+  const [programId, setProgramId] = useState(draft?.programId || '');
+  const [rows, setRows] = useState(draft?.rows || [newRow()]);
+  const [programs, setPrograms] = useState([]);
+  const [rowErrors, setRowErrors] = useState({});
+  const [error, setError] = useState('');
+  // form, then working while the server registers, then done with its summary
+  const [phase, setPhase] = useState('form');
+  const [workingCount, setWorkingCount] = useState(0);
+  const [summary, setSummary] = useState(null);
+  const pollRef = useRef(null);
+  const openRef = useRef(open);
+  const lastRowRef = useRef(null);
+  const focusNewRow = useRef(false);
 
   useEffect(() => {
-    if (!hasLoadedDraftRef.current) return;
-    const id = setTimeout(() => {
-      try {
-        const hasDraft =
-          role !== 'student' ||
-          Boolean(departmentId) ||
-          Boolean(programId) ||
-          entries.some((entry) => entry.name || entry.email || entry.studentId || entry.alumniId);
+    openRef.current = open;
+  }, [open]);
 
-        if (!hasDraft) {
-          window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
+  useEffect(() => () => clearTimeout(pollRef.current), []);
+
+  // A dean registers into one of their department's programs
+  useEffect(() => {
+    if (!isDean) return undefined;
+    const departmentId = user.department?._id || user.department;
+    if (!departmentId) return undefined;
+    let ignore = false;
+    apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(departmentId)}`)
+      .then((data) => {
+        if (ignore) return;
+        const list = data.programs || [];
+        setPrograms(list);
+        setProgramId((current) => {
+          if (current && list.some((program) => String(program._id) === String(current))) return current;
+          return list.length === 1 ? list[0]._id : '';
+        });
+      })
+      .catch(() => {
+        if (!ignore) setError('Programs could not be loaded. Close this window and try again.');
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [isDean, user?.department]);
+
+  // The draft: kept a moment after each change, and dropped once there is nothing in it
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const entries = rows
+          .filter(isRowStarted)
+          .map(({ name, email, studentId, alumniId }) => ({ name, email, studentId, alumniId }));
+        if (entries.length === 0 && role === 'student') {
+          window.localStorage.removeItem(DRAFT_KEY);
           return;
         }
-
-        window.localStorage.setItem(BULK_REGISTRATION_DRAFT_KEY, JSON.stringify({
-          role,
-          departmentId,
-          programId,
-          entries,
-        }));
-      } catch (err) {
-        console.warn('Failed to save bulk registration draft:', err);
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ role, programId, entries }));
+      } catch {
+        // Storage can be full or blocked; the form still works without its draft
       }
     }, 250);
-    return () => clearTimeout(id);
-  }, [departmentId, entries, programId, role]);
+    return () => clearTimeout(timer);
+  }, [role, programId, rows]);
 
-  // Fetch departments for deans
   useEffect(() => {
-    if (user.role === 'dean') {
-      apiAuth('/api/catalog/departments')
-        .then((data) => setDepartments(data.departments || []))
-        .catch((err) => console.error('Failed to fetch departments', err));
+    if (!focusNewRow.current) return;
+    focusNewRow.current = false;
+    lastRowRef.current?.focus();
+  }, [rows.length]);
+
+  const startedRows = rows.filter(isRowStarted);
+
+  function updateRow(id, field, value) {
+    setRows((current) => current.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+    if (rowErrors[id]) {
+      setRowErrors((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
     }
-  }, [user.role]);
+  }
 
-  // Fetch programs when department changes (for Deans)
-  useEffect(() => {
-    if (user.role === 'dean' && departmentId) {
-      apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(departmentId)}`)
-        .then((data) => setPrograms(data.programs || []))
-        .catch((err) => console.error('Failed to fetch programs', err));
-    } else {
-      setPrograms([]);
+  function addRow() {
+    if (rows.length >= MAX_ROWS) return;
+    focusNewRow.current = true;
+    setRows((current) => [...current, newRow()]);
+  }
+
+  function removeRow(id) {
+    setRows((current) => (current.length > 1 ? current.filter((row) => row.id !== id) : current));
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function changeRole(value) {
+    setRole(value);
+    setRowErrors({});
+  }
+
+  function finish(result) {
+    setSummary(result);
+    setPhase('done');
+    onFinished?.(result);
+    // Closed while it ran: say how it went here instead
+    if (!openRef.current) {
+      const registered = result.counts?.registered || 0;
+      notify(`${plural(registered, 'account')} registered.`, {
+        variant: result.status === 'failed' ? 'error' : 'success',
+        title: 'Registration finished',
+      });
     }
-  }, [departmentId, user.role]);
+  }
 
-  // Fetch programs for dean's department on mount (for list view filter)
-  useEffect(() => {
-    if (user.role === 'dean' && user.department) {
-      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-      apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(deptId)}`)
-        .then((data) => setPrograms(data.programs || []))
-        .catch((err) => console.error('Failed to fetch programs for list view', err));
-    }
-  }, [user.role, user.department]);
-
-  // Cleanup poll on unmount
-  useEffect(() => () => clearInterval(pollRef.current), []);
-
-  const handleEntryChange = (index, field, value) => {
-    const newEntries = [...entries];
-    newEntries[index][field] = value;
-    setEntries(newEntries);
-  };
-
-  const addRow = () => {
-    setEntries([...entries, { name: '', email: '', studentId: '', alumniId: '' }]);
-  };
-
-  const removeRow = (index) => {
-    if (entries.length > 1) {
-      const newEntries = [...entries];
-      newEntries.splice(index, 1);
-      setEntries(newEntries);
-    }
-  };
-
-  const pollUntilDone = (batchId) => {
-    pollRef.current = setInterval(async () => {
+  function pollBatch(batchId) {
+    pollRef.current = setTimeout(async () => {
       try {
-        const res = await apiAuth(`/api/auth/bulk-register/${batchId}`);
-        if (res.status === 'complete' || res.status === 'failed') {
-          clearInterval(pollRef.current);
-          setBatchResult(res);
-          setShowResultModal(true);
-          setIsSubmitting(false);
-        }
+        const result = await apiAuth(`/api/auth/bulk-register/${encodeURIComponent(batchId)}`);
+        if (result.status === 'complete' || result.status === 'failed') finish(result);
+        else pollBatch(batchId);
       } catch {
-        clearInterval(pollRef.current);
-        setError('Could not retrieve batch result. The accounts may have been created — please check the user list.');
-        setIsSubmitting(false);
+        setPhase('form');
+        setError('Could not check how the registration went. The accounts may have been created, so look for them in the list before trying again.');
+        onFinished?.(null);
       }
-    }, 1500);
-  };
+    }, POLL_MS);
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError('');
 
-    const filledEntries = entries.filter(
-      (e) => e.name.trim() || e.email.trim() || e.studentId.trim() || e.alumniId.trim()
-    );
-
-    if (filledEntries.length === 0) {
-      setError('Please add at least one valid entry.');
+    if (startedRows.length === 0) {
+      setError('Fill in at least one person.');
+      return;
+    }
+    if (isDean && !programId) {
+      setError('Pick the program to register them into.');
+      return;
+    }
+    const errors = checkRows(startedRows, role);
+    setRowErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError(`Fix the ${plural(Object.keys(errors).length, 'row')} marked below.`);
       return;
     }
 
-    if (user.role === 'dean') {
-      if (!departmentId) { setError('Please select a department.'); return; }
-      if (!programId)    { setError('Please select a program.');    return; }
-    }
-
-    setIsSubmitting(true);
-    setBatchResult(null);
-
+    const field = idField(role);
+    setWorkingCount(startedRows.length);
+    setPhase('working');
     try {
-      const payload = {
-        role,
-        departmentId: user.role === 'dean' ? departmentId : undefined,
-        programId:    user.role === 'dean' ? programId    : undefined,
-        entries: filledEntries.map((entry) => ({
-          name:      entry.name.trim(),
-          email:     entry.email.trim(),
-          studentId: role === 'student' ? entry.studentId.trim() : undefined,
-          alumniId:  role === 'alumni'  ? entry.alumniId.trim()  : undefined,
-        })),
-      };
+      const result = await apiAuth('/api/auth/bulk-register', {
+        method: 'POST',
+        body: {
+          role,
+          programId: isDean ? programId : undefined,
+          entries: startedRows.map((row) => ({
+            name: row.name.trim(),
+            email: row.email.trim(),
+            [field]: row[field].trim(),
+          })),
+        },
+      });
 
-      const res = await apiAuth('/api/auth/bulk-register', { method: 'POST', body: payload });
+      // Sent: the rows are no longer a draft
+      try {
+        window.localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // Nothing to clean up without storage
+      }
+      setRows([newRow()]);
 
-      if (res.batchId) {
-        window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
-        setEntries([EMPTY_ENTRY]);
-        setDepartmentId('');
-        setProgramId('');
-        setRole('student');
-        // Start polling for the final summary
-        pollUntilDone(res.batchId);
+      const batchSummary = result.summary || result;
+      if (batchSummary.status === 'complete' || batchSummary.status === 'failed' || !result.batchId) {
+        finish(batchSummary);
       } else {
-        window.localStorage.removeItem(BULK_REGISTRATION_DRAFT_KEY);
-        setEntries([EMPTY_ENTRY]);
-        setDepartmentId('');
-        setProgramId('');
-        setRole('student');
-        // Completed instantly (e.g., all duplicates)
-        setBatchResult(res.summary || res);
-        setShowResultModal(true);
-        setIsSubmitting(false);
+        pollBatch(result.batchId);
       }
     } catch (err) {
-      setError(err.message || 'Failed to submit bulk registration.');
-      setIsSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    setEntries([EMPTY_ENTRY]);
-    setBatchResult(null);
-    setShowResultModal(false);
-    setError(null);
-  };
-
-  // Handle switching to list view and load registered accounts
-  const handleViewChange = (view) => {
-    setActiveView(view);
-    setCurrentPage(1);
-    if (view === 'list') {
-      // Fetch programs for dean to filter in list view
-      if (user.role === 'dean' && user.department) {
-        const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-        apiAuth(`/api/catalog/programs?departmentId=${encodeURIComponent(deptId)}`)
-          .then((data) => {
-            setPrograms(data.programs || []);
-          })
-          .catch((err) => {
-            console.error('Failed to fetch programs for list view', err);
-            setPrograms([]);
-          });
-      }
-      
-      // Fetch all registered students/alumni based on user role
-      const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
-      if (user.role === 'dean' && user.department) {
-        const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-        params.append('department', deptId);
-        if (listFilterProgram) {
-          params.append('program', listFilterProgram);
-        }
-      } else if (user.role === 'program_chair' && user.program) {
-        const progId = typeof user.program === 'object' ? user.program._id : user.program;
-        params.append('program', progId);
-      }
-      apiAuth(`/api/auth/users?${params}`)
-        .then((data) => {
-          setRegisteredAccounts(data.users || []);
-          setTotalItems(data.total || 0);
-        })
-        .catch((err) => console.error('Failed to fetch registered accounts', err));
-    }
-  };
-
-  // Handle search query change (for list view)
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-    const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
-    if (user.role === 'dean' && user.department) {
-      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-      params.append('department', deptId);
-      if (listFilterProgram) {
-        params.append('program', listFilterProgram);
-      }
-    } else if (user.role === 'program_chair' && user.program) {
-      const progId = typeof user.program === 'object' ? user.program._id : user.program;
-      params.append('program', progId);
-    }
-    if (value) {
-      params.append('search', value);
-    }
-    apiAuth(`/api/auth/users?${params}`)
-      .then((data) => {
-        setRegisteredAccounts(data.users || []);
-        setTotalItems(data.total || 0);
-      })
-      .catch((err) => console.error('Failed to fetch registered accounts', err));
-  };
-
-  // Handle list view program filter change (for deans)
-  const handleListFilterProgramChange = (programId) => {
-    setListFilterProgram(programId);
-    setCurrentPage(1);
-    const params = new URLSearchParams({ role: 'student,alumni', page: '1', limit: String(pageSize) });
-    if (user.role === 'dean' && user.department) {
-      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-      params.append('department', deptId);
-      if (programId) {
-        params.append('program', programId);
+      setPhase('form');
+      // The server names the rows it refused by their place among the rows sent
+      const serverErrors = Array.isArray(err.data?.errors) ? err.data.errors : [];
+      if (serverErrors.length > 0) {
+        const byRow = {};
+        serverErrors.forEach(({ index, message }) => {
+          const row = startedRows[index];
+          if (row) byRow[row.id] = [...(byRow[row.id] || []), { field: fieldOfMessage(message), message }];
+        });
+        setRowErrors(byRow);
+        setError(`Fix the ${plural(Object.keys(byRow).length, 'row')} marked below.`);
+      } else {
+        setError(err.message || 'The accounts could not be registered.');
       }
     }
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
-    apiAuth(`/api/auth/users?${params}`)
-      .then((data) => {
-        setRegisteredAccounts(data.users || []);
-        setTotalItems(data.total || 0);
-      })
-      .catch((err) => console.error('Failed to fetch registered accounts', err));
-  };
-
-  // Handle pagination page changes
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    const params = new URLSearchParams({ role: 'student,alumni', page: String(page), limit: String(pageSize) });
-    if (user.role === 'dean' && user.department) {
-      const deptId = typeof user.department === 'object' ? user.department._id : user.department;
-      params.append('department', deptId);
-      if (listFilterProgram) {
-        params.append('program', listFilterProgram);
-      }
-    } else if (user.role === 'program_chair' && user.program) {
-      const progId = typeof user.program === 'object' ? user.program._id : user.program;
-      params.append('program', progId);
-    }
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
-    apiAuth(`/api/auth/users?${params}`)
-      .then((data) => {
-        setRegisteredAccounts(data.users || []);
-        setTotalItems(data.total || 0);
-      })
-      .catch((err) => console.error('Failed to fetch registered accounts', err));
-  };
-
-  // Clear a student's login lockout, e.g. when they lock themselves out right before an exam
-  const handleUnlock = async (account) => {
-    if (unlockBusyById[account._id]) return;
-    setUnlockBusyById((m) => ({ ...m, [account._id]: true }));
-    try {
-      await unlockUserLogin(account._id);
-      setRegisteredAccounts((prev) => prev.map((a) => (a._id === account._id ? withLoginUnlocked(a) : a)));
-      notify(`${account.name || account.email} can sign in again.`, { variant: 'success', title: 'Unlocked' });
-    } catch (err) {
-      notify(err.message || 'Unlock failed', { variant: 'error', title: 'Unlock' });
-    } finally {
-      setUnlockBusyById((m) => ({ ...m, [account._id]: false }));
-    }
-  };
-
-  // Filter registered accounts based on search and type filter
-  const filteredAccounts = registeredAccounts.filter((account) => {
-    const matchesType = !filterType || account.role === filterType;
-    return matchesType;
-  });
-
-  // ── Result screen (modal) ──────────────────────────────────────────────────────────
-  if (isSubmitting) {
-    return (
-      <div className="bulk-register-progress">
-        <div className="br-spinner" />
-        <p className="status processing">Processing registrations… Please wait.</p>
-      </div>
-    );
   }
 
-  // Prepare result data for modal
-  const resultContent = batchResult ? (() => {
-    const counts = batchResult.counts || {};
-    const details = {
-      registered: batchResult.registered || [],
-      skippedDuplicates: batchResult.skippedDuplicates || [],
-      emailFailures: batchResult.emailFailures || [],
-      insertFailures: batchResult.insertFailures || [],
-    };
-    const allOk = counts.registered > 0 && counts.emailFailures === 0 && counts.insertFailures === 0;
+  function startAnother() {
+    setSummary(null);
+    setError('');
+    setRowErrors({});
+    setPhase('form');
+  }
 
-    return {
-      counts,
-      details,
-      allOk,
-    };
-  })() : null;
+  function handleClose() {
+    if (phase === 'done') startAnother();
+    onClose();
+  }
 
-  // ── Form ───────────────────────────────────────────────────────────────────
+  const counts = summary?.counts || {};
+  const hasIssues = summary
+    ? summary.status === 'failed' || (counts.emailFailures || 0) > 0 || (counts.insertFailures || 0) > 0
+    : false;
+  const title = phase === 'working'
+    ? 'Registering Accounts'
+    : phase === 'done'
+      ? (hasIssues ? 'Registration Finished with Issues' : 'Registration Complete')
+      : 'Register Accounts';
+
   return (
-    <div className="bulk-register-container">
-      {/* View Toggle Header */}
-      <div className="br-view-header">
-        <div className="br-view-toggle">
-          <button
-            className={`br-toggle-btn ${activeView === 'form' ? 'active' : ''}`}
-            onClick={() => handleViewChange('form')}
-          >
-            Registration Form
-          </button>
-          <button
-            className={`br-toggle-btn ${activeView === 'list' ? 'active' : ''}`}
-            onClick={() => handleViewChange('list')}
-          >
-            Registered Accounts
-          </button>
+    <Modal open={open} onClose={handleClose} title={title} bodyClassName="br-modal-body">
+      {phase === 'working' && (
+        <div className="br-working" role="status">
+          <span className="br-spinner" aria-hidden="true" />
+          <p className="br-working-title">Registering {plural(workingCount, 'account')}...</p>
+          <p className="qf-section-hint">
+            You can close this window. The list updates when the registering finishes.
+          </p>
         </div>
-      </div>
+      )}
 
-      {error && <div className="error-alert">{error}</div>}
-
-      {/* Form View */}
-      {activeView === 'form' && (
-      <form onSubmit={handleSubmit} className="bulk-register-form">
-        <div className="br-controls">
-          <div className="form-group">
-            <label>Registration Type</label>
-            <div className="br-role-toggle-group">
-              <button
-                type="button"
-                className={`br-role-btn ${role === 'student' ? 'active' : ''}`}
-                onClick={() => setRole('student')}
-                disabled={isSubmitting}
-              >
-                Student
-              </button>
-              <button
-                type="button"
-                className={`br-role-btn ${role === 'alumni' ? 'active' : ''}`}
-                onClick={() => setRole('alumni')}
-                disabled={isSubmitting}
-              >
-                Alumni
-              </button>
+      {phase === 'done' && summary && (
+        <div className="br-result">
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title">Summary</h3>
             </div>
+            <div className="ca-stats br-result-stats">
+              <div className="ca-stat">
+                <span className="ca-stat-label">Registered</span>
+                <strong className="ca-stat-value">{counts.registered || 0}</strong>
+                <span className="ca-stat-sub">sent their sign-in details</span>
+              </div>
+              <div className="ca-stat">
+                <span className="ca-stat-label">Skipped</span>
+                <strong className="ca-stat-value">{counts.skippedDuplicates || 0}</strong>
+                <span className="ca-stat-sub">already registered or repeated</span>
+              </div>
+              <div className="ca-stat">
+                <span className="ca-stat-label">Email not sent</span>
+                <strong className={`ca-stat-value${counts.emailFailures ? ' br-stat-value--bad' : ''}`}>{counts.emailFailures || 0}</strong>
+                <span className="ca-stat-sub">account made, email failed</span>
+              </div>
+              <div className="ca-stat">
+                <span className="ca-stat-label">Not created</span>
+                <strong className={`ca-stat-value${counts.insertFailures ? ' br-stat-value--bad' : ''}`}>{counts.insertFailures || 0}</strong>
+                <span className="ca-stat-sub">could not be saved</span>
+              </div>
+            </div>
+            {summary.status === 'failed' && (
+              <p className="qf-section-hint br-result-note">
+                The registering stopped before it finished. Check the list for the accounts that were made.
+              </p>
+            )}
+          </section>
+
+          <ResultList title="Email Not Sent" items={summary.emailFailures || []} describe={(item) => item.error || 'The email failed'} />
+          <ResultList title="Not Created" items={summary.insertFailures || []} describe={(item) => item.reason || 'Could not be saved'} />
+          <ResultList title="Skipped" items={summary.skippedDuplicates || []} describe={(item) => item.reason || 'Already registered'} />
+          <ResultList title="Registered" items={summary.registered || []} describe={(item) => item.email} />
+
+          <div className="modal-actions">
+            <button type="button" className="modal-btn-cancel" onClick={startAnother}>Register Another Batch</button>
+            <button type="button" className="modal-btn-primary" onClick={handleClose}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'form' && (
+        <form className="br-form" onSubmit={handleSubmit} noValidate>
+          <div className="qp-modal-copy">
+            <p className="qp-modal-subtitle">
+              Each new account is emailed its sign-in details. Rows left empty are skipped.
+            </p>
+            {!isDean && user?.program?.name && <span className="qp-modal-program-chip">{user.program.name}</span>}
           </div>
 
-          {user.role === 'dean' && (
-            <>
-              <div className="form-group">
-                <label>Department</label>
-                <select
-                  value={departmentId}
-                  onChange={(e) => { setDepartmentId(e.target.value); setProgramId(''); }}
-                  disabled={isSubmitting}
-                >
-                  <option value="">-- Select Department --</option>
-                  {departments.map((d) => (
-                    <option key={d._id} value={d._id}>{d.code} - {d.name}</option>
-                  ))}
-                </select>
-              </div>
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title">Account Type</h3>
+            </div>
+            <div className="qf-section-body">
+              <CapsuleFilters
+                ariaLabel="Register students or alumni"
+                options={ROLE_OPTIONS}
+                value={role}
+                onChange={changeRole}
+              />
+            </div>
+          </section>
 
-              <div className="form-group">
-                <label>Program</label>
-                <select
+          {isDean && (
+            <section className="qf-section">
+              <div className="qf-section-header">
+                <h3 className="qf-section-title qf-label-row">
+                  Program * <FieldCheck valid={Boolean(programId)} />
+                </h3>
+              </div>
+              <div className="qf-section-body">
+                <p className="qf-section-hint">Everyone in this batch joins the same program.</p>
+                <DropdownSelect
+                  className="br-program-select"
                   value={programId}
-                  onChange={(e) => setProgramId(e.target.value)}
-                  disabled={isSubmitting || !departmentId}
-                >
-                  <option value="">-- Select Program --</option>
-                  {programs.map((p) => (
-                    <option key={p._id} value={p._id}>{p.code} - {p.name}</option>
-                  ))}
-                </select>
+                  onChange={(event) => setProgramId(event.target.value)}
+                  ariaLabel="Program"
+                  placeholder="Select a program"
+                  options={programs.map((item) => ({
+                    value: item._id,
+                    label: `${item.name}${item.code ? ` (${item.code})` : ''}`,
+                  }))}
+                />
               </div>
-            </>
+            </section>
           )}
-        </div>
 
-        <div className="br-entries">
-          <div className="br-entries-header">
-            <div className="col">Full Name</div>
-            <div className="col">Email Address</div>
-            {role === 'student' && <div className="col">Student ID</div>}
-            {role === 'alumni'  && <div className="col">Alumni ID</div>}
-            <div className="col-action"></div>
-          </div>
-
-          {entries.map((entry, index) => (
-            <div key={index} className="br-entry-row">
-              <div className="col">
-                <input
-                  type="text"
-                  placeholder="e.g. John Doe"
-                  value={entry.name}
-                  onChange={(e) => handleEntryChange(index, 'name', e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-              <div className="col">
-                <input
-                  type="email"
-                  placeholder="e.g. john@nu-laguna.edu.ph"
-                  value={entry.email}
-                  onChange={(e) => handleEntryChange(index, 'email', e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-              {role === 'student' && (
-                <div className="col">
-                  <input
-                    type="text"
-                    placeholder="YYYY-XXXXXX"
-                    value={entry.studentId}
-                    onChange={(e) => handleEntryChange(index, 'studentId', e.target.value)}
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-              )}
-              {role === 'alumni' && (
-                <div className="col">
-                  <input
-                    type="text"
-                    placeholder="YYYY-XXXXXX"
-                    value={entry.alumniId}
-                    onChange={(e) => handleEntryChange(index, 'alumniId', e.target.value)}
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-              )}
-              <div className="col-action">
-                <TrashButton
-                  label="Remove row"
-                  onClick={() => removeRow(index)}
-                  disabled={entries.length === 1 || isSubmitting}
-                />
-              </div>
+          <section className="qf-section">
+            <div className="qf-section-header">
+              <h3 className="qf-section-title qf-label-row">
+                {role === 'alumni' ? 'Alumni' : 'Students'} ({startedRows.length}) *
+                <FieldCheck valid={startedRows.length > 0 && Object.keys(checkRows(startedRows, role)).length === 0} />
+              </h3>
+              <button
+                type="button"
+                className="qf-secondary-btn qf-section-action"
+                onClick={addRow}
+                disabled={rows.length >= MAX_ROWS}
+              >
+                + Add Row
+              </button>
             </div>
-          ))}
-
-          <button
-            type="button"
-            className="br-btn-add-row-dashed"
-            onClick={addRow}
-            disabled={isSubmitting}
-          >
-            + Add Row
-          </button>
-        </div>
-
-        <div className="br-actions">
-          <button type="submit" className="br-btn br-btn-primary" disabled={isSubmitting}>
-            Register Batch
-          </button>
-        </div>
-      </form>
-      )}
-
-      {/* List View */}
-      {activeView === 'list' && (
-      <div className="br-list-view">
-        <div className="br-list-header">
-          <SearchBar
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="Search by name, email, or ID..."
-            className="br-search"
-          />
-          {user.role === 'dean' && (
-            <DropdownSelect
-              value={listFilterProgram}
-              onChange={(e) => handleListFilterProgramChange(e.target.value)}
-              placeholder="All Programs"
-              options={programs.map((p) => ({ value: p._id, label: `${p.code} - ${p.name}` }))}
-              className="br-filter"
-            />
-          )}
-          <DropdownSelect
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            placeholder="All Types"
-            options={[
-              { value: 'student', label: 'Students' },
-              { value: 'alumni', label: 'Alumni' },
-            ]}
-            className="br-filter"
-          />
-        </div>
-
-        <div className="br-table-wrapper">
-          <table className="br-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>School ID</th>
-                <th>Department</th>
-                <th>Program</th>
-                <th>Type</th>
-                <th>Lockout</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAccounts.length > 0 ? (
-                filteredAccounts.map((account) => (
-                  <tr key={account._id}>
-                    <td>{account.name}</td>
-                    <td>{account.email}</td>
-                    <td>{account.studentId || account.alumniId || '—'}</td>
-                    <td>{account.department?.name || '—'}</td>
-                    <td>{account.program?.name || '—'}</td>
-                    <td>
-                      <span className={`br-type-badge br-type-${account.role}`}>
-                        {account.role === 'student' ? 'Student' : 'Alumni'}
+            <div className="qf-section-body">
+              <p className="qf-section-hint">
+                Full name, email, and {idLabel(role)} (YYYY-XXXXXX) for each person, up to {MAX_ROWS} at a time.
+              </p>
+              <div className="br-rows">
+                {/* Each input is labelled on its own, so the column names are only for the eye */}
+                <div className="br-row br-row--head" aria-hidden="true">
+                  <span>Full Name</span>
+                  <span>Email</span>
+                  <span>{idLabel(role)}</span>
+                </div>
+                {rows.map((row, index) => {
+                  const problems = rowErrors[row.id];
+                  const errorId = `br-row-error-${row.id}`;
+                  const field = idField(role);
+                  // Only the fields at fault are marked; a problem the server didn't place marks them all
+                  const inputProps = (key) => {
+                    const invalid = Boolean(problems?.some((problem) => problem.field === key || problem.field === null));
+                    return {
+                      'aria-invalid': invalid || undefined,
+                      'aria-describedby': invalid ? errorId : undefined,
+                    };
+                  };
+                  return (
+                    <div key={row.id} className={`br-row${problems ? ' has-error' : ''}`}>
+                      <span>
+                        <input
+                          ref={index === rows.length - 1 ? lastRowRef : undefined}
+                          type="text"
+                          className="qf-answer-input"
+                          placeholder="e.g. Juan Dela Cruz"
+                          aria-label={`Full name, row ${index + 1}`}
+                          value={row.name}
+                          onChange={(event) => updateRow(row.id, 'name', event.target.value)}
+                          {...inputProps('name')}
+                        />
                       </span>
-                    </td>
-                    <td>
-                      {isLoginLocked(account) ? (
-                        <div className="br-lock-cell">
-                          <span className="br-lock-badge" title={lockedUntilLabel(account)}>Locked</span>
-                          <button
-                            type="button"
-                            className="br-btn-unlock"
-                            onClick={() => handleUnlock(account)}
-                            disabled={Boolean(unlockBusyById[account._id])}
-                          >
-                            {unlockBusyById[account._id] ? 'Unlocking…' : 'Unlock'}
-                          </button>
-                        </div>
-                      ) : '—'}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="br-table-empty">
-                    No registered accounts found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="br-list-footer">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={handlePageChange}
-            itemLabel="accounts"
-            classPrefix="br"
-          />
-        </div>
-      </div>
-      )}
-
-      {/* Result Modal */}
-      <Modal
-        open={showResultModal}
-        onClose={resetForm}
-        title={resultContent?.allOk ? 'Registration Complete' : 'Registration Finished with Issues'}
-        size="large"
-        bodyClassName="br-modal-body"
-      >
-        <div className="br-modal-content">
-          <div className="br-modal-header">
-            <div className={`br-result-icon ${resultContent?.allOk ? 'success' : 'partial'}`}>
-              {resultContent?.allOk ? '✓' : '!'}
+                      <span>
+                        <input
+                          type="email"
+                          className="qf-answer-input"
+                          placeholder="e.g. juan@students.nu-laguna.edu.ph"
+                          aria-label={`Email, row ${index + 1}`}
+                          value={row.email}
+                          onChange={(event) => updateRow(row.id, 'email', event.target.value)}
+                          {...inputProps('email')}
+                        />
+                      </span>
+                      <span>
+                        <input
+                          type="text"
+                          className="qf-answer-input"
+                          placeholder="YYYY-XXXXXX"
+                          aria-label={`${idLabel(role)}, row ${index + 1}`}
+                          value={row[field]}
+                          onChange={(event) => updateRow(row.id, field, event.target.value)}
+                          {...inputProps('id')}
+                        />
+                      </span>
+                      <span className="br-row-remove">
+                        <TrashButton
+                          label={`Remove row ${index + 1}`}
+                          onClick={() => removeRow(row.id)}
+                          disabled={rows.length === 1}
+                        />
+                      </span>
+                      {problems && (
+                        <p id={errorId} className="qf-inline-note qf-inline-note--error br-row-error">
+                          {problems.map((problem) => problem.message).join(' ')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          </section>
+
+          {error && <p className="error-text" role="alert">{error}</p>}
+
+          <div className="modal-actions">
+            <button type="button" className="modal-btn-cancel" onClick={handleClose}>Cancel</button>
+            <button type="submit" className="modal-btn-primary" disabled={isDean && programs.length === 0}>
+              {startedRows.length > 0 ? `Register ${plural(startedRows.length, 'Account')}` : 'Register'}
+            </button>
           </div>
-
-          {resultContent && (
-            <>
-              <div className="summary-stats">
-                <div className="stat-card success">
-                  <span className="stat-num">{resultContent.counts.registered ?? 0}</span>
-                  <span className="stat-label">Registered</span>
-                </div>
-                {(resultContent.counts.skippedDuplicates ?? 0) > 0 && (
-                  <div className="stat-card warning">
-                    <span className="stat-num">{resultContent.counts.skippedDuplicates}</span>
-                    <span className="stat-label">Skipped (Duplicates)</span>
-                  </div>
-                )}
-                {(resultContent.counts.emailFailures ?? 0) > 0 && (
-                  <div className="stat-card error">
-                    <span className="stat-num">{resultContent.counts.emailFailures}</span>
-                    <span className="stat-label">Email Failures</span>
-                  </div>
-                )}
-                {(resultContent.counts.insertFailures ?? 0) > 0 && (
-                  <div className="stat-card error">
-                    <span className="stat-num">{resultContent.counts.insertFailures}</span>
-                    <span className="stat-label">Insert Failures</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Successfully Registered */}
-              {resultContent.details.registered.length > 0 && (
-                <details className="br-details" open>
-                  <summary>Successfully Registered ({resultContent.details.registered.length})</summary>
-                  <ul>
-                    {resultContent.details.registered.map((d, i) => (
-                      <li key={i}>
-                        <strong>{d.name}</strong> ({d.email})
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              {/* Skipped Duplicates */}
-              {resultContent.details.skippedDuplicates.length > 0 && (
-                <details className="br-details">
-                  <summary>Skipped Duplicates ({resultContent.details.skippedDuplicates.length})</summary>
-                  <ul>
-                    {resultContent.details.skippedDuplicates.map((d, i) => (
-                      <li key={i}>{d.email} — {d.reason}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              {/* Email Failures */}
-              {resultContent.details.emailFailures.length > 0 && (
-                <details className="br-details">
-                  <summary>Email Failures ({resultContent.details.emailFailures.length})</summary>
-                  <ul>
-                    {resultContent.details.emailFailures.map((d, i) => (
-                      <li key={i}>{d.email} — {d.error}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              {/* Insert Failures */}
-              {resultContent.details.insertFailures.length > 0 && (
-                <details className="br-details">
-                  <summary>Insert Failures ({resultContent.details.insertFailures.length})</summary>
-                  <ul>
-                    {resultContent.details.insertFailures.map((d, i) => (
-                      <li key={i}>{d.email} — {d.reason}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              <div className="br-modal-actions">
-                <button className="br-btn br-btn-primary" onClick={resetForm}>
-                  Register Another Batch
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </Modal>
-    </div>
+        </form>
+      )}
+    </Modal>
   );
 }

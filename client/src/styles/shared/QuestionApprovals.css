@@ -1956,7 +1956,6 @@
 }
 
 /* Numbers side by side, split by lines. Three by default; set --ca-stat-columns for another count. */
-/* Passed, average and turnout, split by lines */
 .ca-stats {
   display: grid;
   grid-template-columns: repeat(var(--ca-stat-columns, 3), minmax(0, 1fr));

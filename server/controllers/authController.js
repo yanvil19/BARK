@@ -644,7 +644,11 @@ const requestPasswordChangeOTP = async (req, res) => {
 
 // @desc    List users (admin view)
 // @route   GET /api/auth/users
-// @access  Private (Super Admin only — enforced in route)
+// @access  Private (Super Admin, Dean, Program Chair — enforced in route)
+// Query: page, limit, role (comma list: who is listed at all), type (one of those roles, to narrow
+// to it), department, program, isActive, search, locked=true (sign-in lockout still running),
+// sort=oldest (newest first otherwise), and counts=true to add how many users match ignoring type
+// and locked: { all, locked, and one count per listed role }, for a page's tabs.
 const listUsers = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -652,36 +656,31 @@ const listUsers = async (req, res) => {
     const limit = Math.min(Math.max(limitRaw, 1), 100);
     const skip = (page - 1) * limit;
 
-    const filter = {};
-    
-    // Authorization: Restrict data access by role
+    const scope = {};
+
+    // Authorization: deans see their department and chairs their program. The department and
+    // program filters can only narrow that: a dean's program filter still keeps their department,
+    // and a chair's scope can't be changed at all.
     if (req.user.role === 'dean' && req.user.department) {
-      filter.department = req.user.department;
+      scope.department = req.user.department;
+      if (req.query.program && isObjectId(req.query.program)) scope.program = req.query.program;
     } else if (req.user.role === 'program_chair' && req.user.program) {
-      filter.program = req.user.program;
-    } else if (req.user.role !== 'super_admin') {
+      scope.program = req.user.program;
+    } else if (req.user.role === 'super_admin') {
+      if (req.query.department && isObjectId(req.query.department)) scope.department = req.query.department;
+      if (req.query.program && isObjectId(req.query.program)) scope.program = req.query.program;
+    } else {
       // Only super_admin, dean, and program_chair can view user lists
       return res.status(403).json({ message: 'Access denied.' });
     }
-    
-    // Handle comma-separated roles (e.g., "student,alumni")
-    if (req.query.role) {
-      const roles = req.query.role.split(',').map((r) => r.trim()).filter((r) => r);
-      if (roles.length === 1) {
-        filter.role = roles[0];
-      } else if (roles.length > 1) {
-        filter.role = { $in: roles };
-      }
-    }
-    if (req.query.department && isObjectId(req.query.department)) filter.department = req.query.department;
-    if (req.query.program && isObjectId(req.query.program)) filter.program = req.query.program;
-    if (req.query.isActive === 'true') filter.isActive = true;
-    if (req.query.isActive === 'false') filter.isActive = false;
+
+    if (req.query.isActive === 'true') scope.isActive = true;
+    if (req.query.isActive === 'false') scope.isActive = false;
 
     const search = (req.query.search || '').trim();
     if (search) {
       const safe = escapeRegExp(search);
-      filter.$or = [
+      scope.$or = [
         { name: new RegExp(safe, 'i') },
         { email: new RegExp(safe, 'i') },
         { studentId: new RegExp(safe, 'i') },
@@ -689,15 +688,41 @@ const listUsers = async (req, res) => {
       ];
     }
 
-    const [total, users] = await Promise.all([
+    // Handle comma-separated roles (e.g., "student,alumni")
+    const roles = String(req.query.role || '').split(',').map((r) => r.trim()).filter((r) => /^[a-z_]+$/.test(r));
+    const population = { ...scope };
+    if (roles.length === 1) population.role = roles[0];
+    else if (roles.length > 1) population.role = { $in: roles };
+    const lockedFilter = { loginLockedUntil: { $gt: new Date() } };
+
+    const filter = { ...population };
+    const type = typeof req.query.type === 'string' ? req.query.type.trim() : '';
+    if (type && (roles.length === 0 || roles.includes(type))) filter.role = type;
+    if (req.query.locked === 'true') Object.assign(filter, lockedFilter);
+
+    const sortDirection = req.query.sort === 'oldest' ? 1 : -1;
+
+    const countsFor = async () => {
+      const [all, locked, ...perRole] = await Promise.all([
+        User.countDocuments(population),
+        User.countDocuments({ ...population, ...lockedFilter }),
+        ...roles.map((role) => User.countDocuments({ ...scope, role })),
+      ]);
+      const counts = { all, locked };
+      roles.forEach((role, index) => { counts[role] = perRole[index]; });
+      return counts;
+    };
+
+    const [total, users, counts] = await Promise.all([
       User.countDocuments(filter),
       User.find(filter)
         .select('-password')
         .populate('department', 'name code')
         .populate('program', 'name code department')
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: sortDirection, _id: sortDirection })
         .skip(skip)
         .limit(limit),
+      req.query.counts === 'true' ? countsFor() : null,
     ]);
 
     res.status(200).json({
@@ -706,6 +731,7 @@ const listUsers = async (req, res) => {
       total,
       pages: Math.ceil(total / limit),
       users,
+      ...(counts ? { counts } : {}),
     });
   } catch (error) {
     console.error(error);
