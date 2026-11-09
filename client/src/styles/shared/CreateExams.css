@@ -1152,7 +1152,9 @@
 
 /* Below that the list runs down the form, and the panel covers the screen as on the list pages */
 @media (max-width: 1024px) {
-  .ca-layout.mbe-workspace {
+  /* The Edit window's fixed height too, or its list is cut off with nothing to scroll it */
+  .ca-layout.mbe-workspace,
+  .mbe-form--modal .ca-layout.mbe-workspace {
     height: auto;
   }
 
@@ -1194,12 +1196,6 @@
   border: 1px solid var(--primary-bg);
 }
 
-.ca-marker.mbe-marker--set {
-  background: #e0e7ff;
-  color: #3730a3;
-  border: 1px solid #c7d2fe;
-}
-
 .ca-marker.mbe-marker--own {
   background: #eef2ff;
   color: var(--primary-bg);
@@ -1215,9 +1211,17 @@
   line-height: 1;
 }
 
-/* A question with a bad point or time has a red edge, unless it is the open one */
-.ca-question-card.mbe-setting-card.has-problem:not(.is-active) {
+/* A question with a bad point or time has a red edge, unless it is the open one; so does a set
+   with one, and that question's row under it */
+.ca-question-card.mbe-setting-card.has-problem:not(.is-active),
+.ca-group-header-card.mbe-setting-card.has-problem:not(.is-active),
+.mbe-workspace .ca-set-row.has-problem:not(.is-active) {
   border-color: #fca5a5;
+}
+
+/* A set's rows carry their chips at the end of the row, not on a meta row */
+.ca-set-row-aside .mbe-setting-chips {
+  margin-left: 0;
 }
 
 /* Its points and time, on the right of the meta row: its own outlined, a bad one red */
@@ -1252,50 +1256,6 @@
 
 .mbe-setting-chip.is-invalid svg {
   color: currentColor;
-}
-
-/* Questions of one set, one after another: indented, and joined on the left by a thick line from
-   the first's middle to the last's, with an arm into each card. The line runs through the 10px
-   gaps between the cards, and on past the list's edge when the set goes on to the next page.
-   The open question's set has a darker line. */
-.ca-question-card.mbe-setting-card.mbe-set-run {
-  position: relative;
-  margin-left: 18px;
-}
-
-.mbe-setting-card.mbe-set-run::before,
-.mbe-setting-card.mbe-set-run::after {
-  content: '';
-  position: absolute;
-  left: -17px;
-  border-radius: 2px;
-  background: #a5b0e6;
-  transition: background 0.2s ease;
-}
-
-.mbe-setting-card.mbe-set-run::before {
-  top: -11px;
-  bottom: -11px;
-  width: 4px;
-}
-
-.mbe-setting-card.mbe-set-run.is-run-start::before {
-  top: calc(50% - 2px);
-}
-
-.mbe-setting-card.mbe-set-run.is-run-end::before {
-  bottom: calc(50% - 2px);
-}
-
-.mbe-setting-card.mbe-set-run::after {
-  top: calc(50% - 2px);
-  width: 17px;
-  height: 4px;
-}
-
-.mbe-setting-card.mbe-set-run.is-open-set::before,
-.mbe-setting-card.mbe-set-run.is-open-set::after {
-  background: var(--primary-bg);
 }
 
 .mbe-setting-chip.is-own {

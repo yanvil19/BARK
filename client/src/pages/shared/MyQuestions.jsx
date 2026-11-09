@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getImportLimits, importQuestionsFromFile } from '../../lib/importApi.js';
@@ -35,6 +35,7 @@ import Pagination from '../../components/Pagination.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import AuthImage from '../../components/AuthImage.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import SetMemberRows from '../../components/SetMemberRows.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import { CardLegend, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
@@ -395,6 +396,18 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     return info;
   }, [baseQuestions]);
 
+  // Each set's questions in set order, for the rows under its card
+  const setMembersById = useMemo(() => {
+    const sets = new Map();
+    baseQuestions.forEach((q) => {
+      if (!q.groupId) return;
+      if (!sets.has(q.groupId)) sets.set(q.groupId, []);
+      sets.get(q.groupId).push(q);
+    });
+    sets.forEach((members) => members.sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0)));
+    return sets;
+  }, [baseQuestions]);
+
   // A set shows as one card
   const displayQuestions = useMemo(() => {
     const seen = new Set();
@@ -450,6 +463,12 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     setActiveGroupIdx(0);
     // A set shares one note, so opening it reads the note for all of its questions
     markQuestionsAsRead(baseQuestions.filter((q) => getItemKey(q) === key));
+  }
+
+  // A row under a set's card opens the set at that question
+  function openSetMember(question, index) {
+    handleSelectQuestion(question);
+    setActiveGroupIdx(index);
   }
 
   function closeFormModal() {
@@ -825,8 +844,8 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
                   const updatedAt = question.updatedAt || question.createdAt;
 
                   return (
+                    <Fragment key={getItemKey(question)}>
                     <div
-                      key={getItemKey(question)}
                       className={`${isGrouped ? 'ca-group-header-card' : 'ca-question-card'} ${getItemKey(question) === selectedKey ? 'is-active' : ''}`}
                       style={{ '--card-index': cardIndex }}
                       onClick={() => handleSelectQuestion(question)}
@@ -859,6 +878,16 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
                         </span>
                       </div>
                     </div>
+                    {isGrouped && (
+                      <SetMemberRows
+                        members={setMembersById.get(question.groupId) || []}
+                        open={getItemKey(question) === selectedKey}
+                        activeIndex={currentIdx}
+                        cardIndex={cardIndex}
+                        onOpenMember={(index) => openSetMember(question, index)}
+                      />
+                    )}
+                    </Fragment>
                   );
                 })}
               </div>

@@ -1887,6 +1887,140 @@
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
 }
 
+/* ── A set's questions under its card (SetMemberRows) ───────
+   Hung from the set card by a thick line: a 4px rail down from the card to the last row's
+   middle, with an arm into each row.
+   The rail sits 14px in, under the card; the line is darker while the set is open. */
+.ca-set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: -4px 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.ca-set-rows > li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.ca-set-rows > li::before,
+.ca-set-rows > li::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  border-radius: 2px;
+  background: #a5b0e6;
+  transition: background 0.2s ease;
+}
+
+/* Through the gap above, so the first row's rail meets the card */
+.ca-set-rows > li::before {
+  top: -6px;
+  bottom: -6px;
+  width: 4px;
+}
+
+.ca-set-rows > li:last-child::before {
+  bottom: calc(50% - 2px);
+}
+
+.ca-set-rows > li::after {
+  top: calc(50% - 2px);
+  width: 20px;
+  height: 4px;
+}
+
+.ca-set-rows.is-open-set > li::before,
+.ca-set-rows.is-open-set > li::after {
+  background: var(--primary-bg);
+}
+
+.ca-set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  font-family: var(--font-body);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ca-set-row:hover {
+  border-color: rgba(53, 64, 142, 0.35);
+  box-shadow: 0 2px 10px rgba(53, 64, 142, 0.08);
+}
+
+.ca-set-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.ca-set-row.is-active {
+  border-color: var(--primary-bg);
+  background: #f5f7ff;
+}
+
+/* A circle, stretching to a pill for an exam number of three digits */
+.ca-set-row-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: rgba(53, 64, 142, 0.08);
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ca-set-row.is-active .ca-set-row-number {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.ca-set-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* What a list adds on a row's right (Question Settings: points, time, markers). When the row
+   is too narrow for the text beside it, it moves under the text, still on the right. */
+.ca-set-row:has(.ca-set-row-aside) {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.ca-set-row:has(.ca-set-row-aside) .ca-set-row-text {
+  flex-basis: 140px;
+}
+
+.ca-set-row-aside {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .ca-group-header-card.is-active {
   background: #f5f7ff;
   border-color: var(--primary-bg);
@@ -2247,7 +2381,8 @@ button.ca-person-row:focus-visible {
 
   /* Cards come in one after another on each load, page or filter */
   :is(.ca-page, .ca-embedded) .ca-question-card,
-  :is(.ca-page, .ca-embedded) .ca-group-header-card {
+  :is(.ca-page, .ca-embedded) .ca-group-header-card,
+  :is(.ca-page, .ca-embedded) .ca-set-rows {
     animation: cardIn 0.24s ease-out backwards;
     animation-delay: calc(var(--card-index, 0) * 28ms);
   }

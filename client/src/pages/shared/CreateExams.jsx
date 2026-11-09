@@ -1,5 +1,5 @@
 import AuthImage from '../../components/AuthImage.jsx';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -27,6 +27,7 @@ import '../../styles/shared/CreateExams.css';
 // so loading them here moves nothing in the cascade.
 import MockBoardExamTestRun from './BoardExamTestRun.jsx';
 import { POINTS_RULE_ICON, QUESTIONS_ICON, RESET_ICON, TIMER_RULE_ICON } from '../../components/ExamRuleIcons.jsx';
+import SetMemberRows from '../../components/SetMemberRows.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
@@ -270,7 +271,8 @@ function formatShortDuration(value) {
 
 // Brings a list's open card into view inside the list's own scroll, leaving the form where it is
 function revealActiveCard(listEl) {
-  const card = listEl?.querySelector('.is-active');
+  // In an open set, the row of the question shown rather than the set's card
+  const card = listEl?.querySelector('.ca-set-row.is-active') || listEl?.querySelector('.is-active');
   if (!card) return;
   const list = listEl.getBoundingClientRect();
   const rect = card.getBoundingClientRect();
@@ -400,12 +402,6 @@ function QuestionSettingFields({ number, setting, usesCustomPoints, usesQuestion
 
 // The markers on the Questions tab's cards, and the legends above the lists that explain them
 const IN_EXAM_ICON = <MarkerIcon><path d="M5 12.5l4.5 4.5L19 7.5" /></MarkerIcon>;
-const QUESTION_SET_ICON = (
-  <MarkerIcon>
-    <rect x="4" y="5" width="16" height="5" rx="1.5" />
-    <rect x="4" y="14" width="16" height="5" rx="1.5" />
-  </MarkerIcon>
-);
 const OWN_VALUE_ICON = <MarkerIcon><path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" /></MarkerIcon>;
 const APPROVED_LEGEND = [
   { text: 'Questions in a set', className: 'ca-marker--count', content: '#' },
@@ -413,7 +409,7 @@ const APPROVED_LEGEND = [
   { text: 'Used in an exam', className: 'ca-marker--used', content: USED_IN_EXAM_ICON },
 ];
 const SETTINGS_LEGEND = [
-  { text: 'Part of a set', className: 'mbe-marker--set', content: QUESTION_SET_ICON },
+  { text: 'Questions in a set', className: 'ca-marker--count', content: '#' },
   { text: 'Own points or time', className: 'mbe-marker--own', content: OWN_VALUE_ICON },
   { text: 'Needs fixing', className: 'mbe-marker--problem', content: '!' },
 ];
@@ -993,27 +989,57 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
     const group = selectedQuestions.filter((question) => question.groupId).length;
     return { all: selectedQuestions.length, single: selectedQuestions.length - group, group };
   }, [selectedQuestions]);
+  // A card for each question and one for each set, as in Approved Questions. A set's card lists
+  // all of its questions in this exam, in set order, when any of them matches the filters.
+  function groupSettingCards(questions) {
+    const cards = [];
+    const listedSets = new Set();
+    questions.forEach((question) => {
+      if (!question.groupId) {
+        cards.push({ key: `q:${question._id}`, isSet: false, members: [question] });
+        return;
+      }
+      if (listedSets.has(question.groupId)) return;
+      listedSets.add(question.groupId);
+      const members = selectedQuestions
+        .filter((item) => item.groupId === question.groupId)
+        .sort((a, b) => (a.groupOrder ?? 0) - (b.groupOrder ?? 0));
+      cards.push({ key: `set:${question.groupId}`, isSet: true, members });
+    });
+    return cards;
+  }
+  const settingCards = useMemo(
+    () => groupSettingCards(settingRows.map(({ question }) => question)),
+    // groupSettingCards only reads selectedQuestions
+    [selectedQuestions, settingRows]
+  );
+  // The listed questions in list order, which the panel's arrows step through one by one, and
+  // the card each sits on, for its page
+  const settingSteps = useMemo(() => settingCards.flatMap((card) => card.members), [settingCards]);
+  const settingCardIndexById = useMemo(() => {
+    const byId = new Map();
+    settingCards.forEach((card, index) => card.members.forEach((member) => byId.set(String(member._id), index)));
+    return byId;
+  }, [settingCards]);
   const settingsOpenIndex = settingsOpenId
     ? selectedQuestions.findIndex((question) => String(question._id) === settingsOpenId)
     : -1;
   const settingsOpenQuestion = settingsOpenIndex >= 0 ? selectedQuestions[settingsOpenIndex] : null;
   const settingsPanel = usePanelLayout(settingsOpenQuestion ? settingsOpenId : null);
   const settingsNavIndex = settingsOpenQuestion
-    ? settingRows.findIndex(({ question }) => String(question._id) === settingsOpenId)
+    ? settingSteps.findIndex((question) => String(question._id) === settingsOpenId)
     : -1;
 
-  function openSettingRow(index) {
-    const row = settingRows[index];
-    if (!row) return;
-    setSettingsOpenId(String(row.question._id));
-    setSettingsPage(Math.floor(index / SETTINGS_PER_PAGE) + 1);
+  function openSettingStep(index) {
+    const question = settingSteps[index];
+    if (question) openSettingQuestion(String(question._id));
   }
 
-  // Opens a question from its set's bubbles: on its page when the filters list it, else just in the panel
+  // Opens a question on its card's page when the filters list it, else just in the panel
   function openSettingQuestion(questionId) {
-    const index = settingRows.findIndex(({ question }) => String(question._id) === questionId);
-    if (index >= 0) openSettingRow(index);
-    else setSettingsOpenId(questionId);
+    setSettingsOpenId(questionId);
+    const cardIndex = settingCardIndexById.get(questionId);
+    if (cardIndex !== undefined) setSettingsPage(Math.floor(cardIndex / SETTINGS_PER_PAGE) + 1);
   }
 
   // A new page starts at the top of the list; the open card, when it is on the page, is
@@ -1199,8 +1225,12 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
       ));
       if (firstInvalidIndex >= 0) {
         clearSettingsFilters();
-        setSettingsPage(Math.floor(firstInvalidIndex / SETTINGS_PER_PAGE) + 1);
-        setSettingsOpenId(questionSettings[firstInvalidIndex].id);
+        // Its card's page with the filters cleared, where a set counts once
+        const firstInvalidId = questionSettings[firstInvalidIndex].id;
+        const cardIndex = groupSettingCards(selectedQuestions)
+          .findIndex((card) => card.members.some((member) => String(member._id) === firstInvalidId));
+        setSettingsPage(Math.floor(Math.max(cardIndex, 0) / SETTINGS_PER_PAGE) + 1);
+        setSettingsOpenId(firstInvalidId);
       }
       revealInvalidSettingRef.current = true;
       setFeedbackModal({
@@ -1977,8 +2007,8 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                                 const noun = isSet ? 'question set' : 'question';
 
                                 return (
+                                  <Fragment key={card.key}>
                                   <div
-                                    key={card.key}
                                     className={[
                                       isSet ? 'ca-group-header-card' : 'ca-question-card',
                                       'mbe-pick-card',
@@ -2029,6 +2059,19 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                                       )}
                                     </div>
                                   </div>
+                                  {isSet && (
+                                    <SetMemberRows
+                                      members={members}
+                                      open={approvedOpenItem?.key === card.key}
+                                      activeIndex={Math.min(activeGroupIdx[question.groupId] || 0, members.length - 1)}
+                                      cardIndex={cardIndex}
+                                      onOpenMember={(index) => {
+                                        setApprovedOpenKey(card.key);
+                                        setActiveGroupIdx((prev) => ({ ...prev, [question.groupId]: index }));
+                                      }}
+                                    />
+                                  )}
+                                  </Fragment>
                                 );
                               })}
                             </div>
@@ -2365,92 +2408,122 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                       ) : settingRows.length === 0 ? (
                         <div className="ca-empty">No questions match the current filters.</div>
                       ) : (() => {
-                        const totalSettingsPages = Math.max(1, Math.ceil(settingRows.length / SETTINGS_PER_PAGE));
+                        const totalSettingsPages = Math.max(1, Math.ceil(settingCards.length / SETTINGS_PER_PAGE));
                         const safeSettingsPage = Math.min(settingsPage, totalSettingsPages);
-                        const pagedSettingRows = settingRows.slice(
+                        const pagedSettingCards = settingCards.slice(
                           (safeSettingsPage - 1) * SETTINGS_PER_PAGE,
                           safeSettingsPage * SETTINGS_PER_PAGE
+                        );
+                        // A question's points and time, and whether either is its own or needs fixing
+                        const stateOf = (question) => {
+                          const setting = settingsByQuestionId.get(String(question._id));
+                          if (!setting) return null;
+                          const pointsProblem = usesCustomPoints && !setting.pointsValid;
+                          const timeProblem = usesQuestionTimer && !setting.secondsValid;
+                          return {
+                            setting,
+                            pointsProblem,
+                            timeProblem,
+                            hasProblem: pointsProblem || timeProblem,
+                            hasOwnValue: (usesCustomPoints && setting.hasOwnPoints) || (usesQuestionTimer && setting.hasOwnSeconds),
+                          };
+                        };
+                        // Its points and time as chips: its own outlined, a bad one red
+                        const settingChips = ({ setting, pointsProblem, timeProblem }) => (usesCustomPoints || usesQuestionTimer) && (
+                          <span className="mbe-setting-chips">
+                            {usesCustomPoints && (
+                              <span
+                                className={`mbe-setting-chip${setting.hasOwnPoints ? ' is-own' : ''}${pointsProblem ? ' is-invalid' : ''}`}
+                                title="Points"
+                              >
+                                {POINTS_RULE_ICON}
+                                {setting.points === '' ? 'No points' : `${setting.points} point${Number(setting.points) === 1 ? '' : 's'}`}
+                              </span>
+                            )}
+                            {usesQuestionTimer && (
+                              <span
+                                className={`mbe-setting-chip${setting.hasOwnSeconds ? ' is-own' : ''}${timeProblem ? ' is-invalid' : ''}`}
+                                title="Time"
+                              >
+                                {TIMER_RULE_ICON}
+                                {Number.isInteger(setting.seconds) ? formatShortDuration(setting.seconds) : 'No time'}
+                              </span>
+                            )}
+                          </span>
                         );
 
                         return (
                           <div className="ca-questions-list" key={[settingsTypeFilter, settingsSubjectFilterId, settingsStateFilter, safeSettingsPage].join('|')}>
-                            {pagedSettingRows.map(({ question, number }, cardIndex) => {
-                              const setting = settingsByQuestionId.get(String(question._id));
-                              if (!setting) return null;
-                              const pointsProblem = usesCustomPoints && !setting.pointsValid;
-                              const timeProblem = usesQuestionTimer && !setting.secondsValid;
-                              const hasOwnValue = (usesCustomPoints && setting.hasOwnPoints) || (usesQuestionTimer && setting.hasOwnSeconds);
-                              // Questions of one set listed one after another are joined by a line;
-                              // its neighbours are read from the whole list, so a set running on
-                              // past the page's edge shows the line running on too
-                              const listIndex = (safeSettingsPage - 1) * SETTINGS_PER_PAGE + cardIndex;
-                              const sameSetAs = (row) => Boolean(question.groupId) && row?.question.groupId === question.groupId;
-                              const joinsAbove = sameSetAs(settingRows[listIndex - 1]);
-                              const joinsBelow = sameSetAs(settingRows[listIndex + 1]);
-                              const inSetRun = joinsAbove || joinsBelow;
+                            {pagedSettingCards.map((card, cardIndex) => {
+                              const { members, isSet } = card;
+                              const question = members[0];
+                              const states = members.map(stateOf);
+                              if (states.some((state) => !state)) return null;
+                              const numbers = members.map((member) => examNumberById.get(String(member._id)));
+                              const openIndex = members.findIndex((member) => String(member._id) === settingsOpenId);
+                              const isOpen = openIndex >= 0;
+                              const hasProblem = states.some((state) => state.hasProblem);
+                              const hasOwnValue = states.some((state) => state.hasOwnValue);
+                              const label = isSet
+                                ? `Questions ${Math.min(...numbers)} to ${Math.max(...numbers)}`
+                                : `Question ${numbers[0]}`;
 
                               return (
-                                <div
-                                  key={setting.id}
-                                  className={[
-                                    'ca-question-card',
-                                    'mbe-setting-card',
-                                    settingsOpenId === setting.id ? 'is-active' : '',
-                                    pointsProblem || timeProblem ? 'has-problem' : '',
-                                    inSetRun ? 'mbe-set-run' : '',
-                                    inSetRun && !joinsAbove ? 'is-run-start' : '',
-                                    inSetRun && !joinsBelow ? 'is-run-end' : '',
-                                    inSetRun && settingsOpenQuestion?.groupId === question.groupId ? 'is-open-set' : '',
-                                  ].filter(Boolean).join(' ')}
-                                  style={{ '--card-index': cardIndex }}
-                                  onClick={() => setSettingsOpenId(setting.id)}
-                                >
-                                  <div className="ca-card-top">
-                                    <span className="mbe-card-number">{number}</span>
-                                    {/* Its click bubbles up to the card, so keyboard users can open the card too */}
-                                    <button type="button" className="ca-card-open" aria-label={`Open question ${number}`}>
-                                      <span className="ca-card-desc">
-                                        <SafeHtml html={truncateHtml(question.description, 100)} />
+                                <Fragment key={card.key}>
+                                  <div
+                                    className={[
+                                      isSet ? 'ca-group-header-card' : 'ca-question-card',
+                                      'mbe-setting-card',
+                                      isOpen ? 'is-active' : '',
+                                      hasProblem ? 'has-problem' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    style={{ '--card-index': cardIndex }}
+                                    // A set opens at its first question, or stays on the one open
+                                    onClick={() => { if (!isOpen) setSettingsOpenId(String(question._id)); }}
+                                  >
+                                    <div className="ca-card-top">
+                                      <span className="mbe-card-number">
+                                        {isSet ? `${Math.min(...numbers)}–${Math.max(...numbers)}` : numbers[0]}
                                       </span>
-                                    </button>
-                                    <div className="ca-card-markers">
-                                      {question.groupId && (
-                                        <Marker className="mbe-marker--set" label="Part of a set">{QUESTION_SET_ICON}</Marker>
-                                      )}
-                                      {hasOwnValue && (
-                                        <Marker className="mbe-marker--own" label="Own points or time">{OWN_VALUE_ICON}</Marker>
-                                      )}
-                                      {(pointsProblem || timeProblem) && (
-                                        <Marker className="mbe-marker--problem" label="Needs fixing">!</Marker>
-                                      )}
+                                      {/* Its click bubbles up to the card, so keyboard users can open the card too */}
+                                      <button type="button" className="ca-card-open" aria-label={`Open ${label.toLowerCase()}`}>
+                                        <span className={`ca-card-desc${isSet ? ' ca-card-desc--set' : ''}`}>
+                                          {isSet
+                                            ? (question.groupContext?.trim() ? <SafeHtml html={truncateHtml(question.groupContext.trim(), 80)} /> : 'Question Set')
+                                            : <SafeHtml html={truncateHtml(question.description, 100)} />}
+                                        </span>
+                                      </button>
+                                      <div className="ca-card-markers">
+                                        {isSet && (
+                                          <Marker className="ca-marker--count" label={`${members.length} questions`}>{members.length}</Marker>
+                                        )}
+                                        {hasOwnValue && (
+                                          <Marker className="mbe-marker--own" label="Own points or time">{OWN_VALUE_ICON}</Marker>
+                                        )}
+                                        {hasProblem && (
+                                          <Marker className="mbe-marker--problem" label="Needs fixing">!</Marker>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="ca-card-meta">
+                                      <span className="ca-tag-pill">{question.tag?.name || 'No subject'}</span>
+                                      {/* A set's points and time are on its rows */}
+                                      {!isSet && settingChips(states[0])}
                                     </div>
                                   </div>
-                                  <div className="ca-card-meta">
-                                    <span className="ca-tag-pill">{question.tag?.name || 'No subject'}</span>
-                                    {(usesCustomPoints || usesQuestionTimer) && (
-                                      <span className="mbe-setting-chips">
-                                        {usesCustomPoints && (
-                                          <span
-                                            className={`mbe-setting-chip${setting.hasOwnPoints ? ' is-own' : ''}${pointsProblem ? ' is-invalid' : ''}`}
-                                            title="Points"
-                                          >
-                                            {POINTS_RULE_ICON}
-                                            {setting.points === '' ? 'No points' : `${setting.points} point${Number(setting.points) === 1 ? '' : 's'}`}
-                                          </span>
-                                        )}
-                                        {usesQuestionTimer && (
-                                          <span
-                                            className={`mbe-setting-chip${setting.hasOwnSeconds ? ' is-own' : ''}${timeProblem ? ' is-invalid' : ''}`}
-                                            title="Time"
-                                          >
-                                            {TIMER_RULE_ICON}
-                                            {Number.isInteger(setting.seconds) ? formatShortDuration(setting.seconds) : 'No time'}
-                                          </span>
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                                  {isSet && (
+                                    <SetMemberRows
+                                      members={members}
+                                      open={isOpen}
+                                      activeIndex={openIndex}
+                                      cardIndex={cardIndex}
+                                      numberOf={(member, index) => numbers[index]}
+                                      renderAside={(member, index) => settingChips(states[index])}
+                                      rowClassName={(member, index) => (states[index].hasProblem ? 'has-problem' : '')}
+                                      onOpenMember={(index) => setSettingsOpenId(String(members[index]._id))}
+                                    />
+                                  )}
+                                </Fragment>
                               );
                             })}
                           </div>
@@ -2460,10 +2533,10 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
 
                     <Pagination
                       currentPage={settingsPage}
-                      totalItems={settingRows.length}
+                      totalItems={settingCards.length}
                       pageSize={SETTINGS_PER_PAGE}
                       onPageChange={setSettingsPage}
-                      itemLabel="questions"
+                      itemLabel={settingCards.length === settingSteps.length ? 'questions' : 'questions and sets'}
                       classPrefix="ca"
                       maxPageButtons={5}
                     />
@@ -2501,8 +2574,8 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                             defaultSeconds={form.defaultQuestionSeconds}
                             onSetOwnValue={(key, value) => setQuestionOwnValue(setting.id, key, value)}
                           />
-                          {settingsNavIndex >= 0 && settingRows.length > 1 && (
-                            <PanelStepper index={settingsNavIndex} total={settingRows.length} onStep={openSettingRow} />
+                          {settingsNavIndex >= 0 && settingSteps.length > 1 && (
+                            <PanelStepper index={settingsNavIndex} total={settingSteps.length} onStep={openSettingStep} />
                           )}
                         </PanelHeader>
 
