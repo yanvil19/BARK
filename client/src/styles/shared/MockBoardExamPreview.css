@@ -462,3 +462,709 @@
   line-height: 1.55;
   white-space: pre-wrap;
 }
+
+/* ══ The exam screen (ExamTakingView) ═══════════════════════════════════════
+   What a taker answers on: the test run now, the student and alumni runners
+   later. Everything lines up on one 1000px column under the page header. */
+
+/* ── Header actions ──────────────────────────────────────── */
+.mbep-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1.5px solid var(--primary-bg);
+  border-radius: 8px;
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.mbep-action:hover {
+  background: #2f3a8f;
+  border-color: #2f3a8f;
+}
+
+.mbep-action.is-secondary {
+  background: #fff;
+  border-color: rgba(53, 64, 142, 0.3);
+  color: var(--primary-bg);
+}
+
+.mbep-action.is-secondary:hover {
+  background: rgba(53, 64, 142, 0.05);
+  border-color: var(--primary-bg);
+}
+
+.mbep-action:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+/* ── Progress and the exam's clock ───────────────────────── */
+.mbep-status,
+.mbep-result,
+.mbep-notice-slot {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.mbep-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, auto);
+  gap: 16px;
+}
+
+.mbep-status-card {
+  box-sizing: border-box;
+  padding: 16px 20px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+
+.mbep-status-progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.mbep-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.mbep-status-figure {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  color: #5a63a8;
+}
+
+.mbep-status-figure strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary-bg);
+}
+
+.mbep-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(53, 64, 142, 0.08);
+  color: var(--primary-bg);
+}
+
+.mbep-status-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.mbep-status-extras {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mbep-status-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4f6fd;
+  color: #5a63a8;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mbep-status-extra svg {
+  width: 13px;
+  height: 13px;
+  color: var(--primary-bg);
+}
+
+.mbep-status-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.mbep-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8b92bc;
+}
+
+.mbep-status-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.mbep-clock-value {
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-bg);
+}
+
+.mbep-clock-value.is-none {
+  font-size: 18px;
+  color: #5a63a8;
+}
+
+.mbep-status-clock.is-low {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.mbep-status-clock.is-low .mbep-status-label,
+.mbep-status-clock.is-low .mbep-clock-value {
+  color: #b45309;
+}
+
+/* ── Score, once the attempt is marked ───────────────────── */
+.mbep-result {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 18px 22px;
+  border: 1.5px solid #22c55e;
+  border-radius: var(--card-radius);
+  background: #f0fdf4;
+}
+
+.mbep-result.is-failed {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.mbep-result-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.mbep-result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mbep-result.is-failed .mbep-result-badge {
+  background: #dc2626;
+}
+
+.mbep-result-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.mbep-result-score {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 600;
+  color: #166534;
+}
+
+.mbep-result-score strong {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.mbep-result.is-failed .mbep-result-score {
+  color: #991b1b;
+}
+
+.mbep-result-percent {
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.mbep-result.is-failed .mbep-result-percent {
+  color: #b91c1c;
+}
+
+/* Fact chips: the score's counts, the introduction's facts */
+.mbep-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mbep-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mbep-facts svg {
+  width: 13px;
+  height: 13px;
+  color: var(--primary-bg);
+}
+
+.mbep-result-note {
+  margin: 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Introduction (bubble 0) ─────────────────────────────── */
+.mbep-intro .mbep-facts {
+  margin-bottom: 20px;
+}
+
+.mbep-intro-section {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(53, 64, 142, 0.15);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mbep-intro-section h3 {
+  margin: 0;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.1);
+  background: #f9faff;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mbep-intro-section p {
+  margin: 0;
+  padding: 14px;
+  color: #2e3856;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mbep-intro-empty {
+  margin: 0 0 16px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.mbep-intro-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 16px;
+  margin-top: 8px;
+}
+
+.mbep-intro-start p {
+  margin: 0;
+  color: #5a63a8;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ── A question's time running out ───────────────────────── */
+.mbep-time-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 11px 16px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mbep-time-notice svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── The open question ───────────────────────────────────── */
+.mbep-sheet-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 20px 12px 24px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.1);
+}
+
+.mbep-sheet-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.mbep-sheet-number {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary-bg);
+}
+
+.mbep-sheet-number span {
+  font-weight: 600;
+  color: #8b92bc;
+}
+
+.mbep-set-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.mbep-sheet-rules {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mbep-rule-chip,
+.mbep-mark,
+.mbep-qclock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid rgba(53, 64, 142, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mbep-rule-chip svg,
+.mbep-mark svg,
+.mbep-qclock svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
+
+.mbep-qclock strong {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.mbep-qclock-label {
+  font-weight: 600;
+  color: #8b92bc;
+}
+
+.mbep-qclock.is-low {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.mbep-qclock.is-low .mbep-qclock-label {
+  color: #b45309;
+}
+
+.mbep-qclock.is-out {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.mbep-mark.is-correct {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.mbep-mark.is-wrong,
+.mbep-mark.is-blank {
+  border-color: #f87171;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.mbep-mark-points {
+  font-weight: 600;
+}
+
+/* How much of the open question's time is left */
+.mbep-qclock-bar {
+  height: 4px;
+  background: #eef0f8;
+}
+
+.mbep-qclock-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary-bg);
+  transition: width 0.25s linear;
+}
+
+.mbep-qclock-bar.is-low span {
+  background: #f59e0b;
+}
+
+.mbep-locked-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mbep-locked-note svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+}
+
+.mbep-question-text {
+  margin-bottom: 22px;
+  color: #1a1f4b;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.mbep-question-text p {
+  margin: 0 0 8px;
+}
+
+.mbep-question-text p:last-child {
+  margin-bottom: 0;
+}
+
+.mbep-question-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.mbep-question-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+
+/* ── Answers ─────────────────────────────────────────────── */
+.mbep-option.is-pickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mbep-option.is-pickable:hover:not(.is-selected-preview) {
+  border-color: rgba(53, 64, 142, 0.25);
+  background: #e9edf8;
+}
+
+.mbep-option.is-locked {
+  cursor: not-allowed;
+}
+
+.mbep-option.is-locked:not(.is-selected-preview) {
+  opacity: 0.6;
+}
+
+.mbep-option:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.mbep-option-tag {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mbep-option-tag.is-correct {
+  color: #15803d;
+}
+
+.mbep-option-tag.is-wrong {
+  color: #dc2626;
+}
+
+/* ── What the bubbles mean ───────────────────────────────── */
+.mbep-nav-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid rgba(53, 64, 142, 0.08);
+  list-style: none;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mbep-nav-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mbep-legend-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(53, 64, 142, 0.25);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.mbep-legend-dot.is-done {
+  background: rgba(90, 99, 168, 0.3);
+}
+
+.mbep-legend-dot.is-locked {
+  border: 0;
+  background: #6b7280;
+  color: #fff;
+}
+
+.mbep-legend-dot.is-locked svg {
+  width: 8px;
+  height: 8px;
+  stroke-width: 3;
+}
+
+.mbep-legend-dot.is-correct {
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+.mbep-legend-dot.is-wrong {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+@media (max-width: 768px) {
+  .mbep-status,
+  .mbep-result,
+  .mbep-notice-slot {
+    max-width: 520px;
+  }
+
+  .mbep-status {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .mbep-status-clock {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 12px 16px;
+  }
+
+  .mbep-clock-value {
+    font-size: 22px;
+  }
+
+  .mbep-sheet-top {
+    padding: 12px 16px;
+  }
+
+  .mbep-result {
+    padding: 16px;
+  }
+
+  .mbep-result-score strong {
+    font-size: 24px;
+  }
+}

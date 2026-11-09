@@ -2210,7 +2210,9 @@ button.ca-person-row:focus-visible {
 
 /* ── Motion ──────────────────────────────────────────────── */
 /* Only transform and opacity move, so nothing here shifts the layout. Entrances fill backwards
-   only: a fill that lasted past the end would hold its transform over the hover lift. */
+   only: a fill that lasted past the end would hold its transform over the hover lift.
+   ca-embedded is the same list and panel inside another page's content (the exam form's
+   Questions tab), which keeps the page's own scrolling rather than fitting it to the screen. */
 @keyframes caPanelIn {
   from {
     opacity: 0;
@@ -2237,32 +2239,32 @@ button.ca-person-row:focus-visible {
 @media (prefers-reduced-motion: no-preference) {
 
   /* The page arriving */
-  .ca-page .ca-state-pills,
-  .ca-page .ca-filters-wrapper,
-  .ca-page .ca-list-panel {
+  :is(.ca-page, .ca-embedded) .ca-state-pills,
+  :is(.ca-page, .ca-embedded) .ca-filters-wrapper,
+  :is(.ca-page, .ca-embedded) .ca-list-panel {
     animation: cardIn 0.28s ease-out backwards;
   }
 
   /* Cards come in one after another on each load, page or filter */
-  .ca-page .ca-question-card,
-  .ca-page .ca-group-header-card {
+  :is(.ca-page, .ca-embedded) .ca-question-card,
+  :is(.ca-page, .ca-embedded) .ca-group-header-card {
     animation: cardIn 0.24s ease-out backwards;
     animation-delay: calc(var(--card-index, 0) * 28ms);
   }
 
-  .ca-page .ca-empty,
-  .ca-page .ca-select-all-row,
-  .ca-page .ca-sidebar--empty {
+  :is(.ca-page, .ca-embedded) .ca-empty,
+  :is(.ca-page, .ca-embedded) .ca-select-all-row,
+  :is(.ca-page, .ca-embedded) .ca-sidebar--empty {
     animation: fadeIn 0.2s ease-out backwards;
   }
 
   /* The panel slides in when it opens. Going from question to question only fades the content,
      since a review moves through many in a row. */
-  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar:not(.ca-sidebar--empty) {
     animation: caPanelIn 0.26s ease-out backwards;
   }
 
-  .ca-page .ca-sidebar-content > * {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-content > * {
     animation: fadeIn 0.18s ease-out backwards;
   }
 
@@ -2270,30 +2272,30 @@ button.ca-person-row:focus-visible {
      expand button is pressed or an item opens or closes on a widened panel. The one place a layout
      property moves, since moving snapshots of the list and panel instead would stretch or double
      their text. usePanelLayout turns is-gliding on only for those changes. */
-  .ca-page .ca-layout.is-gliding {
+  :is(.ca-page, .ca-embedded) .ca-layout.is-gliding {
     transition: --ca-panel-width 0.26s cubic-bezier(0.2, 0, 0, 1);
   }
 
-  .ca-page .ca-bulk-btn {
+  :is(.ca-page, .ca-embedded) .ca-bulk-btn {
     transition: opacity 0.15s, background 0.15s, transform 0.15s;
   }
 }
 
 /* At this width the panel covers the whole screen, so it rises from the bottom instead */
 @media (prefers-reduced-motion: no-preference) and (max-width: 1024px) {
-  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar:not(.ca-sidebar--empty) {
     animation-name: caPanelUp;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) and (hover: hover) {
 
-  .ca-page .ca-question-card:hover,
-  .ca-page .ca-group-header-card:hover {
+  :is(.ca-page, .ca-embedded) .ca-question-card:hover,
+  :is(.ca-page, .ca-embedded) .ca-group-header-card:hover {
     transform: translateY(-1px);
   }
 
-  .ca-page .ca-sidebar-actions .ca-btn:hover:not(:disabled) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-actions .ca-btn:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 3px 10px rgba(53, 64, 142, 0.14);
   }
@@ -2302,15 +2304,15 @@ button.ca-person-row:focus-visible {
 /* After the hover rules, so a press shows on a hovered button too */
 @media (prefers-reduced-motion: no-preference) {
 
-  .ca-page .ca-sidebar-actions .ca-btn:active:not(:disabled),
-  .ca-page .ca-bulk-btn:active:not(:disabled),
-  .ca-page .ca-pagination-btn:active:not(:disabled),
-  .ca-page .ca-pagination-page:active {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-actions .ca-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-bulk-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-pagination-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-pagination-page:active {
     transform: scale(0.97);
   }
 
   /* The edge tab keeps the shift that centres it on the border */
-  .ca-page .ca-sidebar-width-btn:active {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-width-btn:active {
     transform: translate(-50%, -50%) scale(0.92);
   }
 }
@@ -2318,12 +2320,12 @@ button.ca-person-row:focus-visible {
 /* Scoped to the page because CreateExams.css animates the bulk toolbar as well */
 @media (prefers-reduced-motion: reduce) {
 
-  .ca-page .ca-evaluating-dot,
-  .ca-page .ca-bulk-toolbar,
-  .ca-page .ca-modal-overlay,
-  .ca-page .ca-modal,
-  .ca-page .ca-image-overlay,
-  .ca-page .ca-image-full {
+  :is(.ca-page, .ca-embedded) .ca-evaluating-dot,
+  :is(.ca-page, .ca-embedded) .ca-bulk-toolbar,
+  :is(.ca-page, .ca-embedded) .ca-modal-overlay,
+  :is(.ca-page, .ca-embedded) .ca-modal,
+  :is(.ca-page, .ca-embedded) .ca-image-overlay,
+  :is(.ca-page, .ca-embedded) .ca-image-full {
     animation: none;
   }
 }

@@ -49,42 +49,64 @@
   color: var(--primary-bg);
 }
 
+/* Marked: a right answer green, a wrong or blank one red */
+.qnb-circle.is-correct {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.qnb-circle.is-wrong {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+/* Time is up: greyed, with a lock badge */
+.qnb-circle.is-locked:not(.is-active):not(.is-correct):not(.is-wrong) {
+  border-style: dashed;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
 .qnb-circle.is-active {
   background: var(--primary-bg);
   border-color: var(--primary-bg);
   color: var(--accent-yellow);
 }
 
+/* The introduction before question 1 (an exam's description and instructions) */
+.qnb-intro:not(.is-active) {
+  border-style: dashed;
+  color: #5a63a8;
+}
+
 /* ── Question set ────────────────────────────────────────── */
-/* One capsule per set. It fills from the left by the share of done questions
-   (--qnb-set-progress). A set too long for the row wraps inside the capsule. */
+/* One capsule per set, its bubbles 4px apart. Each bubble shows its own state,
+   so a done question shades only its own bubble. A set too long for the row
+   wraps inside the capsule. */
 .qnb-set {
   display: flex;
   box-sizing: border-box;
   flex-shrink: 0;
   flex-wrap: wrap;
   align-items: center;
+  gap: 4px;
   max-width: 100%;
-  min-height: 42px;
-  padding: 2px;
+  padding: 3px;
   border: 1.5px solid rgba(53, 64, 142, 0.2);
-  border-radius: 21px;
-  background: linear-gradient(
-    to right,
-    rgba(90, 99, 168, 0.16) var(--qnb-set-progress, 0%),
-    #fff var(--qnb-set-progress, 0%)
-  );
-  transition: background 0.3s ease;
+  border-radius: 22px;
+  background: #fff;
 }
 
 .qnb-set-item {
   position: relative;
   box-sizing: border-box;
   display: flex;
-  flex: 0 0 36px;
+  flex: 0 0 34px;
   align-items: center;
   justify-content: center;
-  height: 35px;
+  height: 34px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -98,11 +120,27 @@
 }
 
 .qnb-set-item.is-done {
+  background: rgba(90, 99, 168, 0.16);
   color: #5a63a8;
 }
 
 .qnb-set-item.is-flagged {
   color: #dc2626;
+}
+
+.qnb-set-item.is-correct {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.qnb-set-item.is-wrong {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.qnb-set-item.is-locked:not(.is-active):not(.is-correct):not(.is-wrong) {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .qnb-set-item:hover {
@@ -136,4 +174,26 @@
   color: #fff;
   font-size: 10px;
   font-weight: 700;
+}
+
+/* ── Time is up (question timers) ────────────────────────── */
+.qnb-lock-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #6b7280;
+  color: #fff;
+}
+
+.qnb-lock-badge svg {
+  width: 9px;
+  height: 9px;
+  stroke-width: 3;
 }

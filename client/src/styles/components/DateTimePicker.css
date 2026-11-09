@@ -332,6 +332,21 @@
   font-size: 13px;
 }
 
+/* An end that follows the start (fixedDurationMs): shown on the header-bar tint, not picked */
+.dtp-edge.is-fixed {
+  background: #f9faff;
+}
+
+.dtp-edge.is-fixed .dtp-edge-pick {
+  cursor: default;
+}
+
+.dtp-edge-time {
+  color: #1a2342;
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .dtp-duration,
 .dtp-hint {
   margin: 0;
