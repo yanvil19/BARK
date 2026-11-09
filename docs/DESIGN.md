@@ -167,6 +167,8 @@ Board Exams, Manage Subjects and Exam Results also add `ca-page--stepper` to the
 
 Board Exams also has a calendar view, which needs normal page scrolling, so the page drops `ca-page` while the calendar shows.
 
+Board Exams' Edit opens the exam in a window instead of going to the Create Exam page. The window holds the same form as that page (`ExamForm`, exported from `CreateExams.jsx`): the audience hero, the Details, Subjects, Questions and Review tabs, and the same cards. It is a `Modal` of size `wide`, whose height stays fixed as the tabs change. The form scrolls inside it on the page background, with the tab bar pinned to the top and Cancel and Save Changes pinned to the bottom, so the last tab only reviews. A line above the hero names the exam with a program chip, and warns when the exam is published, because saving moves a published exam back to Draft. Closing the window with unsaved changes, by Cancel, Escape or a click outside, asks "Discard Changes?" first. Saving closes the window, reloads the exam's questions in the panel and says how it went.
+
 Exam Results shows its toggle only once an exam has results: Overall, Questions, Individual and AI Overview (with a sparkle before its label). Without results the panel says why, shows the exam's details, and offers Compute Results when a student exam has ended. Once results exist, the action bar offers Download Excel for student and alumni exams alike. Its panel sections sit straight in the scrolling content, so `ExamResults.css` stops them shrinking, since a section that clips its corners would otherwise shrink to nothing when the content is taller than the panel. Logs and Student Registration do the same in their own files.
 
 The AI Overview (`AiOverviewView`, `AiOverview.css`) keeps the AI's words apart from the numbers: every number, chart and table comes from figures the server worked out, and the AI's words sit beside them, in plain sections or in a note with a sparkle under a chart. A strip at the top says who generated it and when, offers the earlier versions, and shows the generations left as 8 dots. Banners say when the version is an older one, when the results changed since it was written, when no generations are left and when a try failed (which isn't counted). Its two charts use series 1 `#4A56B8` and series 2 `#0F9488`, checked for colour-blind readers, with the passing line dashed; each has a hover card and a "Show the numbers" table. A question it names is a link that opens the question. The first overview is generated at once from the view; Regenerate, beside Download Excel with the generations left, asks first.
@@ -199,6 +201,7 @@ Layers, lowest to highest:
 | 1000 | Navbar, full-screen side panel |
 | 1100 | Image overlay |
 | 10000 | Modal |
+| 10500 | Image overlay opened from inside a modal |
 | 11000 | Toast |
 | 20000 | Math keyboard |
 
@@ -219,7 +222,7 @@ Layers, lowest to highest:
 | Side panel header | `PanelHeader` | A `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch the panel's view (none when `views` is empty), and `children` (Approve Questions' bulk arrows) before the full-screen and close buttons (`ca-panel-btn`). Full screen puts `is-fullscreen` on `ca-sidebar`, which then covers the whole window, navbar and footer included. The tab and the full-screen button hide at 1024px and below, where the panel already covers the screen. Pair it with `usePanelLayout` |
 | Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them, and `getPanelProps` passes result props such as answer counts |
 | Score per topic | `TopicScoreRows` | Rows split by lines, each with a bar and a tick at the passing threshold; `onSelect` makes each row a button |
-| Dialog | `Modal` | `size="compact"` for short ones; Escape or a click outside closes it |
+| Dialog | `Modal` | `size="compact"` for short ones, `size="wide"` for a whole page's form (fixed height; give the body a class that lays out and scrolls the content); Escape or a click outside closes it. With modals open over one another, Escape closes only the newest |
 | Ask before acting | `ConfirmationModal` | `confirmVariant` is `danger` by default, or `primary` |
 | Message to acknowledge | `FeedbackModal` | `tone`: info, success, warning or danger |
 | Short outcome message | `useToast().notify` | `variant`, `title`, `durationMs`; the variant defaults to `error`, so set it |

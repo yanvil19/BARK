@@ -44,7 +44,6 @@ export default function App() {
 
   // Send periodic heartbeat when tab is focused and user is active
   useHeartbeat(me);
-  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => sessionStorage.getItem('bark_editingMockBoardExamId') || '');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
   const [examRunnerId, setExamRunnerId] = useState(() => sessionStorage.getItem('bark_examRunnerId') || '');
   const [examRunnerMode, setExamRunnerMode] = useState(() => sessionStorage.getItem('bark_examRunnerMode') || 'details');
@@ -58,7 +57,6 @@ export default function App() {
   const prevMeRef = useRef(null);
 
   useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
-  useEffect(() => sessionStorage.setItem('bark_editingMockBoardExamId', editingMockBoardExamId), [editingMockBoardExamId]);
   useEffect(() => sessionStorage.setItem('bark_examRunnerId', examRunnerId), [examRunnerId]);
   useEffect(() => sessionStorage.setItem('bark_examRunnerMode', examRunnerMode), [examRunnerMode]);
   useEffect(() => sessionStorage.setItem('bark_studentExamId', studentExamId), [studentExamId]);
@@ -246,13 +244,6 @@ export default function App() {
   }, [me, route]);
 
   useEffect(() => {
-    const examEditorRoutes = new Set(['mockBoardExam', 'pcMockBoardExam']);
-    if (!examEditorRoutes.has(route) && editingMockBoardExamId) {
-      setEditingMockBoardExamId('');
-    }
-  }, [editingMockBoardExamId, route]);
-
-  useEffect(() => {
     if (route !== 'deanExamRunner' && examRunnerId) {
       setExamRunnerId('');
       setExamRunnerMode('details');
@@ -329,8 +320,6 @@ export default function App() {
     page = (
       <MockBoardExam
         me={me}
-        editingExamId={editingMockBoardExamId}
-        onClearEditing={() => setEditingMockBoardExamId('')}
         onExamSaved={() => {
           setMockBoardExamRefreshKey((prev) => prev + 1);
           setRoute('availableMockBoardExams');
@@ -342,13 +331,7 @@ export default function App() {
       <AvailableMockBoardExams
         me={me}
         refreshKey={mockBoardExamRefreshKey}
-        onEditExam={(id, action = 'edit') => {
-          if (action === 'edit') {
-            setEditingMockBoardExamId(id);
-            setRoute('mockBoardExam');
-            return;
-          }
-
+        onOpenExam={(id, action) => {
           if (action === 'preview') {
             setExamRunnerId(id);
             setRoute('mockBoardExamPreview');
@@ -395,8 +378,6 @@ export default function App() {
     page = (
       <MockBoardExam
         me={me}
-        editingExamId={editingMockBoardExamId}
-        onClearEditing={() => setEditingMockBoardExamId('')}
         onExamSaved={() => {
           setMockBoardExamRefreshKey((prev) => prev + 1);
           setRoute('pcAvailableMockBoardExams');
@@ -408,12 +389,7 @@ export default function App() {
       <AvailableMockBoardExams
         me={me}
         refreshKey={mockBoardExamRefreshKey}
-        onEditExam={(id, action = 'edit') => {
-          if (action === 'edit') {
-            setEditingMockBoardExamId(id);
-            setRoute('pcMockBoardExam');
-            return;
-          }
+        onOpenExam={(id, action) => {
           if (action === 'preview') {
             setExamRunnerId(id);
             setRoute('pcMockBoardExamPreview');

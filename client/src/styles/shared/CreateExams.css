@@ -14,9 +14,10 @@
 }
 
 /* ── Audience CSS tokens ────────────────────────────────────────────── */
-.mbe-page[data-audience="student"],
+/* Set on the form, which sits in the page or in Board Exams' edit window */
+.mbe-form[data-audience="student"],
 .mbe-card[data-audience="student"],
-.mbe-page[data-audience="alumni"],
+.mbe-form[data-audience="alumni"],
 .mbe-card[data-audience="alumni"] {
   --mbe-audience:          #35408e;
   --mbe-audience-dark:     #1e2660;
@@ -1482,6 +1483,131 @@
   background: #eff6ff;
   color: #2563eb;
   border: 1px solid #dbeafe;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EDIT WINDOW
+   Board Exams' Edit opens the same form in a Modal (size "wide"). The form
+   is the window's scrolling area: the tab bar pins to its top, Cancel and
+   Save Changes to its bottom, and the page background sits behind the cards
+   so they look as they do on the Create Exam page.
+════════════════════════════════════════════════════════════════════ */
+.custom-modal-body.mbe-modal-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mbe-form--modal {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 18px 24px 0;
+  overflow-y: auto;
+  background: var(--content-bg);
+  font-family: 'Poppins', 'Nunito', sans-serif;
+}
+
+/* A section that clips its corners would otherwise shrink when the tab is taller than the window */
+.mbe-form--modal > * {
+  flex-shrink: 0;
+}
+
+.mbe-modal-copy {
+  margin-bottom: 0;
+}
+
+.mbe-modal-copy .qp-modal-subtitle {
+  color: #4a5268;
+  line-height: 1.5;
+}
+
+.mbe-modal-copy .qp-modal-subtitle strong {
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+}
+
+.mbe-form--modal .mbe-hero-banner {
+  padding: 14px 22px;
+}
+
+.mbe-form--modal .mbe-hero-label {
+  font-size: 1.05rem;
+}
+
+/* Pinned flush to the window's top (sticky counts from inside the form's top padding, hence the
+   negative top), with the page background filling its rounded top corners so cards don't show there */
+.mbe-form--modal .mbe-tab-bar {
+  position: sticky;
+  top: -18px;
+  z-index: 5;
+  box-shadow: 0 -14px 0 var(--content-bg), var(--card-shadow);
+}
+
+.mbe-form--modal .mbe-form-card,
+.mbe-form--modal .mbe-table-card,
+.mbe-form--modal .mbe-selection-card {
+  padding: 20px;
+}
+
+/* Cancel and Save Changes, always in view at the bottom */
+.modal-actions.mbe-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: auto -24px 0;
+  padding: 14px 24px;
+  border-top: 1px solid #e8edf5;
+  background: #ffffff;
+}
+
+.mbe-form-note {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.mbe-form-note--error {
+  color: #b42318;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Opened from the window, a full-size image goes over it */
+.mbe-image-overlay--over-modal {
+  z-index: 10500;
+}
+
+/* Short laptop screens: the hero keeps only its label, leaving more of the window to the form */
+@media (max-height: 760px) {
+  .mbe-form--modal .mbe-hero-banner {
+    padding: 10px 22px;
+  }
+
+  .mbe-form--modal .mbe-hero-sublabel {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .mbe-form--modal {
+    padding: 14px 14px 0;
+  }
+
+  .mbe-form--modal .mbe-tab-bar {
+    top: -14px;
+  }
+
+  .modal-actions.mbe-modal-actions {
+    margin-inline: -14px;
+    padding: 12px 14px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

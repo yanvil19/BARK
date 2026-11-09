@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PanelHeader from '../../components/PanelHeader.jsx';
@@ -9,6 +9,8 @@ import { apiAuth } from '../../lib/api.js';
 import DateTimePicker from '../../components/DateTimePicker.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import { Modal } from '../../components/Modal.jsx';
+import { ExamForm } from './CreateExams.jsx';
 import ExamCalendar from '../../components/ExamCalendar.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
@@ -162,7 +164,7 @@ function renderConflictMessage(err) {
   );
 }
 
-export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) {
+export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) {
   const { notify } = useToast();
   const [exams, setExams] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -189,6 +191,17 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
   const [selectedSubject, setSelectedSubject] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  // The exam open in the edit window, and whether closing it is waiting on "Discard Changes?".
+  // Unsaved changes are kept in a ref, which the form sets as it renders, so an Escape pressed
+  // straight after typing already sees them.
+  const [editingExamId, setEditingExamId] = useState(null);
+  const editHasChangesRef = useRef(false);
+  const handleEditDirtyChange = useCallback((dirty) => {
+    editHasChangesRef.current = dirty;
+  }, []);
+  const [confirmDiscardEdit, setConfirmDiscardEdit] = useState(false);
+  // Loads the open exam's questions again after an edit
+  const [questionsReloadKey, setQuestionsReloadKey] = useState(0);
 
   const isDean = me?.role === 'dean';
   const isManager = isDean || me?.role === 'program_chair';
@@ -309,7 +322,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
     return () => {
       ignore = true;
     };
-  }, [selectedExamId]);
+  }, [selectedExamId, questionsReloadKey]);
 
   function handleSelectExam(exam) {
     if (exam._id === selectedExamId) return;
@@ -608,7 +621,63 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
       return;
     }
 
-    onEditExam(exam._id);
+    editHasChangesRef.current = false;
+    setEditingExamId(exam._id);
+  }
+
+  function closeEditWindow() {
+    setEditingExamId(null);
+    editHasChangesRef.current = false;
+    setConfirmDiscardEdit(false);
+  }
+
+  // Closing with unsaved changes asks first; Cancel, Escape and a click outside all come here
+  function requestCloseEditWindow() {
+    if (editHasChangesRef.current) {
+      setConfirmDiscardEdit(true);
+      return;
+    }
+    closeEditWindow();
+  }
+
+  async function handleExamEdited(savedExam, { previousStatus } = {}) {
+    const examId = editingExamId;
+    const name = savedExam?.name || exams.find((exam) => sameExamId(exam._id, examId))?.name || 'The exam';
+    const nextStatus = savedExam?.status || previousStatus;
+    closeEditWindow();
+
+    // Show the saved values straight away, then reload the list for what the server works out
+    // (duration, submissions), quietly so the list doesn't flash "Loading"
+    if (savedExam) {
+      setExams((prev) => prev.map((exam) => (
+        sameExamId(exam._id, examId) ? { ...exam, ...savedExam, program: exam.program } : exam
+      )));
+    }
+    apiAuth(`${BASE}/api/mock-board-exams`)
+      .then((data) => setExams(data.exams || []))
+      .catch((err) => console.error('Failed to reload mock board exams:', err));
+
+    if (sameExamId(selectedExamId, examId)) {
+      setActiveQuestionIdx(0);
+      setQuestionsReloadKey((key) => key + 1);
+      // Stays open unless the exam has just left the list being viewed
+      if (selectedStatus && selectedStatus !== nextStatus) setSelectedExamId(null);
+    }
+    triggerCalendarRefresh();
+
+    setFeedbackModal({
+      title: 'Exam Updated',
+      tone: 'success',
+      message: previousStatus === 'published' && nextStatus === 'draft' ? (
+        <p style={{ margin: 0 }}>
+          <strong>{name}</strong> was saved and moved back to Draft. Publish it again when it is ready.
+        </p>
+      ) : (
+        <p style={{ margin: 0 }}>
+          Your changes to <strong>{name}</strong> were saved.
+        </p>
+      ),
+    });
   }
 
   async function handleConfirmAction() {
@@ -796,7 +865,7 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
         {canEdit && (
           <>
             <button type="button" className="ca-btn ca-btn--edit" onClick={() => handleEdit(exam)}>Edit</button>
-            <button type="button" className="ca-btn ca-btn--edit" onClick={() => onEditExam(exam._id, 'testRun')}>Test Run</button>
+            <button type="button" className="ca-btn ca-btn--edit" onClick={() => onOpenExam(exam._id, 'testRun')}>Test Run</button>
           </>
         )}
         <button type="button" className="ca-btn ca-btn--edit" onClick={() => handleCopy(exam)}>Create Copy</button>
@@ -1055,6 +1124,39 @@ export default function AvailableMockBoardExams({ refreshKey, onEditExam, me }) 
           />
         );
       })()}
+
+      {/* Edit opens the Create Exam form here, in a window */}
+      <Modal
+        open={Boolean(editingExamId)}
+        onClose={requestCloseEditWindow}
+        title="Edit Exam"
+        size="wide"
+        bodyClassName="mbe-modal-body"
+      >
+        {editingExamId && (
+          <ExamForm
+            key={editingExamId}
+            me={me}
+            examId={editingExamId}
+            variant="modal"
+            onSaved={handleExamEdited}
+            onCancel={requestCloseEditWindow}
+            onDirtyChange={handleEditDirtyChange}
+          />
+        )}
+      </Modal>
+
+      <ConfirmationModal
+        open={confirmDiscardEdit}
+        onClose={() => setConfirmDiscardEdit(false)}
+        onConfirm={closeEditWindow}
+        title="Discard Changes?"
+        message="This exam has changes that are not saved yet."
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+      >
+        Closing now leaves the exam as it was.
+      </ConfirmationModal>
 
       <ConfirmationModal
         open={!!confirmationModal}

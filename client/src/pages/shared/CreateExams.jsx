@@ -1,5 +1,6 @@
 import AuthImage from '../../components/AuthImage.jsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -78,6 +79,16 @@ function formatDurationFromMinutes(value) {
   return `${mins} minute${mins === 1 ? '' : 's'}`;
 }
 
+// What an opened exam's changes are compared against, to tell whether closing it loses anything
+function examEditSnapshot(form, programId, tagIds, questions) {
+  return JSON.stringify({
+    form,
+    programId: String(programId || ''),
+    tagIds: tagIds.map(String).sort(),
+    questionIds: questions.map((question) => String(question._id)),
+  });
+}
+
 function truncateText(text, max = 100) {
   if (!text) return '';
 
@@ -91,8 +102,12 @@ function truncateText(text, max = 100) {
   return `${clean.slice(0, max)}...`;
 }
 
-export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearEditing }) {
-  const isEditing = !!editingExamId;
+// The exam form. The Create Exam page shows it for a new exam (variant 'page'); Board Exams
+// shows it in a window to edit the exam with examId (variant 'modal'), with the window's own
+// Cancel and Save Changes pinned at the bottom.
+export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel, onDirtyChange }) {
+  const isEditing = !!examId;
+  const isModal = variant === 'modal';
   const initialDraftRef = useRef(isEditing ? null : readExamCreateDraft());
 
   const [programs, setPrograms] = useState([]);
@@ -225,7 +240,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         });
         setPrograms(deptPrograms);
 
-        if (!editingExamId && deptPrograms.length === 1) setProgramId(deptPrograms[0]._id);
+        if (!examId && deptPrograms.length === 1) setProgramId(deptPrograms[0]._id);
 
         let filtered = deptPrograms;
 
@@ -247,24 +262,31 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
     }
 
     if (me?.department) fetchPrograms();
-  }, [editingExamId, me]);
+  }, [examId, me]);
+
+  // The exam being edited as it was loaded, its name and status, and why it couldn't load
+  const [loadedSnapshot, setLoadedSnapshot] = useState(null);
+  const [loadedName, setLoadedName] = useState('');
+  const [loadedStatus, setLoadedStatus] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const isLoadingExam = isEditing && loadedSnapshot === null && !loadError;
 
   useEffect(() => {
+    if (!examId) return undefined;
+    let ignore = false;
+
     async function loadExamForEdit() {
-      if (!editingExamId) return;
       try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`);
+        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
+        if (ignore) return;
         const exam = data.exam;
+        const nextProgramId = exam.program?._id || exam.program || '';
         const nextTagIds = (exam.subjectTags || []).map((tag) => tag._id || tag);
         const nextQuestions = (exam.questions || []).map((question) => ({
           ...question,
           tagId: question.tag?._id || question.tag,
         }));
-
-        setProgramId(exam.program?._id || exam.program || '');
-        setSelectedTagIds(nextTagIds);
-        setSelectedQuestions(nextQuestions);
-        setForm({
+        const nextForm = {
           name: exam.name || '',
           startDateTime: toLocalDateTimeInput(exam.startDateTime),
           endDateTime: toLocalDateTimeInput(exam.endDateTime),
@@ -275,18 +297,36 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           isTimed: Boolean(exam.isTimed),
           timeLimitMinutes: exam.timeLimitMinutes || 180,
           passingThreshold: exam.passingThreshold || 70,
-        });
+        };
+
+        setProgramId(nextProgramId);
+        setSelectedTagIds(nextTagIds);
+        setSelectedQuestions(nextQuestions);
+        setForm(nextForm);
+        setLoadedName(nextForm.name);
+        setLoadedStatus(nextForm.status);
+        setLoadedSnapshot(examEditSnapshot(nextForm, nextProgramId, nextTagIds, nextQuestions));
       } catch (err) {
-        setFeedbackModal({
-          title: 'Unable to Load Exam',
-          tone: 'danger',
-          message: err.message || 'Failed to load mock board exam.',
-        });
+        if (!ignore) setLoadError(err.message || 'Failed to load mock board exam.');
       }
     }
 
     loadExamForEdit();
-  }, [editingExamId]);
+    return () => {
+      ignore = true;
+    };
+  }, [examId]);
+
+  // Unsaved changes to the exam being edited, so the window can ask before closing
+  const editSnapshot = useMemo(
+    () => (isEditing ? examEditSnapshot(form, programId, selectedTagIds, selectedQuestions) : null),
+    [form, isEditing, programId, selectedQuestions, selectedTagIds]
+  );
+  const hasUnsavedEdits = loadedSnapshot !== null && editSnapshot !== loadedSnapshot;
+  // Told during the commit, so an Escape straight after typing already knows about the change
+  useLayoutEffect(() => {
+    onDirtyChange?.(hasUnsavedEdits);
+  }, [hasUnsavedEdits, onDirtyChange]);
 
   useEffect(() => {
     async function fetchSubjects() {
@@ -606,23 +646,27 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         description: form.description,
         instructions: form.instructions,
         targetAudience: form.targetAudience || 'student',
-        status: editingExamId ? (form.status || 'draft') : 'draft',
+        status: isEditing ? (form.status || 'draft') : 'draft',
         isTimed: isAlumniExam ? Boolean(form.isTimed) : false,
         timeLimitMinutes: isAlumniExam && form.isTimed ? Number(form.timeLimitMinutes) : null,
         passingThreshold: form.passingThreshold,
       };
 
-      if (editingExamId) {
-        await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(editingExamId)}`, {
+      // An edit hands the saved exam to the window, which closes and says how it went
+      if (isEditing) {
+        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`, {
           method: 'PATCH',
           body: payload,
         });
-      } else {
-        await apiAuth(`${BASE}/api/mock-board-exams`, {
-          method: 'POST',
-          body: payload,
-        });
+        setLoadedSnapshot(editSnapshot);
+        onSaved?.(data.exam, { previousStatus: form.status });
+        return;
       }
+
+      const data = await apiAuth(`${BASE}/api/mock-board-exams`, {
+        method: 'POST',
+        body: payload,
+      });
 
       window.localStorage.removeItem(EXAM_CREATE_DRAFT_KEY);
 
@@ -633,14 +677,11 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
       setActiveTab('details');
       if (programs.length === 1) setProgramId(programs[0]._id);
       else setProgramId('');
-      if (onClearEditing) onClearEditing();
-      if (onExamSaved) onExamSaved();
+      onSaved?.(data.exam);
       setFeedbackModal({
-        title: editingExamId ? 'Mock Board Exam Updated' : 'Mock Board Exam Created',
+        title: 'Mock Board Exam Created',
         tone: 'success',
-        message: editingExamId
-          ? 'Your changes were saved successfully.'
-          : 'The mock board exam was created successfully.',
+        message: 'The mock board exam was created successfully.',
       });
     } catch (err) {
       setFeedbackModal({
@@ -686,62 +727,132 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         sublabel: 'Scheduled exam for currently enrolled students.',
       };
 
+  // An exam being edited shows nothing of the form until it has loaded, so no field flashes empty
+  const isFormReady = !isLoadingExam && !loadError;
+  const visibleTab = isFormReady ? activeTab : null;
+  const wasPublished = loadedStatus === 'published';
+
+  // In the window the form scrolls under its pinned tab bar. A new tab starts at its top,
+  // with the tab bar where it was, rather than partway down.
+  const formRef = useRef(null);
+  useEffect(() => {
+    const formEl = formRef.current;
+    const heroEl = formEl?.querySelector('.mbe-hero-banner');
+    if (!isModal || !formEl || !heroEl) return;
+    // Where the tab bar sits unpinned: below the hero and the gap
+    const tabBarTop = heroEl.offsetTop + heroEl.offsetHeight + (parseFloat(getComputedStyle(formEl).rowGap) || 0);
+    if (formEl.scrollTop > tabBarTop) formEl.scrollTop = tabBarTop;
+  }, [activeTab, isModal]);
+
+  // Escape closes a full-size image before anything else, including the window around the form
+  useEffect(() => {
+    if (!fullscreenImage) return undefined;
+    const closeImageOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setFullscreenImage(null);
+    };
+    window.addEventListener('keydown', closeImageOnEscape, true);
+    return () => window.removeEventListener('keydown', closeImageOnEscape, true);
+  }, [fullscreenImage]);
+
+  const imageOverlay = fullscreenImage ? (
+    <div
+      className={`mbe-image-overlay${isModal ? ' mbe-image-overlay--over-modal' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image preview"
+      onClick={() => setFullscreenImage(null)}
+    >
+      <div className="mbe-image-modal" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="mbe-image-close"
+          onClick={() => setFullscreenImage(null)}
+        >
+          Close
+        </button>
+        <AuthImage src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <main className="mbe-page page-shell" data-audience={isAlumniExam ? 'alumni' : 'student'}>
-      <PageHeader
-        title="Mock Board Exam"
-        subtitle={isEditing ? 'Edit an existing mock board exam.' : 'Create a new mock board exam for students or alumni.'}
-      />
+    <>
+      <form
+        ref={formRef}
+        className={`mbe-form${isModal ? ' mbe-form--modal' : ''}`}
+        data-audience={isAlumniExam ? 'alumni' : 'student'}
+        onSubmit={handleSubmit}
+      >
 
-      <form className="mbe-form" onSubmit={handleSubmit}>
+        {/* ── What saving does, in the window ───────────────────────────────── */}
+        {isModal && isFormReady && (
+          <div className="qp-modal-copy mbe-modal-copy">
+            <p className="qp-modal-subtitle">
+              {wasPublished
+                ? <><strong>{loadedName}</strong> is published. Saving your changes moves it back to Draft, so publish it again afterwards.</>
+                : <>Update <strong>{loadedName}</strong>, then save your changes.</>}
+            </p>
+            {selectedProgram ? <span className="qp-modal-program-chip">{selectedProgram.code || selectedProgram.name}</span> : null}
+          </div>
+        )}
 
-        {/* ── Audience Hero Banner ──────────────────────────────────────────── */}
-        <div className="mbe-hero-banner" data-audience={isAlumniExam ? 'alumni' : 'student'}>
-          <div className="mbe-hero-left">
-            <div className="mbe-hero-text">
-              <span className="mbe-hero-label">{audienceConfig.label}</span>
-              <span className="mbe-hero-sublabel">{audienceConfig.sublabel}</span>
+        {isLoadingExam && <p className="mbe-empty-message mbe-form-note">Loading the exam...</p>}
+        {loadError && <p className="mbe-form-note mbe-form-note--error" role="alert">{loadError}</p>}
+
+        {isFormReady && (
+          <>
+            {/* ── Audience Hero Banner ──────────────────────────────────────── */}
+            <div className="mbe-hero-banner" data-audience={isAlumniExam ? 'alumni' : 'student'}>
+              <div className="mbe-hero-left">
+                <div className="mbe-hero-text">
+                  <span className="mbe-hero-label">{audienceConfig.label}</span>
+                  <span className="mbe-hero-sublabel">{audienceConfig.sublabel}</span>
+                </div>
+              </div>
+              <div className="mbe-hero-right">
+                <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>
+                  {getStatusLabel(form.status)}
+                </span>
+                {isEditing && (
+                  <span className="mbe-hero-editing-badge">Editing</span>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="mbe-hero-right">
-            <span className={`mbe-status-pill mbe-status-pill--${form.status}`}>
-              {getStatusLabel(form.status)}
-            </span>
-            {isEditing && (
-              <span className="mbe-hero-editing-badge">Editing</span>
-            )}
-          </div>
-        </div>
 
-        {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
-        <div className="mbe-tab-bar" role="tablist" aria-label="Exam creation steps">
-          {[
-            { key: 'details', label: 'Details', complete: detailsComplete, badge: null },
-            { key: 'subjects', label: 'Subjects', complete: subjectsComplete, badge: selectedTagIds.length > 0 ? selectedTagIds.length : null },
-            { key: 'questions', label: 'Questions', complete: questionsComplete, badge: selectedQuestions.length > 0 ? selectedQuestions.length : null },
-            { key: 'review', label: 'Review & Save', complete: reviewComplete, badge: null },
-          ].map(({ key, label, complete, badge }) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === key}
-              className={`mbe-tab-btn ${activeTab === key ? 'is-active' : ''}`}
-              onClick={() => setActiveTab(key)}
-            >
-              <FieldCheck valid={complete} validText="Complete" invalidText="Incomplete" />
-              {label}
-              {badge !== null && (
-                <span className={`mbe-tab-badge ${activeTab === key ? 'is-active' : ''}`}>{badge}</span>
-              )}
-            </button>
-          ))}
-        </div>
+            {/* ── Tab Bar ──────────────────────────────────────────────────── */}
+            <div className="mbe-tab-bar" role="tablist" aria-label={isEditing ? 'Exam editing steps' : 'Exam creation steps'}>
+              {[
+                { key: 'details', label: 'Details', complete: detailsComplete, badge: null },
+                { key: 'subjects', label: 'Subjects', complete: subjectsComplete, badge: selectedTagIds.length > 0 ? selectedTagIds.length : null },
+                { key: 'questions', label: 'Questions', complete: questionsComplete, badge: selectedQuestions.length > 0 ? selectedQuestions.length : null },
+                // The window saves from its own buttons, so its last tab only reviews
+                { key: 'review', label: isModal ? 'Review' : 'Review & Save', complete: reviewComplete, badge: null },
+              ].map(({ key, label, complete, badge }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === key}
+                  className={`mbe-tab-btn ${activeTab === key ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab(key)}
+                >
+                  <FieldCheck valid={complete} validText="Complete" invalidText="Incomplete" />
+                  {label}
+                  {badge !== null && (
+                    <span className={`mbe-tab-badge ${activeTab === key ? 'is-active' : ''}`}>{badge}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* ═══════════════════════════════════════════════════════════════════
             TAB: DETAILS
         ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'details' && (
+        {visibleTab === 'details' && (
           <section className="mbe-card mbe-form-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
 
             {/* Audience toggle cards */}
@@ -836,7 +947,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
                   role={me?.role}
                   programId={programId}
                   audience={form.targetAudience || 'student'}
-                  excludeExamId={editingExamId}
+                  excludeExamId={examId}
                 />
               </div>
 
@@ -929,7 +1040,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         {/* ═══════════════════════════════════════════════════════════════════
             TAB: SUBJECTS
         ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'subjects' && (
+        {visibleTab === 'subjects' && (
           <section className="mbe-card mbe-selection-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
             <div className="mbe-section-heading">
               <div>
@@ -996,7 +1107,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         {/* ═══════════════════════════════════════════════════════════════════
             TAB: QUESTIONS
         ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'questions' && (
+        {visibleTab === 'questions' && (
           <>
             {/* Approved questions pool */}
             <section className="mbe-card mbe-table-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
@@ -1436,7 +1547,7 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
         {/* ═══════════════════════════════════════════════════════════════════
             TAB: REVIEW & SAVE
         ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'review' && (
+        {visibleTab === 'review' && (
           <section className="mbe-card mbe-form-card" data-audience={isAlumniExam ? 'alumni' : 'student'}>
             <div className="mbe-section-heading">
               <div>
@@ -1536,38 +1647,34 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
 
             </div>
 
-            <div className="mbe-tab-footer">
-              <div className="mbe-review-actions">
-                {editingExamId ? (
-                  <button className="mbe-btn mbe-btn-ghost" type="button" onClick={onClearEditing}>
-                    Cancel Edit
+            {!isModal && (
+              <div className="mbe-tab-footer">
+                <div className="mbe-review-actions">
+                  <button className="mbe-btn mbe-btn-primary" type="submit" disabled={saving}>
+                    {saving ? 'Saving...' : isEditing ? 'Update Mock Board Exam' : 'Create Mock Board Exam'}
                   </button>
-                ) : null}
-                <button className="mbe-btn mbe-btn-primary" type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : editingExamId ? 'Update Mock Board Exam' : 'Create Mock Board Exam'}
-                </button>
+                </div>
               </div>
-            </div>
+            )}
           </section>
+        )}
+
+        {/* ── The window's buttons, pinned below whichever tab is open ─────── */}
+        {isModal && (
+          <div className="modal-actions mbe-modal-actions">
+            <button type="button" className="modal-btn-cancel" onClick={onCancel} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="modal-btn-primary" disabled={saving || !isFormReady}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         )}
 
       </form>
 
-      {/* ── Fullscreen image overlay ──────────────────────────────────────── */}
-      {fullscreenImage ? (
-        <div className="mbe-image-overlay" onClick={() => setFullscreenImage(null)}>
-          <div className="mbe-image-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="mbe-image-close"
-              onClick={() => setFullscreenImage(null)}
-            >
-              Close
-            </button>
-            <AuthImage src={fullscreenImage} alt="Question preview" className="mbe-image-full" />
-          </div>
-        </div>
-      ) : null}
+      {/* ── Fullscreen image overlay ── over the window too, when the form is in one ── */}
+      {isModal && imageOverlay ? createPortal(imageOverlay, document.body) : imageOverlay}
 
       {/* ── Feedback modal ────────────────────────────────────────────────── */}
       <FeedbackModal
@@ -1681,6 +1788,19 @@ export default function MockBoardExam({ me, editingExamId, onExamSaved, onClearE
           </div>
         </Modal>
       )}
+    </>
+  );
+}
+
+// The Create Exam page. Exams are edited from Board Exams, in a window with this same form.
+export default function MockBoardExam({ me, onExamSaved }) {
+  return (
+    <main className="mbe-page page-shell">
+      <PageHeader
+        title="Mock Board Exam"
+        subtitle="Create a new mock board exam for students or alumni."
+      />
+      <ExamForm me={me} onSaved={onExamSaved} />
     </main>
   );
 }

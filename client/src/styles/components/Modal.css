@@ -27,6 +27,15 @@
   width: min(92vw, 640px);
 }
 
+/* A window that holds a whole page's form. Its height is fixed, so switching the form's tabs
+   doesn't resize it; the body lays out and scrolls its own content. */
+.custom-modal--wide .custom-modal-dialog {
+  max-width: 1180px;
+  width: min(94vw, 1180px);
+  height: min(90vh, 940px);
+  max-height: none;
+}
+
 .custom-modal-header {
   background: linear-gradient(135deg, var(--primary-bg, #35408E) 0%, #4653a7 100%);
   padding: 20px 26px;
