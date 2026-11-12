@@ -8,6 +8,7 @@ const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const Tag = require('../models/Tag');
 const User = require('../models/User');
+const { attemptPercentage } = require('../utils/examAttemptUtils');
 
 function getTotalItemsFromAttempt(attempt, exam) {
   const totalFromSubjects = (attempt.subjectScores || []).reduce(
@@ -18,8 +19,7 @@ function getTotalItemsFromAttempt(attempt, exam) {
 }
 
 function getAttemptPercentage(attempt, exam) {
-  const totalItems = getTotalItemsFromAttempt(attempt, exam);
-  return totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+  return attemptPercentage(attempt, getTotalItemsFromAttempt(attempt, exam));
 }
 
 function pickHighestAttemptByAlumni(attempts, exam) {

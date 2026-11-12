@@ -12,8 +12,9 @@ const BASE = import.meta.env.VITE_API_URL;
 const imageSrc = (image) => (image.startsWith('/') ? `${BASE}${image}` : image);
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 const idOf = (question) => String(question._id);
-// The intro's place in the bubbles, before question 1
-export const INTRO_INDEX = -1;
+import { INTRO_INDEX } from '../hooks/useExamRun.js';
+
+export { INTRO_INDEX };
 
 // "25 minutes", "1 hour 30 minutes"
 function formatDuration(totalSeconds) {
@@ -35,7 +36,8 @@ function formatDuration(totalSeconds) {
 // - notice: a line read out when something changes on its own (a question's time running out)
 // - intro: { description, instructions, passingThreshold } adds an introduction before
 //   question 1, as bubble 0; currentIdx INTRO_INDEX opens it. clockStarted says whether the
-//   taker's time is running yet, which the introduction tells them.
+//   taker's time is running yet, which the introduction tells them; null when the exam has
+//   no time to speak of.
 // - After the last question comes the summary, the bubble with a tick: currentIdx
 //   questions.length opens it. It lists every question's answer and has the Submit Exam
 //   button (onSubmitExam). A marked attempt has no summary.
@@ -353,7 +355,7 @@ function IntroSheet({ intro, questionCount, rules, examSeconds, clockStarted, ma
         )}
 
         <div className="mbep-intro-start">
-          {!marked && (
+          {!marked && clockStarted !== null && (
             <p>{clockStarted ? "Your time is running." : 'Your time starts when you open question 1.'}</p>
           )}
           <button type="button" className="mbep-action" onClick={onStart}>

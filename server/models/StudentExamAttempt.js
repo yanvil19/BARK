@@ -50,6 +50,26 @@ const studentExamAttemptSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // What the answers are worth under the exam's points (score stays the number right).
+    // Empty on attempts marked before points were kept.
+    pointsEarned: {
+      type: Number,
+      default: null,
+    },
+    pointsTotal: {
+      type: Number,
+      default: null,
+    },
+    // Where the taker is, kept so a refresh can't reset it: the stop they are on (-1 the
+    // introduction, the question count the summary), the last stop reached (one-way
+    // navigation), and each question's time left and spent (question timers)
+    runState: {
+      currentIdx: { type: Number, default: -1 },
+      furthestIdx: { type: Number, default: 0 },
+      timeLeftMs: { type: Map, of: Number, default: {} },
+      spentMs: { type: Map, of: Number, default: {} },
+      savedAt: { type: Date, default: null },
+    },
     subjectScores: [
       {
         tag: {

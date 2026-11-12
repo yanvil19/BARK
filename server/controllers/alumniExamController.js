@@ -1,7 +1,16 @@
 const { decryptExamQuestions, decryptQuestion } = require('../services/encryptionService');
 const MockBoardExam = require('../models/MockBoardExam');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
-const { shuffleArray, shuffleQuestionsGroupAware, calculateScore } = require('../utils/examAttemptUtils');
+const {
+  shuffleArray,
+  shuffleQuestionsGroupAware,
+  calculateScore,
+  attemptPercentage,
+  attemptScoreOutOf,
+  takerRules,
+  applyRunProgress,
+  resumeRunState,
+} = require('../utils/examAttemptUtils');
 
 const TIME_LIMIT_GRACE_MS = 10 * 1000;
 
@@ -13,9 +22,9 @@ function getTotalItems(exam, attempt) {
   return exam?.questions?.length || totalFromSubjects || 0;
 }
 
-function getPassed(score, totalItems, passingThreshold) {
+function getPassed(attempt, totalItems, passingThreshold) {
   if (!totalItems) return false;
-  return (score / totalItems) * 100 >= passingThreshold;
+  return attemptPercentage(attempt, totalItems) >= passingThreshold;
 }
 
 function getTimedDeadline(exam, attempt) {
@@ -172,6 +181,9 @@ async function startExam(req, res) {
       }
     }
 
+    const resumed = resumeRunState(attempt, currentExam, new Date());
+    if (resumed.changed) await attempt.save();
+
     const responseQuestions = [];
     const qMap = new Map();
     const decryptedExam = decryptExamQuestions(currentExam);
@@ -213,6 +225,8 @@ async function startExam(req, res) {
         timeLimitMinutes: currentExam.timeLimitMinutes,
       },
       remainingTimeSeconds: getRemainingTimeSeconds(currentExam, attempt),
+      rules: takerRules(currentExam),
+      state: resumed.state,
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
     });
@@ -225,7 +239,7 @@ async function startExam(req, res) {
 async function saveProgress(req, res) {
   try {
     const attemptId = req.params.attemptId;
-    const { answers } = req.body;
+    const { answers, state } = req.body;
 
     const attempt = await AlumniExamAttempt.findById(attemptId);
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
@@ -246,11 +260,7 @@ async function saveProgress(req, res) {
       return res.status(400).json({ message: 'Exam is no longer in progress' });
     }
 
-    if (answers) {
-      for (const [qId, ansId] of Object.entries(answers)) {
-        attempt.answers.set(qId, ansId);
-      }
-    }
+    applyRunProgress(attempt, exam, { answers, state });
 
     await attempt.save();
 
@@ -280,11 +290,7 @@ async function submitExam(req, res) {
       return res.status(404).json({ message: 'Alumni exam not found' });
     }
 
-    if (req.body.answers) {
-      for (const [qId, ansId] of Object.entries(req.body.answers)) {
-        attempt.answers.set(qId, ansId);
-      }
-    }
+    applyRunProgress(attempt, exam, { answers: req.body.answers, state: req.body.state });
 
     const deadline = getTimedDeadline(exam, attempt);
     attempt.status = 'submitted';
@@ -300,7 +306,7 @@ async function submitExam(req, res) {
       message: 'Exam submitted successfully',
       score: attempt.score,
       totalItems,
-      passed: getPassed(attempt.score, totalItems, passingThreshold),
+      passed: getPassed(attempt, totalItems, passingThreshold),
       passingThreshold,
       attemptNumber: attempt.attemptNumber,
       subjectScores: serializeSubjectScores(attempt.subjectScores),
@@ -345,7 +351,7 @@ async function getMyAttempts(req, res) {
         0
       );
       const totalItems = totalFromExam || totalFromSubjects || 0;
-      const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+      const pct = attemptPercentage(attempt, totalItems);
       const durationMinutes = attempt.endTime && attempt.startTime
         ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
         : null;
@@ -359,8 +365,8 @@ async function getMyAttempts(req, res) {
         submittedAt: attempt.endTime,
         durationMinutes,
         totalItems,
-        rawScore: attempt.score,
-        totalScore: totalItems,
+        rawScore: attemptScoreOutOf(attempt, totalItems).earned,
+        totalScore: attemptScoreOutOf(attempt, totalItems).total,
         passed: pct >= threshold,
         status: pct >= threshold ? 'passed' : 'failed',
         passingThreshold: threshold,
@@ -407,9 +413,7 @@ async function getDashboardAttempts(req, res) {
         attempt.exam?.passingThreshold ?? 70;
 
       const pct =
-        totalItems > 0
-          ? (attempt.score / totalItems) * 100
-          : 0;
+attemptPercentage(attempt, totalItems);
 
       const durationMinutes =
         attempt.endTime && attempt.startTime
@@ -428,8 +432,8 @@ async function getDashboardAttempts(req, res) {
         submittedAt: attempt.endTime,
         durationMinutes,
         totalItems,
-        rawScore: attempt.score,
-        totalScore: totalItems,
+        rawScore: attemptScoreOutOf(attempt, totalItems).earned,
+        totalScore: attemptScoreOutOf(attempt, totalItems).total,
         passed: pct >= threshold,
         status: pct >= threshold ? 'passed' : 'failed',
         passingThreshold: threshold,
@@ -508,7 +512,7 @@ async function getAttemptDetails(req, res) {
     );
     const totalItems = totalFromExam || totalFromSubjects || 0;
     const threshold = exam.passingThreshold ?? 70;
-    const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+    const pct = attemptPercentage(attempt, totalItems);
     const durationMinutes = attempt.endTime && attempt.startTime
       ? Math.round((new Date(attempt.endTime) - new Date(attempt.startTime)) / 60000)
       : null;
@@ -522,8 +526,8 @@ async function getAttemptDetails(req, res) {
         submittedAt: attempt.endTime,
         durationMinutes,
         totalItems,
-        rawScore: attempt.score,
-        totalScore: totalItems,
+        rawScore: attemptScoreOutOf(attempt, totalItems).earned,
+        totalScore: attemptScoreOutOf(attempt, totalItems).total,
         passed: pct >= threshold,
         status: pct >= threshold ? 'passed' : 'failed',
         passingThreshold: threshold,

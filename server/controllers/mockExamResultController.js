@@ -426,7 +426,10 @@ exports.getStudentResults = async (req, res) => {
             };
           });
 
-          const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+          // By points when the attempt was marked with them, else by items
+          const overallPercentage = Number(attempt.pointsTotal) > 0
+            ? Math.round(((Number(attempt.pointsEarned) || 0) / Number(attempt.pointsTotal)) * 100)
+            : (totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0);
           const passed = overallPercentage >= passingThreshold;
 
           return {
@@ -514,7 +517,10 @@ exports.getStudentResults = async (req, res) => {
         };
       });
 
-      const overallPercentage = totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0;
+      // By points when the attempt was marked with them, else by items
+          const overallPercentage = Number(attempt.pointsTotal) > 0
+            ? Math.round(((Number(attempt.pointsEarned) || 0) / Number(attempt.pointsTotal)) * 100)
+            : (totalItems > 0 ? Math.round((totalCorrect / totalItems) * 100) : 0);
       const passed = overallPercentage >= passingThreshold;
 
       return {
