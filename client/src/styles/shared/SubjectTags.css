@@ -74,7 +74,7 @@
 }
 
 .st-exam-name {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 600;

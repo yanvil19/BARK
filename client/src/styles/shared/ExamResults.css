@@ -124,7 +124,7 @@
 }
 
 .er-note strong {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-weight: 600;
 }
 

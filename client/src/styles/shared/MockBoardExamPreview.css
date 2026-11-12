@@ -163,7 +163,7 @@
   font-family: var(--font-body);
   font-size: 16px;
   font-weight: 700;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   line-height: 1.6;
   margin-bottom: 24px;
 }
@@ -1004,7 +1004,7 @@
 
 .mbep-question-text {
   margin-bottom: 22px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.65;
@@ -1238,7 +1238,7 @@
   border: 1px solid rgba(53, 64, 142, 0.14);
   border-radius: 10px;
   background: #f5f7ff;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-body);
   font-size: 14px;
   text-align: left;

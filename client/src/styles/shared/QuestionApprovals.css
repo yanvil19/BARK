@@ -340,7 +340,7 @@
 .ca-card-title {
   font-family: var(--font-title);
   font-size: 15px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   margin: 0;
   flex: 1;
   font-weight: 600;
@@ -1141,7 +1141,7 @@
   font-family: var(--font-title);
   font-size: 15px;
   font-weight: 700;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1163,7 +1163,7 @@
 .ca-meta-value {
   margin-top: 4px;
   font-size: 13px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-weight: 600;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2218,7 +2218,7 @@ button.ca-person-row:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 600;
@@ -2249,7 +2249,7 @@ button.ca-person-row:focus-visible {
 }
 
 .ca-person-score {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 700;

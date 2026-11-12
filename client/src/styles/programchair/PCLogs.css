@@ -126,7 +126,7 @@
 }
 
 .el-event-label {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-size: 13px;
   font-weight: 600;
 }
@@ -142,7 +142,7 @@
   flex-shrink: 0;
   justify-items: end;
   gap: 2px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

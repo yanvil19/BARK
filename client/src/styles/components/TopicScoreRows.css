@@ -46,7 +46,7 @@ button.tsr-row:focus-visible {
 }
 
 .tsr-name {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 13px;
   font-weight: 600;
@@ -97,7 +97,7 @@ button.tsr-row:focus-visible {
 }
 
 .tsr-pct {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 700;

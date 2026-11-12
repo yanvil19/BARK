@@ -133,7 +133,7 @@
 }
 
 .br-result-name {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-size: 13px;
   font-weight: 600;
   overflow-wrap: anywhere;
