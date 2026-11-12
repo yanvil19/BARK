@@ -222,7 +222,7 @@ server/models/RequestMetric.js
 ```
 server/models/MockExamResult.js
 ```
--> Mongoose schema for computed/aggregated exam results stored after a faculty member triggers result computation for a finished exam.
+-> Mongoose schema for a student exam's computed/aggregated results. They are stored when the exam closes (`examExpiryJob`) or the first time someone opens Exam Results (`ensureStudentResults` in `services/examResultsReport.js`); no one triggers it by hand. `models/ExamResultsSeen.js` and `services/examResultNews.js` keep which results each dean or program chair has opened, for the navbar count and the New pill.
 
 ```
 server/models/ExamAiOverview.js

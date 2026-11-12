@@ -140,7 +140,14 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
             </button>
             <button className={cls('mockBoardExam')} onClick={handle('mockBoardExam')}>Create Exams</button>
             <button className={cls('availableMockBoardExams')} onClick={handle('availableMockBoardExams')}>Board Exams</button>
-            <button className={cls('examResults')} onClick={handle('examResults')}>Exam Results</button>
+            <button className={`${cls('examResults')} nav-btn-with-badge`} onClick={handle('examResults')}>
+              <span>Exam Results</span>
+              {badgeCounts?.newExamResults > 0 && (
+                <span className="nav-badge" title={`${badgeCounts.newExamResults} exam(s) with new results`}>
+                  {badgeCounts.newExamResults > 99 ? '99+' : badgeCounts.newExamResults}
+                </span>
+              )}
+            </button>
           </>
         )}
 
@@ -166,7 +173,14 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
             </button>
             <button className={cls('pcMockBoardExam')} onClick={handle('pcMockBoardExam')}>Create Exams</button>
             <button className={cls('pcAvailableMockBoardExams')} onClick={handle('pcAvailableMockBoardExams')}>Board Exams</button>
-            <button className={cls('pcExamResults')} onClick={handle('pcExamResults')}>Exam Results</button>
+            <button className={`${cls('pcExamResults')} nav-btn-with-badge`} onClick={handle('pcExamResults')}>
+              <span>Exam Results</span>
+              {badgeCounts?.newExamResults > 0 && (
+                <span className="nav-badge" title={`${badgeCounts.newExamResults} exam(s) with new results`}>
+                  {badgeCounts.newExamResults > 99 ? '99+' : badgeCounts.newExamResults}
+                </span>
+              )}
+            </button>
             <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Logs</button>
           </>
         )}

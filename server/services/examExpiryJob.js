@@ -3,6 +3,7 @@ const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const User = require('../models/User');
 const { pointsByQuestion } = require('../utils/examAttemptUtils');
+const { ensureStudentResults } = require('./examResultsReport');
 
 function chunk(array, size) {
   const out = [];
@@ -108,6 +109,7 @@ const startExamExpiryJob = () => {
             { _id: exam._id },
             { $set: { missedAttemptsProcessedAt: new Date() } }
           );
+          await ensureStudentResults(exam._id);
           continue;
         }
 
@@ -188,6 +190,9 @@ const startExamExpiryJob = () => {
           { _id: exam._id },
           { $set: { missedAttemptsProcessedAt: new Date() } }
         );
+
+        // Every attempt is in now, so the results are ready without anyone asking for them
+        await ensureStudentResults(exam._id);
 
         console.log(`[ExamExpiryJob] Processed missed attempts for exam ${exam._id} (created ${insertDocs.length})`);
       }

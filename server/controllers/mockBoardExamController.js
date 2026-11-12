@@ -807,12 +807,8 @@ async function setResultsReleaseDate(req, res) {
       return res.status(400).json({ message: 'Can only schedule results release for finished or archived exams' });
     }
 
-    const uploadedResult = await MockExamResult.findOne({ examId: exam._id, status: 'computed' });
-    // Allow the first release schedule even if analytics were computed early on Exam Results
-    if (uploadedResult && exam.resultsReleaseDate) {
-      return res.status(400).json({ message: 'Results have already been uploaded. Release date can no longer be changed.' });
-    }
-
+    // Results are worked out as soon as the exam closes, so having them no longer locks the
+    // schedule: it can change until the release time itself passes
     if (exam.resultsReleaseDate && new Date(exam.resultsReleaseDate) <= new Date()) {
       return res.status(400).json({ message: 'Results have already been released to students. Release date can no longer be changed.' });
     }

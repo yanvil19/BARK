@@ -3,19 +3,17 @@ const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
-const Tag = require('../models/Tag');
 const User = require('../models/User');
 const {
-  getAttemptPercentage,
-  buildScoreSummary,
   isMissedAttempt,
-  findStudentAttempts,
   numberExamQuestions,
   getQuestionContent,
-  addQuestionContent,
-  buildQuestionRates,
+  computeStudentResults,
+  studentResultsDue,
+  ensureStudentResults,
   loadExamReport,
 } = require('../services/examResultsReport');
+const { markResultsSeen, newResultExamIds } = require('../services/examResultNews');
 
 // Everyone who may take the exam: the active students (or alumni) of its program, the
 // same people the results count as eligible. A program chair only sees their program's
@@ -106,7 +104,16 @@ exports.listExamsWithStatus = async (req, res) => {
       resultQuery.examId = { $in: exams.map(e => e._id) };
     }
 
-    const results = await MockExamResult.find(resultQuery).select('examId status computedAt');
+    let results = await MockExamResult.find(resultQuery).select('examId status computedAt');
+
+    // A student exam that is over has its results worked out here if nothing has yet
+    const withResults = new Set(results.map((r) => String(r.examId)));
+    const due = exams.filter((exam) => !withResults.has(String(exam._id)) && studentResultsDue(exam));
+    if (due.length > 0) {
+      const made = await Promise.all(due.map((exam) => ensureStudentResults(exam._id)));
+      if (made.some(Boolean)) results = await MockExamResult.find(resultQuery).select('examId status computedAt');
+    }
+    const newIds = await newResultExamIds(req.user);
 
     const alumniAttemptAgg = await AlumniExamAttempt.aggregate([
       {
@@ -138,6 +145,8 @@ exports.listExamsWithStatus = async (req, res) => {
           ? (alumniStats?.computedAt || null)
           : (result ? result.computedAt : null),
         alumniSubmissionCount: alumniStats?.count || 0,
+        // Results this person has not opened since they came in
+        hasNewResults: newIds.has(String(exam._id)),
       };
     });
 
@@ -165,6 +174,7 @@ exports.getResult = async (req, res) => {
     }
 
     const isAlumni = (exam.targetAudience || 'student') === 'alumni';
+    if (!isAlumni) await ensureStudentResults(exam._id);
     const report = await loadExamReport(exam, {
       programId: req.user.role === 'program_chair' ? req.user.program : null,
     });
@@ -210,102 +220,37 @@ exports.computeResults = async (req, res) => {
       });
     }
 
-    // 3. FETCH ATTEMPTS (students only — exclude alumni accounts)
-    const attempts = await findStudentAttempts(examId);
-
-    if (attempts.length === 0) {
-      return res.status(400).json({ 
-        message: 'No student attempts found for this exam. Cannot compute results.' 
+    // 3. WORK OUT AND STORE (students only — alumni accounts are left out)
+    const result = await computeStudentResults(exam, { computedBy: req.user._id, passingThreshold });
+    if (!result) {
+      return res.status(400).json({
+        message: 'No student attempts found for this exam. Cannot compute results.'
       });
     }
-
-    // 4. COMPUTE PER-QUESTION RATES
-    const totalTakers = attempts.length;
-    const decryptedExamForCompute = decryptExamQuestions(exam);
-    const questionRates = buildQuestionRates(decryptedExamForCompute, attempts);
-
-    // 5. COMPUTE PER-SUBJECT AVERAGES (Average of question rates)
-    const tagIds = [...new Set(questionRates.map(qr => qr.tagId))];
-    const tags = await Tag.find({ _id: { $in: tagIds } });
-
-    const subjectsArray = tagIds.map(tagId => {
-      const tag = tags.find(t => String(t._id) === tagId);
-      const subjectQuestions = questionRates.filter(qr => qr.tagId === tagId);
-      
-      // Calculate avg of question rates
-      const totalRates = subjectQuestions.reduce((acc, qr) => acc + qr.correctRate, 0);
-      const averageScore = subjectQuestions.length > 0 ? Math.round(totalRates / subjectQuestions.length) : 0;
-      
-      // Compute avg correct items for the fraction
-      const totalCorrectInAttempts = attempts.reduce((acc, attempt) => {
-        const scoreEntry = attempt.subjectScores.find(ss => String(ss.tag) === tagId);
-        return acc + (scoreEntry?.correct || 0);
-      }, 0);
-      const avgCorrect = Math.round(totalCorrectInAttempts / totalTakers);
-      const totalItems = subjectQuestions.length;
-
-      return {
-        name: tag ? tag.name : 'Unknown Subject',
-        averageScore,
-        correctCount: avgCorrect,
-        totalItems,
-        questions: subjectQuestions.map(sq => ({
-          questionId: sq.questionId,
-          label: sq.label,
-          description: sq.description,
-          correctRate: sq.correctRate,
-          answerCounts: sq.answerCounts,
-          unansweredCount: sq.unansweredCount,
-          groupId: sq.groupId || null,
-          groupContext: sq.groupContext || null,
-          groupContextImages: sq.groupContextImages || [],
-        }))
-      };
-    });
-
-    // 6. SAVE OR UPDATE MockExamResult
-    const finalThreshold = (exam.passingThreshold !== undefined && exam.passingThreshold !== null) 
-      ? exam.passingThreshold 
-      : (passingThreshold !== undefined && passingThreshold !== null ? passingThreshold : 70);
-
-    const scoreSummary = buildScoreSummary(
-      attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
-      finalThreshold
-    );
-
-    const totalEligibleStudents = await User.countDocuments({
-      program: exam.program,
-      role: exam.targetAudience === 'alumni' ? 'alumni' : 'student',
-      isActive: true,
-    });
-
-    const resultData = {
-      examId,
-      examName: exam.name,
-      dateConducted: exam.startDateTime,
-      totalTakers,
-      ...scoreSummary,
-      totalEligibleStudents,
-      passingThreshold: finalThreshold,
-      status: 'computed',
-      computedAt: new Date(),
-      subjects: subjectsArray,
-      createdBy: req.user._id,
-      department: req.user.department
-    };
-
-    const finalResult = await MockExamResult.findOneAndUpdate(
-      { examId },
-      resultData,
-      { upsert: true, returnDocument: 'after' }
-    );
-
-    const result = finalResult.toObject();
-    addQuestionContent(result.subjects, decryptedExamForCompute.questions || []);
 
     res.json({ result });
   } catch (err) {
     console.error('Computation Error:', err);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  }
+};
+
+/**
+ * @desc    Record that this person has looked at an exam's results (clears its "new" marker)
+ * @route   POST /api/mock-exam-results/:examId/seen
+ * @access  Private (Dean, Program Chair)
+ */
+exports.markSeen = async (req, res) => {
+  try {
+    const examQuery = { _id: req.params.examId, department: req.user.department };
+    if (req.user.role === 'program_chair') examQuery.program = req.user.program;
+    const exam = await MockBoardExam.findOne(examQuery).select('_id');
+    if (!exam) return res.status(403).json({ message: 'Forbidden or exam not found' });
+
+    await markResultsSeen(req.user, exam._id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 };

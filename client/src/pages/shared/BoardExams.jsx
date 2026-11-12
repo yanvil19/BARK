@@ -123,11 +123,8 @@ function canScheduleResultsRelease(exam) {
   if (exam.status !== 'finished') return false;
   // Release time passed — students can see results; no more changes
   if (exam.resultsReleased === true) return false;
-  // Dean must be able to set a release date first (even if analytics were computed early)
-  if (!exam.resultsReleaseDate) return true;
-  // After upload, lock the release schedule
-  if (exam.resultsUploaded === true || exam.computationStatus === 'computed') return false;
-  // Scheduled but not uploaded yet — allow reschedule
+  // Results are worked out when the exam closes, so the schedule stays open to change until
+  // the release time itself
   return true;
 }
 

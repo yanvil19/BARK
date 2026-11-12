@@ -53,7 +53,7 @@ export default function App() {
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [isInitialAuthLoading, setIsInitialAuthLoading] = useState(true);
-  const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0 });
+  const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0, newExamResults: 0 });
   const prevMeRef = useRef(null);
 
   useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
