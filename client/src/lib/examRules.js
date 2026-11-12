@@ -1,5 +1,6 @@
-// An exam's points and question timers, read the way the server keeps them (MockBoardExam's
-// scoringMode, questionTimerEnabled, the defaults and itemSettings), and the score they give.
+// An exam's points, question timers and one-way navigation, read the way the server keeps them
+// (MockBoardExam's scoringMode, questionTimerEnabled, oneWayNavigation, the defaults and
+// itemSettings), and the score they give.
 // The test run uses these; they are written for the student and alumni runners too.
 
 const DEFAULT_POINTS = 1;
@@ -40,6 +41,10 @@ export function readQuestionRules(exam, questions = exam?.questions || []) {
   return {
     usesCustomPoints,
     usesQuestionTimer,
+    // One question at a time, in order, each answered before the next opens. allowBack lets the
+    // taker look at the questions already answered, read-only, but never jump ahead
+    oneWay: Boolean(exam?.oneWayNavigation),
+    allowBack: Boolean(exam?.oneWayNavigation) && Boolean(exam?.oneWayBackAllowed),
     totalPoints,
     totalSeconds,
     of: (question) => byQuestion.get(questionKey(question)) || { points: DEFAULT_POINTS, seconds: null },

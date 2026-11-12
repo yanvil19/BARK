@@ -327,6 +327,34 @@ describe('question settings (points and time per question)', () => {
     expect(exam.scoringMode).toBe('custom');
     expect(exam.itemSettings.map((item) => item.points)).toEqual([3, 4]);
   });
+
+  it('saves one-way navigation, off unless it is sent, and keeps it through an edit', async () => {
+    const plain = await createExam({ name: 'Free Navigation Exam' });
+    expect(plain.status).toBe(201);
+    const plainExam = await MockBoardExam.findById(plain.body.exam._id);
+    expect(plainExam.oneWayNavigation).toBe(false);
+    expect(plainExam.oneWayBackAllowed).toBe(false);
+
+    const created = await createExam({ oneWayNavigation: true, oneWayBackAllowed: true });
+    expect(created.status).toBe(201);
+
+    const renamed = await request(app)
+      .patch(`/api/mock-board-exams/${created.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ name: 'Renamed One-Way Exam' });
+    expect(renamed.status).toBe(200);
+    let exam = await MockBoardExam.findById(created.body.exam._id);
+    expect(exam.oneWayNavigation).toBe(true);
+    expect(exam.oneWayBackAllowed).toBe(true);
+
+    const turnedOff = await request(app)
+      .patch(`/api/mock-board-exams/${created.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ oneWayNavigation: false });
+    expect(turnedOff.status).toBe(200);
+    exam = await MockBoardExam.findById(created.body.exam._id);
+    expect(exam.oneWayNavigation).toBe(false);
+  });
 });
 
 describe('PATCH /api/mock-board-exams/:id/archive', () => {

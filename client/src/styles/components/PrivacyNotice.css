@@ -162,14 +162,14 @@
 
 .pn-section p {
   margin: 0 0 0.5rem;
-  color: #374151;
+  color: var(--primary-bg);
 }
 
 .pn-section ul {
   margin: 0.35rem 0 0.5rem 1.1rem;
   padding: 0;
   list-style: disc;
-  color: #374151;
+  color: var(--primary-bg);
 }
 
 .pn-section ul li {
@@ -220,7 +220,7 @@
 
 .pn-consent-label {
   font-size: 0.8rem;
-  color: #374151;
+  color: var(--primary-bg);
   cursor: pointer;
   line-height: 1.5;
 }

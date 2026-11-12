@@ -287,6 +287,8 @@ function questionSettingsFields(payload) {
     defaultQuestionPoints: payload.defaultQuestionPoints,
     questionTimerEnabled: payload.questionTimerEnabled,
     defaultQuestionSeconds: payload.defaultQuestionSeconds,
+    oneWayNavigation: payload.oneWayNavigation,
+    oneWayBackAllowed: payload.oneWayBackAllowed,
     itemSettings: payload.itemSettings,
   };
 }
@@ -531,6 +533,8 @@ async function updateMockBoardExam(req, res) {
       defaultQuestionPoints: req.body.defaultQuestionPoints ?? current.defaultQuestionPoints,
       questionTimerEnabled: req.body.questionTimerEnabled ?? current.questionTimerEnabled,
       defaultQuestionSeconds: req.body.defaultQuestionSeconds ?? current.defaultQuestionSeconds,
+      oneWayNavigation: req.body.oneWayNavigation ?? current.oneWayNavigation,
+      oneWayBackAllowed: req.body.oneWayBackAllowed ?? current.oneWayBackAllowed,
       itemSettings: req.body.itemSettings ?? (current.itemSettings || []).map((item) => ({
         question: String(item.question),
         points: item.points,
@@ -740,6 +744,8 @@ async function copyExam(req, res) {
       defaultQuestionPoints: exam.defaultQuestionPoints,
       questionTimerEnabled: exam.questionTimerEnabled,
       defaultQuestionSeconds: exam.defaultQuestionSeconds,
+      oneWayNavigation: exam.oneWayNavigation,
+      oneWayBackAllowed: exam.oneWayBackAllowed,
       itemSettings: (exam.itemSettings || []).map((item) => ({
         question: item.question,
         points: item.points,

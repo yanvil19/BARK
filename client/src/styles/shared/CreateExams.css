@@ -1580,6 +1580,46 @@
   font-size: 13px;
 }
 
+/* A rule with no per-question value (One-Way Navigation) takes the grid's whole row */
+.mbe-rule--wide {
+  grid-column: 1 / -1;
+}
+
+/* An option inside a rule: a checkbox with a name and a line on what it does */
+.mbe-rule-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d8def2;
+  border-radius: 10px;
+  background: #f9faff;
+  cursor: pointer;
+}
+
+.mbe-rule-check input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--mbe-audience, var(--primary-bg));
+  cursor: pointer;
+}
+
+.mbe-rule-check > span {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.mbe-rule-check strong {
+  color: #1f2752;
+  font-size: 14px;
+}
+
 /* The value on the left, the exam's total on the right */
 .mbe-rule-value {
   display: flex;

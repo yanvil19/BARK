@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import AuthImage from './AuthImage.jsx';
 import AnswerImage from './AnswerImage.jsx';
 import PassageImages from './PassageImages.jsx';
-import SafeHtml from './SafeHtml.jsx';
+import SafeHtml, { truncateHtml } from './SafeHtml.jsx';
 import QuestionNavBubbles from './QuestionNavBubbles.jsx';
-import { CHECK_ICON, CROSS_ICON, LOCK_ICON, POINTS_RULE_ICON, QUESTIONS_ICON, TIMER_RULE_ICON } from './ExamRuleIcons.jsx';
+import { CHECK_ICON, CROSS_ICON, LOCK_ICON, ONE_WAY_RULE_ICON, POINTS_RULE_ICON, QUESTIONS_ICON, TIMER_RULE_ICON } from './ExamRuleIcons.jsx';
 import { examTimeIsLow, formatClock, questionTimeIsLow } from '../lib/examRules.js';
 import '../styles/shared/MockBoardExamPreview.css';
 
@@ -36,6 +36,13 @@ function formatDuration(totalSeconds) {
 // - intro: { description, instructions, passingThreshold } adds an introduction before
 //   question 1, as bubble 0; currentIdx INTRO_INDEX opens it. clockStarted says whether the
 //   taker's time is running yet, which the introduction tells them.
+// - After the last question comes the summary, the bubble with a tick: currentIdx
+//   questions.length opens it. It lists every question's answer and has the Submit Exam
+//   button (onSubmitExam). A marked attempt has no summary.
+// - onSubmitQuestion: with one-way navigation (rules.oneWay), the taker's only way on. It
+//   opens the next stop once the open question is answered. furthestIdx is the last stop
+//   reached: with rules.allowBack the taker can look at any question up to it, read-only,
+//   and without it at none. This holds until the attempt is marked.
 export default function ExamTakingView({
   questions,
   currentIdx,
@@ -50,6 +57,9 @@ export default function ExamTakingView({
   onZoomImage,
   intro = null,
   clockStarted = true,
+  onSubmitQuestion,
+  onSubmitExam,
+  furthestIdx = 0,
 }) {
   // The exam numbers each set covers ("Questions 4–6"); a set's parts sit together in an attempt
   const setRanges = useMemo(() => {
@@ -66,16 +76,36 @@ export default function ExamTakingView({
 
   const onIntro = Boolean(intro) && currentIdx === INTRO_INDEX;
   const firstIdx = intro ? INTRO_INDEX : 0;
-  const question = onIntro ? null : questions[currentIdx];
+  // The summary is the last stop while the exam is being taken
+  const onSummary = !result && currentIdx === questions.length;
+  const lastIdx = result ? questions.length - 1 : questions.length;
+  const question = onIntro || onSummary ? null : questions[currentIdx];
   const answeredCount = questions.filter((item) => answers[idOf(item)]).length;
   const timedOutCount = rules.usesQuestionTimer ? questions.filter((item) => clock.isLocked(item)).length : 0;
   const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
   const examLeft = clock.examLeft;
   const examLow = !result && examLeft !== null && examTimeIsLow(examLeft, examSeconds);
 
-  function navStatus(item) {
+  // One-way navigation holds while the exam is being taken; a marked attempt is free to look through
+  const oneWay = rules.oneWay && !result;
+  const hasAnswer = question ? Boolean(answers[idOf(question)]) : false;
+  // The question the taker has got to; any before it are ones they have come back to look at
+  const atFurthest = currentIdx >= furthestIdx;
+  const canGoBack = oneWay && rules.allowBack;
+  const lookingBack = oneWay && Boolean(question) && !atFurthest;
+  // Whether a question can be opened from the summary: any of them, or with one-way navigation
+  // only when going back is allowed
+  const canOpenFromSummary = !oneWay || canGoBack;
+  // A question needs an answer before the next opens, unless its time ran out first
+  const mustAnswer = oneWay && atFurthest && !hasAnswer && !(question && clock.isLocked(question));
+
+  function navStatus(item, index) {
     if (result) return { result: result.of(item)?.isCorrect ? 'correct' : 'wrong' };
-    return { done: Boolean(answers[idOf(item)]), locked: clock.isLocked(item) };
+    return {
+      done: Boolean(answers[idOf(item)]),
+      // Without going back, a question the taker has moved past is closed
+      locked: clock.isLocked(item) || (oneWay && !canGoBack && index < currentIdx),
+    };
   }
 
   return (
@@ -147,33 +177,80 @@ export default function ExamTakingView({
             rules={rules}
             clock={clock}
             mark={result ? result.of(question) : null}
+            submitted={lookingBack}
             onZoomImage={onZoomImage}
+          />
+        )}
+        {onSummary && (
+          <SummarySheet
+            questions={questions}
+            answers={answers}
+            clock={clock}
+            onOpen={canOpenFromSummary ? onSelectQuestion : null}
+            canChange={!oneWay}
           />
         )}
 
         <nav className="mbep-navigator-wrap" aria-label="Questions">
+          {/* The way on, a whole block above the bubbles; two buttons share it half and half.
+              One way, a question's only way on is to submit its answer, and Previous is there
+              only when going back is allowed. The summary's button submits the exam. */}
+          {!(oneWay && onIntro) && (
+            <div className="mbep-step-actions">
+              <div className="mbep-step-buttons">
+                {(!oneWay || canGoBack) && (
+                  <button
+                    type="button"
+                    className="mbep-btn-nav"
+                    onClick={() => onSelectQuestion(currentIdx - 1)}
+                    disabled={currentIdx <= (oneWay ? 0 : firstIdx)}
+                  >
+                    ← Previous
+                  </button>
+                )}
+                {onSummary ? (
+                  <button type="button" className="mbep-btn-nav is-forward" onClick={() => onSubmitExam?.()}>
+                    Submit Exam
+                  </button>
+                ) : oneWay && atFurthest ? (
+                  <button type="button" className="mbep-btn-nav is-forward" onClick={() => onSubmitQuestion?.()} disabled={mustAnswer}>
+                    Submit Answer →
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={`mbep-btn-nav${oneWay ? ' is-forward' : ''}`}
+                    onClick={() => onSelectQuestion(currentIdx + 1)}
+                    disabled={currentIdx >= lastIdx}
+                  >
+                    Next →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mbep-nav-bar">
             <QuestionNavBubbles
               questions={questions}
               currentIdx={currentIdx}
               onSelect={onSelectQuestion}
               getStatus={navStatus}
+              canSelect={oneWay ? (index) => canGoBack && index >= 0 && index <= furthestIdx : null}
+              lockedLabel={oneWay && !canGoBack ? 'closed' : 'time is up'}
               intro={intro ? {
                 active: onIntro,
                 onSelect: () => onSelectQuestion(INTRO_INDEX),
                 ariaLabel: 'Introduction: the exam\'s description and instructions',
               } : null}
+              outro={result ? null : {
+                active: onSummary,
+                onSelect: () => onSelectQuestion(questions.length),
+                label: CHECK_ICON,
+                ariaLabel: 'Summary: your answers, and the Submit Exam button',
+              }}
             />
-            <NavLegend marked={Boolean(result)} timed={rules.usesQuestionTimer} />
-          </div>
-
-          <div className="mbep-nav-actions">
-            <button type="button" className="mbep-btn-nav" onClick={() => onSelectQuestion(Math.max(firstIdx, currentIdx - 1))} disabled={currentIdx <= firstIdx}>
-              ← Previous
-            </button>
-            <button type="button" className="mbep-btn-nav" onClick={() => onSelectQuestion(Math.min(questions.length - 1, currentIdx + 1))} disabled={currentIdx >= questions.length - 1}>
-              Next →
-            </button>
+            <NavLegend marked={Boolean(result)} timed={rules.usesQuestionTimer} oneWay={oneWay} closes={oneWay && !canGoBack} />
           </div>
         </nav>
       </main>
@@ -225,6 +302,7 @@ function IntroSheet({ intro, questionCount, rules, examSeconds, clockStarted, ma
           {rules.usesCustomPoints && <li>{POINTS_RULE_ICON} {plural(rules.totalPoints, 'point')}</li>}
           <li>{TIMER_RULE_ICON} {examSeconds > 0 ? `${formatDuration(examSeconds)} in all` : 'No time limit'}</li>
           {rules.usesQuestionTimer && <li>{TIMER_RULE_ICON} Each question has its own time</li>}
+          {rules.oneWay && <li>{ONE_WAY_RULE_ICON} One question at a time, {rules.allowBack ? 'no skipping ahead' : 'no going back'}</li>}
           {Number.isFinite(threshold) && <li>{CHECK_ICON} Passing is {threshold}%</li>}
         </ul>
 
@@ -243,7 +321,27 @@ function IntroSheet({ intro, questionCount, rules, examSeconds, clockStarted, ma
         {!description && !instructions && (
           <p className="mbep-intro-empty">This exam has no description or instructions.</p>
         )}
-        {rules.usesQuestionTimer && (
+        {rules.oneWay && (
+          <section className="mbep-intro-section">
+            <h3>One question at a time</h3>
+            <p>
+              The questions come in order, one at a time. Submit your answer to get the next question;
+              every question needs an answer before you can go on.
+              {' '}
+              {rules.allowBack
+                ? "You can go back to look at the questions you have already answered, but you can't change them, and you can't skip ahead."
+                : "You can't go back to a question after you submit it."}
+              {' '}
+              So check your answer before you submit it.
+              {rules.usesQuestionTimer
+                ? ' Each question has its own time, shown beside it. At 0:00 it is submitted with the answer you picked, and the next question opens.'
+                : ''}
+              {' '}
+              After the last question you get a summary of your answers, with the Submit Exam button.
+            </p>
+          </section>
+        )}
+        {rules.usesQuestionTimer && !rules.oneWay && (
           <section className="mbep-intro-section">
             <h3>Question timers</h3>
             <p>
@@ -267,13 +365,14 @@ function IntroSheet({ intro, questionCount, rules, examSeconds, clockStarted, ma
   );
 }
 
-function QuestionSheet({ question, number, count, setRange, selectedId, onAnswer, rules, clock, mark, onZoomImage }) {
+// submitted: a question gone back to with one-way navigation, which can be read but not changed
+function QuestionSheet({ question, number, count, setRange, selectedId, onAnswer, rules, clock, mark, submitted = false, onZoomImage }) {
   const { points, seconds } = rules.of(question);
   const left = clock.questionLeft(question);
   const locked = clock.isLocked(question);
-  const timed = seconds !== null && !mark;
+  const timed = seconds !== null && !mark && !submitted;
   const low = timed && !locked && questionTimeIsLow(left, seconds);
-  const canAnswer = !mark && !locked;
+  const canAnswer = !mark && !locked && !submitted;
 
   let markClass = '';
   let markText = '';
@@ -336,6 +435,12 @@ function QuestionSheet({ question, number, count, setRange, selectedId, onAnswer
       )}
 
       <div className="mbep-card-body">
+        {submitted && !mark && !locked && (
+          <p className="mbep-locked-note">
+            {LOCK_ICON}
+            <span>You submitted this answer. You can look at it, but it can't be changed.</span>
+          </p>
+        )}
         {locked && !mark && (
           <p className="mbep-locked-note">
             {LOCK_ICON}
@@ -418,12 +523,92 @@ function QuestionSheet({ question, number, count, setRange, selectedId, onAnswer
   );
 }
 
+// The last stop: every question's number and the answer picked for it, before the exam is
+// submitted. onOpen(index) opens a question from its row; canChange says whether it can still
+// be answered there.
+function SummarySheet({ questions, answers, clock, onOpen, canChange }) {
+  const rows = questions.map((item, index) => {
+    const picked = (item.answers || []).find((answer) => String(answer._id) === String(answers[idOf(item)]));
+    return { item, index, picked, locked: clock.isLocked(item) };
+  });
+  const answeredCount = rows.filter((row) => row.picked).length;
+  const blankCount = rows.length - answeredCount;
+
+  return (
+    <article className="mbep-card mbep-sheet mbep-summary" aria-labelledby="mbep-sheet-heading">
+      <header className="mbep-sheet-top">
+        <div className="mbep-sheet-title">
+          <h2 id="mbep-sheet-heading" className="mbep-sheet-number">Your Answers</h2>
+        </div>
+      </header>
+
+      <div className="mbep-card-body">
+        <ul className="mbep-facts" aria-label="How many are answered">
+          <li>{CHECK_ICON} {answeredCount} of {rows.length} answered</li>
+          {blankCount > 0 && <li>{QUESTIONS_ICON} {blankCount} not answered</li>}
+        </ul>
+        <p className="mbep-summary-note">
+          {blankCount > 0
+            ? `${plural(blankCount, 'question')} ${blankCount === 1 ? 'has' : 'have'} no answer.`
+            : 'Every question has an answer.'}
+          {' '}
+          {onOpen
+            ? (canChange ? 'Pick a number to go back and change its answer.' : "Pick a number to look at that question; its answer can't be changed.")
+            : "Answers can't be changed now."}
+          {' '}
+          Submit Exam is below, and nothing can be changed after it.
+        </p>
+
+        <ol className="mbep-summary-list">
+          {rows.map(({ item, index, picked, locked }) => {
+            const body = (
+              <>
+                <span className="mbep-summary-number">{index + 1}</span>
+                {picked ? (
+                  <span className="mbep-summary-answer">
+                    <strong>{picked.optionLabel}</strong>
+                    <SafeHtml html={truncateHtml(picked.text || '', 70)} fallback="Picture answer" />
+                  </span>
+                ) : (
+                  <span className="mbep-summary-answer is-blank">No answer</span>
+                )}
+                {locked && <span className="mbep-summary-lock" title="Time's up">{LOCK_ICON}</span>}
+              </>
+            );
+            const className = `mbep-summary-row${picked ? '' : ' is-blank'}`;
+            return (
+              <li key={idOf(item)}>
+                {onOpen ? (
+                  <button
+                    type="button"
+                    className={`${className} is-link`}
+                    onClick={() => onOpen(index)}
+                    aria-label={`Question ${index + 1}: ${picked ? `answer ${picked.optionLabel}` : 'no answer'}. Open it.`}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <div className={className}>{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </article>
+  );
+}
+
 // What the bubbles' looks mean, shown once there is more to them than answered or not
-function NavLegend({ marked, timed }) {
-  if (!marked && !timed) return null;
-  const items = marked
-    ? [['is-correct', 'Correct'], ['is-wrong', 'Wrong or blank']]
-    : [['is-done', 'Answered'], ['', 'Not answered'], ['is-locked', "Time's up"]];
+function NavLegend({ marked, timed, oneWay, closes }) {
+  if (!marked && !timed && !oneWay) return null;
+  let items = [['is-correct', 'Correct'], ['is-wrong', 'Wrong or blank']];
+  if (!marked) {
+    items = [['is-done', 'Answered'], ['', 'Not answered']];
+    // The lock: a question left behind for good, or one whose time ran out
+    if (closes) items.push(['is-locked', 'Closed']);
+    else if (timed) items.push(['is-locked', "Time's up"]);
+  }
   return (
     <ul className="mbep-nav-legend" aria-hidden="true">
       {items.map(([tone, label]) => (

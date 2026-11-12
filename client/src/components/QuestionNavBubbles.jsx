@@ -25,6 +25,12 @@ import { LOCK_ICON } from './ExamRuleIcons.jsx';
 // - intro: { active, onSelect, label = '0', ariaLabel = 'Introduction' } adds a
 //   bubble before question 1 for an introduction (an exam's description and
 //   instructions)
+// - outro: { active, onSelect, label, ariaLabel } adds a bubble after the last question, for
+//   an exam's summary; to canSelect it is index questions.length
+// - canSelect(index) → whether a bubble can be clicked; the introduction is index -1. Leave it
+//   out and they all can. An exam with one-way navigation uses it: its bubbles show where the
+//   taker is, and only the questions they may return to can be opened.
+// - lockedLabel: what a locked question is read out as
 // - getSetKey(question) → the set a question belongs to, or null; defaults to
 //   its groupId
 
@@ -66,7 +72,11 @@ export default function QuestionNavBubbles({
   getSetKey = defaultSetKey,
   className = '',
   intro = null,
+  outro = null,
+  canSelect = null,
+  lockedLabel = 'time is up',
 }) {
+  const selectable = (index) => (typeof canSelect === 'function' ? Boolean(canSelect(index)) : true);
   const statuses = questions.map((question, index) => {
     const status = typeof getStatus === 'function' ? getStatus(question, index) : null;
     return {
@@ -83,7 +93,7 @@ export default function QuestionNavBubbles({
     const parts = [`Question ${index + 1}`];
     if (result) parts.push(result);
     else if (done) parts.push(doneLabel);
-    if (locked) parts.push('time is up');
+    if (locked) parts.push(lockedLabel);
     return parts.join(', ');
   }
 
@@ -103,7 +113,9 @@ export default function QuestionNavBubbles({
         key={index}
         type="button"
         className={className}
-        onClick={() => onSelect?.(index)}
+        onClick={selectable(index) ? () => onSelect?.(index) : undefined}
+        aria-disabled={!selectable(index) || undefined}
+        tabIndex={selectable(index) ? undefined : -1}
         aria-label={describe(index)}
         aria-current={isActive ? 'step' : undefined}
       >
@@ -120,7 +132,9 @@ export default function QuestionNavBubbles({
         <button
           type="button"
           className={`qnb-circle qnb-intro${intro.active ? ' is-active' : ''}`}
-          onClick={() => intro.onSelect?.()}
+          onClick={selectable(-1) ? () => intro.onSelect?.() : undefined}
+          aria-disabled={!selectable(-1) || undefined}
+          tabIndex={selectable(-1) ? undefined : -1}
           aria-label={intro.ariaLabel || 'Introduction'}
           aria-current={intro.active ? 'step' : undefined}
           title={intro.ariaLabel || 'Introduction'}
@@ -148,6 +162,20 @@ export default function QuestionNavBubbles({
           </div>
         );
       })}
+      {outro && (
+        <button
+          type="button"
+          className={`qnb-circle qnb-outro${outro.active ? ' is-active' : ''}`}
+          onClick={selectable(questions.length) ? () => outro.onSelect?.() : undefined}
+          aria-disabled={!selectable(questions.length) || undefined}
+          tabIndex={selectable(questions.length) ? undefined : -1}
+          aria-label={outro.ariaLabel || 'Summary'}
+          aria-current={outro.active ? 'step' : undefined}
+          title={outro.ariaLabel || 'Summary'}
+        >
+          {outro.label ?? '✓'}
+        </button>
+      )}
     </div>
   );
 }

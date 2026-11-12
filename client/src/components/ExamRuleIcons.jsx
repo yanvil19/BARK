@@ -13,6 +13,8 @@ export const TIMER_RULE_ICON = ruleIcon(
     <path d="M12 10v3.5l2.5 2M9.5 2.5h5M12 2.5V6" />
   </>
 );
+// One-way navigation: forward only, up to a wall
+export const ONE_WAY_RULE_ICON = ruleIcon(<path d="M3 12h12M10.5 7l5 5-5 5M20.5 5v14" />);
 // Drops a question's own value
 export const RESET_ICON = ruleIcon(<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4v4.5H8" />, 13);
 // The list icon the student and alumni exam lists show beside a question count

@@ -1,5 +1,6 @@
 // Points and time per question in an exam. The exam form sends them, and the exam keeps them,
 // one entry per question, because the same question can be worth more in one exam than in another.
+// One-way navigation is read here too; it is one switch for the whole exam.
 
 const POINTS_MIN = 1;
 const POINTS_MAX = 100;
@@ -25,6 +26,8 @@ function parseQuestionSettings(body, questionIds) {
   const scoringMode = body.scoringMode === 'custom' ? 'custom' : 'equal';
   const questionTimerEnabled = Boolean(body.questionTimerEnabled);
   const usesCustomPoints = scoringMode === 'custom';
+  const oneWayNavigation = Boolean(body.oneWayNavigation);
+  const oneWayBackAllowed = Boolean(body.oneWayBackAllowed);
 
   const defaultPointsValid = isWholeNumberInRange(body.defaultQuestionPoints, POINTS_MIN, POINTS_MAX);
   const defaultSecondsValid = isWholeNumberInRange(body.defaultQuestionSeconds, SECONDS_MIN, SECONDS_MAX);
@@ -61,7 +64,15 @@ function parseQuestionSettings(body, questionIds) {
 
   return {
     errors,
-    settings: { scoringMode, defaultQuestionPoints, questionTimerEnabled, defaultQuestionSeconds, itemSettings },
+    settings: {
+      scoringMode,
+      defaultQuestionPoints,
+      questionTimerEnabled,
+      defaultQuestionSeconds,
+      oneWayNavigation,
+      oneWayBackAllowed,
+      itemSettings,
+    },
     totalSeconds,
   };
 }

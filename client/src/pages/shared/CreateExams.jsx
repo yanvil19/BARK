@@ -26,7 +26,7 @@ import '../../styles/shared/CreateExams.css';
 // After the form's styles. Its own (MockBoardExamPreview.css) share no selectors with any other file,
 // so loading them here moves nothing in the cascade.
 import MockBoardExamTestRun from './BoardExamTestRun.jsx';
-import { POINTS_RULE_ICON, QUESTIONS_ICON, RESET_ICON, TIMER_RULE_ICON } from '../../components/ExamRuleIcons.jsx';
+import { ONE_WAY_RULE_ICON, POINTS_RULE_ICON, QUESTIONS_ICON, RESET_ICON, TIMER_RULE_ICON } from '../../components/ExamRuleIcons.jsx';
 import SetMemberRows from '../../components/SetMemberRows.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
@@ -48,6 +48,9 @@ const EMPTY_EXAM_FORM = {
   defaultQuestionPoints: 1,
   questionTimerEnabled: false,
   defaultQuestionSeconds: 120,
+  // One question at a time, each answered before the next; the second lets takers go back
+  oneWayNavigation: false,
+  oneWayBackAllowed: false,
 };
 
 // The server's limits for a question's points and time
@@ -538,6 +541,7 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
   // ─── Question settings: each selected question's points and time ──────────
   const usesCustomPoints = form.scoringMode === 'custom';
   const usesQuestionTimer = Boolean(form.questionTimerEnabled);
+  const usesOneWay = Boolean(form.oneWayNavigation);
   const questionSettings = useMemo(() => selectedQuestions.map((question) => {
     const id = String(question._id);
     const resolved = resolveQuestionSettings(id, form, itemOverrides);
@@ -720,6 +724,8 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
           defaultQuestionPoints: exam.defaultQuestionPoints ?? EMPTY_EXAM_FORM.defaultQuestionPoints,
           questionTimerEnabled: Boolean(exam.questionTimerEnabled),
           defaultQuestionSeconds: exam.defaultQuestionSeconds ?? EMPTY_EXAM_FORM.defaultQuestionSeconds,
+          oneWayNavigation: Boolean(exam.oneWayNavigation),
+          oneWayBackAllowed: Boolean(exam.oneWayBackAllowed),
         };
         // The exam keeps every question's points and time; those that differ from the defaults are their own
         const nextOverrides = {};
@@ -1265,6 +1271,8 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
         defaultQuestionPoints: form.defaultQuestionPoints,
         questionTimerEnabled: usesQuestionTimer,
         defaultQuestionSeconds: form.defaultQuestionSeconds,
+        oneWayNavigation: usesOneWay,
+        oneWayBackAllowed: Boolean(form.oneWayBackAllowed),
         // Every question's points and time, kept even while a setting is off so turning it back on restores them
         itemSettings: questionSettings.map((setting) => ({
           question: setting.id,
@@ -1384,6 +1392,8 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
       defaultQuestionPoints: Number(form.defaultQuestionPoints),
       questionTimerEnabled: usesQuestionTimer,
       defaultQuestionSeconds: form.defaultQuestionSeconds,
+      oneWayNavigation: usesOneWay,
+      oneWayBackAllowed: Boolean(form.oneWayBackAllowed),
       itemSettings: questionSettings.map((setting) => ({
         question: setting.id,
         points: Number(setting.points),
@@ -2204,7 +2214,7 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                   <div className="mbe-section-heading">
                     <div>
                       <h2>Question Settings</h2>
-                      <p>Set how many points each question is worth and how long students get to answer it.</p>
+                      <p>Set how many points each question is worth, how long students get to answer it, and whether they can go back.</p>
                     </div>
                   </div>
 
@@ -2332,6 +2342,46 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                           </>
                         ) : (
                           <p className="mbe-rule-off">Off: questions have no time limit of their own.</p>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className={`mbe-rule mbe-rule--wide${usesOneWay ? ' is-on' : ''}`} aria-labelledby="mbe-settings-one-way-title">
+                      <div className="mbe-rule-head">
+                        <span className="mbe-rule-icon" aria-hidden="true">{ONE_WAY_RULE_ICON}</span>
+                        <div className="mbe-rule-heading">
+                          <h3 id="mbe-settings-one-way-title" className="mbe-rule-title">One-Way Navigation</h3>
+                          <p className="mbe-rule-desc">Whether {isAlumniExam ? 'alumni' : 'students'} can move between questions</p>
+                        </div>
+                        <RuleSwitch
+                          checked={usesOneWay}
+                          onChange={(checked) => setForm((prev) => ({ ...prev, oneWayNavigation: checked }))}
+                          label="One question at a time, with no going back"
+                        />
+                      </div>
+                      <div className="mbe-rule-body">
+                        {usesOneWay ? (
+                          <>
+                            <p className="mbe-settings-meta">
+                              Questions come one at a time, in order. {isAlumniExam ? 'An alumnus' : 'A student'} must
+                              answer the open question to get the next one, can't skip ahead, and
+                              {form.oneWayBackAllowed ? " can't change an answer once it is submitted." : " can't go back to a question once it is submitted."}
+                              {usesQuestionTimer ? ' A question whose time runs out is submitted with the answer picked.' : ''}
+                            </p>
+                            <label className="mbe-rule-check">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(form.oneWayBackAllowed)}
+                                onChange={(e) => setForm((prev) => ({ ...prev, oneWayBackAllowed: e.target.checked }))}
+                              />
+                              <span>
+                                <strong>Allow going back</strong>
+                                <span>Questions already answered can be reopened to look at, but not changed. The ones not reached yet stay locked.</span>
+                              </span>
+                            </label>
+                          </>
+                        ) : (
+                          <p className="mbe-rule-off">Off: questions can be answered in any order and changed until the exam is submitted.</p>
                         )}
                       </div>
                     </section>
@@ -2715,6 +2765,15 @@ export function ExamForm({ me, examId = '', variant = 'page', onSaved, onCancel,
                 <p className="mbe-review-value">
                   {usesQuestionTimer
                     ? `On — ${formatDurationFromSeconds(totalQuestionSeconds) || 'no questions yet'} in all`
+                    : 'Off'}
+                </p>
+              </div>
+
+              <div className="mbe-review-block">
+                <p className="mbe-review-label">One-Way Navigation</p>
+                <p className="mbe-review-value">
+                  {usesOneWay
+                    ? `On — one question at a time, ${form.oneWayBackAllowed ? 'going back to look allowed' : 'no going back'}`
                     : 'Off'}
                 </p>
               </div>

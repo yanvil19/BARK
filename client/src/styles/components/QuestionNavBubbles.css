@@ -76,7 +76,8 @@
 }
 
 /* The introduction before question 1 (an exam's description and instructions) */
-.qnb-intro:not(.is-active) {
+.qnb-intro:not(.is-active),
+.qnb-outro:not(.is-active) {
   border-style: dashed;
   color: #5a63a8;
 }
@@ -196,4 +197,17 @@
   width: 9px;
   height: 9px;
   stroke-width: 3;
+}
+
+/* A bubble that can't be opened (one-way navigation): it shows progress, with nothing to click or hover */
+.qnb-bar button[aria-disabled="true"] {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* The bubble after the last question (an exam's summary): an icon in place of a number */
+.qnb-outro svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.6;
 }

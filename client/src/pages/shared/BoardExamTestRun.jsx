@@ -20,7 +20,8 @@ const NOTICE_MS = 6000;
 // It runs a saved exam (examId), or one not saved yet (draftExam), such as the Create Exam page's:
 // its name, program, description, instructions, durationMinutes, passingThreshold, questions,
 // and the points and time
-// settings as the server keeps them (scoringMode, questionTimerEnabled, itemSettings, ...).
+// settings as the server keeps them (scoringMode, questionTimerEnabled, oneWayNavigation,
+// itemSettings, ...).
 export default function MockBoardExamTestRun({ examId, draftExam = null, onBack }) {
   // App clears its exam id as soon as this page opens (it keeps one only for its exam runner),
   // so hold on to the id the page was opened with
@@ -77,6 +78,9 @@ function TestRunSession({ exam, isDraft, onRestart, onBack }) {
 
   // It opens on the introduction; the clocks start when the taker first opens a question
   const [currentIdx, setCurrentIdx] = useState(INTRO_INDEX);
+  // One-way navigation: the last stop reached (a question, or the summary after them all),
+  // which nothing but answering moves on
+  const [furthestIdx, setFurthestIdx] = useState(0);
   const [started, setStarted] = useState(false);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -89,7 +93,11 @@ function TestRunSession({ exam, isDraft, onRestart, onBack }) {
   const clockRef = useRef(null);
   const clock = useExamClock({
     questions,
-    openQuestionId: submitted || !currentQuestion ? null : String(currentQuestion._id),
+    // No question's time runs on the introduction, on the summary, or (one way) on a question
+    // gone back to, which is only there to be looked at
+    openQuestionId: submitted || !currentQuestion || (rules.oneWay && currentIdx < furthestIdx)
+      ? null
+      : String(currentQuestion._id),
     examSeconds,
     secondsFor: (question) => rules.of(question).seconds,
     running: started && !submitted,
@@ -113,6 +121,18 @@ function TestRunSession({ exam, isDraft, onRestart, onBack }) {
   function handleQuestionTimeUp(questionId) {
     if (submitted) return;
     const index = questions.findIndex((question) => String(question._id) === questionId);
+    // One way: only the question reached has time running; it is submitted and the next opens
+    if (rules.oneWay) {
+      if (index !== currentIdx) return;
+      if (index >= questions.length - 1) {
+        finishOnTime("The last question's time is up, so your answers were submitted.");
+        return;
+      }
+      setCurrentIdx(index + 1);
+      setFurthestIdx((furthest) => Math.max(furthest, index + 1));
+      setNotice(`Time's up for question ${index + 1}. ${answers[questionId] ? 'Its answer was submitted' : 'It was left blank'}, and question ${index + 2} is open.`);
+      return;
+    }
     const next = nextOpenQuestion(questions, index, clockRef.current.isLocked);
     if (next === -1) {
       finishOnTime("Every question's time is up, so your answers were submitted.");
@@ -137,13 +157,34 @@ function TestRunSession({ exam, isDraft, onRestart, onBack }) {
     window.scrollTo(0, 0);
   }
 
+  // index: a question, INTRO_INDEX, or questions.length for the summary
   function openQuestion(index) {
+    // One way: the introduction's button starts question 1. After that the only jumps are back
+    // and forth through the stops already reached, when the exam allows going back.
+    if (rules.oneWay && !submitted) {
+      const starting = currentIdx === INTRO_INDEX && index === 0;
+      const returning = rules.allowBack && currentIdx >= 0 && index >= 0 && index <= furthestIdx;
+      if (!starting && !returning) return;
+    }
     setCurrentIdx(index);
     if (index >= 0) setStarted(true);
   }
 
+  // One way: the next stop opens once the question reached is answered; after the last
+  // question that is the summary, where the exam is submitted
+  function submitQuestion() {
+    if (submitted || !currentQuestion || currentIdx < furthestIdx) return;
+    const questionId = String(currentQuestion._id);
+    if (!answers[questionId] && !clockRef.current.isLocked(questionId)) return;
+    setCurrentIdx(currentIdx + 1);
+    setFurthestIdx(currentIdx + 1);
+    window.scrollTo(0, 0);
+  }
+
   function handleAnswer(questionId, answerId) {
     if (submitted || clockRef.current.isLocked(questionId)) return;
+    // One way: an answer is final once its question is submitted
+    if (rules.oneWay && currentIdx < furthestIdx) return;
     setAnswers((prev) => ({ ...prev, [questionId]: answerId }));
   }
 
@@ -206,6 +247,9 @@ function TestRunSession({ exam, isDraft, onRestart, onBack }) {
           passingThreshold: exam.passingThreshold,
         }}
         clockStarted={started}
+        onSubmitQuestion={submitQuestion}
+        onSubmitExam={() => setShowSubmitConfirm(true)}
+        furthestIdx={furthestIdx}
       />
 
       {zoomedImage && <ImageZoom src={zoomedImage} onClose={() => setZoomedImage(null)} />}

@@ -334,7 +334,7 @@
 .qp-btn-edit {
   background: #ffffff;
   border: 1px solid #d1d5db;
-  color: #374151;
+  color: var(--primary-bg);
 }
 
 .qp-btn-edit:hover {

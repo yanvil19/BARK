@@ -203,7 +203,7 @@
 .mbep-option-text {
   font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: var(--primary-bg);
 }
 
 /* Correct Answer (Green Effect) */
@@ -746,7 +746,7 @@
   border: 1px solid rgba(53, 64, 142, 0.14);
   border-radius: 999px;
   background: #fff;
-  color: #374151;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 12px;
   font-weight: 700;
@@ -990,7 +990,7 @@
   padding: 11px 14px;
   border-radius: 10px;
   background: #f3f4f6;
-  color: #374151;
+  color: var(--primary-bg);
   font-size: 14px;
   font-weight: 600;
 }
@@ -1167,4 +1167,158 @@
   .mbep-result-score strong {
     font-size: 24px;
   }
+}
+/* ── The way on ──────────────────────────────────────────────
+   Previous, Next, Submit Answer and Submit Exam: one block above the bubbles. A lone button
+   fills it; two share it half and half. */
+.mbep-step-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.mbep-step-actions + .mbep-nav-bar {
+  margin-top: 12px;
+}
+
+.mbep-step-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.mbep-step-buttons .mbep-btn-nav {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 14px 16px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.mbep-step-buttons .mbep-btn-nav.is-forward {
+  border-color: var(--primary-bg);
+  background: var(--primary-bg);
+  color: #ffffff;
+}
+
+.mbep-step-buttons .mbep-btn-nav.is-forward:hover:not(:disabled) {
+  background: #2a3373;
+  color: #ffffff;
+}
+
+/* ── Summary (the last bubble) ───────────────────────────────
+   Each question's number and the answer picked for it */
+.mbep-summary .mbep-facts {
+  margin-bottom: 12px;
+}
+
+.mbep-summary-note {
+  margin: 0 0 18px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mbep-summary-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mbep-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid rgba(53, 64, 142, 0.14);
+  border-radius: 10px;
+  background: #f5f7ff;
+  color: #1a1f4b;
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: left;
+}
+
+.mbep-summary-row.is-blank {
+  border-style: dashed;
+  background: #fff;
+}
+
+.mbep-summary-row.is-link {
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.mbep-summary-row.is-link:hover {
+  border-color: var(--primary-bg);
+  background: #eef0fb;
+}
+
+.mbep-summary-number {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mbep-summary-row.is-blank .mbep-summary-number {
+  background: #fff;
+  border: 1.5px solid rgba(53, 64, 142, 0.25);
+  color: #5a63a8;
+}
+
+.mbep-summary-answer {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mbep-summary-answer strong {
+  flex-shrink: 0;
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+}
+
+.mbep-summary-answer > :not(strong) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mbep-summary-answer p {
+  display: inline;
+  margin: 0;
+}
+
+.mbep-summary-answer.is-blank {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.mbep-summary-lock {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.mbep-summary-lock svg {
+  width: 14px;
+  height: 14px;
 }
