@@ -2,7 +2,7 @@
 // The site is static: Vite builds it into dist/, and Cloudflare serves those files.
 {
   // Must match the Worker's name in the Cloudflare dashboard
-  "name": "bark",
+  "name": "nubark",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./dist/",
