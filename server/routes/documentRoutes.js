@@ -6,6 +6,7 @@ const {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  downloadDocument,
 } = require('../controllers/documentController');
 const {
   ALLOWED_MIME_TYPES,
@@ -62,6 +63,14 @@ router.post(
     });
   },
   uploadDocument
+);
+
+// GET /api/documents/:id/download - Protected download with original filename
+router.get(
+  '/:id/download',
+  protect,
+  authorizeRoles('dean', 'program_chair', 'student', 'alumni', 'super_admin', 'professor'),
+  downloadDocument
 );
 
 // DELETE /api/documents/:id - Delete document (dean and program_chair only)

@@ -3,6 +3,7 @@ const path = require('path');
 const {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
 } = require('@aws-sdk/client-s3');
 
@@ -99,6 +100,23 @@ async function uploadDocumentToR2(file, uploaderId) {
 }
 
 /**
+ * Gets a document object stream from R2 bucket
+ */
+async function getDocumentStreamFromR2(storageKey) {
+  if (!isDocumentStorageConfigured()) {
+    throw new Error('R2 document storage is not properly configured.');
+  }
+
+  const bucketName = process.env.R2_DOCUMENTS_BUCKET_NAME;
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: storageKey,
+  });
+
+  return await r2Documents.send(command);
+}
+
+/**
  * Deletes a document object from R2 bucket
  */
 async function deleteDocumentFromR2(storageKey) {
@@ -120,6 +138,7 @@ module.exports = {
   EXTENSION_MAP,
   isDocumentStorageConfigured,
   uploadDocumentToR2,
+  getDocumentStreamFromR2,
   deleteDocumentFromR2,
   getDocumentPublicBaseUrl,
 };

@@ -7,6 +7,7 @@ const {
   EXTENSION_MAP,
   isDocumentStorageConfigured,
   uploadDocumentToR2,
+  getDocumentStreamFromR2,
   deleteDocumentFromR2,
 } = require('../services/documentStorageService');
 const { getAccessibleProgramIds } = require('../utils/programAccess');
@@ -286,10 +287,82 @@ async function deleteDocument(req, res) {
   }
 }
 
+/**
+ * Download a document with its original human-readable filename streamed from Cloudflare R2
+ * GET /api/documents/:id/download
+ */
+async function downloadDocument(req, res) {
+  try {
+    const { id } = req.params;
+    const document = await Document.findById(id);
+
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    // Role-based program access check for downloads
+    const userRole = req.user.role;
+    if (userRole === 'student' || userRole === 'alumni') {
+      let userProgramCode = null;
+      if (req.user.program) {
+        userProgramCode = await resolveProgramCode(req.user.program);
+      }
+      if (document.program !== 'GENERAL' && document.program !== userProgramCode) {
+        return res.status(403).json({ message: 'Access denied: You do not have access to this document.' });
+      }
+    } else if (userRole === 'program_chair') {
+      const chairProgramCode = await resolveProgramCode(req.user.program);
+      if (document.program !== 'GENERAL' && document.program !== chairProgramCode) {
+        return res.status(403).json({ message: 'Access denied: You do not have access to this document.' });
+      }
+    } else if (userRole === 'dean') {
+      const accessibleCodes = await getAccessibleProgramCodes(req.user);
+      if (document.program !== 'GENERAL' && !accessibleCodes.includes(document.program)) {
+        return res.status(403).json({ message: 'Access denied: You do not have access to this document.' });
+      }
+    }
+
+    // Fetch object stream from R2
+    const s3Response = await getDocumentStreamFromR2(document.storageKey);
+
+    // Encode filename for Content-Disposition (handling spaces and non-ASCII chars)
+    const originalFilename = document.originalFilename || 'document';
+    const safeFilename = originalFilename.replace(/["\r\n]/g, '_');
+    const encodedFilename = encodeURIComponent(originalFilename);
+
+    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`
+    );
+
+    if (document.fileSize) {
+      res.setHeader('Content-Length', document.fileSize);
+    }
+
+    // Stream the R2 object body directly to client response
+    if (s3Response.Body && typeof s3Response.Body.pipe === 'function') {
+      s3Response.Body.pipe(res);
+    } else if (s3Response.Body && typeof s3Response.Body.transformToByteArray === 'function') {
+      // In newer AWS SDK versions or edge environments where Body is a stream wrapper
+      const bytes = await s3Response.Body.transformToByteArray();
+      return res.send(Buffer.from(bytes));
+    } else {
+      return res.status(500).json({ message: 'Failed to stream document content.' });
+    }
+  } catch (err) {
+    console.error('Failed to download document:', err);
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Failed to download document.' });
+    }
+  }
+}
+
 module.exports = {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  downloadDocument,
   resolveProgramCode,
   getAccessibleProgramCodes,
 };

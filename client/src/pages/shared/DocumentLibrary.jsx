@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiAuth } from '../../lib/api.js';
+import { apiAuth, apiAuthDownload } from '../../lib/api.js';
 import Table from '../../components/Table.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -102,6 +102,19 @@ export default function DocumentLibrary({ me }) {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownload = async (doc) => {
+    try {
+      setDownloadingId(doc._id);
+      await apiAuthDownload(`/api/documents/${doc._id}/download`, doc.originalFilename);
+    } catch (err) {
+      alert(err.message || 'Failed to download document.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const userProgramLabel = me?.program?.name || (me?.program?.code ? `${me.program.code}` : 'Your Degree Program');
 
   const columns = [
@@ -158,16 +171,15 @@ export default function DocumentLibrary({ me }) {
       className: 'ui-table-actions-cell',
       headerClassName: 'ui-table-th-actions',
       render: (row) => (
-        <a
-          href={row.publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          download={row.originalFilename}
+        <button
+          type="button"
           className="doc-btn-download"
+          onClick={() => handleDownload(row)}
+          disabled={downloadingId === row._id}
           title="Download Document"
         >
-          Download
-        </a>
+          {downloadingId === row._id ? 'Downloading...' : 'Download'}
+        </button>
       ),
     },
   ];
