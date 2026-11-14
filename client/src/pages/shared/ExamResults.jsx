@@ -11,6 +11,7 @@ import PanelHeader from '../../components/PanelHeader.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import QuestionStepper from '../../components/QuestionStepper.jsx';
 import { ExamStatePill, Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
+import ThresholdGap from '../../components/ThresholdGap.jsx';
 import TopicScoreRows from '../../components/TopicScoreRows.jsx';
 import { AudienceIcon } from '../../components/CalendarIcons.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -248,22 +249,6 @@ function getExamFacts(exam, report) {
       : { label: 'Last Computed', value: formatDateTime(report?.computedAt) },
     { label: 'Exam Status', value: <ExamStatePill status={exam.status} /> },
   ];
-}
-
-// How far the average is from the passing threshold, told by an arrow and words, not color alone
-function ThresholdGap({ average, threshold }) {
-  const gap = average - threshold;
-  if (gap === 0) return <span className="ca-stat-sub er-gap is-above">Right at the threshold</span>;
-
-  const isAbove = gap > 0;
-  return (
-    <span className={`ca-stat-sub er-gap ${isAbove ? 'is-above' : 'is-below'}`}>
-      <svg viewBox="0 0 12 12" aria-hidden="true">
-        <path d={isAbove ? 'M6 2 11 10H1z' : 'M6 10 1 2h10z'} fill="currentColor" />
-      </svg>
-      {Math.abs(gap)} {Math.abs(gap) === 1 ? 'pt' : 'pts'} {isAbove ? 'above' : 'below'} the threshold
-    </span>
-  );
 }
 
 // Takers per 10-point score range. A range's bar is split into the takers who passed and those
@@ -838,7 +823,7 @@ export default function ExamResults({ me }) {
             <div className="ca-stat">
               <span className="ca-stat-label">Average score</span>
               <strong className="ca-stat-value">{summary.overallAvg}%</strong>
-              <ThresholdGap average={summary.overallAvg} threshold={threshold} />
+              <ThresholdGap score={summary.overallAvg} threshold={threshold} />
             </div>
             <div className="ca-stat">
               <span className="ca-stat-label">Took the exam</span>

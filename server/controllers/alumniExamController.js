@@ -428,6 +428,7 @@ attemptPercentage(attempt, totalItems);
         id: attempt._id,
         examId: attempt.exam?._id,
         examName: attempt.exam?.name || 'Unknown Exam',
+        attemptNumber: attempt.attemptNumber,
         date: attempt.startTime,
         submittedAt: attempt.endTime,
         durationMinutes,

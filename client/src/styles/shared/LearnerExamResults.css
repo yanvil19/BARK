@@ -1,0 +1,120 @@
+/* A student's or an alumni's own Exam Results. The list, panel and motion come from
+   QuestionApprovals.css and the result parts from ExamResults.css; only what this page adds is
+   here. */
+
+/* ---------- Result markers on the exam cards ---------- */
+
+.lr-page .lr-result--passed {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.lr-page .lr-result--failed {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+.lr-page .lr-result--pending {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* ---------- Empty list ---------- */
+
+/* A quiet button under the message: try again, or clear the filters */
+.lr-page .lr-quiet-btn {
+  margin-top: 14px;
+  background: #fff;
+  color: var(--primary-bg);
+  border: 1px solid rgba(53, 64, 142, 0.35);
+}
+
+.lr-page .lr-quiet-btn:hover {
+  background: #eef1ff;
+  border-color: var(--primary-bg);
+}
+
+/* ---------- Panel ---------- */
+
+/* The panel's content is a column that scrolls. Its sections clip their corners, which would let
+   them shrink to nothing when the content is taller than the panel, so they keep their height. */
+.lr-page .ca-sidebar-content > * {
+  flex-shrink: 0;
+}
+
+/* Passed or Failed as a word beside the score, so the color is never the only cue */
+.lr-page .lr-verdict.is-passed {
+  color: #15803d;
+}
+
+.lr-page .lr-verdict.is-failed {
+  color: #b91c1c;
+}
+
+/* A result still waiting for its release date: the note sits above the details */
+.lr-page .lr-pending {
+  padding-bottom: 0;
+}
+
+/* An alumni's attempts, as a dropdown no wider than it needs */
+.lr-page .lr-attempt-select {
+  width: min(100%, 280px);
+}
+
+/* Above the bubbles: the attempts, and what the bubbles' colors mean */
+.lr-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.lr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lr-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* The bubbles' own colors (QuestionNavBubbles.css) */
+.lr-legend-dot {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #22c55e;
+  border-radius: 50%;
+  background: #dcfce7;
+}
+
+.lr-legend-dot.is-wrong {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Three numbers side by side get tight on a phone: the words shrink a little */
+@media (max-width: 480px) {
+  .lr-page .ca-stat {
+    padding: 12px 10px;
+  }
+
+  .lr-page .ca-stat-value {
+    font-size: 20px;
+  }
+}

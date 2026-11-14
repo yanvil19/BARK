@@ -10,7 +10,8 @@ import { groupQuestionsForDisplay } from '../lib/groupQuestionsForDisplay.js';
 //
 // renderAside goes in the bubbles' header bar and renderDetails below the question; both get the
 // question shown. getPanelProps(question) passes the result props of QuestionDetailPanels
-// (selectedAnswerId, answerCounts, unansweredCount). Keep questions stable between renders, since
+// (selectedAnswerId, answerCounts, unansweredCount). getResult(question) colors each bubble as
+// 'correct' or 'wrong', for one person's marked answers. Keep questions stable between renders, since
 // they are sorted and lettered here.
 export default function QuestionStepper({
   questions,
@@ -20,6 +21,7 @@ export default function QuestionStepper({
   renderAside,
   renderDetails,
   getPanelProps,
+  getResult,
 }) {
   const ordered = useMemo(() => (
     groupQuestionsForDisplay(questions.map((question) => organizeQuestionAnswers(question)))
@@ -43,6 +45,7 @@ export default function QuestionStepper({
         onSelectQuestion={onSelectQuestion}
         readOnly
         aside={renderAside?.(current)}
+        getResult={getResult}
       />
 
       {/* Keyed so moving between questions fades the next one in */}
