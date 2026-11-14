@@ -39,6 +39,12 @@ const documentSchema = new mongoose.Schema(
       required: [true, 'Public URL is required'],
       trim: true,
     },
+    program: {
+      type: String,
+      required: [true, 'Program is required'],
+      trim: true,
+      index: true,
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -51,6 +57,7 @@ const documentSchema = new mongoose.Schema(
   }
 );
 
+documentSchema.index({ program: 1, createdAt: -1 });
 documentSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Document', documentSchema);

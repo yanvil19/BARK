@@ -12,6 +12,14 @@ import '../../styles/shared/ManageDocuments.css';
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
 const ACCEPT_ATTRIBUTE = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+const DEFAULT_PROGRAM_OPTIONS = [
+  { value: 'GENERAL', label: 'General / All Programs' },
+  { value: 'BSCS', label: 'BS Computer Science (BSCS)' },
+  { value: 'BSIT', label: 'BS Information Technology (BSIT)' },
+  { value: 'BSCE', label: 'BS Civil Engineering (BSCE)' },
+  { value: 'BSCPE', label: 'BS Computer Engineering (BSCPE)' },
+];
+
 const FILE_TYPE_OPTIONS = [
   { value: 'pdf', label: 'PDF (.pdf)' },
   { value: 'docx', label: 'Word (.docx)' },
@@ -55,18 +63,36 @@ function getFileTypeBadge(fileType = '') {
   return <span className={`doc-type-badge ${badgeClass}`}>{type.toUpperCase()}</span>;
 }
 
+function getProgramBadge(program = '') {
+  const code = (program || 'GENERAL').toUpperCase();
+  const isGeneral = code === 'GENERAL';
+  return (
+    <span className={`doc-program-badge ${isGeneral ? 'doc-program-general' : 'doc-program-specific'}`}>
+      {code}
+    </span>
+  );
+}
+
 export default function DeanChairDocuments({ me }) {
+  const isDean = me?.role === 'dean';
+  const isChair = me?.role === 'program_chair';
+
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [filterProgram, setFilterProgram] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Dynamic programs list from catalog
+  const [programOptions, setProgramOptions] = useState(DEFAULT_PROGRAM_OPTIONS);
+
   // Upload state
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
+  const [uploadProgram, setUploadProgram] = useState('GENERAL');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -75,6 +101,69 @@ export default function DeanChairDocuments({ me }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Fetch available programs for the dropdown, scoped strictly to what the user has access to
+  useEffect(() => {
+    async function loadPrograms() {
+      try {
+        const res = await apiAuth('/api/catalog/programs');
+        const allPrograms = Array.isArray(res.programs) ? res.programs : [];
+
+        let scopedPrograms = allPrograms;
+
+        if (isChair) {
+          // Program chair can only see and upload to their assigned program (+ GENERAL)
+          const chairProgramId = String(me?.program?._id || me?.program || '');
+          const chairProgramCode = String(me?.program?.code || '').toUpperCase();
+
+          scopedPrograms = allPrograms.filter(
+            (p) => String(p._id) === chairProgramId || (p.code && p.code.toUpperCase() === chairProgramCode)
+          );
+        } else if (isDean) {
+          // Dean can only see and upload to programs within their department (+ GENERAL)
+          const deanDeptId = String(me?.department?._id || me?.department || '');
+          if (deanDeptId) {
+            scopedPrograms = allPrograms.filter((p) => {
+              const progDeptId = String(p.department?._id || p.department || '');
+              return progDeptId === deanDeptId;
+            });
+          }
+        }
+
+        const formatted = scopedPrograms.map((p) => ({
+          value: (p.code || p.name).toUpperCase(),
+          label: `${p.name} (${p.code || 'N/A'})`,
+        }));
+
+        const options = [
+          { value: 'GENERAL', label: 'General / All Programs' },
+          ...formatted,
+        ];
+
+        setProgramOptions(options);
+
+        // Preselect initial program
+        if (isChair && me?.program?.code) {
+          setUploadProgram(me.program.code.toUpperCase());
+        } else if (isDean && formatted.length > 0) {
+          setUploadProgram(formatted[0].value);
+        }
+      } catch {
+        // Fall back to default options
+      }
+    }
+    loadPrograms();
+  }, [isChair, isDean, me]);
+
+  // Set default program for Program Chair
+  useEffect(() => {
+    if (isChair) {
+      const chairCode = me?.program?.code || (typeof me?.program === 'string' ? me.program : '');
+      if (chairCode) {
+        setUploadProgram(chairCode.toUpperCase());
+      }
+    }
+  }, [isChair, me]);
 
   const fetchDocuments = async () => {
     try {
@@ -85,6 +174,7 @@ export default function DeanChairDocuments({ me }) {
       });
       if (search.trim()) params.append('search', search.trim());
       if (selectedType) params.append('fileType', selectedType);
+      if (filterProgram) params.append('program', filterProgram);
 
       const res = await apiAuth(`/api/documents?${params.toString()}`);
       setDocuments(res.documents || []);
@@ -99,9 +189,9 @@ export default function DeanChairDocuments({ me }) {
 
   useEffect(() => {
     fetchDocuments();
-  }, [page, selectedType]);
+  }, [page, selectedType, filterProgram]);
 
-  // Debounced live search
+  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1);
@@ -154,6 +244,10 @@ export default function DeanChairDocuments({ me }) {
       setUploadError('Please select a valid document to upload.');
       return;
     }
+    if (!uploadProgram) {
+      setUploadError('Target program is required.');
+      return;
+    }
 
     try {
       setUploading(true);
@@ -162,11 +256,12 @@ export default function DeanChairDocuments({ me }) {
 
       const formData = new FormData();
       formData.append('title', title.trim());
+      formData.append('program', uploadProgram);
       formData.append('file', file);
 
       await apiAuthUpload('/api/documents', formData);
 
-      setUploadSuccess(`Document "${title.trim()}" uploaded successfully!`);
+      setUploadSuccess(`Document "${title.trim()}" uploaded successfully for [${uploadProgram}]!`);
       setTitle('');
       setFile(null);
       const fileInput = document.getElementById('document-file-input');
@@ -215,6 +310,12 @@ export default function DeanChairDocuments({ me }) {
       ),
     },
     {
+      key: 'program',
+      header: 'Program',
+      width: '110px',
+      render: (row) => getProgramBadge(row.program),
+    },
+    {
       key: 'fileType',
       header: 'Type',
       width: '90px',
@@ -241,7 +342,7 @@ export default function DeanChairDocuments({ me }) {
     {
       key: 'createdAt',
       header: 'Uploaded Date',
-      width: '160px',
+      width: '150px',
       render: (row) => formatDate(row.createdAt),
     },
     {
@@ -279,14 +380,18 @@ export default function DeanChairDocuments({ me }) {
     <main className="manage-docs-page page-shell">
       <PageHeader
         title="Academic Documents Management"
-        subtitle="Upload and manage syllabus, reference manuals, reviewers, and academic files."
+        subtitle={
+          isDean
+            ? 'Upload and manage syllabus, reference manuals, reviewers, and files across college programs.'
+            : `Upload and manage documents for ${me?.program?.name || 'your program'} and general resources.`
+        }
       />
 
       {/* Upload Box */}
       <section className="doc-upload-box">
         <h2 className="box-title">Upload Academic Document</h2>
         <form className="doc-upload-form" onSubmit={handleUpload}>
-          <div className="doc-form-row">
+          <div className="doc-form-row doc-form-row-three">
             <div className="doc-form-group">
               <label htmlFor="document-title-input" className="doc-label">
                 Document Title <span className="required-star">*</span>
@@ -300,6 +405,20 @@ export default function DeanChairDocuments({ me }) {
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
                 required
+              />
+            </div>
+
+            <div className="doc-form-group">
+              <label htmlFor="document-program-select" className="doc-label">
+                Target Program <span className="required-star">*</span>
+              </label>
+              <DropdownSelect
+                id="document-program-select"
+                value={uploadProgram}
+                onChange={(e) => setUploadProgram(e.target.value)}
+                options={programOptions}
+                placeholder="Select Program"
+                ariaLabel="Select target program"
               />
             </div>
 
@@ -321,7 +440,7 @@ export default function DeanChairDocuments({ me }) {
 
           <div className="doc-upload-meta-info">
             Supported formats: <strong>Word (.doc, .docx)</strong>, <strong>PDF (.pdf)</strong>,{' '}
-            <strong>PowerPoint (.ppt, .pptx)</strong>, and <strong>Excel (.xls, .xlsx)</strong> up to 50MB.
+            <strong>PowerPoint (.ppt, .pptx)</strong>, and <strong>Excel (.xls, .xlsx)</strong> up to 50MB. Files tagged with <strong>General</strong> are available to all students & alumni.
           </div>
 
           {uploadError && <div className="doc-alert doc-alert-error">{uploadError}</div>}
@@ -331,7 +450,7 @@ export default function DeanChairDocuments({ me }) {
             <button
               type="submit"
               className="btn-upload-submit"
-              disabled={uploading || !file || !title.trim()}
+              disabled={uploading || !file || !title.trim() || !uploadProgram}
             >
               {uploading ? 'Uploading to R2...' : 'Upload Document'}
             </button>
@@ -351,6 +470,20 @@ export default function DeanChairDocuments({ me }) {
               onChange={setSearch}
               placeholder="Search by title or filename..."
               ariaLabel="Search documents"
+            />
+          </div>
+
+          {/* Program filter for Deans or Chairs */}
+          <div className="doc-filter-select">
+            <DropdownSelect
+              value={filterProgram}
+              onChange={(e) => {
+                setFilterProgram(e.target.value);
+                setPage(1);
+              }}
+              placeholder="All Programs"
+              options={programOptions}
+              ariaLabel="Filter by program"
             />
           </div>
 
@@ -399,7 +532,8 @@ export default function DeanChairDocuments({ me }) {
             Are you sure you want to delete <strong>{documentToDelete?.title}</strong>?
           </div>
           <div className="modal-confirmation-extra">
-            This will permanently remove the file ({documentToDelete?.originalFilename}) from Cloudflare R2 storage and the system. Students and alumni will no longer have access to download it.
+            This will permanently remove the file ({documentToDelete?.originalFilename}) for [
+            {documentToDelete?.program || 'GENERAL'}] from Cloudflare R2 storage and the system.
           </div>
         </div>
         <div className="modal-actions">

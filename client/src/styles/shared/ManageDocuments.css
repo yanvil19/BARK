@@ -42,8 +42,13 @@
   margin-bottom: 14px;
 }
 
-@media (max-width: 768px) {
-  .doc-form-row {
+.doc-form-row-three {
+  grid-template-columns: 1.2fr 1fr 1fr;
+}
+
+@media (max-width: 900px) {
+  .doc-form-row,
+  .doc-form-row-three {
     grid-template-columns: 1fr;
     gap: 14px;
   }
@@ -262,6 +267,30 @@
 .doc-uploader-role {
   font-size: 11.5px;
   color: #8b92bc;
+}
+
+/* Program badge */
+.doc-program-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.doc-program-general {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.doc-program-specific {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
 }
 
 /* Badges: soft background + distinct text (matching table status standard) */

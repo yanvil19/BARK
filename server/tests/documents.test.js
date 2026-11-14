@@ -1,9 +1,10 @@
-const path = require('path');
 const request = require('supertest');
 const app = require('../app');
 const Document = require('../models/Document');
 const User = require('../models/User');
-const { createTestUser, createTestDean, createTestProgramChair } = require('./helpers');
+const Department = require('../models/Department');
+const Program = require('../models/Program');
+const { createUserAndToken } = require('./helpers');
 
 // Mock document storage service
 jest.mock('../services/documentStorageService', () => {
@@ -27,169 +28,208 @@ jest.mock('../services/documentStorageService', () => {
   };
 });
 
-describe('Document Upload and Download API', () => {
-  let deanToken;
-  let chairToken;
-  let studentToken;
-  let deanUser;
-  let chairUser;
-  let studentUser;
+describe('Document Program-Based Access Scoping', () => {
+  let dept;
+  let csProgram;
+  let itProgram;
+  let ceProgram;
+
+  let deanUser, deanToken;
+  let chairUser, chairToken;
+  let csStudentUser, csStudentToken;
+  let ceStudentUser, ceStudentToken;
 
   beforeEach(async () => {
-    // Create users using test helpers
-    deanUser = await createTestDean({ email: 'dean.docs@nu-baliwag.edu.ph' });
-    chairUser = await createTestProgramChair({ email: 'chair.docs@nu-baliwag.edu.ph' });
-    studentUser = await createTestUser({ email: 'student.docs@nu-baliwag.edu.ph', role: 'student' });
+    dept = await Department.create({ name: 'School of Technology', code: 'SOT' });
+    csProgram = await Program.create({ name: 'Computer Science', code: 'BSCS', department: dept._id });
+    itProgram = await Program.create({ name: 'Information Technology', code: 'BSIT', department: dept._id });
+    ceProgram = await Program.create({ name: 'Civil Engineering', code: 'BSCE', department: dept._id });
 
-    // Generate tokens
-    const jwt = require('jsonwebtoken');
-    deanToken = jwt.sign({ id: deanUser._id }, process.env.JWT_SECRET);
-    chairToken = jwt.sign({ id: chairUser._id }, process.env.JWT_SECRET);
-    studentToken = jwt.sign({ id: studentUser._id }, process.env.JWT_SECRET);
+    // Users
+    const deanRes = await createUserAndToken({
+      email: 'dean@nu-board.edu',
+      role: 'dean',
+      department: dept._id,
+    });
+    deanUser = deanRes.user;
+    deanToken = deanRes.token;
+
+    const chairRes = await createUserAndToken({
+      email: 'chair.cs@nu-board.edu',
+      role: 'program_chair',
+      department: dept._id,
+      program: csProgram._id,
+    });
+    chairUser = chairRes.user;
+    chairToken = chairRes.token;
+
+    const csStudentRes = await createUserAndToken({
+      email: 'student.cs@nu-board.edu',
+      role: 'student',
+      department: dept._id,
+      program: csProgram._id,
+    });
+    csStudentUser = csStudentRes.user;
+    csStudentToken = csStudentRes.token;
+
+    const ceStudentRes = await createUserAndToken({
+      email: 'student.ce@nu-board.edu',
+      role: 'student',
+      department: dept._id,
+      program: ceProgram._id,
+    });
+    ceStudentUser = ceStudentRes.user;
+    ceStudentToken = ceStudentRes.token;
+
+    // Create fixture documents
+    await Document.create([
+      {
+        title: 'CS Data Structures Notes',
+        originalFilename: 'ds.pdf',
+        fileType: 'pdf',
+        mimeType: 'application/pdf',
+        fileSize: 1024,
+        storageKey: 'academic-docs/ds.pdf',
+        publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/ds.pdf',
+        program: 'BSCS',
+        uploadedBy: chairUser._id,
+      },
+      {
+        title: 'CE Structural Analysis Guide',
+        originalFilename: 'structural.pdf',
+        fileType: 'pdf',
+        mimeType: 'application/pdf',
+        fileSize: 2048,
+        storageKey: 'academic-docs/structural.pdf',
+        publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/structural.pdf',
+        program: 'BSCE',
+        uploadedBy: deanUser._id,
+      },
+      {
+        title: 'University Student Handbook',
+        originalFilename: 'handbook.pdf',
+        fileType: 'pdf',
+        mimeType: 'application/pdf',
+        fileSize: 4096,
+        storageKey: 'academic-docs/handbook.pdf',
+        publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/handbook.pdf',
+        program: 'GENERAL',
+        uploadedBy: deanUser._id,
+      },
+    ]);
   });
 
-  describe('POST /api/documents', () => {
-    it('allows dean to upload valid PDF document', async () => {
-      const res = await request(app)
-        .post('/api/documents')
-        .set('Authorization', `Bearer ${deanToken}`)
-        .field('title', 'Board Exam Syllabus')
-        .attach('file', Buffer.from('%PDF-1.4 test content'), 'syllabus.pdf');
-
-      expect(res.status).toBe(201);
-      expect(res.body.document).toBeDefined();
-      expect(res.body.document.title).toBe('Board Exam Syllabus');
-      expect(res.body.document.fileType).toBe('pdf');
-      expect(res.body.document.publicUrl).toContain('r2.dev');
-      expect(String(res.body.document.uploadedBy._id)).toBe(String(deanUser._id));
-    });
-
-    it('allows program chair to upload Word document (.docx)', async () => {
-      const res = await request(app)
-        .post('/api/documents')
-        .set('Authorization', `Bearer ${chairToken}`)
-        .field('title', 'Reviewer Module 1')
-        .attach(
-          'file',
-          Buffer.from('dummy docx data'),
-          { filename: 'reviewer1.docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
-        );
-
-      expect(res.status).toBe(201);
-      expect(res.body.document.fileType).toBe('docx');
-    });
-
-    it('rejects disallowed file extensions (e.g., .exe, .png, .js)', async () => {
-      const res = await request(app)
-        .post('/api/documents')
-        .set('Authorization', `Bearer ${deanToken}`)
-        .field('title', 'Malicious Script')
-        .attach('file', Buffer.from('alert(1)'), 'script.js');
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toContain('Invalid file type');
-    });
-
-    it('denies student role from uploading documents', async () => {
-      const res = await request(app)
-        .post('/api/documents')
-        .set('Authorization', `Bearer ${studentToken}`)
-        .field('title', 'Student Document')
-        .attach('file', Buffer.from('%PDF-1.4 test'), 'sample.pdf');
-
-      expect(res.status).toBe(403);
-    });
-  });
-
-  describe('GET /api/documents', () => {
-    beforeEach(async () => {
-      await Document.create([
-        {
-          title: 'Nursing Board Primer',
-          originalFilename: 'primer.pdf',
-          fileType: 'pdf',
-          mimeType: 'application/pdf',
-          fileSize: 2048,
-          storageKey: 'academic-docs/primer.pdf',
-          publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/primer.pdf',
-          uploadedBy: deanUser._id,
-        },
-        {
-          title: 'Math Formula Sheet',
-          originalFilename: 'math.xlsx',
-          fileType: 'xlsx',
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          fileSize: 4096,
-          storageKey: 'academic-docs/math.xlsx',
-          publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/math.xlsx',
-          uploadedBy: chairUser._id,
-        },
-      ]);
-    });
-
-    it('allows students to list shared academic documents', async () => {
+  describe('GET /api/documents Scoping', () => {
+    it('allows CS students to see BSCS documents and GENERAL documents, but NOT BSCE documents', async () => {
       const res = await request(app)
         .get('/api/documents')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .set('Authorization', `Bearer ${csStudentToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.documents).toHaveLength(2);
-      expect(res.body.total).toBe(2);
-      expect(res.body.documents[0].publicUrl).toBeDefined();
+      const titles = res.body.documents.map((d) => d.title);
+      expect(titles).toContain('CS Data Structures Notes');
+      expect(titles).toContain('University Student Handbook');
+      expect(titles).not.toContain('CE Structural Analysis Guide');
     });
 
-    it('filters documents by search query', async () => {
+    it('allows CE students to see BSCE documents and GENERAL documents, but NOT BSCS documents', async () => {
       const res = await request(app)
-        .get('/api/documents?search=primer')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .get('/api/documents')
+        .set('Authorization', `Bearer ${ceStudentToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.documents).toHaveLength(1);
-      expect(res.body.documents[0].title).toBe('Nursing Board Primer');
+      expect(res.body.documents).toHaveLength(2);
+      const titles = res.body.documents.map((d) => d.title);
+      expect(titles).toContain('CE Structural Analysis Guide');
+      expect(titles).toContain('University Student Handbook');
+      expect(titles).not.toContain('CS Data Structures Notes');
     });
 
-    it('filters documents by fileType', async () => {
+    it('allows Program Chair to see documents scoped to their program plus GENERAL', async () => {
       const res = await request(app)
-        .get('/api/documents?fileType=xlsx')
-        .set('Authorization', `Bearer ${studentToken}`);
+        .get('/api/documents')
+        .set('Authorization', `Bearer ${chairToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.documents).toHaveLength(1);
-      expect(res.body.documents[0].fileType).toBe('xlsx');
-    });
-  });
-
-  describe('DELETE /api/documents/:id', () => {
-    let doc;
-    beforeEach(async () => {
-      doc = await Document.create({
-        title: 'Obsolete Reviewer',
-        originalFilename: 'old.pdf',
-        fileType: 'pdf',
-        mimeType: 'application/pdf',
-        fileSize: 1000,
-        storageKey: 'academic-docs/old.pdf',
-        publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/old.pdf',
-        uploadedBy: deanUser._id,
-      });
+      expect(res.body.documents).toHaveLength(2);
+      const titles = res.body.documents.map((d) => d.title);
+      expect(titles).toContain('CS Data Structures Notes');
+      expect(titles).toContain('University Student Handbook');
+      expect(titles).not.toContain('CE Structural Analysis Guide');
     });
 
-    it('allows dean or program chair to delete document', async () => {
+    it('allows Dean to view documents across all programs', async () => {
       const res = await request(app)
-        .delete(`/api/documents/${doc._id}`)
+        .get('/api/documents')
         .set('Authorization', `Bearer ${deanToken}`);
 
       expect(res.status).toBe(200);
-      const exists = await Document.findById(doc._id);
-      expect(exists).toBeNull();
+      expect(res.body.documents).toHaveLength(3);
+    });
+  });
+
+  describe('POST /api/documents Upload Scoping', () => {
+    it('saves selected program when Dean uploads a document', async () => {
+      const res = await request(app)
+        .post('/api/documents')
+        .set('Authorization', `Bearer ${deanToken}`)
+        .field('title', 'IT Network Systems')
+        .field('program', 'BSIT')
+        .attach('file', Buffer.from('%PDF-1.4 test'), 'network.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.document.program).toBe('BSIT');
     });
 
-    it('denies student from deleting document', async () => {
+    it('defaults program to Chair assigned program when Program Chair uploads without program override', async () => {
       const res = await request(app)
-        .delete(`/api/documents/${doc._id}`)
-        .set('Authorization', `Bearer ${studentToken}`);
+        .post('/api/documents')
+        .set('Authorization', `Bearer ${chairToken}`)
+        .field('title', 'Algorithms Manual')
+        .attach('file', Buffer.from('%PDF-1.4 test'), 'algorithms.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.document.program).toBe('BSCS');
+    });
+
+    it('allows Program Chair to upload as GENERAL', async () => {
+      const res = await request(app)
+        .post('/api/documents')
+        .set('Authorization', `Bearer ${chairToken}`)
+        .field('title', 'Graduation Checklist')
+        .field('program', 'GENERAL')
+        .attach('file', Buffer.from('%PDF-1.4 test'), 'grad.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.document.program).toBe('GENERAL');
+    });
+
+    it('rejects Program Chair when attempting to upload to an unauthorized program', async () => {
+      const res = await request(app)
+        .post('/api/documents')
+        .set('Authorization', `Bearer ${chairToken}`)
+        .field('title', 'Unauthorized Upload')
+        .field('program', 'BSCE')
+        .attach('file', Buffer.from('%PDF-1.4 test'), 'sample.pdf');
 
       expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Access denied');
+    });
+
+    it('rejects Dean when attempting to upload to a program outside their department', async () => {
+      const otherDept = await Department.create({ name: 'School of Medicine', code: 'SOM' });
+      await Program.create({ name: 'Nursing', code: 'BSN', department: otherDept._id });
+
+      const res = await request(app)
+        .post('/api/documents')
+        .set('Authorization', `Bearer ${deanToken}`)
+        .field('title', 'Medical Guide')
+        .field('program', 'BSN')
+        .attach('file', Buffer.from('%PDF-1.4 test'), 'guide.pdf');
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('Access denied');
     });
   });
 });

@@ -48,6 +48,16 @@ function getFileTypeBadge(fileType = '') {
   return <span className={`doc-type-badge ${badgeClass}`}>{type.toUpperCase()}</span>;
 }
 
+function getProgramBadge(program = '') {
+  const code = (program || 'GENERAL').toUpperCase();
+  const isGeneral = code === 'GENERAL';
+  return (
+    <span className={`doc-program-badge ${isGeneral ? 'doc-program-general' : 'doc-program-specific'}`}>
+      {code}
+    </span>
+  );
+}
+
 export default function DocumentLibrary({ me }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +67,7 @@ export default function DocumentLibrary({ me }) {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // The backend automatically scopes documents to the learner's program + GENERAL
   const fetchDocuments = async () => {
     try {
       setLoading(true);
@@ -91,6 +102,8 @@ export default function DocumentLibrary({ me }) {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const userProgramLabel = me?.program?.name || (me?.program?.code ? `${me.program.code}` : 'Your Degree Program');
+
   const columns = [
     {
       key: 'title',
@@ -101,6 +114,12 @@ export default function DocumentLibrary({ me }) {
           <div className="doc-filename-text">{row.originalFilename}</div>
         </div>
       ),
+    },
+    {
+      key: 'program',
+      header: 'Scope',
+      width: '110px',
+      render: (row) => getProgramBadge(row.program),
     },
     {
       key: 'fileType',
@@ -157,7 +176,7 @@ export default function DocumentLibrary({ me }) {
     <main className="manage-docs-page page-shell">
       <PageHeader
         title="Academic Documents & Resources"
-        subtitle="Browse and download syllabus, lecture notes, board exam reviewers, and study guides."
+        subtitle={`Browse and download academic resources for ${userProgramLabel} and general university reviewers.`}
       />
 
       <section className="doc-list-box">
@@ -193,7 +212,7 @@ export default function DocumentLibrary({ me }) {
           data={documents}
           loading={loading}
           wrapperClassName="doc-table-card-override"
-          emptyMessage="No academic documents are currently available for download."
+          emptyMessage="No academic documents are currently available for your program."
         />
 
         <div className="ui-table-footer">
