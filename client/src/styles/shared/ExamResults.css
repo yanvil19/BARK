@@ -15,10 +15,18 @@
   border: 1px solid #86efac;
 }
 
-.er-page .er-result--to_compute {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fcd34d;
+/* Results this person has not opened yet: the same red as the navbar's count */
+.er-page .er-new-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .er-page .er-result--pending {
@@ -124,7 +132,7 @@
 }
 
 .er-note strong {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-weight: 600;
 }
 

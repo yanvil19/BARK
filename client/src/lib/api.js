@@ -115,3 +115,59 @@ export async function apiAuthUpload(path, formData) {
   }
   return data;
 }
+
+// For downloading protected files (streams blob and triggers browser save dialog with correct filename)
+export async function apiAuthDownload(path, fallbackFilename = 'document') {
+  const url = typeof path === 'string' && /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: buildAuthHeaders(),
+  });
+
+  if (res.status === 401) {
+    const data = await parseJsonResponse(res);
+    const isDeactivated = Boolean(data?.message && data.message.toLowerCase().includes('deactivated'));
+    return handleSessionExpired(isDeactivated);
+  }
+
+  if (!res.ok) {
+    const data = await parseJsonResponse(res);
+    const message = data?.message || data?.error || `Download failed (${res.status})`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  // Parse filename from Content-Disposition header if available
+  let filename = fallbackFilename;
+  const disposition = res.headers.get('Content-Disposition') || '';
+  if (disposition) {
+    const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+    if (utf8Match && utf8Match[1]) {
+      try {
+        filename = decodeURIComponent(utf8Match[1]);
+      } catch {
+        filename = utf8Match[1];
+      }
+    } else {
+      const match = /filename="?([^";]+)"?/i.exec(disposition);
+      if (match && match[1]) {
+        filename = match[1].trim();
+      }
+    }
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(blobUrl);
+
+  return { filename, size: blob.size };
+}

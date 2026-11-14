@@ -1,133 +1,115 @@
-import AuthImage from '../../components/AuthImage.jsx';
-import AnswerImage from '../../components/AnswerImage.jsx';
-import PassageImages from '../../components/PassageImages.jsx';
-import SafeHtml from '../../components/SafeHtml.jsx';
-import QuestionNavBubbles from '../../components/QuestionNavBubbles.jsx';
-import { getQuestionSetPart, groupQuestionsForDisplay } from '../../lib/groupQuestionsForDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
+import ExamTakingView from '../../components/ExamTakingView.jsx';
+import ImageZoom from '../../components/ImageZoom.jsx';
+import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
+import { FeedbackModal } from '../../components/FeedbackModal.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
+import useExamRun from '../../hooks/useExamRun.js';
 import { apiAuth } from '../../lib/api.js';
 import { organizeExamQuestionsAndAnswers } from '../../lib/DeanTestRunOrganizer.js';
-import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
-import '../../styles/shared/MockBoardExamPreview.css'; // Reusing the established premium style
-import PageHeader from '../../components/PageHeader.jsx';
+import { readQuestionRules, scoreAttempt } from '../../lib/examRules.js';
+import '../../styles/shared/MockBoardExamPreview.css';
 
-// [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
 
-export default function MockBoardExamTestRun({ examId, onBack }) {
-  const [exam, setExam] = useState(null);
-  const [loading, setLoading] = useState(true);
+// A test run: the exam taken on the screen a student or alumnus gets (ExamTakingView), with its
+// points, its clock and each question's own time. Nothing is saved. Afterwards it shows the score
+// and the right answers, and can be run again.
+//
+// It runs a saved exam (examId), or one not saved yet (draftExam), such as the Create Exam page's:
+// its name, program, description, instructions, durationMinutes, passingThreshold, questions,
+// and the points and time
+// settings as the server keeps them (scoringMode, questionTimerEnabled, oneWayNavigation,
+// itemSettings, ...).
+export default function MockBoardExamTestRun({ examId, draftExam = null, onBack }) {
+  // App clears its exam id as soon as this page opens (it keeps one only for its exam runner),
+  // so hold on to the id the page was opened with
+  const [openedExamId] = useState(examId);
+  const [exam, setExam] = useState(draftExam);
+  const [loading, setLoading] = useState(!draftExam);
   const [error, setError] = useState(null);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); // { questionId: answerId }
-  const [submitted, setSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [zoomedImage, setZoomedImage] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [runNumber, setRunNumber] = useState(1);
 
   useEffect(() => {
-    function handleEsc(e) {
-      if (e.key === 'Escape') {
-        setZoomedImage(null);
-      }
+    if (draftExam) {
+      setExam(draftExam);
+      setLoading(false);
+      return undefined;
+    }
+    if (!openedExamId) {
+      setLoading(false);
+      return undefined;
     }
 
-    if (zoomedImage) {
-      window.addEventListener('keydown', handleEsc);
-    }
-
-    return () => {
-      window.removeEventListener('keydown', handleEsc);
-    };
-  }, [zoomedImage]);
-
-  // Fetch and randomize questions for Test Run
-  useEffect(() => {
-    async function fetchExam() {
-      if (!examId) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const data = await apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(examId)}`);
-        if (data.exam) {
-          const questions = organizeExamQuestionsAndAnswers(data.exam.questions || [], { randomize: true });
-          setExam({
-            ...data.exam,
-            questions
-          });
-          if (data.exam.durationMinutes) {
-            setTimeLeft(data.exam.durationMinutes * 60);
-          }
-        } else {
-          setError('Exam not found.');
-        }
-      } catch (err) {
-        setError(err.message || 'Failed to load exam test run.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchExam();
-  }, [examId]);
-
-  // Timer logic
-  useEffect(() => {
-    if (submitted || loading || error || !exam) return;
-    const timer = setInterval(() => {
-      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [submitted, loading, error, exam]);
-
-  const formatTimer = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const score = useMemo(() => {
-    if (!exam || !submitted) return { correct: 0, total: 0 };
-    let correct = 0;
-    const total = exam.questions?.length || 0;
-    exam.questions.forEach(q => {
-      const selectedId = answers[q._id];
-      const correctOption = q.answers?.find(a => a.isCorrect);
-      if (selectedId && String(selectedId) === String(correctOption?._id)) {
-        correct++;
-      }
-    });
-    return { correct, total };
-  }, [answers, exam, submitted]);
-
-  const handleSelect = (questionId, answerId) => {
-    if (submitted) return;
-    setAnswers(prev => ({ ...prev, [questionId]: answerId }));
-  };
-
-  const handleSubmit = () => {
-    setShowSubmitConfirm(true);
-  };
+    let cancelled = false;
+    setLoading(true);
+    apiAuth(`${BASE}/api/mock-board-exams/${encodeURIComponent(openedExamId)}`)
+      .then((data) => {
+        if (cancelled) return;
+        if (data.exam) setExam(data.exam);
+        else setError('Exam not found.');
+      })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load exam test run.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [openedExamId, draftExam]);
 
   if (loading) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Starting Test Run...</h3></div></div>;
-  if (error || (!exam && examId)) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
-  if (!exam) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center' }}><h3>Preparing Exam...</h3></div></div>;
+  if (error || !exam) return <div className="mbep-page page-shell"><div style={{ padding: '80px', textAlign: 'center', color: 'red' }}>{error || 'Exam not found'}</div></div>;
 
-  const questions = exam.questions || [];
-  const currentQuestion = questions[currentIdx];
-  const currentQuestionSet = currentQuestion?.groupId
-    ? groupQuestionsForDisplay(questions).find(
-        (item) => item.type === 'group' && item.groupId === String(currentQuestion.groupId)
-      )
-    : null;
-  const answeredCount = Object.values(answers).filter(Boolean).length;
-  const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+  // A run is its own mount, so running it again starts from scratch: new order, clocks, answers
+  return (
+    <TestRunSession
+      key={runNumber}
+      exam={exam}
+      isDraft={Boolean(draftExam)}
+      onRestart={() => { setRunNumber((run) => run + 1); window.scrollTo(0, 0); }}
+      onBack={onBack}
+    />
+  );
+}
+
+function TestRunSession({ exam, isDraft, onRestart, onBack }) {
+  // Shuffled like an attempt: the questions (a set's parts stay together) and their answers
+  const [questions] = useState(() => organizeExamQuestionsAndAnswers(exam.questions || [], { randomize: true }));
+  const rules = useMemo(() => readQuestionRules(exam, questions), [exam, questions]);
+  const examSeconds = (Number(exam.durationMinutes) || 0) * 60;
+
+  const [submitted, setSubmitted] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [timeUpMessage, setTimeUpMessage] = useState(null);
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  // It opens on the introduction; the clocks start when the taker first opens a question
+  const run = useExamRun({
+    questions,
+    rules,
+    examSeconds,
+    startOnOpen: true,
+    finished: submitted,
+    showFirstWhenFinished: true,
+    onTimeFinish: (message) => {
+      setShowSubmitConfirm(false);
+      submit();
+      setTimeUpMessage(message);
+    },
+  });
+  const { answers } = run;
+
+  const result = useMemo(
+    () => (submitted ? scoreAttempt(questions, answers, rules, exam.passingThreshold) : null),
+    [answers, exam.passingThreshold, questions, rules, submitted]
+  );
+
+  function submit() {
+    setSubmitted(true);
+    window.scrollTo(0, 0);
+  }
+
+  const blankCount = questions.filter((question) => !answers[String(question._id)]).length;
+  const subtitle = [isDraft ? 'Test run of an exam not saved yet' : 'Test run', exam.program?.name]
+    .filter(Boolean)
+    .join(' • ');
 
   return (
     <div className="mbep-page page-shell">
@@ -136,284 +118,59 @@ export default function MockBoardExamTestRun({ examId, onBack }) {
         onClose={() => setShowSubmitConfirm(false)}
         onConfirm={() => {
           setShowSubmitConfirm(false);
-          setSubmitted(true);
-          setCurrentIdx(0);
+          submit();
         }}
-        title="Submit Test Run"
-        message="Are you sure you want to submit your exam?"
+        title="Submit Exam"
+        message={blankCount > 0
+          ? `${blankCount} of ${questions.length} questions ${blankCount === 1 ? 'has' : 'have'} no answer yet. You can't change your answers after this.`
+          : "Every question has an answer. You can't change your answers after this."}
         confirmLabel="Submit Exam"
-        cancelLabel="Cancel"
+        cancelLabel="Keep Answering"
         confirmVariant="primary"
       />
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <PageHeader
-        title={<>{exam.name} {submitted && <span style={{ color: '#22c55e' }}>(Result)</span>}</>}
-        subtitle={exam.description || `Dean Test Run Mode • ${exam.program?.name}`}
-      >
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {!submitted && (
-            <button className="mbep-exit-btn" onClick={handleSubmit} style={{ background: 'var(--primary-bg)', color: 'var(--accent-yellow)' }}>
-              + Submit Exam
-            </button>
-          )}
-          <button className="mbep-exit-btn" onClick={onBack}>
-            Exit Test Run
-          </button>
-        </div>
+
+      <FeedbackModal
+        open={Boolean(timeUpMessage)}
+        onClose={() => setTimeUpMessage(null)}
+        title="Time Is Up"
+        tone="warning"
+        message={timeUpMessage}
+        dismissLabel="See My Score"
+      />
+
+      <PageHeader title={exam.name} subtitle={subtitle}>
+        {submitted ? (
+          <button type="button" className="mbep-action" onClick={onRestart}>Run It Again</button>
+        ) : (
+          <button type="button" className="mbep-action" onClick={() => setShowSubmitConfirm(true)}>Submit Exam</button>
+        )}
+        <button type="button" className="mbep-action is-secondary" onClick={onBack}>Exit Test Run</button>
       </PageHeader>
 
-      {/* ── Stats Bar (Progress & Timer) ───────────────────────── */}
-      <div className="mbep-stats" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px' }}>
-        <div className="mbep-progress-card">
-          <div className="mbep-progress-info">
-            <span>Progress ({answeredCount} answered)</span>
-            <span>{currentIdx + 1} / {questions.length}</span>
-          </div>
-          <div className="mbep-progress-bar">
-            <div className="mbep-progress-fill" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-        <div className="mbep-progress-card" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-bg)' }}>
-            {formatTimer(timeLeft)}
-          </span>
-        </div>
-      </div>
+      <ExamTakingView
+        questions={questions}
+        currentIdx={run.currentIdx}
+        onSelectQuestion={run.openQuestion}
+        answers={answers}
+        onAnswer={run.answer}
+        rules={rules}
+        clock={run.clock}
+        examSeconds={examSeconds}
+        result={result}
+        notice={run.notice}
+        onZoomImage={setZoomedImage}
+        intro={{
+          description: exam.description,
+          instructions: exam.instructions,
+          passingThreshold: exam.passingThreshold,
+        }}
+        clockStarted={run.started}
+        onSubmitQuestion={run.submitQuestion}
+        onSubmitExam={() => setShowSubmitConfirm(true)}
+        furthestIdx={run.furthestIdx}
+      />
 
-      {/* ── Result Banner ──────────────────────────────────────── */}
-      {submitted && (
-        <div className="mbep-stats" style={{ marginTop: '12px' }}>
-          <div className="mbep-progress-card" style={{ background: '#f0fdf4', borderColor: '#22c55e', textAlign: 'center' }}>
-            <h2 style={{ margin: 0, color: '#166534', fontFamily: 'var(--font-title)' }}>
-              Your Score: {score.correct} / {score.total} ({((score.correct / score.total) * 100).toFixed(1)}%)
-            </h2>
-            <p style={{ margin: '8px 0 0', color: '#15803d', fontSize: '14px' }}>Review your answers below. Correct answers are highlighted in green.</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Question Area ───────────────────────────────────────── */}
-      <main className="mbep-content">
-        {currentQuestion ? (
-          <article className="mbep-card">
-            <div className="mbep-card-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4>Question {currentIdx + 1}</h4>
-              {currentQuestion.groupId && (
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: '#ede9fe',
-                  color: '#5b21b6',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  letterSpacing: '0.04em'
-                }}>
-                  {`Question Set ${currentQuestionSet?.setNumber || ''}${getQuestionSetPart(currentQuestion) ? ` · Part ${getQuestionSetPart(currentQuestion)}` : ''}`}
-                </span>
-              )}
-            </div>
-            <div className="mbep-card-body">
-              {(currentQuestion.groupContext || currentQuestion.groupContextImages?.length > 0) && (
-                <div className="mbep-group-context-box">
-                  <div className="mbep-group-context-header">
-                    <span>Question Set Scenario</span>
-                  </div>
-                  {currentQuestion.groupContext && (
-                    <SafeHtml tag="div" className="mbep-group-context-text" html={currentQuestion.groupContext} />
-                  )}
-                  <PassageImages images={currentQuestion.groupContextImages} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} />
-                </div>
-              )}
-              <div className="mbep-question-title">
-                Question {currentIdx + 1}
-                {currentQuestion.description && (
-                  <SafeHtml
-                    tag="p"
-                    style={{ marginTop: '12px', fontWeight: 400, color: '#6b7280', fontSize: '14px' }}
-                    html={currentQuestion.description}
-                  />
-                )}
-              </div>
-
-              {currentQuestion.images?.length > 0 && (
-                <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {currentQuestion.images.map((img, i) => (
-                    <AuthImage
-                      key={i}
-                      src={img.startsWith('/') ? `${BASE}${img}` : img}
-                      alt="Ref"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '300px',
-                        borderRadius: '8px',
-                        cursor: 'zoom-in'
-                      }}
-                      onClick={() => {
-                        const finalImage = img.startsWith('/') ? `${BASE}${img}` : img;
-                        setZoomedImage(finalImage);
-                        setZoomLevel(1)
-                        setPosition({ x: 0, y: 0 });
-                      }}
-                    />
-
-                  ))}
-                </div>
-              )}
-
-              <div className="mbep-options">
-                {(currentQuestion.answers || []).map((answer) => {
-                  const isSelected = String(answers[currentQuestion._id]) === String(answer._id);
-                  const showCorrect = submitted && answer.isCorrect;
-                  const showWrong = submitted && isSelected && !answer.isCorrect;
-
-                  let optionClass = "mbep-option";
-                  if (isSelected && !submitted) optionClass += " is-selected-preview"; // Custom class for selection
-                  if (showCorrect) optionClass += " is-correct";
-                  if (showWrong) optionClass += " is-wrong-preview"; // Custom class for wrong
-
-                  return (
-                    <div
-                      key={answer._id}
-                      className={optionClass}
-                      onClick={() => handleSelect(currentQuestion._id, answer._id)}
-                      style={{ cursor: submitted ? 'default' : 'pointer' }}
-                    >
-                      <div className="mbep-option-circle">{answer.optionLabel}</div>
-                      <div className="mbep-option-text">
-                        <SafeHtml html={answer.text} />
-                        <AnswerImage src={answer.image} alt={`Answer ${answer.optionLabel} image`} onZoom={(src) => { setZoomedImage(src); setZoomLevel(1); setPosition({ x: 0, y: 0 }); }} className="answer-image--block" />
-                      </div>
-                      {showCorrect && <span style={{ marginLeft: 'auto', color: '#22c55e', fontWeight: 700, fontSize: '12px' }}>CORRECT</span>}
-                      {showWrong && <span style={{ marginLeft: 'auto', color: '#dc2626', fontWeight: 700, fontSize: '12px' }}>YOUR ANSWER</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </article>
-        ) : null}
-
-        {/* ── Navigation ────────────────────────────────────────── */}
-        <div className="mbep-navigator-wrap">
-          <QuestionNavBubbles
-            className="mbep-nav-bar"
-            questions={questions}
-            currentIdx={currentIdx}
-            onSelect={setCurrentIdx}
-            getStatus={(question) => ({ done: !submitted && Boolean(answers[question._id]) })}
-          />
-
-          <div className="mbep-nav-actions">
-            <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}>
-              ← Previous
-            </button>
-            <button className="mbep-btn-nav" onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))} disabled={currentIdx === questions.length - 1}>
-              Next →
-            </button>
-          </div>
-        </div>
-      </main>
-
-      {zoomedImage && (
-        <div
-          onClick={() => setZoomedImage(null)}
-          onWheel={(e) => {
-            e.preventDefault();
-
-            setZoomLevel(prev => {
-              const next = e.deltaY < 0 ? prev + 0.2 : prev - 0.2;
-              return Math.min(Math.max(next, 1), 4); // 1x → 4x
-            });
-          }}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 3000,
-          }}
-        >
-
-          <button
-
-            onClick={(e) => {
-              e.stopPropagation();
-              setZoomedImage(null);
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--primary-bg)';
-            }}
-
-            style={{
-              position: 'absolute',
-              top: '20px',
-              left: '20px',
-              zIndex: 4000,
-              background: 'var(--primary-bg)',
-              color: 'var(--accent-yellow)',
-              border: 'none',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              transition: '0.2s',
-            }}
-          >
-            ×
-          </button>
-
-          <AuthImage
-            src={zoomedImage}
-            alt="Zoomed"
-            draggable={false}
-            style={{
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              objectFit: 'contain',
-              transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
-              transition: dragging ? 'none' : 'transform 0.2s ease',
-              borderRadius: '10px',
-              boxShadow: '0 0 25px rgba(255,255,255,0.2)',
-              cursor: zoomLevel > 1 ? 'grab' : 'zoom-in',
-            }}
-
-            onMouseDown={(e) => {
-              if (zoomLevel > 1) {
-                setDragging(true);
-                setStartPos({
-                  x: e.clientX - position.x,
-                  y: e.clientY - position.y,
-                });
-              }
-            }}
-
-            onMouseMove={(e) => {
-              if (dragging) {
-                setPosition({
-                  x: e.clientX - startPos.x,
-                  y: e.clientY - startPos.y,
-                });
-              }
-            }}
-
-            onMouseUp={() => setDragging(false)}
-            onMouseLeave={() => setDragging(false)}
-            onClick={(e) => e.stopPropagation()}
-          />
-
-        </div>
-      )}
-
+      {zoomedImage && <ImageZoom src={zoomedImage} onClose={() => setZoomedImage(null)} />}
     </div>
   );
 }

@@ -10,6 +10,7 @@ const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const { sendExamPublishedAnnouncement } = require('../services/examAnnouncementEmailService');
 const { checkExamScheduleConflict } = require('../services/examScheduleConflictService');
 const { logAudit } = require('../utils/auditLogger');
+const { parseQuestionSettings, endFromQuestionTimes } = require('../utils/questionSettings');
 
 const EXAM_MANAGER_ROLES = ['dean', 'program_chair'];
 
@@ -173,8 +174,17 @@ async function validateExamPayload(user, body) {
   const description = body.description?.trim() || '';
   const targetAudience = body.targetAudience || 'student';
   const isAlumniExam = targetAudience === 'alumni';
-  const isTimed = isAlumniExam ? Boolean(body.isTimed) : false;
-  const timeLimitMinutes = isTimed ? Number(body.timeLimitMinutes) : null;
+  const questionSettings = parseQuestionSettings(body, questionIds);
+  errors.push(...questionSettings.errors);
+  const timedByQuestions = questionSettings.settings.questionTimerEnabled && questionSettings.totalSeconds > 0;
+  // An alumni attempt timed by its questions is limited to their total time
+  const isTimed = isAlumniExam ? (timedByQuestions || Boolean(body.isTimed)) : false;
+  let timeLimitMinutes = null;
+  if (isTimed) {
+    timeLimitMinutes = timedByQuestions
+      ? Math.ceil(questionSettings.totalSeconds / 60)
+      : Number(body.timeLimitMinutes);
+  }
 
   if (!name) errors.push('Exam name is required');
   if (!programId) errors.push('Program is required');
@@ -192,7 +202,11 @@ async function validateExamPayload(user, body) {
   if (programId && !program) errors.push('Access denied to this program');
 
   const start = body.startDateTime ? new Date(body.startDateTime) : null;
-  const end = body.endDateTime ? new Date(body.endDateTime) : null;
+  let end = body.endDateTime ? new Date(body.endDateTime) : null;
+  // A student exam timed by its questions ends when their time is up
+  if (!isAlumniExam && timedByQuestions && start && !Number.isNaN(start.getTime())) {
+    end = endFromQuestionTimes(start, questionSettings.totalSeconds);
+  }
 
   if (start && Number.isNaN(start.getTime())) errors.push('Invalid start date');
   if (end && Number.isNaN(end.getTime())) errors.push('Invalid end date');
@@ -261,7 +275,21 @@ async function validateExamPayload(user, body) {
       tags,
       questions,
       passingThreshold: body.passingThreshold ?? 70,
+      ...questionSettings.settings,
     },
+  };
+}
+
+// The question settings an exam is saved with, as the model stores them
+function questionSettingsFields(payload) {
+  return {
+    scoringMode: payload.scoringMode,
+    defaultQuestionPoints: payload.defaultQuestionPoints,
+    questionTimerEnabled: payload.questionTimerEnabled,
+    defaultQuestionSeconds: payload.defaultQuestionSeconds,
+    oneWayNavigation: payload.oneWayNavigation,
+    oneWayBackAllowed: payload.oneWayBackAllowed,
+    itemSettings: payload.itemSettings,
   };
 }
 
@@ -300,6 +328,7 @@ async function createMockBoardExam(req, res) {
       timeLimitMinutes: payload.timeLimitMinutes,
       status: payload.status,
       passingThreshold: payload.passingThreshold,
+      ...questionSettingsFields(payload),
       createdBy: req.user._id,
       publishedBy: payload.status === 'published' ? req.user._id : null,
       publishedAt: payload.status === 'published' ? new Date() : null,
@@ -500,6 +529,17 @@ async function updateMockBoardExam(req, res) {
       isTimed: req.body.isTimed ?? current.isTimed ?? false,
       timeLimitMinutes: req.body.timeLimitMinutes ?? current.timeLimitMinutes,
       passingThreshold: req.body.passingThreshold ?? current.passingThreshold,
+      scoringMode: req.body.scoringMode ?? current.scoringMode,
+      defaultQuestionPoints: req.body.defaultQuestionPoints ?? current.defaultQuestionPoints,
+      questionTimerEnabled: req.body.questionTimerEnabled ?? current.questionTimerEnabled,
+      defaultQuestionSeconds: req.body.defaultQuestionSeconds ?? current.defaultQuestionSeconds,
+      oneWayNavigation: req.body.oneWayNavigation ?? current.oneWayNavigation,
+      oneWayBackAllowed: req.body.oneWayBackAllowed ?? current.oneWayBackAllowed,
+      itemSettings: req.body.itemSettings ?? (current.itemSettings || []).map((item) => ({
+        question: String(item.question),
+        points: item.points,
+        timeLimitSeconds: item.timeLimitSeconds,
+      })),
     };
 
     const { errors, payload } = await validateExamPayload(req.user, mergedBody);
@@ -531,6 +571,7 @@ async function updateMockBoardExam(req, res) {
     current.timeLimitMinutes = payload.timeLimitMinutes;
     current.status = oldStatus === 'published' ? 'draft' : payload.status;
     current.passingThreshold = payload.passingThreshold;
+    Object.assign(current, questionSettingsFields(payload));
     if (oldStatus !== 'published' && current.status === 'published') {
       current.publishedBy = req.user._id;
       current.publishedAt = new Date();
@@ -699,6 +740,17 @@ async function copyExam(req, res) {
       isTimed: exam.isTimed || false,
       timeLimitMinutes: exam.timeLimitMinutes || null,
       passingThreshold: exam.passingThreshold,
+      scoringMode: exam.scoringMode,
+      defaultQuestionPoints: exam.defaultQuestionPoints,
+      questionTimerEnabled: exam.questionTimerEnabled,
+      defaultQuestionSeconds: exam.defaultQuestionSeconds,
+      oneWayNavigation: exam.oneWayNavigation,
+      oneWayBackAllowed: exam.oneWayBackAllowed,
+      itemSettings: (exam.itemSettings || []).map((item) => ({
+        question: item.question,
+        points: item.points,
+        timeLimitSeconds: item.timeLimitSeconds,
+      })),
       resultsReleaseDate: null,
       missedAttemptsProcessedAt: null,
       createdBy: req.user._id,
@@ -755,12 +807,8 @@ async function setResultsReleaseDate(req, res) {
       return res.status(400).json({ message: 'Can only schedule results release for finished or archived exams' });
     }
 
-    const uploadedResult = await MockExamResult.findOne({ examId: exam._id, status: 'computed' });
-    // Allow the first release schedule even if analytics were computed early on Exam Results
-    if (uploadedResult && exam.resultsReleaseDate) {
-      return res.status(400).json({ message: 'Results have already been uploaded. Release date can no longer be changed.' });
-    }
-
+    // Results are worked out as soon as the exam closes, so having them no longer locks the
+    // schedule: it can change until the release time itself passes
     if (exam.resultsReleaseDate && new Date(exam.resultsReleaseDate) <= new Date()) {
       return res.status(400).json({ message: 'Results have already been released to students. Release date can no longer be changed.' });
     }

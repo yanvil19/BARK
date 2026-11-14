@@ -340,7 +340,7 @@
 .ca-card-title {
   font-family: var(--font-title);
   font-size: 15px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   margin: 0;
   flex: 1;
   font-weight: 600;
@@ -1141,7 +1141,7 @@
   font-family: var(--font-title);
   font-size: 15px;
   font-weight: 700;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1163,7 +1163,7 @@
 .ca-meta-value {
   margin-top: 4px;
   font-size: 13px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-weight: 600;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1887,6 +1887,140 @@
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
 }
 
+/* ── A set's questions under its card (SetMemberRows) ───────
+   Hung from the set card by a thick line: a 4px rail down from the card to the last row's
+   middle, with an arm into each row.
+   The rail sits 14px in, under the card; the line is darker while the set is open. */
+.ca-set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: -4px 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.ca-set-rows > li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.ca-set-rows > li::before,
+.ca-set-rows > li::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  border-radius: 2px;
+  background: #a5b0e6;
+  transition: background 0.2s ease;
+}
+
+/* Through the gap above, so the first row's rail meets the card */
+.ca-set-rows > li::before {
+  top: -6px;
+  bottom: -6px;
+  width: 4px;
+}
+
+.ca-set-rows > li:last-child::before {
+  bottom: calc(50% - 2px);
+}
+
+.ca-set-rows > li::after {
+  top: calc(50% - 2px);
+  width: 20px;
+  height: 4px;
+}
+
+.ca-set-rows.is-open-set > li::before,
+.ca-set-rows.is-open-set > li::after {
+  background: var(--primary-bg);
+}
+
+.ca-set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary-bg);
+  font-family: var(--font-body);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ca-set-row:hover {
+  border-color: rgba(53, 64, 142, 0.35);
+  box-shadow: 0 2px 10px rgba(53, 64, 142, 0.08);
+}
+
+.ca-set-row:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.ca-set-row.is-active {
+  border-color: var(--primary-bg);
+  background: #f5f7ff;
+}
+
+/* A circle, stretching to a pill for an exam number of three digits */
+.ca-set-row-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: rgba(53, 64, 142, 0.08);
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ca-set-row.is-active .ca-set-row-number {
+  background: var(--primary-bg);
+  color: var(--accent-yellow);
+}
+
+.ca-set-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* What a list adds on a row's right (Question Settings: points, time, markers). When the row
+   is too narrow for the text beside it, it moves under the text, still on the right. */
+.ca-set-row:has(.ca-set-row-aside) {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.ca-set-row:has(.ca-set-row-aside) .ca-set-row-text {
+  flex-basis: 140px;
+}
+
+.ca-set-row-aside {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .ca-group-header-card.is-active {
   background: #f5f7ff;
   border-color: var(--primary-bg);
@@ -2084,7 +2218,7 @@ button.ca-person-row:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 600;
@@ -2115,7 +2249,7 @@ button.ca-person-row:focus-visible {
 }
 
 .ca-person-score {
-  color: #1a1f4b;
+  color: var(--primary-bg);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 700;
@@ -2210,7 +2344,9 @@ button.ca-person-row:focus-visible {
 
 /* ── Motion ──────────────────────────────────────────────── */
 /* Only transform and opacity move, so nothing here shifts the layout. Entrances fill backwards
-   only: a fill that lasted past the end would hold its transform over the hover lift. */
+   only: a fill that lasted past the end would hold its transform over the hover lift.
+   ca-embedded is the same list and panel inside another page's content (the exam form's
+   Questions tab), which keeps the page's own scrolling rather than fitting it to the screen. */
 @keyframes caPanelIn {
   from {
     opacity: 0;
@@ -2237,32 +2373,33 @@ button.ca-person-row:focus-visible {
 @media (prefers-reduced-motion: no-preference) {
 
   /* The page arriving */
-  .ca-page .ca-state-pills,
-  .ca-page .ca-filters-wrapper,
-  .ca-page .ca-list-panel {
+  :is(.ca-page, .ca-embedded) .ca-state-pills,
+  :is(.ca-page, .ca-embedded) .ca-filters-wrapper,
+  :is(.ca-page, .ca-embedded) .ca-list-panel {
     animation: cardIn 0.28s ease-out backwards;
   }
 
   /* Cards come in one after another on each load, page or filter */
-  .ca-page .ca-question-card,
-  .ca-page .ca-group-header-card {
+  :is(.ca-page, .ca-embedded) .ca-question-card,
+  :is(.ca-page, .ca-embedded) .ca-group-header-card,
+  :is(.ca-page, .ca-embedded) .ca-set-rows {
     animation: cardIn 0.24s ease-out backwards;
     animation-delay: calc(var(--card-index, 0) * 28ms);
   }
 
-  .ca-page .ca-empty,
-  .ca-page .ca-select-all-row,
-  .ca-page .ca-sidebar--empty {
+  :is(.ca-page, .ca-embedded) .ca-empty,
+  :is(.ca-page, .ca-embedded) .ca-select-all-row,
+  :is(.ca-page, .ca-embedded) .ca-sidebar--empty {
     animation: fadeIn 0.2s ease-out backwards;
   }
 
   /* The panel slides in when it opens. Going from question to question only fades the content,
      since a review moves through many in a row. */
-  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar:not(.ca-sidebar--empty) {
     animation: caPanelIn 0.26s ease-out backwards;
   }
 
-  .ca-page .ca-sidebar-content > * {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-content > * {
     animation: fadeIn 0.18s ease-out backwards;
   }
 
@@ -2270,30 +2407,30 @@ button.ca-person-row:focus-visible {
      expand button is pressed or an item opens or closes on a widened panel. The one place a layout
      property moves, since moving snapshots of the list and panel instead would stretch or double
      their text. usePanelLayout turns is-gliding on only for those changes. */
-  .ca-page .ca-layout.is-gliding {
+  :is(.ca-page, .ca-embedded) .ca-layout.is-gliding {
     transition: --ca-panel-width 0.26s cubic-bezier(0.2, 0, 0, 1);
   }
 
-  .ca-page .ca-bulk-btn {
+  :is(.ca-page, .ca-embedded) .ca-bulk-btn {
     transition: opacity 0.15s, background 0.15s, transform 0.15s;
   }
 }
 
 /* At this width the panel covers the whole screen, so it rises from the bottom instead */
 @media (prefers-reduced-motion: no-preference) and (max-width: 1024px) {
-  .ca-page .ca-sidebar:not(.ca-sidebar--empty) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar:not(.ca-sidebar--empty) {
     animation-name: caPanelUp;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) and (hover: hover) {
 
-  .ca-page .ca-question-card:hover,
-  .ca-page .ca-group-header-card:hover {
+  :is(.ca-page, .ca-embedded) .ca-question-card:hover,
+  :is(.ca-page, .ca-embedded) .ca-group-header-card:hover {
     transform: translateY(-1px);
   }
 
-  .ca-page .ca-sidebar-actions .ca-btn:hover:not(:disabled) {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-actions .ca-btn:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 3px 10px rgba(53, 64, 142, 0.14);
   }
@@ -2302,15 +2439,15 @@ button.ca-person-row:focus-visible {
 /* After the hover rules, so a press shows on a hovered button too */
 @media (prefers-reduced-motion: no-preference) {
 
-  .ca-page .ca-sidebar-actions .ca-btn:active:not(:disabled),
-  .ca-page .ca-bulk-btn:active:not(:disabled),
-  .ca-page .ca-pagination-btn:active:not(:disabled),
-  .ca-page .ca-pagination-page:active {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-actions .ca-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-bulk-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-pagination-btn:active:not(:disabled),
+  :is(.ca-page, .ca-embedded) .ca-pagination-page:active {
     transform: scale(0.97);
   }
 
   /* The edge tab keeps the shift that centres it on the border */
-  .ca-page .ca-sidebar-width-btn:active {
+  :is(.ca-page, .ca-embedded) .ca-sidebar-width-btn:active {
     transform: translate(-50%, -50%) scale(0.92);
   }
 }
@@ -2318,12 +2455,12 @@ button.ca-person-row:focus-visible {
 /* Scoped to the page because CreateExams.css animates the bulk toolbar as well */
 @media (prefers-reduced-motion: reduce) {
 
-  .ca-page .ca-evaluating-dot,
-  .ca-page .ca-bulk-toolbar,
-  .ca-page .ca-modal-overlay,
-  .ca-page .ca-modal,
-  .ca-page .ca-image-overlay,
-  .ca-page .ca-image-full {
+  :is(.ca-page, .ca-embedded) .ca-evaluating-dot,
+  :is(.ca-page, .ca-embedded) .ca-bulk-toolbar,
+  :is(.ca-page, .ca-embedded) .ca-modal-overlay,
+  :is(.ca-page, .ca-embedded) .ca-modal,
+  :is(.ca-page, .ca-embedded) .ca-image-overlay,
+  :is(.ca-page, .ca-embedded) .ca-image-full {
     animation: none;
   }
 }

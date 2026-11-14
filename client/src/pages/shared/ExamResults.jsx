@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { listExamsWithStatus, getExamResult, computeExamResult, getExamStudentResults } from '../../services/mockExamResultService';
+import { listExamsWithStatus, getExamResult, markExamResultsSeen, getExamStudentResults } from '../../services/mockExamResultService';
 import AuthImage from '../../components/AuthImage.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
@@ -11,6 +11,7 @@ import PanelHeader from '../../components/PanelHeader.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import QuestionStepper from '../../components/QuestionStepper.jsx';
 import { ExamStatePill, Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
+import ThresholdGap from '../../components/ThresholdGap.jsx';
 import TopicScoreRows from '../../components/TopicScoreRows.jsx';
 import { AudienceIcon } from '../../components/CalendarIcons.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -31,11 +32,11 @@ const SCORE_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // How often an exam without results checks for them while it is open
 const POLL_MS = 30000;
 
-// Where an exam's results stand: ready (computed, or an alumni exam with an attempt), to compute
-// (a student exam that has ended without results) or pending (everything else)
+// Where an exam's results stand: ready (a student exam that has ended, or an alumni exam with an
+// attempt) or pending (everything else). Nobody computes them: the server works a student
+// exam's results out when the exam closes, and an alumni exam's on every visit.
 const RESULT_STATES = {
   ready: { label: 'Ready', icon: <path d="M6 20V11M12 20V5M18 20v-6" /> },
-  to_compute: { label: 'To compute', icon: <><path d="M12 6.5v7" /><path d="M12 17.5h.01" /></> },
   pending: { label: 'Pending', icon: <path d="M12 6v6l4 2" /> },
 };
 
@@ -108,9 +109,7 @@ function hasEnded(exam) {
 }
 
 function getResultState(exam) {
-  if (exam.computationStatus === 'computed') return 'ready';
-  if (getAudience(exam) === 'student' && hasEnded(exam)) return 'to_compute';
-  return 'pending';
+  return exam.computationStatus === 'computed' ? 'ready' : 'pending';
 }
 
 // What the panel says about an exam that has no results to show yet
@@ -118,13 +117,13 @@ function getNoResultsMessage(exam) {
   if (getAudience(exam) === 'alumni') {
     return "No alumni have submitted an attempt yet. Results show here after the first one, based on each alumni's highest score.";
   }
-  if (getResultState(exam) === 'to_compute') {
-    return 'This exam has ended. Compute its results to see the scores, the topics and how each question was answered.';
+  if (hasEnded(exam)) {
+    return 'This exam has ended. Its results show here on their own within a few minutes, unless no student took it.';
   }
   if (exam.endDateTime) {
-    return `Results can be computed once the exam ends on ${formatDateTime(exam.endDateTime)}.`;
+    return `Results show here on their own once the exam ends on ${formatDateTime(exam.endDateTime)}.`;
   }
-  return 'Results can be computed once the exam has been scheduled and has ended.';
+  return 'Results show here on their own once the exam has been scheduled and has ended.';
 }
 
 function getRateTone(rate) {
@@ -250,22 +249,6 @@ function getExamFacts(exam, report) {
       : { label: 'Last Computed', value: formatDateTime(report?.computedAt) },
     { label: 'Exam Status', value: <ExamStatePill status={exam.status} /> },
   ];
-}
-
-// How far the average is from the passing threshold, told by an arrow and words, not color alone
-function ThresholdGap({ average, threshold }) {
-  const gap = average - threshold;
-  if (gap === 0) return <span className="ca-stat-sub er-gap is-above">Right at the threshold</span>;
-
-  const isAbove = gap > 0;
-  return (
-    <span className={`ca-stat-sub er-gap ${isAbove ? 'is-above' : 'is-below'}`}>
-      <svg viewBox="0 0 12 12" aria-hidden="true">
-        <path d={isAbove ? 'M6 2 11 10H1z' : 'M6 10 1 2h10z'} fill="currentColor" />
-      </svg>
-      {Math.abs(gap)} {Math.abs(gap) === 1 ? 'pt' : 'pts'} {isAbove ? 'above' : 'below'} the threshold
-    </span>
-  );
 }
 
 // Takers per 10-point score range. A range's bar is split into the takers who passed and those
@@ -401,7 +384,6 @@ export default function ExamResults({ me }) {
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
   const [individual, setIndividual] = useState(NO_INDIVIDUAL);
   const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [computingId, setComputingId] = useState(null);
   const [exportingExcel, setExportingExcel] = useState(false);
   // How the Individual list starts when the AI Overview opens it on a group of takers
   const [individualList, setIndividualList] = useState(null);
@@ -457,6 +439,20 @@ export default function ExamResults({ me }) {
   const isLoadingReport = Boolean(selectedExamId) && reportState.examId !== selectedExamId;
   const report = isLoadingReport ? null : reportState.report;
   const reportError = isLoadingReport ? '' : reportState.error;
+
+  // Results that came in since this person last looked are marked new on the card and counted
+  // on the navbar; opening them clears both
+  const selectedHasNew = Boolean(report) && exams.some((exam) => exam._id === selectedExamId && exam.hasNewResults);
+  useEffect(() => {
+    if (!selectedHasNew) return;
+    const examId = selectedExamId;
+    markExamResultsSeen(examId)
+      .then(() => {
+        setExams((prev) => prev.map((exam) => (exam._id === examId ? { ...exam, hasNewResults: false } : exam)));
+        window.dispatchEvent(new CustomEvent('badge-counts-updated'));
+      })
+      .catch(() => {});
+  }, [selectedHasNew, selectedExamId]);
 
   // The AI overview loads the first time its view opens for an exam
   const aiOverview = useExamAiOverview(selectedExamId, panelView === 'ai' && Boolean(report));
@@ -554,20 +550,6 @@ export default function ExamResults({ me }) {
     setSelectedState('');
     setSelectedAudience('');
     setSelectedSubject('');
-  }
-
-  async function handleCompute(exam) {
-    setComputingId(exam._id);
-    try {
-      const data = await computeExamResult(exam._id, getThreshold(exam));
-      setReportState((prev) => (prev.examId === exam._id ? { ...prev, report: data.result || null, error: '' } : prev));
-      notify(`Results computed for ${exam.name}.`, { variant: 'success' });
-      fetchExams();
-    } catch (err) {
-      notify(`Computation failed: ${err.message || 'Unknown error'}`, { variant: 'error' });
-    } finally {
-      setComputingId(null);
-    }
   }
 
   async function handleExportExcel(exam) {
@@ -778,6 +760,7 @@ export default function ExamResults({ me }) {
             <span className="ca-card-title">{exam.name}</span>
           </button>
           <div className="ca-card-markers">
+            {exam.hasNewResults && <span className="er-new-badge" title="New results since you last looked">New</span>}
             <Marker className="ca-marker--count" label={plural(questionCount, 'question')}>{questionCount}</Marker>
             <Marker className="ca-marker--audience" label={AUDIENCE_LABELS[audience]}>
               <AudienceMarkerIcon audience={audience} />
@@ -840,7 +823,7 @@ export default function ExamResults({ me }) {
             <div className="ca-stat">
               <span className="ca-stat-label">Average score</span>
               <strong className="ca-stat-value">{summary.overallAvg}%</strong>
-              <ThresholdGap average={summary.overallAvg} threshold={threshold} />
+              <ThresholdGap score={summary.overallAvg} threshold={threshold} />
             </div>
             <div className="ca-stat">
               <span className="ca-stat-label">Took the exam</span>
@@ -986,11 +969,9 @@ export default function ExamResults({ me }) {
   }
 
   function renderPanelActions(exam) {
-    const canCompute = !report && !isLoadingReport && getResultState(exam) === 'to_compute';
     const canExport = Boolean(report);
-    if (!canCompute && !canExport) return null;
+    if (!canExport) return null;
 
-    const isComputing = computingId === exam._id;
     // Once there is an overview, another can be generated from here while generations are left
     const aiData = panelView === 'ai' && report ? aiOverview.data : null;
     const canRegenerate = Boolean(aiData?.versions?.length);
@@ -1009,16 +990,6 @@ export default function ExamResults({ me }) {
             <SparkleIcon />
             {aiOverview.isGenerating ? 'Generating...' : 'Regenerate'}
             <span className="aio-count">{aiData.remaining}/{aiData.limit}</span>
-          </button>
-        )}
-        {canCompute && (
-          <button
-            type="button"
-            className="ca-btn ca-btn--approve"
-            onClick={() => handleCompute(exam)}
-            disabled={isComputing}
-          >
-            {isComputing ? 'Computing results...' : 'Compute Results'}
           </button>
         )}
         {canExport && (
@@ -1040,7 +1011,7 @@ export default function ExamResults({ me }) {
     <main className="er-page ca-page ca-page--stepper page-shell">
       <PageHeader
         title="Mock Board Exam Results"
-        subtitle="Compute and review each exam's results: scores, topics, questions and every taker."
+        subtitle="Review each exam's results: scores, topics, questions and every taker."
       >
         {isProgramChair && <span className="ca-program-chip">{me?.program?.name || 'Your Program'}</span>}
       </PageHeader>

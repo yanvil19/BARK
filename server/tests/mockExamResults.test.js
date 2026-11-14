@@ -356,3 +356,147 @@ describe('DELETE /api/mock-exam-results/:examId', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('results that are ready without anyone computing them', () => {
+  const AlumniExamAttempt = require('../models/AlumniExamAttempt');
+  const Tag = require('../models/Tag');
+  const asDean = (req) => req.set('Cookie', `nu_board_token=${deanToken}`);
+  const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60000);
+  const badge = async () => (await asDean(request(app).get('/api/stats/badge-counts'))).body.newExamResults;
+  const listed = async (exam) => (await asDean(request(app).get('/api/mock-exam-results/list'))).body.exams
+    .find((entry) => String(entry._id) === String(exam._id));
+  let tag, question, student;
+
+  beforeEach(async () => {
+    tag = await Tag.create({ name: 'Subject', program: prog._id, createdBy: deanUser._id, isActive: true });
+    question = await Question.create({
+      description: 'Q1', answers: [{ text: 'A', isCorrect: true }, { text: 'B', isCorrect: false }],
+      program: prog._id, createdBy: deanUser._id, state: 'approved', tag: tag._id,
+    });
+    ({ user: student } = await createUserAndToken({ role: 'student', department: dept._id, program: prog._id }));
+  });
+
+  const createExam = (overrides = {}) => MockBoardExam.create({
+    name: 'Auto Exam', program: prog._id, department: dept._id, questions: [question._id],
+    startDateTime: pastDate(2), endDateTime: pastDate(1), status: 'finished', createdBy: deanUser._id,
+    ...overrides,
+  });
+  const submitAttempt = (exam) => StudentExamAttempt.create({
+    exam: exam._id, student: student._id, status: 'submitted', randomizedQuestions: [],
+    answers: new Map([[String(question._id), question.answers[0]._id]]),
+    score: 1, subjectScores: [{ tag: tag._id, correct: 1, total: 1 }],
+  });
+
+  it('a student exam that has ended shows its results with no compute step', async () => {
+    const exam = await createExam();
+    await submitAttempt(exam);
+
+    const entry = await listed(exam);
+    expect(entry.computationStatus).toBe('computed');
+    const stored = await MockExamResult.findOne({ examId: exam._id });
+    expect(stored.totalTakers).toBe(1);
+    expect(String(stored.createdBy)).toBe(String(deanUser._id));
+
+    const res = await asDean(request(app).get(`/api/mock-exam-results/${exam._id}`));
+    expect(res.body.result.overallAverageScore).toBe(100);
+  });
+
+  it('opening the results works them out too, without the list', async () => {
+    const exam = await createExam();
+    await submitAttempt(exam);
+    const res = await asDean(request(app).get(`/api/mock-exam-results/${exam._id}`));
+    expect(res.status).toBe(200);
+    expect(res.body.result.totalTakers).toBe(1);
+  });
+
+  it('waits for the exam to be closed and settled', async () => {
+    const running = await createExam({ endDateTime: new Date(Date.now() + 3600000), status: 'ongoing' });
+    const justEnded = await createExam({ name: 'Just Ended', endDateTime: minutesAgo(1) });
+    const settled = await createExam({ name: 'Settled', endDateTime: minutesAgo(1), missedAttemptsProcessedAt: new Date() });
+    await Promise.all([running, justEnded, settled].map(submitAttempt));
+
+    expect((await listed(running)).computationStatus).toBe('none');
+    expect((await listed(justEnded)).computationStatus).toBe('none');
+    expect((await listed(settled)).computationStatus).toBe('computed');
+  });
+
+  it('an exam nobody took stays without results', async () => {
+    const exam = await createExam();
+    expect((await listed(exam)).computationStatus).toBe('none');
+    expect(await MockExamResult.countDocuments()).toBe(0);
+  });
+
+  it('counts a finished student exam as new until its results are opened', async () => {
+    // Exams that ended before this dean first looked are not news
+    const old = await createExam({ name: 'Old Exam' });
+    await submitAttempt(old);
+    expect(await badge()).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const exam = await createExam({ name: 'Fresh Exam', endDateTime: new Date(Date.now() - 1), missedAttemptsProcessedAt: new Date() });
+    await submitAttempt(exam);
+    // Not counted before the results exist
+    expect(await badge()).toBe(0);
+    expect((await listed(exam)).hasNewResults).toBe(true);
+    expect((await listed(old)).hasNewResults).toBe(false);
+    expect(await badge()).toBe(1);
+
+    const seen = await asDean(request(app).post(`/api/mock-exam-results/${exam._id}/seen`)).send({});
+    expect(seen.status).toBe(200);
+    expect(await badge()).toBe(0);
+    expect((await listed(exam)).hasNewResults).toBe(false);
+  });
+
+  it('counts an alumni exam as new each time an attempt is submitted', async () => {
+    const { user: alumni } = await createUserAndToken({
+      role: 'alumni', userType: 'alumni', department: dept._id, program: prog._id,
+      alumniId: '2020-000001', email: 'alumni@example.com',
+    });
+    const exam = await createExam({
+      name: 'Alumni Exam', targetAudience: 'alumni', status: 'ongoing', endDateTime: new Date(Date.now() + 86400000),
+    });
+    expect(await badge()).toBe(0);
+
+    const attempt = (attemptNumber) => AlumniExamAttempt.create({
+      exam: exam._id, alumni: alumni._id, attemptNumber, status: 'submitted', randomizedQuestions: [],
+      answers: new Map([[String(question._id), question.answers[0]._id]]),
+      score: 1, subjectScores: [{ tag: tag._id, correct: 1, total: 1 }],
+      startTime: new Date(), endTime: new Date(Date.now() + 5),
+    });
+    await attempt(1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await badge()).toBe(1);
+    const entry = await listed(exam);
+    expect(entry.computationStatus).toBe('computed');
+    expect(entry.hasNewResults).toBe(true);
+
+    await asDean(request(app).post(`/api/mock-exam-results/${exam._id}/seen`)).send({});
+    expect(await badge()).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await attempt(2);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await badge()).toBe(1);
+  });
+
+  it('a program chair is only told about their own program', async () => {
+    const other = await Program.create({ name: 'Civil Engineering', code: 'CE', department: dept._id });
+    const { token: chairToken } = await createUserAndToken({
+      role: 'program_chair', department: dept._id, program: other._id, email: 'chair@example.com',
+    });
+    const chairBadge = async () => (await request(app).get('/api/stats/badge-counts')
+      .set('Cookie', `nu_board_token=${chairToken}`)).body.newExamResults;
+    expect(await chairBadge()).toBe(0);
+    expect(await badge()).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const exam = await createExam({ endDateTime: new Date(Date.now() - 1), missedAttemptsProcessedAt: new Date() });
+    await submitAttempt(exam);
+    await listed(exam);
+    expect(await badge()).toBe(1);
+    expect(await chairBadge()).toBe(0);
+    const seen = await request(app).post(`/api/mock-exam-results/${exam._id}/seen`)
+      .set('Cookie', `nu_board_token=${chairToken}`).send({});
+    expect(seen.status).toBe(403);
+  });
+});

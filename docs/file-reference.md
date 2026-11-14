@@ -222,7 +222,7 @@ server/models/RequestMetric.js
 ```
 server/models/MockExamResult.js
 ```
--> Mongoose schema for computed/aggregated exam results stored after a faculty member triggers result computation for a finished exam.
+-> Mongoose schema for a student exam's computed/aggregated results. They are stored when the exam closes (`examExpiryJob`) or the first time someone opens Exam Results (`ensureStudentResults` in `services/examResultsReport.js`); no one triggers it by hand. `models/ExamResultsSeen.js` and `services/examResultNews.js` keep which results each dean or program chair has opened, for the navbar count and the New pill.
 
 ```
 server/models/ExamAiOverview.js
@@ -754,12 +754,12 @@ client/src/pages/student/StudentExamRunner.jsx
 ```
 client/src/pages/student/StudentExamResult.jsx
 ```
--> Shows the result of a single student exam attempt with per-subject score breakdown and pass/fail status.
+-> The page a student lands on after submitting an exam: confirms the answers are in and that the score follows on the release date.
 
 ```
 client/src/pages/student/StudentExamResults.jsx
 ```
--> Lists all of a student's past exam attempts with date, score, and a link to each individual result.
+-> A student's Exam Results: a thin wrapper around `shared/LearnerExamResults.jsx` with `audience="student"`.
 
 ---
 
@@ -778,12 +778,12 @@ client/src/pages/alumni/AlumniExamRunner.jsx
 ```
 client/src/pages/alumni/AlumniExamResult.jsx
 ```
--> Shows the result of a single alumni exam attempt with per-subject breakdown.
+-> The page an alumni lands on after submitting an attempt, with a button to their results.
 
 ```
 client/src/pages/alumni/AlumniExamResults.jsx
 ```
--> Lists all of an alumni's past exam attempts with attempt number, date, score, and link to each result.
+-> An alumni's Exam Results: a thin wrapper around `shared/LearnerExamResults.jsx` with `audience="alumni"`; `examId` opens that exam's result on arrival.
 
 ---
 
@@ -855,6 +855,11 @@ client/src/pages/shared/ExamResults.jsx
 client/src/pages/shared/IndividualReportView.jsx
 ```
 -> The Individual view of the Exam Results panel: everyone eligible for the exam as rows split by lines, filtered by whether they took it, searched and sorted. Opening a row shows that person in the same panel: score, attempts (alumni), scores by topic and their answers through `QuestionStepper`. `initialList` sets the starting filter and sort, for the AI Overview's "Open in Individual" buttons.
+
+```
+client/src/pages/shared/LearnerExamResults.jsx
+```
+-> A student's or an alumni's own Exam Results, on the list and panel of the dean's and program chair's page (`ca-page`, `PanelHeader`, `usePanelLayout`). One card per exam answered, with Passed, Failed and (students) Awaiting release capsules, a search and a sort. The panel shows Your Result (score, Passed or Failed with the gap to the threshold, time spent), Scores by Topic (`TopicScoreRows`) and the attempt's details. A student's score stays hidden until the release date, and the list reloads when that date comes. An alumni picks an attempt from a dropdown and has a Questions view (`QuestionStepper`) with their own answer on each question, the bubbles green or red; a topic row opens it on that topic's first question. Reads `/api/student-exams/my-attempts`, `/api/alumni-exams/my-attempts` and `/api/alumni-exams/attempt/:id`.
 
 ```
 client/src/pages/shared/AiOverviewView.jsx
@@ -968,7 +973,7 @@ client/src/components/AuthImage.jsx
 ```
 client/src/components/ImportReviewBubbles.jsx
 ```
--> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and `QuestionStepper`. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar.
+-> `QuestionNavBubbles` in a bordered section with the progress in a header bar ("N of M questions ready" while editing, "Question X of N" read-only). Used by the question form (import review and grouped questions), the read-only question set views (My Questions, Approve Questions, Create Exams, exam results) and `QuestionStepper`. While editing, a question with no flags counts as ready. `aside` adds something to the right of the header bar, and read-only `getResult(question)` colors a bubble as correct or wrong.
 
 ```
 client/src/components/QuestionMarkers.jsx
@@ -983,12 +988,17 @@ client/src/components/PanelHeader.jsx
 ```
 client/src/components/QuestionStepper.jsx
 ```
--> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar, `renderDetails` goes below the question, and `getPanelProps` passes the result props of `QuestionDetailPanels`. Used by Board Exams for a whole exam, Manage Subjects for a whole subject and Exam Results for an exam's or a person's answers.
+-> Steps through many questions one at a time: `ImportReviewBubbles` above `QuestionDetailPanels`, keeping each set together under one capsule and repeating its passage. `renderAside` adds to the bubbles' header bar, `renderDetails` goes below the question, `getPanelProps` passes the result props of `QuestionDetailPanels`, and `getResult` marks each bubble right or wrong. Used by Board Exams for a whole exam, Manage Subjects for a whole subject, Exam Results for an exam's or a person's answers, and an alumni's own results.
 
 ```
 client/src/components/TopicScoreRows.jsx
 ```
--> An exam result's score per topic as rows split by lines: name, "N/M correct", a bar with a tick at the passing threshold, and the percentage. With `onSelect` each row is a button. Used by the Exam Results Overall and Individual views.
+-> An exam result's score per topic as rows split by lines: name, "N/M correct", a bar with a tick at the passing threshold, and the percentage. With `onSelect` each row is a button. Used by the Exam Results Overall and Individual views and by a learner's own results.
+
+```
+client/src/components/ThresholdGap.jsx
+```
+-> How far a score is from the passing threshold, as an arrow and words ("5 pts above the threshold"). Used under the average on Exam Results and under a learner's own result.
 
 ```
 client/src/components/QuestionNavBubbles.jsx
@@ -1261,6 +1271,11 @@ client/src/styles/shared/ExamResults.css
 -> What the exam results page adds to the shared `ca-` layout (`er-` classes): the result-state markers, the summary notes, the score distribution chart and the attempts list. Its numbers, pills and people rows are the shared "Panel parts" in `QuestionApprovals.css`.
 
 ```
+client/src/styles/shared/LearnerExamResults.css
+```
+-> What a student's or an alumni's Exam Results adds to the shared `ca-` layout (`lr-` classes): the passed, failed and awaiting-release markers, the Passed or Failed word, and the legend above the answer bubbles.
+
+```
 client/src/styles/shared/AiOverview.css
 ```
 -> The AI Overview's styles (`aio-` classes): the strip about the overview, banners, findings, the topics chart (this exam's dot, the previous exam's ring, the passing line), the progress line chart with its hover card, the questions table (cards on phones), and the empty and generating states. Its sections and numbers are the shared `question-panel` and `ca-stats`. Rules that change a shared part start with `.ca-page`, because this file can load before `QuestionApprovals.css`.
@@ -1286,11 +1301,6 @@ client/src/styles/shared/StudentExamResult.css
 -> Styles for the individual exam result page: score circle, per-subject table, and pass/fail banner.
 
 ```
-client/src/styles/shared/StudentExamResults.css
-```
--> Styles for the exam history list: attempt rows, score display, and date formatting.
-
-```
 client/src/styles/shared/SubjectTags.css
 ```
 -> What the Manage Subjects page adds to the shared `ca-` layout: the dean's program picker, the exam count marker, the list of exams using a subject, and the add and edit window. Other pages also rely on its `.qp-btn-add`, `.error-text` and `.qp-warning-text`.
@@ -1309,11 +1319,6 @@ client/src/styles/programchair/PCLogs.css
 client/src/styles/alumni/AlumniAvailableExams.css
 ```
 -> Styles for the alumni available exams list page.
-
-```
-client/src/styles/alumni/AlumniExamResults.css
-```
--> Styles for the alumni exam results history list with attempt-number column.
 
 ```
 client/src/styles/superadmin/SAdminCatalog.css

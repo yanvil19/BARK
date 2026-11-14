@@ -32,6 +32,8 @@ import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
 // After the pages that load the shared list and form styles, so importing it doesn't move those
 // styles earlier in the bundle (an earlier stylesheet loses ties to the ones after it)
 import StudentManager from './pages/shared/StudentRegister.jsx';
+import DeanChairDocuments from './pages/shared/DeanChairDocuments.jsx';
+import DocumentLibrary from './pages/shared/DocumentLibrary.jsx';
 import Credits from './pages/Credits.jsx';
 import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
@@ -44,7 +46,6 @@ export default function App() {
 
   // Send periodic heartbeat when tab is focused and user is active
   useHeartbeat(me);
-  const [editingMockBoardExamId, setEditingMockBoardExamId] = useState(() => sessionStorage.getItem('bark_editingMockBoardExamId') || '');
   const [mockBoardExamRefreshKey, setMockBoardExamRefreshKey] = useState(0);
   const [examRunnerId, setExamRunnerId] = useState(() => sessionStorage.getItem('bark_examRunnerId') || '');
   const [examRunnerMode, setExamRunnerMode] = useState(() => sessionStorage.getItem('bark_examRunnerMode') || 'details');
@@ -54,11 +55,10 @@ export default function App() {
   const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [isInitialAuthLoading, setIsInitialAuthLoading] = useState(true);
-  const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0 });
+  const [badgeCounts, setBadgeCounts] = useState({ pendingApprovals: 0, myReturnedOrRejected: 0, newExamResults: 0 });
   const prevMeRef = useRef(null);
 
   useEffect(() => sessionStorage.setItem('bark_route', route), [route]);
-  useEffect(() => sessionStorage.setItem('bark_editingMockBoardExamId', editingMockBoardExamId), [editingMockBoardExamId]);
   useEffect(() => sessionStorage.setItem('bark_examRunnerId', examRunnerId), [examRunnerId]);
   useEffect(() => sessionStorage.setItem('bark_examRunnerMode', examRunnerMode), [examRunnerMode]);
   useEffect(() => sessionStorage.setItem('bark_studentExamId', studentExamId), [studentExamId]);
@@ -218,10 +218,12 @@ export default function App() {
       'studentExamRunner',
       'studentExamResult',
       'studentExamResults',
+      'studentDocuments',
       'alumniAvailableExams',
       'alumniExamRunner',
       'alumniExamResult',
       'alumniExamResults',
+      'alumniDocuments',
     ]);
 
     if (me && route && learnerRoutes.has(route) && !isLearner) {
@@ -236,6 +238,7 @@ export default function App() {
         studentExamRunner: 'alumniExamRunner',
         studentExamResult: 'alumniExamResult',
         studentExamResults: 'alumniExamResults',
+        studentDocuments: 'alumniDocuments',
       };
       if (studentToAlumniRoute[route]) setRoute(studentToAlumniRoute[route]);
     }
@@ -244,13 +247,6 @@ export default function App() {
       setRoute('Dashboard');
     }
   }, [me, route]);
-
-  useEffect(() => {
-    const examEditorRoutes = new Set(['mockBoardExam', 'pcMockBoardExam']);
-    if (!examEditorRoutes.has(route) && editingMockBoardExamId) {
-      setEditingMockBoardExamId('');
-    }
-  }, [editingMockBoardExamId, route]);
 
   useEffect(() => {
     if (route !== 'deanExamRunner' && examRunnerId) {
@@ -325,12 +321,12 @@ export default function App() {
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
   if (route === 'deanQuestions') page = <DeanQuestions me={me} />;
   if (route === 'deanTags') page = <ManageSubject me={me} />;
+  if (route === 'deanDocuments') page = <DeanChairDocuments me={me} />;
+  if (route === 'pcDocuments') page = <DeanChairDocuments me={me} />;
   if (route === 'mockBoardExam')
     page = (
       <MockBoardExam
         me={me}
-        editingExamId={editingMockBoardExamId}
-        onClearEditing={() => setEditingMockBoardExamId('')}
         onExamSaved={() => {
           setMockBoardExamRefreshKey((prev) => prev + 1);
           setRoute('availableMockBoardExams');
@@ -342,13 +338,7 @@ export default function App() {
       <AvailableMockBoardExams
         me={me}
         refreshKey={mockBoardExamRefreshKey}
-        onEditExam={(id, action = 'edit') => {
-          if (action === 'edit') {
-            setEditingMockBoardExamId(id);
-            setRoute('mockBoardExam');
-            return;
-          }
-
+        onOpenExam={(id, action) => {
           if (action === 'preview') {
             setExamRunnerId(id);
             setRoute('mockBoardExamPreview');
@@ -395,8 +385,6 @@ export default function App() {
     page = (
       <MockBoardExam
         me={me}
-        editingExamId={editingMockBoardExamId}
-        onClearEditing={() => setEditingMockBoardExamId('')}
         onExamSaved={() => {
           setMockBoardExamRefreshKey((prev) => prev + 1);
           setRoute('pcAvailableMockBoardExams');
@@ -408,12 +396,7 @@ export default function App() {
       <AvailableMockBoardExams
         me={me}
         refreshKey={mockBoardExamRefreshKey}
-        onEditExam={(id, action = 'edit') => {
-          if (action === 'edit') {
-            setEditingMockBoardExamId(id);
-            setRoute('pcMockBoardExam');
-            return;
-          }
+        onOpenExam={(id, action) => {
           if (action === 'preview') {
             setExamRunnerId(id);
             setRoute('pcMockBoardExamPreview');
@@ -470,6 +453,8 @@ export default function App() {
     );
   if (route === 'studentExamResults')
     page = <StudentExamResults />;
+  if (route === 'studentDocuments')
+    page = <DocumentLibrary me={me} />;
   if (route === 'alumniAvailableExams')
     page = (
       <AlumniAvailableExams onTakeExam={startAlumniExam} onViewResults={viewAlumniResults} />
@@ -494,6 +479,8 @@ export default function App() {
     );
   if (route === 'alumniExamResults')
     page = <AlumniExamResults examId={alumniResultExamId} />;
+  if (route === 'alumniDocuments')
+    page = <DocumentLibrary me={me} />;
   if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
   if (isInitialAuthLoading) {

@@ -2,6 +2,14 @@ const { decryptExamQuestions, decryptQuestion } = require('../services/encryptio
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const mongoose = require('mongoose');
+const {
+  calculateScore,
+  attemptPercentage,
+  attemptScoreOutOf,
+  takerRules,
+  applyRunProgress,
+  resumeRunState,
+} = require('../utils/examAttemptUtils');
 
 // Helper to shuffle arrays
 function shuffleArray(array) {
@@ -101,35 +109,6 @@ function recordProgressMilestones(attempt) {
       loggedPercents.add(threshold);
     }
   }
-}
-
-async function calculateScore(attempt, exam) {
-  const populatedExam = await MockBoardExam.findById(exam._id).populate({
-    path: 'questions',
-    populate: { path: 'tag' }
-  });
-
-  let totalScore = 0;
-  const subjectStats = {};
-
-  populatedExam.questions.forEach(q => {
-    const tagId = q.tag._id.toString();
-    if (!subjectStats[tagId]) {
-      subjectStats[tagId] = { tag: q.tag._id, correct: 0, total: 0 };
-    }
-    subjectStats[tagId].total += 1;
-
-    const correctAns = q.answers.find(a => a.isCorrect);
-    const studentAnsId = attempt.answers.get(q._id.toString());
-
-    if (correctAns && studentAnsId && String(studentAnsId) === String(correctAns._id)) {
-      totalScore += 1;
-      subjectStats[tagId].correct += 1;
-    }
-  });
-
-  attempt.score = totalScore;
-  attempt.subjectScores = Object.values(subjectStats);
 }
 
 async function autoSubmitIfExpired(attempt) {
@@ -294,6 +273,8 @@ async function startExam(req, res) {
     }
 
     const remainingTimeSeconds = Math.floor((currentExam.endDateTime - now) / 1000);
+    const resumed = resumeRunState(attempt, currentExam, now);
+    if (resumed.changed) await attempt.save();
 
     const responseQuestions = [];
     const qMap = new Map();
@@ -331,8 +312,11 @@ async function startExam(req, res) {
         _id: currentExam._id,
         name: currentExam.name,
         description: currentExam.description,
-        instructions: currentExam.instructions
+        instructions: currentExam.instructions,
+        passingThreshold: currentExam.passingThreshold,
       },
+      rules: takerRules(currentExam),
+      state: resumed.state,
       questions: responseQuestions,
       answers: Object.fromEntries(attempt.answers),
       remainingTimeSeconds,
@@ -348,7 +332,7 @@ async function startExam(req, res) {
 async function saveProgress(req, res) {
   try {
     const attemptId = req.params.attemptId;
-    const { answers } = req.body;
+    const { answers, state } = req.body;
 
     const attempt = await StudentExamAttempt.findById(attemptId);
     if (!attempt) return res.status(404).json({ message: 'Attempt not found' });
@@ -369,9 +353,7 @@ async function saveProgress(req, res) {
       return res.status(400).json({ message: 'Exam is no longer in progress' });
     }
 
-    for (const [qId, ansId] of Object.entries(answers)) {
-      attempt.answers.set(qId, ansId);
-    }
+    applyRunProgress(attempt, exam, { answers, state }, now);
 
     recordProgressMilestones(attempt);
     await attempt.save();
@@ -409,11 +391,7 @@ async function submitExam(req, res) {
     attempt.status = 'submitted';
     attempt.endTime = now;
 
-    if (req.body.answers) {
-      for (const [qId, ansId] of Object.entries(req.body.answers)) {
-        attempt.answers.set(qId, ansId);
-      }
-    }
+    applyRunProgress(attempt, exam, { answers: req.body.answers, state: req.body.state }, now);
 
     recordProgressMilestones(attempt);
     await calculateScore(attempt, exam);
@@ -489,7 +467,8 @@ async function getMyAttempts(req, res) {
           };
         }
 
-        const pct = totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+        const pct = attemptPercentage(attempt, totalItems);
+        const shown = attemptScoreOutOf(attempt, totalItems);
         let status = 'failed';
         if (pct >= threshold) status = 'passed';
         else if (pct >= threshold - 10) status = 'near_pass';
@@ -497,8 +476,8 @@ async function getMyAttempts(req, res) {
         return {
           ...base,
           totalItems,
-          rawScore: attempt.score,
-          totalScore: totalItems,
+          rawScore: shown.earned,
+          totalScore: shown.total,
           status,
           passingThreshold: threshold,
           subjectScores: (attempt.subjectScores || []).map((ss) => ({

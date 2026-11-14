@@ -87,6 +87,8 @@ function overlapsRange(exam, range) {
  * - role / programId: whose exams to load (no role = no exams and no day panel, e.g. the learner board exam countdown)
  * - audience: 'student' | 'alumni'; overlaps are checked against exams with the same audience
  * - excludeExamId: the exam being edited, left out of the list
+ * - fixedDurationMs (with range): the end always follows the start by this much and can't be
+ *   picked, as when an exam's question timers decide how long it runs; endNote says why
  */
 export default function DateTimePicker({
   value,
@@ -102,10 +104,17 @@ export default function DateTimePicker({
   programId,
   audience,
   excludeExamId,
+  fixedDurationMs = 0,
+  endNote = 'The end follows the start.',
 }) {
+  const endFollowsStart = range && fixedDurationMs > 0;
   const getInitialStart = () => toDate(value) || getNextFullHour();
   // A new schedule ends one hour after it starts
-  const getInitialEnd = (start) => toDate(endValue) || addHours(start, 1);
+  const getInitialEnd = (start) => (
+    endFollowsStart
+      ? new Date(start.getTime() + fixedDurationMs)
+      : toDate(endValue) || addHours(start, 1)
+  );
 
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [draftStart, setDraftStart] = useState(getInitialStart);
@@ -195,7 +204,9 @@ export default function DateTimePicker({
 
   // Moving the start carries the end along so the exam keeps its length
   function moveStart(nextStart) {
-    if (range && draftEnd > draftStart) {
+    if (endFollowsStart) {
+      setDraftEnd(new Date(nextStart.getTime() + fixedDurationMs));
+    } else if (range && draftEnd > draftStart) {
       setDraftEnd(new Date(draftEnd.getTime() + (nextStart.getTime() - draftStart.getTime())));
     }
     setDraftStart(nextStart);
@@ -349,6 +360,18 @@ export default function DateTimePicker({
                 {EDGES.map((edge) => {
                   const date = edge.key === 'end' ? draftEnd : draftStart;
                   const isActive = activeEdge === edge.key;
+                  // An end that follows the start is shown, not picked
+                  if (edge.key === 'end' && endFollowsStart) {
+                    return (
+                      <div key={edge.key} className="dtp-edge is-fixed">
+                        <div className="dtp-edge-pick">
+                          <span>{edge.label}</span>
+                          <strong>{format(date, 'EEE, MMM d, yyyy')}</strong>
+                        </div>
+                        <span className="dtp-edge-time">{format(date, 'h:mm a')}</span>
+                      </div>
+                    );
+                  }
                   return (
                     <div key={edge.key} className={`dtp-edge${isActive ? ' is-active' : ''}`}>
                       <button
@@ -372,7 +395,9 @@ export default function DateTimePicker({
                 <p className={`dtp-duration${endInvalid ? ' is-error' : ''}`}>
                   {endInvalid ? 'Ends before it starts' : `Duration: ${formatDuration(draftStart, draftEnd)}`}
                 </p>
-                <p className="dtp-hint">The calendar sets the {isEditingEnd ? 'end' : 'start'} date.</p>
+                <p className="dtp-hint">
+                  {endFollowsStart ? endNote : `The calendar sets the ${isEditingEnd ? 'end' : 'start'} date.`}
+                </p>
               </div>
             ) : (
               <div className="dtp-time">

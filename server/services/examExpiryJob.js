@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const User = require('../models/User');
+const { pointsByQuestion } = require('../utils/examAttemptUtils');
+const { ensureStudentResults } = require('./examResultsReport');
 
 function chunk(array, size) {
   const out = [];
@@ -9,8 +11,11 @@ function chunk(array, size) {
   return out;
 }
 
-function buildScoreFromQuestions({ questions, answersMap }) {
+// points: what each question is worth in the exam (pointsByQuestion)
+function buildScoreFromQuestions({ questions, answersMap, points }) {
   let totalScore = 0;
+  let pointsEarned = 0;
+  let pointsTotal = 0;
   const subjectStats = new Map(); // tagId -> { tag, correct, total }
 
   for (const q of questions || []) {
@@ -19,18 +24,21 @@ function buildScoreFromQuestions({ questions, answersMap }) {
 
     const prev = subjectStats.get(tagId) || { tag: q.tag, correct: 0, total: 0 };
     prev.total += 1;
+    const worth = points?.get(String(q._id)) || 1;
+    pointsTotal += worth;
 
     const correctAns = (q.answers || []).find((a) => a && a.isCorrect);
     const picked = answersMap ? answersMap.get(String(q._id)) : undefined;
     if (correctAns && picked && String(picked) === String(correctAns._id)) {
       prev.correct += 1;
       totalScore += 1;
+      pointsEarned += worth;
     }
 
     subjectStats.set(tagId, prev);
   }
 
-  return { totalScore, subjectScores: [...subjectStats.values()] };
+  return { totalScore, pointsEarned, pointsTotal, subjectScores: [...subjectStats.values()] };
 }
 
 const startExamExpiryJob = () => {
@@ -80,10 +88,11 @@ const startExamExpiryJob = () => {
             path: 'questions',
             select: 'tag answers',
           })
-          .select('_id program department endDateTime questions')
+          .select('_id program department endDateTime questions scoringMode defaultQuestionPoints itemSettings')
           .lean();
 
         if (!exam) continue;
+        const points = pointsByQuestion(exam);
 
         const learners = await User.find({
           isActive: true,
@@ -100,6 +109,7 @@ const startExamExpiryJob = () => {
             { _id: exam._id },
             { $set: { missedAttemptsProcessedAt: new Date() } }
           );
+          await ensureStudentResults(exam._id);
           continue;
         }
 
@@ -119,9 +129,10 @@ const startExamExpiryJob = () => {
         const missingLearnerIds = learnerIds.filter((id) => !hasAttempt.has(String(id)));
 
         const insertDocs = missingLearnerIds.map((studentId) => {
-          const { totalScore, subjectScores } = buildScoreFromQuestions({
+          const { totalScore, pointsEarned, pointsTotal, subjectScores } = buildScoreFromQuestions({
             questions: exam.questions,
             answersMap: new Map(),
+            points,
           });
 
           return {
@@ -133,6 +144,8 @@ const startExamExpiryJob = () => {
             answers: {},
             randomizedQuestions: [],
             score: totalScore, // will be 0
+            pointsEarned,
+            pointsTotal,
             subjectScores,
             autoSubmitted: true,
             lateSubmission: false,
@@ -145,9 +158,10 @@ const startExamExpiryJob = () => {
         const inProgressAttempts = existingAttempts.filter((a) => a.status === 'in_progress');
         for (const att of inProgressAttempts) {
           const answersMap = att.answers instanceof Map ? att.answers : new Map(Object.entries(att.answers || {}));
-          const { totalScore, subjectScores } = buildScoreFromQuestions({
+          const { totalScore, pointsEarned, pointsTotal, subjectScores } = buildScoreFromQuestions({
             questions: exam.questions,
             answersMap,
+            points,
           });
 
           await StudentExamAttempt.updateOne(
@@ -158,6 +172,8 @@ const startExamExpiryJob = () => {
                 endTime: exam.endDateTime,
                 autoSubmitted: true,
                 score: totalScore,
+                pointsEarned,
+                pointsTotal,
                 subjectScores,
               },
             }
@@ -174,6 +190,9 @@ const startExamExpiryJob = () => {
           { _id: exam._id },
           { $set: { missedAttemptsProcessedAt: new Date() } }
         );
+
+        // Every attempt is in now, so the results are ready without anyone asking for them
+        await ensureStudentResults(exam._id);
 
         console.log(`[ExamExpiryJob] Processed missed attempts for exam ${exam._id} (created ${insertDocs.length})`);
       }

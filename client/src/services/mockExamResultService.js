@@ -17,6 +17,11 @@ export const computeExamResult = async (examId, passingThreshold = 70) => {
   });
 };
 
+// Records that the person has looked at an exam's results, which clears its "new" marker
+export const markExamResultsSeen = async (examId) => {
+  return await apiAuth(`${BASE}/${examId}/seen`, { method: 'POST', body: {} });
+};
+
 export const getExamStudentResults = async (examId) => {
   return await apiAuth(`${BASE}/${examId}/students`);
 };

@@ -73,6 +73,57 @@ const mockBoardExamSchema = new mongoose.Schema(
       default: null,
       min: [1, 'Time limit must be at least 1 minute'],
     },
+    // How the questions are scored: 'equal' is 1 point each, 'custom' uses the points in itemSettings
+    scoringMode: {
+      type: String,
+      enum: ['equal', 'custom'],
+      default: 'equal',
+    },
+    // The points a question gets when it's added, and the value "Apply to all" sets
+    defaultQuestionPoints: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 100,
+    },
+    // Whether each question has its own time, from itemSettings. A student exam timed this way
+    // ends when the time of all its questions is up; an alumni attempt is limited to that total.
+    questionTimerEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    // The time a question gets when it's added, and the value "Apply to all" sets
+    defaultQuestionSeconds: {
+      type: Number,
+      default: 120,
+      min: 10,
+      max: 3600,
+    },
+    // One question at a time, in order: a taker answers the open question to get the next one
+    // and can't go back to one they have left
+    oneWayNavigation: {
+      type: Boolean,
+      default: false,
+    },
+    // With one-way navigation on, whether a taker can go back to look at the questions already
+    // answered (never to change them); the ones not reached yet stay out of reach
+    oneWayBackAllowed: {
+      type: Boolean,
+      default: false,
+    },
+    // Points and time per question in this exam. Questions are shared across exams, so these live here.
+    itemSettings: [
+      {
+        _id: false,
+        question: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Question',
+          required: true,
+        },
+        points: { type: Number, default: 1, min: 1, max: 100 },
+        timeLimitSeconds: { type: Number, default: 120, min: 10, max: 3600 },
+      },
+    ],
     status: {
       type: String,
       enum: ['draft', 'published', 'ongoing', 'finished', 'archived'],

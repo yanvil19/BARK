@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { newResultExamIds } = require('../services/examResultNews');
 const Department = require('../models/Department');
 const Program = require('../models/Program');
 const RegistrationRequest = require('../models/RegistrationRequest');
@@ -796,7 +797,12 @@ const getNavbarBadgeCounts = async (req, res) => {
     const counts = {
       pendingApprovals: 0,
       myReturnedOrRejected: 0,
+      newExamResults: 0,
     };
+
+    if (['dean', 'program_chair'].includes(user.role)) {
+      counts.newExamResults = (await newResultExamIds(user)).size;
+    }
 
     if (user.role === 'program_chair') {
       if (user.program) {

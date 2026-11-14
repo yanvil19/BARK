@@ -1,0 +1,12 @@
+// Cloudflare deploy settings for the frontend (used by `npx wrangler deploy`).
+// The site is static: Vite builds it into dist/, and Cloudflare serves those files.
+{
+  // Must match the Worker's name in the Cloudflare dashboard
+  "name": "bark",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist/",
+    // Unknown paths such as /login get index.html, so the app can handle them
+    "not_found_handling": "single-page-application"
+  }
+}

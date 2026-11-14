@@ -1,13 +1,16 @@
 // How an exam's results are worked out, shared by the results pages (controllers/
 // mockExamResultController.js) and the AI overview (services/examOverviewFacts.js), so both
-// read the same numbers. Student results are computed once and stored (MockExamResult);
-// alumni results are worked out from the attempts each time, from each alumni's highest score.
+// read the same numbers. Student results are computed once the exam has closed and stored
+// (MockExamResult): by the expiry job when it closes the exam, or the first time someone looks.
+// Alumni results are worked out from the attempts each time, from each alumni's highest score.
 const { decryptExamQuestions } = require('./encryptionService');
 const MockExamResult = require('../models/MockExamResult');
+const MockBoardExam = require('../models/MockBoardExam');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const Tag = require('../models/Tag');
 const User = require('../models/User');
+const { attemptPercentage } = require('../utils/examAttemptUtils');
 
 function getTotalItemsFromAttempt(attempt, exam) {
   const totalFromSubjects = (attempt.subjectScores || []).reduce(
@@ -18,8 +21,7 @@ function getTotalItemsFromAttempt(attempt, exam) {
 }
 
 function getAttemptPercentage(attempt, exam) {
-  const totalItems = getTotalItemsFromAttempt(attempt, exam);
-  return totalItems > 0 ? (attempt.score / totalItems) * 100 : 0;
+  return attemptPercentage(attempt, getTotalItemsFromAttempt(attempt, exam));
 }
 
 function pickHighestAttemptByAlumni(attempts, exam) {
@@ -325,6 +327,113 @@ async function buildAlumniHighestScoreReport(exam, { programId = null } = {}) {
   };
 }
 
+// Works out a student exam's results from its submitted attempts and stores them, replacing
+// any stored before. exam has its questions populated (still encrypted). Returns the stored
+// results, or null when no student has an attempt.
+async function computeStudentResults(exam, { computedBy = null, passingThreshold = null } = {}) {
+  const attempts = await findStudentAttempts(exam._id);
+  if (attempts.length === 0) return null;
+
+  const totalTakers = attempts.length;
+  const decryptedExam = decryptExamQuestions(exam);
+  const questionRates = buildQuestionRates(decryptedExam, attempts);
+
+  // Each subject's average is the average of its questions' rates
+  const tagIds = [...new Set(questionRates.map((qr) => qr.tagId))];
+  const tags = await Tag.find({ _id: { $in: tagIds } });
+
+  const subjects = tagIds.map((tagId) => {
+    const tag = tags.find((t) => String(t._id) === tagId);
+    const subjectQuestions = questionRates.filter((qr) => qr.tagId === tagId);
+    const totalRates = subjectQuestions.reduce((acc, qr) => acc + qr.correctRate, 0);
+    const averageScore = subjectQuestions.length > 0 ? Math.round(totalRates / subjectQuestions.length) : 0;
+    const totalCorrectInAttempts = attempts.reduce((acc, attempt) => {
+      const scoreEntry = attempt.subjectScores.find((ss) => String(ss.tag) === tagId);
+      return acc + (scoreEntry?.correct || 0);
+    }, 0);
+
+    return {
+      name: tag ? tag.name : 'Unknown Subject',
+      averageScore,
+      correctCount: Math.round(totalCorrectInAttempts / totalTakers),
+      totalItems: subjectQuestions.length,
+      questions: subjectQuestions.map((sq) => ({
+        questionId: sq.questionId,
+        label: sq.label,
+        description: sq.description,
+        correctRate: sq.correctRate,
+        answerCounts: sq.answerCounts,
+        unansweredCount: sq.unansweredCount,
+        groupId: sq.groupId || null,
+        groupContext: sq.groupContext || null,
+        groupContextImages: sq.groupContextImages || [],
+      })),
+    };
+  });
+
+  const finalThreshold = exam.passingThreshold ?? passingThreshold ?? 70;
+  const scoreSummary = buildScoreSummary(
+    attempts.map((attempt) => getAttemptPercentage(attempt, exam)),
+    finalThreshold
+  );
+  const totalEligibleStudents = await User.countDocuments({
+    program: exam.program,
+    role: exam.targetAudience === 'alumni' ? 'alumni' : 'student',
+    isActive: true,
+  });
+
+  const stored = await MockExamResult.findOneAndUpdate(
+    { examId: exam._id },
+    {
+      examId: exam._id,
+      examName: exam.name,
+      dateConducted: exam.startDateTime,
+      totalTakers,
+      ...scoreSummary,
+      totalEligibleStudents,
+      passingThreshold: finalThreshold,
+      status: 'computed',
+      computedAt: new Date(),
+      subjects,
+      createdBy: computedBy || exam.createdBy,
+      department: exam.department,
+    },
+    { upsert: true, returnDocument: 'after' }
+  );
+
+  const result = stored.toObject();
+  addQuestionContent(result.subjects, decryptedExam.questions || []);
+  return result;
+}
+
+// The expiry job closes an exam within a minute of its end: it hands in the attempts still
+// open and records the students who never took it. Results worked out before that would miss
+// them, so they wait for it, or for this long after the end if the job never ran.
+const EXPIRY_JOB_WAIT_MS = 5 * 60 * 1000;
+
+// Whether a student exam is over and settled, so its results can be worked out for good
+function studentResultsDue(exam, now = new Date()) {
+  if ((exam.targetAudience || 'student') === 'alumni') return false;
+  if (exam.status === 'draft' || !exam.endDateTime) return false;
+  const end = new Date(exam.endDateTime).getTime();
+  if (end >= now.getTime()) return false;
+  return Boolean(exam.missedAttemptsProcessedAt) || now.getTime() - end > EXPIRY_JOB_WAIT_MS;
+}
+
+// Works out the results of the given exam if it is due and has none stored. Never throws: a
+// failure here must not break the page or the job that asked.
+async function ensureStudentResults(examId) {
+  try {
+    if (await MockExamResult.exists({ examId })) return false;
+    const exam = await MockBoardExam.findById(examId).populate('questions');
+    if (!exam || !studentResultsDue(exam)) return false;
+    return Boolean(await computeStudentResults(exam));
+  } catch (err) {
+    console.error(`[ExamResults] Could not work out the results of exam ${examId}:`, err.message);
+    return false;
+  }
+}
+
 // A student exam's stored results, or null before they are computed. Results computed before
 // the score summary was saved get it from the attempts.
 async function loadStudentReport(exam) {
@@ -369,6 +478,9 @@ module.exports = {
   addQuestionContent,
   buildQuestionRates,
   buildAlumniHighestScoreReport,
+  computeStudentResults,
+  studentResultsDue,
+  ensureStudentResults,
   loadStudentReport,
   loadExamReport,
 };

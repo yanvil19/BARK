@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { Fragment, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
 import { organizeQuestionAnswers } from '../../lib/DeanTestRunOrganizer.js';
@@ -12,6 +12,7 @@ import TrashButton from '../../components/TrashButton.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
+import SetMemberRows from '../../components/SetMemberRows.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
@@ -108,9 +109,12 @@ export default function QuestionApprovals({ me }) {
   const [bulkActionModal, setBulkActionModal] = useState(null); // 'return' | 'reject' | 'restore'
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
+  // A set opened from one of the rows under its card starts at that question, not the first
+  const openAtMemberRef = useRef(0);
 
   useEffect(() => {
-    setActiveGroupIdx(0);
+    setActiveGroupIdx(openAtMemberRef.current);
+    openAtMemberRef.current = 0;
   }, [selectedQuestion?._id, selectedQuestion?.groupId]);
 
   // The list scrolls on its own: each page or filter starts at the top...
@@ -200,6 +204,16 @@ export default function QuestionApprovals({ me }) {
     try {
       await apiAuth(`${BASE}/api/questions/${id}/unlock`, { method: 'PATCH' });
     } catch { }
+  }
+
+  // A row under a set's card opens the set at that question
+  function openSetMember(question, index) {
+    if (selectedQuestion?.groupId && selectedQuestion.groupId === question.groupId) {
+      setActiveGroupIdx(index);
+      return;
+    }
+    openAtMemberRef.current = index;
+    handleSelectQuestion(question);
   }
 
   async function handleSelectQuestion(question, { afterDecision = false } = {}) {
@@ -1062,8 +1076,8 @@ export default function QuestionApprovals({ me }) {
                       && (isGrouped ? groupSiblings.some((q) => q.is_used_in_exam) : question.is_used_in_exam);
 
                     return (
+                      <Fragment key={question.groupId || question._id}>
                       <div
-                        key={question.groupId || question._id}
                         className={`${isGrouped ? 'ca-group-header-card' : 'ca-question-card'} ${isActive ? 'is-active' : ''} ${isCardChecked ? 'is-checked' : ''}`}
                         style={{ '--card-index': cardIndex }}
                         onClick={() => handleSelectQuestion(question)}
@@ -1120,6 +1134,16 @@ export default function QuestionApprovals({ me }) {
                           </span>
                         </div>
                       </div>
+                      {isGrouped && (
+                        <SetMemberRows
+                          members={groupSiblings}
+                          open={isActive}
+                          activeIndex={activeGroupIdx}
+                          cardIndex={cardIndex}
+                          onOpenMember={(index) => openSetMember(question, index)}
+                        />
+                      )}
+                      </Fragment>
                     );
                   })}
                 </div>

@@ -21,6 +21,8 @@ export default function ImportReviewBubbles({
   allInOneSet = false,
   // Shown at the right of the header bar, such as the current question's subject
   aside = null,
+  // Read-only results: getResult(question) says 'correct' or 'wrong', which colors its bubble
+  getResult = null,
 }) {
   // Read-only views show no flags or progress
   const flagCounts = questions.map((q) => (
@@ -50,7 +52,9 @@ export default function ImportReviewBubbles({
         questions={questions}
         currentIdx={currentIdx}
         onSelect={onSelectQuestion}
-        getStatus={readOnly ? undefined : (_, index) => ({ done: flagCounts[index] === 0, flags: flagCounts[index] })}
+        getStatus={readOnly
+          ? (getResult ? (question) => ({ result: getResult(question) }) : undefined)
+          : (_, index) => ({ done: flagCounts[index] === 0, flags: flagCounts[index] })}
         doneLabel="ready"
         getSetKey={getSetKey}
       />

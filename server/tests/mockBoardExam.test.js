@@ -207,6 +207,156 @@ describe('publish tracking', () => {
   });
 });
 
+describe('question settings (points and time per question)', () => {
+  let tag, q1, q2;
+
+  beforeEach(async () => {
+    tag = await require('../models/Tag').create({ name: 'Settings Subject', program: prog._id, createdBy: deanUser._id, isActive: true });
+    q1 = await Question.create({ description: 'S1', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
+    q2 = await Question.create({ description: 'S2', answers: [{ text: '1', isCorrect: true }], program: prog._id, state: 'approved', createdBy: deanUser._id, tag: tag._id });
+  });
+
+  // A start on the whole minute, so the end the server works out is easy to state
+  const wholeMinuteStart = () => {
+    const start = futureDate(2);
+    start.setSeconds(0, 0);
+    return start;
+  };
+
+  const createExam = (overrides) => request(app)
+    .post('/api/mock-board-exams')
+    .set('Cookie', `nu_board_token=${deanToken}`)
+    .send({
+      name: 'Settings Exam',
+      programId: prog._id,
+      subjectTagIds: [tag._id],
+      questionIds: [q1._id, q2._id],
+      status: 'draft',
+      ...overrides,
+    });
+
+  it('saves custom points and times, and ends a timed student exam when its questions are done', async () => {
+    const start = wholeMinuteStart();
+    const res = await createExam({
+      startDateTime: start,
+      endDateTime: futureDate(5),
+      scoringMode: 'custom',
+      defaultQuestionPoints: 2,
+      questionTimerEnabled: true,
+      defaultQuestionSeconds: 95,
+      itemSettings: [
+        { question: q1._id, points: 2, timeLimitSeconds: 95 },
+        { question: q2._id, points: 5, timeLimitSeconds: 100 },
+      ],
+    });
+    expect(res.status).toBe(201);
+
+    const exam = await MockBoardExam.findById(res.body.exam._id);
+    expect(exam.scoringMode).toBe('custom');
+    expect(exam.questionTimerEnabled).toBe(true);
+    expect(exam.itemSettings.map((item) => [String(item.question), item.points, item.timeLimitSeconds])).toEqual([
+      [String(q1._id), 2, 95],
+      [String(q2._id), 5, 100],
+    ]);
+    // 195 seconds of questions, rounded up to 4 whole minutes; the end that was sent is ignored
+    expect(exam.endDateTime.getTime()).toBe(start.getTime() + 4 * 60000);
+  });
+
+  it('limits an alumni attempt to the total of its question times', async () => {
+    const res = await createExam({
+      targetAudience: 'alumni',
+      startDateTime: futureDate(2),
+      endDateTime: futureDate(9),
+      isTimed: false,
+      questionTimerEnabled: true,
+      defaultQuestionSeconds: 120,
+      itemSettings: [
+        { question: q1._id, timeLimitSeconds: 120 },
+        { question: q2._id, timeLimitSeconds: 130 },
+      ],
+    });
+    expect(res.status).toBe(201);
+
+    const exam = await MockBoardExam.findById(res.body.exam._id);
+    expect(exam.isTimed).toBe(true);
+    expect(exam.timeLimitMinutes).toBe(5);
+    // The alumni window keeps the end that was picked
+    expect(exam.endDateTime.getTime()).toBe(new Date(res.body.exam.endDateTime).getTime());
+  });
+
+  it('rejects bad points only while custom points are on', async () => {
+    const badItems = [
+      { question: q1._id, points: 2.5 },
+      { question: q2._id, points: 0 },
+    ];
+
+    const custom = await createExam({ scoringMode: 'custom', itemSettings: badItems });
+    expect(custom.status).toBe(400);
+    expect(custom.body.message).toMatch(/whole numbers from 1 to 100/);
+
+    const equal = await createExam({ scoringMode: 'equal', itemSettings: badItems });
+    expect(equal.status).toBe(201);
+    const exam = await MockBoardExam.findById(equal.body.exam._id);
+    expect(exam.itemSettings.map((item) => item.points)).toEqual([1, 1]);
+  });
+
+  it('rejects question times outside 10 seconds to 60 minutes while the timer is on', async () => {
+    const res = await createExam({
+      questionTimerEnabled: true,
+      itemSettings: [{ question: q1._id, timeLimitSeconds: 5 }],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/10 seconds to 60 minutes/);
+  });
+
+  it('keeps the settings when an edit leaves them out', async () => {
+    const created = await createExam({
+      scoringMode: 'custom',
+      itemSettings: [{ question: q1._id, points: 3 }, { question: q2._id, points: 4 }],
+    });
+    expect(created.status).toBe(201);
+
+    const res = await request(app)
+      .patch(`/api/mock-board-exams/${created.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ name: 'Renamed Settings Exam' });
+    expect(res.status).toBe(200);
+
+    const exam = await MockBoardExam.findById(created.body.exam._id);
+    expect(exam.name).toBe('Renamed Settings Exam');
+    expect(exam.scoringMode).toBe('custom');
+    expect(exam.itemSettings.map((item) => item.points)).toEqual([3, 4]);
+  });
+
+  it('saves one-way navigation, off unless it is sent, and keeps it through an edit', async () => {
+    const plain = await createExam({ name: 'Free Navigation Exam' });
+    expect(plain.status).toBe(201);
+    const plainExam = await MockBoardExam.findById(plain.body.exam._id);
+    expect(plainExam.oneWayNavigation).toBe(false);
+    expect(plainExam.oneWayBackAllowed).toBe(false);
+
+    const created = await createExam({ oneWayNavigation: true, oneWayBackAllowed: true });
+    expect(created.status).toBe(201);
+
+    const renamed = await request(app)
+      .patch(`/api/mock-board-exams/${created.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ name: 'Renamed One-Way Exam' });
+    expect(renamed.status).toBe(200);
+    let exam = await MockBoardExam.findById(created.body.exam._id);
+    expect(exam.oneWayNavigation).toBe(true);
+    expect(exam.oneWayBackAllowed).toBe(true);
+
+    const turnedOff = await request(app)
+      .patch(`/api/mock-board-exams/${created.body.exam._id}`)
+      .set('Cookie', `nu_board_token=${deanToken}`)
+      .send({ oneWayNavigation: false });
+    expect(turnedOff.status).toBe(200);
+    exam = await MockBoardExam.findById(created.body.exam._id);
+    expect(exam.oneWayNavigation).toBe(false);
+  });
+});
+
 describe('PATCH /api/mock-board-exams/:id/archive', () => {
   it('should archive a finished exam', async () => {
     const exam = await MockBoardExam.create({
