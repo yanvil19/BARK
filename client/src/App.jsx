@@ -32,6 +32,8 @@ import AlumniExamResults from './pages/alumni/AlumniExamResults.jsx';
 // After the pages that load the shared list and form styles, so importing it doesn't move those
 // styles earlier in the bundle (an earlier stylesheet loses ties to the ones after it)
 import StudentManager from './pages/shared/StudentRegister.jsx';
+import DeanChairDocuments from './pages/shared/DeanChairDocuments.jsx';
+import DocumentLibrary from './pages/shared/DocumentLibrary.jsx';
 import Credits from './pages/Credits.jsx';
 import { api, clearClientSessionStorage } from './lib/api.js';
 import Footer from './components/Footer.jsx';
@@ -216,10 +218,12 @@ export default function App() {
       'studentExamRunner',
       'studentExamResult',
       'studentExamResults',
+      'studentDocuments',
       'alumniAvailableExams',
       'alumniExamRunner',
       'alumniExamResult',
       'alumniExamResults',
+      'alumniDocuments',
     ]);
 
     if (me && route && learnerRoutes.has(route) && !isLearner) {
@@ -234,6 +238,7 @@ export default function App() {
         studentExamRunner: 'alumniExamRunner',
         studentExamResult: 'alumniExamResult',
         studentExamResults: 'alumniExamResults',
+        studentDocuments: 'alumniDocuments',
       };
       if (studentToAlumniRoute[route]) setRoute(studentToAlumniRoute[route]);
     }
@@ -316,6 +321,8 @@ export default function App() {
   if (route === 'chairQuestions') page = <ChairQuestions me={me} />;
   if (route === 'deanQuestions') page = <DeanQuestions me={me} />;
   if (route === 'deanTags') page = <ManageSubject me={me} />;
+  if (route === 'deanDocuments') page = <DeanChairDocuments me={me} />;
+  if (route === 'pcDocuments') page = <DeanChairDocuments me={me} />;
   if (route === 'mockBoardExam')
     page = (
       <MockBoardExam
@@ -446,6 +453,8 @@ export default function App() {
     );
   if (route === 'studentExamResults')
     page = <StudentExamResults />;
+  if (route === 'studentDocuments')
+    page = <DocumentLibrary me={me} />;
   if (route === 'alumniAvailableExams')
     page = (
       <AlumniAvailableExams onTakeExam={startAlumniExam} onViewResults={viewAlumniResults} />
@@ -470,6 +479,8 @@ export default function App() {
     );
   if (route === 'alumniExamResults')
     page = <AlumniExamResults examId={alumniResultExamId} />;
+  if (route === 'alumniDocuments')
+    page = <DocumentLibrary me={me} />;
   if (route === 'credits') page = <Credits onNavigate={setRoute} />;
 
   if (isInitialAuthLoading) {
