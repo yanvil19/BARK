@@ -148,6 +148,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
                 </span>
               )}
             </button>
+            <button className={cls('deanDocuments')} onClick={handle('deanDocuments')}>Documents</button>
           </>
         )}
 
@@ -181,6 +182,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
                 </span>
               )}
             </button>
+            <button className={cls('pcDocuments')} onClick={handle('pcDocuments')}>Documents</button>
             <button className={cls('chairCheatingLogs')} onClick={handle('chairCheatingLogs')}>Logs</button>
           </>
         )}
@@ -213,6 +215,9 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
             <button className={cls('studentExamResults')} onClick={handle('studentExamResults')}>
               Exam Results
             </button>
+            <button className={cls('studentDocuments')} onClick={handle('studentDocuments')}>
+              Documents
+            </button>
           </>
         )}
 
@@ -223,6 +228,9 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
             </button>
             <button className={cls('alumniExamResults')} onClick={handle('alumniExamResults')}>
               Exam Results
+            </button>
+            <button className={cls('alumniDocuments')} onClick={handle('alumniDocuments')}>
+              Documents
             </button>
           </>
         )}
