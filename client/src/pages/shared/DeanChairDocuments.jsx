@@ -92,7 +92,7 @@ export default function DeanChairDocuments({ me }) {
   // Upload state
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
-  const [uploadProgram, setUploadProgram] = useState('GENERAL');
+  const [uploadProgram, setUploadProgram] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -112,7 +112,7 @@ export default function DeanChairDocuments({ me }) {
         let scopedPrograms = allPrograms;
 
         if (isChair) {
-          // Program chair can only see and upload to their assigned program (+ GENERAL)
+          // Program chair can only see and upload to their assigned program (General/All Programs removed)
           const chairProgramId = String(me?.program?._id || me?.program || '');
           const chairProgramCode = String(me?.program?.code || '').toUpperCase();
 
@@ -120,7 +120,7 @@ export default function DeanChairDocuments({ me }) {
             (p) => String(p._id) === chairProgramId || (p.code && p.code.toUpperCase() === chairProgramCode)
           );
         } else if (isDean) {
-          // Dean can only see and upload to programs within their department (+ GENERAL)
+          // Dean can only see and upload to programs within their department/school
           const deanDeptId = String(me?.department?._id || me?.department || '');
           if (deanDeptId) {
             scopedPrograms = allPrograms.filter((p) => {
@@ -135,21 +135,21 @@ export default function DeanChairDocuments({ me }) {
           label: `${p.name} (${p.code || 'N/A'})`,
         }));
 
-        const options = [
-          { value: 'GENERAL', label: 'General / All Programs' },
-          ...formatted,
-        ];
+        const options = isChair
+          ? formatted
+          : [
+            { value: 'GENERAL', label: 'General / All Programs (Under School)' },
+            ...formatted,
+          ];
 
         setProgramOptions(options);
 
         // Preselect initial program
         if (isChair && me?.program?.code) {
           setUploadProgram(me.program.code.toUpperCase());
-        } else if (isDean && formatted.length > 0) {
-          setUploadProgram(formatted[0].value);
         }
       } catch {
-        // Fall back to default options
+        // Fall back to empty or default options
       }
     }
     loadPrograms();
@@ -430,6 +430,7 @@ export default function DeanChairDocuments({ me }) {
                 onChange={(e) => setUploadProgram(e.target.value)}
                 options={programOptions}
                 placeholder="Select Program"
+                disablePlaceholder
                 ariaLabel="Select target program"
               />
             </div>

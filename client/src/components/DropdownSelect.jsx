@@ -5,20 +5,22 @@ import '../styles/components/DropdownSelect.css';
  * DropdownSelect — a reusable styled select dropdown.
  *
  * Props:
- *  - value        : currently selected value
- *  - onChange     : (e) => void   (standard change handler)
- *  - options      : [{ value, label }] — array of options
- *  - placeholder  : string — empty-value option label (optional)
- *  - disabled     : boolean
- *  - id           : string (for accessibility)
- *  - ariaLabel    : string — accessible name when there is no visible label
- *  - className    : extra class applied to the outer wrapper
+ *  - value               : currently selected value
+ *  - onChange            : (e) => void   (standard change handler)
+ *  - options             : [{ value, label }] — array of options
+ *  - placeholder         : string — empty-value option label (optional)
+ *  - disablePlaceholder  : boolean — if true, renders the placeholder option as disabled
+ *  - disabled            : boolean
+ *  - id                  : string (for accessibility)
+ *  - ariaLabel           : string — accessible name when there is no visible label
+ *  - className           : extra class applied to the outer wrapper
  */
 export default function DropdownSelect({
   value = '',
   onChange,
   options = [],
   placeholder,
+  disablePlaceholder = false,
   disabled = false,
   id,
   ariaLabel,
@@ -35,7 +37,9 @@ export default function DropdownSelect({
         aria-label={ariaLabel}
       >
         {placeholder !== undefined && (
-          <option value="">{placeholder}</option>
+          <option value="" disabled={disablePlaceholder}>
+            {placeholder}
+          </option>
         )}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
