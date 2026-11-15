@@ -122,19 +122,17 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
           <>
             <button className={cls('studentManager')} onClick={handle('studentManager')}>Registration</button>
             <button className={cls('deanTags')} onClick={handle('deanTags')}>Manage Subject</button>
-            <button className={`${cls('deanQuestions')} nav-btn-with-badge`} onClick={handle('deanQuestions')}>
-              <span>Create Questions</span>
-              {badgeCounts?.myReturnedOrRejected > 0 && (
-                <span className="nav-badge" title={`${badgeCounts.myReturnedOrRejected} returned/rejected question(s)`}>
-                  {badgeCounts.myReturnedOrRejected > 99 ? '99+' : badgeCounts.myReturnedOrRejected}
-                </span>
-              )}
-            </button>
-            <button className={`${cls('deanQuestionApprovals')} nav-btn-with-badge`} onClick={handle('deanQuestionApprovals')}>
-              <span>Approve Questions</span>
-              {badgeCounts?.pendingApprovals > 0 && (
-                <span className="nav-badge" title={`${badgeCounts.pendingApprovals} question(s) awaiting approval`}>
-                  {badgeCounts.pendingApprovals > 99 ? '99+' : badgeCounts.pendingApprovals}
+            <button
+              className={`${route === 'deanQuestions' || route === 'deanQuestionApprovals' ? (isMobile ? 'mobile-nav-item active' : 'active') : (isMobile ? 'mobile-nav-item' : '')} nav-btn-with-badge`}
+              onClick={handle('deanQuestions')}
+            >
+              <span>Questions</span>
+              {((badgeCounts?.myReturnedOrRejected > 0) || (badgeCounts?.pendingApprovals > 0)) && (
+                <span
+                  className="nav-badge"
+                  title={`${badgeCounts.myReturnedOrRejected || 0} returned/rejected, ${badgeCounts.pendingApprovals || 0} pending approval`}
+                >
+                  {Math.min((badgeCounts.myReturnedOrRejected || 0) + (badgeCounts.pendingApprovals || 0), 99) || '99+'}
                 </span>
               )}
             </button>
@@ -156,19 +154,17 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
           <>
             <button className={cls('pcStudentManager')} onClick={handle('pcStudentManager')}>Registration</button>
             <button className={cls('chairTags')} onClick={handle('chairTags')}>Manage Subjects</button>
-            <button className={`${cls('chairQuestions')} nav-btn-with-badge`} onClick={handle('chairQuestions')}>
-              <span>My Questions</span>
-              {badgeCounts?.myReturnedOrRejected > 0 && (
-                <span className="nav-badge" title={`${badgeCounts.myReturnedOrRejected} returned/rejected question(s)`}>
-                  {badgeCounts.myReturnedOrRejected > 99 ? '99+' : badgeCounts.myReturnedOrRejected}
-                </span>
-              )}
-            </button>
-            <button className={`${cls('chairQuestionApprovals')} nav-btn-with-badge`} onClick={handle('chairQuestionApprovals')}>
-              <span>Approve Questions</span>
-              {badgeCounts?.pendingApprovals > 0 && (
-                <span className="nav-badge" title={`${badgeCounts.pendingApprovals} question(s) awaiting approval`}>
-                  {badgeCounts.pendingApprovals > 99 ? '99+' : badgeCounts.pendingApprovals}
+            <button
+              className={`${route === 'chairQuestions' || route === 'chairQuestionApprovals' ? (isMobile ? 'mobile-nav-item active' : 'active') : (isMobile ? 'mobile-nav-item' : '')} nav-btn-with-badge`}
+              onClick={handle('chairQuestions')}
+            >
+              <span>Questions</span>
+              {((badgeCounts?.myReturnedOrRejected > 0) || (badgeCounts?.pendingApprovals > 0)) && (
+                <span
+                  className="nav-badge"
+                  title={`${badgeCounts.myReturnedOrRejected || 0} returned/rejected, ${badgeCounts.pendingApprovals || 0} pending approval`}
+                >
+                  {Math.min((badgeCounts.myReturnedOrRejected || 0) + (badgeCounts.pendingApprovals || 0), 99) || '99+'}
                 </span>
               )}
             </button>
@@ -189,7 +185,7 @@ export default function Navbar({ me, route, onRoute, onLogout, onMeRefresh, badg
 
         {isProfessor && (
           <button className={`${cls('profQuestions')} nav-btn-with-badge`} onClick={handle('profQuestions')}>
-            <span>My Questions</span>
+            <span>Questions</span>
             {badgeCounts?.myReturnedOrRejected > 0 && (
               <span className="nav-badge" title={`${badgeCounts.myReturnedOrRejected} returned/rejected question(s)`}>
                 {badgeCounts.myReturnedOrRejected > 99 ? '99+' : badgeCounts.myReturnedOrRejected}

@@ -95,8 +95,8 @@ function getGroupContextImagesError(images, settings) {
   const maxImages = settings.maxGroupContextImages ?? 5;
   if (images.length <= maxImages) return null;
   return maxImages === 0
-    ? 'Shared passage images are disabled. Remove the images from the shared passage.'
-    : `Maximum of ${maxImages} shared passage image${maxImages === 1 ? '' : 's'} allowed`;
+    ? 'Situation images are disabled. Remove the images from the situation.'
+    : `Maximum of ${maxImages} situation image${maxImages === 1 ? '' : 's'} allowed`;
 }
 
 // Drops empty answer choices saved before blank rows were filtered out, so they

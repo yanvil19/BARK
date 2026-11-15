@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
-import QuestionsPage from '../shared/MyQuestions.jsx';
+import Questions from '../shared/Questions.jsx';
 
 // [FIX 1 - REMOVE HARDCODED URL]
 const BASE = import.meta.env.VITE_API_URL;
 
-export default function DeanQuestions({ me }) {
+export default function DeanQuestions({ me, initialTab, badgeCounts }) {
   const [programs, setPrograms] = useState([]);
   const [selectedProgramId, setSelectedProgramId] = useState('');
 
@@ -32,12 +32,14 @@ export default function DeanQuestions({ me }) {
   }, [me]);
 
   return (
-    <QuestionsPage
+    <Questions
       me={me}
       role="dean"
       programId={selectedProgramId}
       programs={programs}
       onProgramChange={setSelectedProgramId}
+      initialTab={initialTab}
+      badgeCounts={badgeCounts}
     />
   );
 }

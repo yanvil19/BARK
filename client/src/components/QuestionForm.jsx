@@ -590,7 +590,7 @@ export default function QuestionForm({
     if (!files.length) return;
 
     if (groupContextImages.length + passageUploadingCount + files.length > maxGroupContextImages) {
-      setPassageImageError(`Maximum of ${maxGroupContextImages} images allowed for the shared passage.`);
+      setPassageImageError(`Maximum of ${maxGroupContextImages} images allowed for the situation.`);
       return;
     }
 
@@ -672,7 +672,7 @@ export default function QuestionForm({
     const current = getSetMembers(key)[0]?.setImages || [];
     const uploadingNow = setImageUploading[key] || 0;
     if (current.length + uploadingNow + files.length > maxGroupContextImages) {
-      setSetImageErrors((prev) => ({ ...prev, [key]: `Maximum of ${maxGroupContextImages} images allowed for the shared passage.` }));
+      setSetImageErrors((prev) => ({ ...prev, [key]: `Maximum of ${maxGroupContextImages} images allowed for the situation.` }));
       return;
     }
 
@@ -925,8 +925,8 @@ export default function QuestionForm({
     // [GROUPED QUESTIONS] the limit can be lowered after images were added
     if (isGrouped && !readOnly && groupContextImages.length > maxGroupContextImages) {
       return maxGroupContextImages === 0
-        ? 'Shared passage images are turned off. Remove the images from the shared passage.'
-        : `Only ${maxGroupContextImages} image(s) can be attached to the shared passage.`;
+        ? 'Situation images are turned off. Remove the images from the situation.'
+        : `Only ${maxGroupContextImages} image(s) can be attached to the situation.`;
     }
 
     // [IMPORT SETS] the same rules as a question group, per set
@@ -938,8 +938,8 @@ export default function QuestionForm({
       }
       if ((members[0].setImages || []).length > maxGroupContextImages) {
         return maxGroupContextImages === 0
-          ? `${label}: shared passage images are turned off. Remove the images from the shared passage.`
-          : `${label}: only ${maxGroupContextImages} image(s) can be attached to the shared passage.`;
+          ? `${label}: situation images are turned off. Remove the images from the situation.`
+          : `${label}: only ${maxGroupContextImages} image(s) can be attached to the situation.`;
       }
     }
 
@@ -1299,14 +1299,14 @@ export default function QuestionForm({
     return (
       <section className="qf-section">
         <div className="qf-section-header">
-          <h3 className="qf-section-title">Shared Passage</h3>
+          <h3 className="qf-section-title">Situation</h3>
         </div>
 
         <div className="qf-section-body">
           <p className="qf-section-hint">{hint}</p>
           <div className="qf-field">
             <RichTextEditor
-              ariaLabel="Shared passage"
+              ariaLabel="Situation"
               placeholder={placeholder}
               value={value}
               onChange={onChange}
@@ -1329,15 +1329,15 @@ export default function QuestionForm({
                 type="button"
                 className="qf-secondary-btn qf-icon-btn"
                 onClick={() => document.getElementById(inputId)?.click()}
-                title="Add shared passage images"
-                aria-label="Add shared passage images"
+                title="Add situation images"
+                aria-label="Add situation images"
               >
                 <AddImageIcon />
               </button>
               <span className="qf-upload-note">
                 {uploadingCount > 0
                   ? 'Uploading images...'
-                  : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the shared passage)`}
+                  : `Optional. JPG, PNG, or WEBP (Max 5MB each, ${maxGroupContextImages} total for the situation)`}
               </span>
             </div>
           )}
@@ -1352,7 +1352,7 @@ export default function QuestionForm({
                 <div key={url} className="image-thumb">
                   <AuthImage
                     src={url}
-                    alt={`Shared passage image ${idx + 1}`}
+                    alt={`Situation image ${idx + 1}`}
                     onClick={() => setFullscreenImage(url)}
                     title="Click to view full size"
                   />
@@ -1362,7 +1362,7 @@ export default function QuestionForm({
                       onClick={() => onRemove(idx)}
                       className="btn-remove-img"
                       title="Remove image"
-                      aria-label={`Remove shared passage image ${idx + 1}`}
+                      aria-label={`Remove situation image ${idx + 1}`}
                     >
                       <TrashIcon />
                     </button>
@@ -1396,7 +1396,7 @@ export default function QuestionForm({
           </span>
           <span className="qf-import-set-notice-text">
             <strong>Question set: {getSetLabel(key)}.</strong>{' '}
-            These questions share the passage below. They are saved as one set and always appear together in this order during exams.
+            These questions share the situation below. They are saved as one set and always appear together in this order during exams.
           </span>
           {!readOnly && (
             <button
@@ -1426,7 +1426,7 @@ export default function QuestionForm({
           onPick: (e) => handleSetImagePick(e, key),
           onRemove: (idx) => removeSetImage(key, idx),
           hint: 'Shown above every question in this set during the exam.',
-          placeholder: 'Shared passage, case or scenario for this set.',
+          placeholder: 'Situation, case or scenario for this set.',
         })}
       </>
     );
@@ -1829,11 +1829,11 @@ export default function QuestionForm({
             onPick: handlePassageImagePick,
             onRemove: removePassageImage,
             hint: readOnly
-              ? 'Shared passage, scenario, or context shown above all questions in this group.'
-              : 'Optional — a shared passage, scenario, or image shown above all questions in this group during the exam.',
+              ? 'Situation, scenario, or context shown above all questions in this group.'
+              : 'Optional — a situation, scenario, or image shown above all questions in this group during the exam.',
             placeholder: readOnly
-              ? 'No shared context provided.'
-              : "e.g. 'Read the following passage and answer questions 1–3:' or leave blank if not needed.",
+              ? 'No situation provided.'
+              : "e.g. 'Read the following situation and answer questions 1–3:' or leave blank if not needed.",
           })}
           <div className="qf-group-notice">
             <span className="qf-group-notice-icon" aria-hidden="true">
@@ -1991,9 +1991,9 @@ export default function QuestionForm({
       >
         <p className="modal-text">
           {ungroupSetKey ? `${getSetLabel(ungroupSetKey)} will become single questions. ` : ''}
-          The shared passage is added to the start of each question&apos;s text.
+          The situation is added to the start of each question&apos;s text.
           {ungroupSetKey && (getSetMembers(ungroupSetKey)[0]?.setImages || []).length > 0
-            ? ' Images on the shared passage are removed.'
+            ? ' Images on the situation are removed.'
             : ''}
         </p>
         <div className="modal-actions qp-modal-actions">

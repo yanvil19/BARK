@@ -18,7 +18,7 @@ function getMaxAnswerImagesError(value) {
 // Shared passage images have their own limit (0 turns them off)
 function getMaxGroupContextImagesError(value) {
   if (value === undefined) return null;
-  if (value < 0 || value > 50) return 'Max shared passage images must be between 0 and 50.';
+  if (value < 0 || value > 50) return 'Max situation images must be between 0 and 50.';
   return null;
 }
 
