@@ -97,7 +97,7 @@ function formatCountdown(seconds) {
   return parts.join(' ');
 }
 
-export default function MyQuestions({ role, programId, programLabel, programs = [], onProgramChange, me }) {
+export default function MyQuestions({ role, programId, programLabel, programs = [], onProgramChange, me, tabBar }) {
   const { notify } = useToast();
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
@@ -785,6 +785,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
           </div>
         </div>
       </PageHeader>
+      {tabBar}
 
       <CapsuleFilters
         className="ca-state-pills"

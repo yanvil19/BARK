@@ -73,7 +73,7 @@ function formatRoleLabel(role) {
   return map[role] || role;
 }
 
-export default function QuestionApprovals({ me }) {
+export default function QuestionApprovals({ me, tabBar }) {
   const { notify } = useToast();
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
@@ -951,6 +951,7 @@ export default function QuestionApprovals({ me }) {
         title="Questions for Review and Approval"
         subtitle="Questions submitted by faculty for your review"
       />
+      {tabBar}
 
       <CapsuleFilters
         className="ca-state-pills"
