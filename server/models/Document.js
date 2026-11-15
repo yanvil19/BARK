@@ -45,6 +45,15 @@ const documentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    targetUser: {
+      type: String,
+      required: [true, 'Target user is required'],
+      enum: ['student', 'alumni', 'all'],
+      default: 'all',
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

@@ -46,9 +46,22 @@
   grid-template-columns: 1.2fr 1fr 1fr;
 }
 
+.doc-form-row-four {
+  grid-template-columns: 3fr 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .doc-form-row-four {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 900px) {
+
   .doc-form-row,
-  .doc-form-row-three {
+  .doc-form-row-three,
+  .doc-form-row-four {
     grid-template-columns: 1fr;
     gap: 14px;
   }
@@ -291,6 +304,36 @@
   background: #ede9fe;
   color: #6d28d9;
   border: 1px solid #ddd6fe;
+}
+
+/* Target User badge */
+.doc-user-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.doc-user-student {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.doc-user-alumni {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.doc-user-all {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 
 /* Badges: soft background + distinct text (matching table status standard) */

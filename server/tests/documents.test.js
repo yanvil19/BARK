@@ -92,6 +92,7 @@ describe('Document Program-Based Access Scoping', () => {
         storageKey: 'academic-docs/ds.pdf',
         publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/ds.pdf',
         program: 'BSCS',
+        targetUser: 'student',
         uploadedBy: chairUser._id,
       },
       {
@@ -103,6 +104,7 @@ describe('Document Program-Based Access Scoping', () => {
         storageKey: 'academic-docs/structural.pdf',
         publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/structural.pdf',
         program: 'BSCE',
+        targetUser: 'all',
         uploadedBy: deanUser._id,
       },
       {
@@ -114,6 +116,7 @@ describe('Document Program-Based Access Scoping', () => {
         storageKey: 'academic-docs/handbook.pdf',
         publicUrl: 'https://pub-ab383c78c8c14efb97d92d59e43f5b5f.r2.dev/academic-docs/handbook.pdf',
         program: 'GENERAL',
+        targetUser: 'all',
         uploadedBy: deanUser._id,
       },
     ]);

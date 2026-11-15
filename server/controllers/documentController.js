@@ -66,7 +66,7 @@ async function listDocuments(req, res) {
     const query = {};
     const userRole = req.user.role;
 
-    if (userRole === 'student' || userRole === 'alumni') {
+    if (userRole === 'student') {
       let userProgramCode = null;
       if (req.user.program) {
         userProgramCode = await resolveProgramCode(req.user.program);
@@ -77,6 +77,19 @@ async function listDocuments(req, res) {
       } else {
         query.program = 'GENERAL';
       }
+      query.targetUser = { $in: ['student', 'all'] };
+    } else if (userRole === 'alumni') {
+      let userProgramCode = null;
+      if (req.user.program) {
+        userProgramCode = await resolveProgramCode(req.user.program);
+      }
+
+      if (userProgramCode) {
+        query.program = { $in: [userProgramCode, 'GENERAL'] };
+      } else {
+        query.program = 'GENERAL';
+      }
+      query.targetUser = { $in: ['alumni', 'all'] };
     } else if (userRole === 'program_chair') {
       let chairProgramCode = null;
       if (req.user.program) {
@@ -214,6 +227,12 @@ async function uploadDocument(req, res) {
       });
     }
 
+    // Target user submitted (defaults to 'all' if not specified or invalid)
+    let targetUser = (req.body.targetUser || 'all').trim().toLowerCase();
+    if (!['student', 'alumni', 'all'].includes(targetUser)) {
+      targetUser = 'all';
+    }
+
     // Direct upload via PutObjectCommand
     const uploadResult = await uploadDocumentToR2(req.file, req.user._id);
 
@@ -227,6 +246,7 @@ async function uploadDocument(req, res) {
       storageKey: uploadResult.storageKey,
       publicUrl: uploadResult.publicUrl,
       program: targetProgram,
+      targetUser,
       uploadedBy: req.user._id,
     });
 

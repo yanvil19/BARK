@@ -30,6 +30,12 @@ const FILE_TYPE_OPTIONS = [
   { value: 'xls', label: 'Excel (.xls)' },
 ];
 
+const TARGET_USER_OPTIONS = [
+  { value: 'all', label: 'All Students & Alumni' },
+  { value: 'student', label: 'Students Only' },
+  { value: 'alumni', label: 'Alumni Only' },
+];
+
 function formatBytes(bytes, decimals = 2) {
   if (!bytes || bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -73,6 +79,22 @@ function getProgramBadge(program = '') {
   );
 }
 
+function getTargetUserBadge(targetUser = 'all') {
+  const target = (targetUser || 'all').toLowerCase();
+  let label = 'All Learners';
+  let badgeClass = 'doc-user-all';
+
+  if (target === 'student') {
+    label = 'Students Only';
+    badgeClass = 'doc-user-student';
+  } else if (target === 'alumni') {
+    label = 'Alumni Only';
+    badgeClass = 'doc-user-alumni';
+  }
+
+  return <span className={`doc-user-badge ${badgeClass}`}>{label}</span>;
+}
+
 export default function DeanChairDocuments({ me }) {
   const isDean = me?.role === 'dean';
   const isChair = me?.role === 'program_chair';
@@ -93,6 +115,7 @@ export default function DeanChairDocuments({ me }) {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
   const [uploadProgram, setUploadProgram] = useState('');
+  const [uploadTargetUser, setUploadTargetUser] = useState('all');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -257,6 +280,7 @@ export default function DeanChairDocuments({ me }) {
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('program', uploadProgram);
+      formData.append('targetUser', uploadTargetUser);
       formData.append('file', file);
 
       await apiAuthUpload('/api/documents', formData);
@@ -264,6 +288,7 @@ export default function DeanChairDocuments({ me }) {
       setUploadSuccess(`Document "${title.trim()}" uploaded successfully for [${uploadProgram}]!`);
       setTitle('');
       setFile(null);
+      setUploadTargetUser('all');
       const fileInput = document.getElementById('document-file-input');
       if (fileInput) fileInput.value = '';
 
@@ -327,6 +352,12 @@ export default function DeanChairDocuments({ me }) {
       header: 'Program',
       width: '110px',
       render: (row) => getProgramBadge(row.program),
+    },
+    {
+      key: 'targetUser',
+      header: 'Target User',
+      width: '120px',
+      render: (row) => getTargetUserBadge(row.targetUser),
     },
     {
       key: 'fileType',
@@ -403,7 +434,7 @@ export default function DeanChairDocuments({ me }) {
       <section className="doc-upload-box">
         <h2 className="box-title">Upload Academic Document</h2>
         <form className="doc-upload-form" onSubmit={handleUpload}>
-          <div className="doc-form-row doc-form-row-three">
+          <div className="doc-form-row doc-form-row-four">
             <div className="doc-form-group">
               <label htmlFor="document-title-input" className="doc-label">
                 Document Title <span className="required-star">*</span>
@@ -432,6 +463,19 @@ export default function DeanChairDocuments({ me }) {
                 placeholder="Select Program"
                 disablePlaceholder
                 ariaLabel="Select target program"
+              />
+            </div>
+
+            <div className="doc-form-group">
+              <label htmlFor="document-target-user-select" className="doc-label">
+                Target User <span className="required-star">*</span>
+              </label>
+              <DropdownSelect
+                id="document-target-user-select"
+                value={uploadTargetUser}
+                onChange={(e) => setUploadTargetUser(e.target.value)}
+                options={TARGET_USER_OPTIONS}
+                ariaLabel="Select target user"
               />
             </div>
 
