@@ -1,7 +1,8 @@
 // The header of a list page's side panel. The expand button is a tab on the panel's left edge,
 // the side the panel widens toward, so it moves with the edge as the columns glide; then the
-// title and buttons beside it that switch what the panel shows (none when views is empty; a view
-// may have an icon before its label);
+// title, titleAside after it (Board Exams: the exam's markers), and buttons beside it that switch
+// what the panel shows (none when views is empty; a view may have an icon before its label; with
+// viewsBesideButtons they sit on the right, before the full-screen button, instead);
 // children (such as Approve Questions' bulk navigation) come before the full-screen and close
 // buttons on the right. With onToggleFullscreen it has the full-screen button; the page puts
 // is-fullscreen on the panel, which then zooms to cover the whole window, navbar and footer
@@ -19,10 +20,28 @@ export default function PanelHeader({
   onClose,
   closeLabel,
   actions,
+  titleAside,
+  viewsBesideButtons = false,
   children,
 }) {
   const expandLabel = isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar';
   const fullscreenLabel = isFullscreen ? 'Exit full screen' : 'Full screen';
+  const viewToggle = views.length > 0 && (
+    <div className="ca-view-toggle ca-panel-toggle" role="group" aria-label="Show in this panel">
+      {views.map(({ value, label, icon }) => (
+        <button
+          key={value}
+          type="button"
+          className={[view === value ? 'is-active' : '', icon ? 'has-icon' : ''].filter(Boolean).join(' ')}
+          onClick={() => onViewChange(value)}
+          aria-pressed={view === value}
+        >
+          {icon}
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="ca-sidebar-header">
@@ -44,25 +63,12 @@ export default function PanelHeader({
       )}
       <div className="ca-panel-heading">
         <h2 className="ca-sidebar-title">{title}</h2>
-        {views.length > 0 && (
-          <div className="ca-view-toggle ca-panel-toggle" role="group" aria-label="Show in this panel">
-            {views.map(({ value, label, icon }) => (
-              <button
-                key={value}
-                type="button"
-                className={[view === value ? 'is-active' : '', icon ? 'has-icon' : ''].filter(Boolean).join(' ')}
-                onClick={() => onViewChange(value)}
-                aria-pressed={view === value}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+        {titleAside}
+        {!viewsBesideButtons && viewToggle}
       </div>
       {children}
       <div className="ca-sidebar-header-actions">
+        {viewsBesideButtons && viewToggle}
         {actions}
         {onToggleFullscreen && (
           <button

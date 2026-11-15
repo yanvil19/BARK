@@ -24,7 +24,17 @@ const STATE_MARKERS = {
 export const EXAM_STATUSES = {
   draft: { label: 'Draft', icon: <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" /> },
   published: { label: 'Published', icon: <path d="M21 3L3 11l7 3 3 7 8-18z" /> },
-  ongoing: { label: 'Ongoing', icon: <path d="M8 5l11 7-11 7V5z" /> },
+  // A faint ring with two opposite arcs running round it (ca-ongoing-spin in QuestionApprovals.css).
+  // Two arcs, not one, so the icon's weight stays on the centre at every angle.
+  ongoing: {
+    label: 'Ongoing',
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="8" opacity="0.3" />
+        <path className="ca-ongoing-spin" d="M12 4a8 8 0 0 1 8 8M12 20a8 8 0 0 1-8-8" />
+      </>
+    ),
+  },
   finished: { label: 'Finished', icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
   archived: { label: 'Archived', icon: <><path d="M3 4h18v4H3z" /><path d="M5 8v12h14V8" /><path d="M10 12h4" /></> },
 };
@@ -75,16 +85,39 @@ export function ExamStatePill({ status }) {
 }
 
 // Says what the markers on the cards mean, so the cards need no long labels.
-// items are { text, className, content }, a marker sample and its meaning.
-export function MarkerLegend({ items, ariaLabel }) {
+// items are { text, className, content }, a marker sample and its meaning, or { separator: true }
+// for a small dot between groups. Given onToggle, an item with a filterKey is also a switch that
+// shows or hides its cards (mix and match); hiddenKeys holds the keys switched off, which are
+// faded and crossed out.
+export function MarkerLegend({ items, ariaLabel, hiddenKeys, onToggle, className = '' }) {
   return (
-    <div className="ca-legend" role="group" aria-label={ariaLabel}>
-      {items.map(({ text, className, content }) => (
-        <span key={text} className="ca-legend-item">
-          <Marker className={className}>{content}</Marker>
-          {text}
-        </span>
-      ))}
+    <div className={`ca-legend ${className}`.trim()} role="group" aria-label={ariaLabel}>
+      {items.map(({ text, className, content, filterKey, separator }, index) => {
+        if (separator) return <span key={`separator-${index}`} className="ca-legend-sep" aria-hidden="true" />;
+        const marker = <Marker className={className}>{content}</Marker>;
+        if (!onToggle || !filterKey) {
+          return (
+            <span key={text} className="ca-legend-item">
+              {marker}
+              {text}
+            </span>
+          );
+        }
+        const off = Boolean(hiddenKeys?.has(filterKey));
+        return (
+          <button
+            key={text}
+            type="button"
+            className={`ca-legend-item ca-legend-toggle${off ? ' is-off' : ''}`}
+            aria-pressed={!off}
+            title={off ? `Hidden: click to show ${text}` : `Shown: click to hide ${text}`}
+            onClick={() => onToggle(filterKey)}
+          >
+            {marker}
+            <span className="ca-legend-text">{text}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

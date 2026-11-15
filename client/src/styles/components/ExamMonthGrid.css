@@ -53,10 +53,10 @@
 }
 
 .emg-status--archived {
-  --emg-bg: #eef0f4;
-  --emg-border: #d5dae3;
-  --emg-text: #6b7280;
-  --emg-dot: #cbd5e1;
+  --emg-bg: #f3ebe4;
+  --emg-border: #e2cfbf;
+  --emg-text: #7a5230;
+  --emg-dot: #a47551;
 }
 
 /* Header: today badge, month title, month navigation */

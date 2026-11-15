@@ -113,3 +113,126 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- Legend, and the open exam's markers ---------- */
+/* The list's legend, which also switches exams on and off, 2px larger than other pages' legends
+   (13px names, 20px markers, 13px icons). At this size the items need about 800px, so on a laptop
+   they take two rows (three beside an open exam). The open exam's markers with their names sit
+   beside its title in the panel header at the same size, in the same order. */
+/* The list's top strip: the status bar, then the legend under it */
+.ambe-legend-strip {
+  flex-shrink: 0;
+  padding: 10px 14px 8px;
+  background: #f9faff;
+  border-bottom: 1px solid rgba(53, 64, 142, 0.15);
+}
+
+.ca-legend.ambe-legend {
+  gap: 4px 8px;
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* The Questions page's bar (QuestionStatusFilters.css), in the exam statuses' colours. The
+   segments glide to their new widths when an audience is switched on or off. */
+.ambe-status-bar {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1f3f9;
+}
+
+.ambe-status-bar-segment {
+  flex-basis: 0;
+  min-width: 0;
+  transition: flex-grow 0.35s ease, opacity 0.2s ease;
+}
+
+.ambe-status-bar-segment.is-dim {
+  opacity: 0.35;
+}
+
+.ambe-status-bar-segment--draft {
+  background: var(--exam-status-draft);
+}
+
+.ambe-status-bar-segment--published {
+  background: var(--exam-status-published);
+}
+
+.ambe-status-bar-segment--ongoing {
+  background: var(--exam-status-ongoing);
+}
+
+.ambe-status-bar-segment--finished {
+  background: var(--exam-status-finished);
+}
+
+.ambe-status-bar-segment--archived {
+  background: var(--exam-status-archived);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambe-status-bar-segment {
+    transition: none;
+  }
+}
+
+.ambe-exam-markers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.ambe-legend .ca-legend-item,
+.ambe-exam-markers .ca-legend-item {
+  gap: 5px;
+  font-size: 13px;
+}
+
+.ambe-legend .ca-marker,
+.ambe-exam-markers .ca-marker {
+  min-width: 20px;
+  height: 20px;
+}
+
+.ambe-legend .ca-marker svg,
+.ambe-exam-markers .ca-marker svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* On a phone the panel covers the screen and the buttons take half the header, so the title keeps
+   the top row beside them and the markers get a full row underneath */
+@media (max-width: 640px) {
+  .ambe-page .ca-sidebar-header {
+    display: grid;
+    grid-template-areas:
+      "title actions"
+      "markers markers";
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: 6px;
+  }
+
+  .ambe-page .ca-panel-heading {
+    display: contents;
+  }
+
+  .ambe-page .ca-sidebar-title {
+    grid-area: title;
+  }
+
+  .ambe-page .ambe-exam-markers {
+    grid-area: markers;
+  }
+
+  .ambe-page .ca-sidebar-header-actions {
+    grid-area: actions;
+  }
+}

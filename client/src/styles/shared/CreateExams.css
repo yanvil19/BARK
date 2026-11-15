@@ -673,8 +673,8 @@
 }
 
 .mbe-status-pill--archived {
-  background: #eceff7;
-  color: #5e678f;
+  background: #f3ebe4;
+  color: #7a5230;
 }
 
 /* Status pills when inside a card (not on banner) */

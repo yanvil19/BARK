@@ -170,6 +170,91 @@
   height: 11px;
 }
 
+/* A small blue dot between a legend's groups (Board Exams: question count, statuses, audiences) */
+.ca-legend-sep {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+}
+
+/* A legend item that also filters (Board Exams): a switch, on as it looks above. Off, it fades,
+   its marker shrinks to grey, and a line draws across the marker and name from the left; turned
+   back on, the line clears off to the right. */
+.ca-legend-toggle {
+  position: relative;
+  margin: 0 -4px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: opacity 0.2s ease, background-color 0.15s ease;
+}
+
+/* Hover only where there is one, so a tapped item on a phone doesn't stay highlighted */
+@media (hover: hover) {
+  .ca-legend-toggle:hover {
+    background: rgba(53, 64, 142, 0.08);
+  }
+
+  .ca-legend-toggle.is-off:hover {
+    opacity: 0.7;
+  }
+}
+
+.ca-legend-toggle:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 1px;
+}
+
+.ca-legend-toggle .ca-marker {
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.ca-legend-toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.ca-legend-toggle.is-off {
+  opacity: 0.45;
+}
+
+.ca-legend-toggle.is-off .ca-marker {
+  transform: scale(0.85);
+  filter: grayscale(1);
+}
+
+.ca-legend-toggle.is-off::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-legend-toggle,
+  .ca-legend-toggle .ca-marker,
+  .ca-legend-toggle::after {
+    transition: none;
+  }
+}
+
 /* ── Exam-use sub-filter pills ─────────────────────────────────── */
 .ca-exam-use-pills {
   display: flex;
@@ -539,9 +624,9 @@
   --exam-status-finished: #0f766e;
   --exam-status-finished-text: #0f766e;
   --exam-status-finished-bg: #e6f4f1;
-  --exam-status-archived: #cbd5e1;
-  --exam-status-archived-text: #6b7280;
-  --exam-status-archived-bg: #e1e5ec;
+  --exam-status-archived: #a47551;
+  --exam-status-archived-text: #7a5230;
+  --exam-status-archived-bg: #f3ebe4;
 }
 
 .ca-exam-state--draft {
@@ -560,6 +645,30 @@
   background: var(--exam-status-ongoing-bg);
   color: var(--exam-status-ongoing-text);
   border: 1px solid var(--exam-status-ongoing);
+}
+
+/* Ongoing's icon is a ring with an arc running round it, wherever it shows (cards, legends,
+   pills). It rests while its legend switch is off, and for reduced motion. */
+.ca-ongoing-spin {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: caOngoingSpin 1.1s linear infinite;
+}
+
+@keyframes caOngoingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ca-legend-toggle.is-off .ca-ongoing-spin {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-ongoing-spin {
+    animation: none;
+  }
 }
 
 .ca-exam-state--finished {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AuthImage from '../../components/AuthImage.jsx';
-import CapsuleFilters from '../../components/CapsuleFilters.jsx';
 import PanelHeader from '../../components/PanelHeader.jsx';
 import QuestionStepper from '../../components/QuestionStepper.jsx';
 import { EXAM_STATUSES, Marker, MarkerIcon, MarkerLegend } from '../../components/QuestionMarkers.jsx';
@@ -28,11 +27,6 @@ const BASE = import.meta.env.VITE_API_URL;
 
 const ITEMS_PER_PAGE = 10;
 
-const STATUS_TABS = [
-  { value: '', label: 'All' },
-  ...Object.entries(EXAM_STATUSES).map(([value, { label }]) => ({ value, label })),
-];
-
 const AUDIENCE_LABELS = { student: 'Student exam', alumni: 'Alumni exam' };
 
 const PANEL_VIEWS = [
@@ -44,22 +38,80 @@ function AudienceMarkerIcon({ audience }) {
   return <AudienceIcon audience={audience} width="13" height="13" strokeWidth="2.4" />;
 }
 
+// In the order the cards show their markers: question count, status, audience, with a dot between
+// the groups. The statuses and audiences are also switches that show or hide their exams.
 const LEGEND_ITEMS = [
-  { text: 'Questions', className: 'ca-marker--count', content: '#' },
+  { text: 'Question count', className: 'ca-marker--count', content: '#' },
+  { separator: true },
   ...Object.entries(EXAM_STATUSES).map(([status, { label, icon }]) => ({
     text: label,
     className: `ca-exam-state--${status}`,
     content: <MarkerIcon>{icon}</MarkerIcon>,
+    filterKey: `status:${status}`,
   })),
+  { separator: true },
   ...Object.entries(AUDIENCE_LABELS).map(([audience, label]) => ({
     text: label,
     className: 'ca-marker--audience',
     content: <AudienceMarkerIcon audience={audience} />,
+    filterKey: `audience:${audience}`,
   })),
 ];
 
 function getAudience(exam) {
   return exam?.targetAudience || 'student';
+}
+
+// The Questions page's status bar, for exams: one segment per status, as wide as its share of the
+// exams counted (statusBarCounts), in the statuses' colours. A status switched off in the legend
+// dims. It only shows the mix; the legend below does the filtering.
+function ExamStatusBar({ counts, hiddenKeys }) {
+  const statuses = Object.entries(EXAM_STATUSES);
+  const summary = statuses.map(([status, { label }]) => `${label} ${counts[status] || 0}`).join(', ');
+  return (
+    <div className="ambe-status-bar" role="img" aria-label={`Exams by status: ${summary}`}>
+      {statuses.map(([status, { label }]) => {
+        const count = counts[status] || 0;
+        return (
+          <span
+            key={status}
+            className={`ambe-status-bar-segment ambe-status-bar-segment--${status}${hiddenKeys.has(`status:${status}`) ? ' is-dim' : ''}`}
+            style={{ flexGrow: count }}
+            title={`${label}: ${count}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// The open exam's markers with their legend names, beside its title in the panel header, in the
+// cards' order: question count, status, audience
+function ExamMarkerNames({ exam }) {
+  const audience = getAudience(exam);
+  const questionCount = exam.questions?.length || 0;
+  return (
+    <div className="ambe-exam-markers">
+      <span className="ca-legend-item">
+        <Marker className="ca-marker--count" label={formatCount(questionCount, 'question')}>{questionCount}</Marker>
+        Question count
+      </span>
+      <span className="ca-legend-sep" aria-hidden="true" />
+      <span className="ca-legend-item">
+        <Marker className={`ca-exam-state--${exam.status}`}>
+          <MarkerIcon>{EXAM_STATUSES[exam.status]?.icon}</MarkerIcon>
+        </Marker>
+        {formatStatusLabel(exam.status)}
+      </span>
+      <span className="ca-legend-sep" aria-hidden="true" />
+      <span className="ca-legend-item">
+        <Marker className="ca-marker--audience">
+          <AudienceMarkerIcon audience={audience} />
+        </Marker>
+        {AUDIENCE_LABELS[audience]}
+      </span>
+    </div>
+  );
 }
 
 function formatProgramLabel(program) {
@@ -183,10 +235,12 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
   const [modalBusy, setModalBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedAudience, setSelectedAudience] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  // Legend items switched off ('status:draft', 'audience:alumni'), whose exams the list hides
+  const [hiddenLegend, setHiddenLegend] = useState(() => new Set());
+  const hiddenLegendKey = [...hiddenLegend].sort().join(',');
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   // The exam open in the edit window, and whether closing it is waiting on "Discard Changes?".
   // Unsaved changes are kept in a ref, which the form sets as it renders, so an Escape pressed
@@ -209,20 +263,29 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
 
   function clearFilters() {
     setSearchQuery('');
-    setSelectedStatus('');
     setSelectedAudience('');
     setSelectedSubject('');
+    setHiddenLegend(new Set());
+  }
+
+  function toggleLegend(key) {
+    setHiddenLegend((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedProgramId, selectedStatus, selectedAudience, selectedSubject, sortBy]);
+  }, [searchQuery, selectedProgramId, selectedAudience, selectedSubject, sortBy, hiddenLegendKey]);
 
   // The list scrolls on its own: each page or filter starts at the top...
   const listScrollRef = useRef(null);
   useEffect(() => {
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-  }, [currentPage, searchQuery, selectedProgramId, selectedStatus, selectedAudience, selectedSubject, sortBy]);
+  }, [currentPage, searchQuery, selectedProgramId, selectedAudience, selectedSubject, sortBy, hiddenLegendKey]);
 
   // ...and the open exam's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
@@ -343,8 +406,8 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
       exam._id === examId ? { ...exam, ...changes, status } : exam
     )));
 
-    // Stays open unless the exam has just left the list being viewed
-    if (selectedExamId === examId && selectedStatus && selectedStatus !== status) {
+    // Stays open unless the exam has just left the list: its new status is switched off
+    if (selectedExamId === examId && hiddenLegend.has(`status:${status}`)) {
       setSelectedExamId(null);
     }
 
@@ -657,8 +720,8 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
     if (sameExamId(selectedExamId, examId)) {
       setActiveQuestionIdx(0);
       setQuestionsReloadKey((key) => key + 1);
-      // Stays open unless the exam has just left the list being viewed
-      if (selectedStatus && selectedStatus !== nextStatus) setSelectedExamId(null);
+      // Stays open unless the exam has just left the list: its new status is switched off
+      if (hiddenLegend.has(`status:${nextStatus}`)) setSelectedExamId(null);
     }
     triggerCalendarRefresh();
 
@@ -753,13 +816,25 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
     return filtered;
   }, [programExams, searchQuery, selectedAudience, selectedSubject]);
 
-  const statusCounts = useMemo(() => {
-    const counts = { all: filteredExceptStatus.length };
+  // The legend's switches apply to the list, where the legend shows. The calendar has no legend
+  // and ignores them.
+  const legendFiltered = useMemo(() => {
+    if (viewMode !== 'list' || hiddenLegend.size === 0) return filteredExceptStatus;
+    return filteredExceptStatus.filter((exam) => (
+      !hiddenLegend.has(`status:${exam.status}`) && !hiddenLegend.has(`audience:${getAudience(exam)}`)
+    ));
+  }, [filteredExceptStatus, hiddenLegend, viewMode]);
+
+  // The status bar above the legend: how the exams the other filters and the audience switches
+  // leave split by status, so it follows which audiences are on. A status switched off dims.
+  const statusBarCounts = useMemo(() => {
+    const counts = {};
     filteredExceptStatus.forEach((exam) => {
+      if (hiddenLegend.has(`audience:${getAudience(exam)}`)) return;
       counts[exam.status] = (counts[exam.status] || 0) + 1;
     });
     return counts;
-  }, [filteredExceptStatus]);
+  }, [filteredExceptStatus, hiddenLegend]);
 
   // The calendar loads its own exams per month, so search/audience/subject reach it as the matching ids
   const calendarExamIds = useMemo(() => (
@@ -769,17 +844,14 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
   ), [filteredExceptStatus, searchQuery, selectedAudience, selectedSubject]);
 
   const visibleExams = useMemo(() => {
-    const listed = selectedStatus
-      ? filteredExceptStatus.filter((exam) => exam.status === selectedStatus)
-      : filteredExceptStatus;
     const updatedTime = (exam) => new Date(exam.updatedAt || exam.createdAt || 0).getTime();
-    return [...listed].sort((a, b) => (
+    return [...legendFiltered].sort((a, b) => (
       sortBy === 'oldest' ? updatedTime(a) - updatedTime(b) : updatedTime(b) - updatedTime(a)
     ));
-  }, [filteredExceptStatus, selectedStatus, sortBy]);
+  }, [legendFiltered, sortBy]);
 
   const hasActiveFilters = Boolean(
-    searchQuery.trim() || selectedStatus || selectedAudience || selectedSubject
+    searchQuery.trim() || selectedAudience || selectedSubject || hiddenLegend.size > 0
   );
 
   const totalPages = Math.ceil(visibleExams.length / ITEMS_PER_PAGE) || 1;
@@ -809,11 +881,11 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
           </button>
           <div className="ca-card-markers">
             <Marker className="ca-marker--count" label={formatCount(questionCount, 'question')}>{questionCount}</Marker>
-            <Marker className="ca-marker--audience" label={AUDIENCE_LABELS[audience]}>
-              <AudienceMarkerIcon audience={audience} />
-            </Marker>
             <Marker className={`ca-exam-state--${exam.status}`} label={formatStatusLabel(exam.status)}>
               <MarkerIcon>{EXAM_STATUSES[exam.status]?.icon}</MarkerIcon>
+            </Marker>
+            <Marker className="ca-marker--audience" label={AUDIENCE_LABELS[audience]}>
+              <AudienceMarkerIcon audience={audience} />
             </Marker>
           </div>
         </div>
@@ -887,20 +959,6 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
       </PageHeader>
 
       {isManager && (
-        <CapsuleFilters
-          className="ca-state-pills"
-          ariaLabel="Filter exams by status"
-          options={STATUS_TABS.map((tab) => ({
-            value: tab.value,
-            label: tab.label,
-            count: tab.value ? (statusCounts[tab.value] || 0) : statusCounts.all,
-          }))}
-          value={selectedStatus}
-          onChange={setSelectedStatus}
-        />
-      )}
-
-      {isManager && (
         <QuestionFilters
           className="ca-filters-wrapper"
           searchQuery={searchQuery}
@@ -957,7 +1015,6 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
           programs={programs}
           onProgramChange={setSelectedProgramId}
           refreshKey={calendarRefreshKey}
-          statusFilter={selectedStatus}
           examIds={calendarExamIds}
         />
       </div>
@@ -965,7 +1022,16 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
       {viewMode === 'list' && (
         <div className={panelLayout.layoutClass(Boolean(selectedExam))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
           <section className="ca-list-panel" aria-label="Exams">
-            <MarkerLegend items={LEGEND_ITEMS} ariaLabel="What the exam markers mean" />
+            <div className="ambe-legend-strip">
+              <ExamStatusBar counts={statusBarCounts} hiddenKeys={hiddenLegend} />
+              <MarkerLegend
+                className="ambe-legend"
+                items={LEGEND_ITEMS}
+                ariaLabel="What the exam markers mean, and which exams the list shows"
+                hiddenKeys={hiddenLegend}
+                onToggle={toggleLegend}
+              />
+            </div>
 
             <div className="ca-list-scroll" ref={listScrollRef}>
               {loading ? (
@@ -987,7 +1053,7 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
                 /* Keyed so the cards animate in for each new view, but not while typing a search */
                 <div
                   className="ca-questions-list"
-                  key={[selectedStatus, selectedSubject, selectedAudience, selectedProgramId, sortBy, currentPage].join('|')}
+                  key={[selectedSubject, selectedAudience, selectedProgramId, sortBy, currentPage, hiddenLegendKey].join('|')}
                 >
                   {paginatedExams.map(renderExamCard)}
                 </div>
@@ -1020,6 +1086,8 @@ export default function AvailableMockBoardExams({ refreshKey, onOpenExam, me }) 
                 onToggleFullscreen={panelLayout.toggleFullscreen}
                 onClose={() => setSelectedExamId(null)}
                 closeLabel="Close exam panel"
+                titleAside={<ExamMarkerNames exam={selectedExam} />}
+                viewsBesideButtons
               />
 
               {/* Keyed so each exam and each view starts scrolled to the top */}

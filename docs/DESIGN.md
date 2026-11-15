@@ -75,7 +75,7 @@ A status keeps its colour everywhere. Markers use the text, background and borde
 | Restored | `#7E22CE` | `#FAF5FF` | `#E9D5FF` | `violet` |
 | Used in exam | `#1D4ED8` | `#EFF6FF` | `#93C5FD` | |
 
-Exams have their own set, used by exam markers and status pills and by the exam calendar. They're the `--exam-status-` tokens in `QuestionApprovals.css`, with the same colours repeated in `ExamMonthGrid.css`.
+Exams have their own set, used by exam markers and status pills and by the exam calendar. They're the `--exam-status-` tokens in `QuestionApprovals.css`, with the same colours repeated in `ExamMonthGrid.css` (whose archived chip border is `#E2CFBF`). Archived is a warm brown so it can't be mistaken for Draft's grey: Draft is an exam not yet out, Archived one put away. The Create Exam form's archived pill (`mbe-status-pill--archived`) uses the same brown.
 
 | Exam status | Text | Background | Border or dot |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ Exams have their own set, used by exam markers and status pills and by the exam 
 | Published | `#1D4ED8` | `#E8F0FF` | `#3B82F6` |
 | Ongoing | `#A16207` | `#FFF3D6` | `#F59E0B` |
 | Finished | `#0F766E` | `#E6F4F1` | `#0F766E` |
-| Archived | `#6B7280` | `#E1E5EC` | `#CBD5E1` |
+| Archived | `#7A5230` | `#F3EBE4` | `#A47551` |
 
 Answers in question views and results:
 
@@ -165,9 +165,15 @@ The exam form's Questions tab uses the layout inside a form rather than as a pag
 
 All five panels open with `PanelHeader`: a small tab on the panel's left border, half in the gap beside the list, widens the panel (`<`) or narrows it again (`>`); then the title, and the full-screen and close buttons on the right, framed 32px buttons like the tab. The header is one slim row (8px top and bottom), with no line under the title. The tab rides the edge as the columns glide. The panel doesn't clip its contents (so the tab can sit outside it); its first and last parts round their own corners. `hooks/usePanelLayout.js` keeps the widened and full-screen states, so the pages behave alike. Full screen covers the whole window, navbar and footer included; Escape or closing the panel leaves it. Going in and out, the panel zooms between its place beside the list and the window, like a macOS window.
 
-Board Exams and Exam Results also add `ca-page--stepper` to the root. Their `PanelHeader` has buttons beside the title that switch what the panel shows, and they step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
+Board Exams and Exam Results also add `ca-page--stepper` to the root. Their `PanelHeader` has buttons that switch what the panel shows (beside the title on Exam Results; on Board Exams, with `viewsBesideButtons`, just left of the full-screen button), and they step through many questions with `QuestionStepper`, so the class limits the bubbles' height and tightens the panel on short laptop screens.
 
 Board Exams also has a calendar view, which needs normal page scrolling, so the page drops `ca-page` while the calendar shows.
+
+Board Exams has no status capsules. Its list's top strip (`ambe-legend-strip`) holds the Questions page's status bar and, under it, the legend. The bar (`ExamStatusBar`, `ambe-status-bar`, 10px, rounded) has one segment per status in the statuses' colours (`--exam-status-*`), each as wide as its share of the exams that the search, subject, program, audience dropdown and the legend's audience switches leave. So it follows which audiences are on, and its segments glide to their new widths in about a third of a second. A status switched off in the legend dims its segment to 35% but keeps its width. The bar only shows the mix: it is one image to screen readers ("Exams by status: Draft 6, Published 1, …"), each segment has its count on hover, and the legend does the filtering. With no audience on, the bar is an empty track.
+
+Board Exams' legend also filters the list. It sits on the left of the list's strip, 2px larger than other pages' legends (13px names, 20px markers, 13px icons, `ambe-legend`), so on a laptop it takes two rows, and three beside an open exam. It reads in the order the cards show their markers, question count, then status, then audience, with a small blue dot (`ca-legend-sep`, 6px, `--primary-bg`) between the groups: Question count • Draft, Published, Ongoing, Finished, Archived • Student exam, Alumni exam. Each status and audience is a switch (`ca-legend-toggle`, a button with `aria-pressed`), and they mix freely: an exam shows only while its status and its audience are both on. Question count stays a plain explanation. An item that is on looks as it always did. One that is off fades to 45%, its marker shrinks and turns grey, and a line draws across the marker and name from the left in about a quarter second; turned back on, the line clears off to the right. The hover tint is for mouse users only (`hover: hover`), so a tapped item on a phone doesn't stay tinted. The switches stack with the other filters. The calendar has no legend, no bar and no status filter, and ignores the switches; they are kept for when the list comes back. Clear filters turns them all on again.
+
+The open exam's panel header shows, beside its title (`PanelHeader`'s `titleAside`), the exam's own three markers with their legend names, in the same order and at the legend's size, split by the same dots: "8 Question count • Ongoing • Alumni exam" (`ambe-exam-markers`). A title too long to share the line pushes them underneath. The Questions and Details toggle sits on the right, just left of the full-screen button. On a phone the header is two rows: the title beside the buttons, then the markers across the whole width.
 
 Board Exams' Edit opens the exam in a window instead of going to the Create Exam page. The window holds the same form as that page (`ExamForm`, exported from `CreateExams.jsx`): the audience hero, the Details, Subjects, Questions and Review tabs, and the same cards. It is a `Modal` of size `wide`, whose height stays fixed as the tabs change. The form scrolls inside it on the page background, with the tab bar pinned to the top and Cancel and Save Changes pinned to the bottom, so the last tab only reviews. A line above the hero names the exam with a program chip, and warns when the exam is published, because saving moves a published exam back to Draft. Closing the window with unsaved changes, by Cancel, Escape or a click outside, asks "Discard Changes?" first. Saving closes the window, reloads the exam's questions in the panel and says how it went.
 
@@ -232,7 +238,7 @@ Layers, lowest to highest:
 | Page numbers | `Pagination` | `maxPageButtons` shortens long lists; `alwaysShowControls` keeps the buttons on a single page |
 | More actions | `ActionMenu` | 32×32 button with three dots; no page uses it at the moment |
 | Delete or remove | `TrashButton` | Used for every delete and remove |
-| Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them; `StatePill` and `ExamStatePill` spell a status out where there's no legend |
+| Card markers | `QuestionMarkers` | `Marker`, `StateMarker`, and `CardLegend` or `MarkerLegend` to explain them (`MarkerLegend` with `onToggle` and `hiddenKeys` turns items that have a `filterKey` into on/off switches, and `{ separator: true }` items into dots between groups); `StatePill` and `ExamStatePill` spell a status out where there's no legend |
 | Side panel header | `PanelHeader` | A `[<]` / `[>]` tab centred on the panel's left border that widens or narrows the panel, then the title, buttons beside it that switch the panel's view (none when `views` is empty), and `children` (Approve Questions' bulk arrows) before the full-screen and close buttons (`ca-panel-btn`). Full screen puts `is-fullscreen` on `ca-sidebar`, which then covers the whole window, navbar and footer included. The tab and the full-screen button hide at 1024px and below, where the panel already covers the screen. Pair it with `usePanelLayout` |
 | Many questions, one at a time | `QuestionStepper` | The bubbles and the question shown; `renderAside` and `renderDetails` add to them, and `getPanelProps` passes result props such as answer counts |
 | Score per topic | `TopicScoreRows` | Rows split by lines, each with a bar and a tick at the passing threshold; `onSelect` makes each row a button |
@@ -372,6 +378,7 @@ Approve Questions is the reference, and My Questions, Board Exams, Exam Results 
 
 - **Keyboard:** everything clickable can be reached and used from the keyboard. If a whole card is clickable, include a real button inside it.
 - **Focus:** show `outline: 2px solid var(--primary-bg)` with a 2px offset on `:focus-visible`. Controls use `--control-focus-ring`.
+- **Ongoing's icon** is a faint ring with two opposite arcs running round it (`ca-ongoing-spin` in `QuestionApprovals.css`, about once a second), on cards, legends and status pills alike. Keep two arcs: with one, the faint ring hardly shows at 13px, so the icon's weight sat 1-2px to one side and it looked off-centre as it turned. It rests while its legend switch is off, and for reduced motion.
 - **Icon-only buttons and markers:** give them an accessible name. Status must not rely on colour alone, so markers also need a label and a legend.
 - **Capsules and bubbles:** use `aria-pressed` and `aria-current`, as the shared components already do.
 - **Contrast:** at least 4.5:1 for small text.
