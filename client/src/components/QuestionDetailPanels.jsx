@@ -43,7 +43,7 @@ export default function QuestionDetailPanels({
     <div className="question-panels">
       {hasPassage && (
         <section className="question-panel">
-          <p className="question-panel-label">Shared Passage</p>
+          <p className="question-panel-label">Situation</p>
           <div className="question-panel-body">
             {passage ? <SafeHtml tag="div" className="question-panel-text" html={passage} /> : null}
             <PassageImages images={passageImages} onZoom={onZoom} />

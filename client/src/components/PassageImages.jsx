@@ -10,7 +10,7 @@ export default function PassageImages({ images, onZoom, className = '' }) {
     <div className={`passage-images ${className}`}>
       {images.map((src, idx) => {
         const image = (
-          <AuthImage src={src} alt={`Shared passage image ${idx + 1}`} className="passage-image-img" draggable={false} />
+          <AuthImage src={src} alt={`Situation image ${idx + 1}`} className="passage-image-img" draggable={false} />
         );
 
         if (!onZoom) {
@@ -23,7 +23,7 @@ export default function PassageImages({ images, onZoom, className = '' }) {
             type="button"
             className="passage-image passage-image--zoomable"
             title="View image"
-            aria-label={`View shared passage image ${idx + 1}`}
+            aria-label={`View situation image ${idx + 1}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

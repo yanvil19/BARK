@@ -455,7 +455,7 @@ function QuestionSheet({ question, number, count, setRange, selectedId, onAnswer
         {(question.groupContext || question.groupContextImages?.length > 0) && (
           <div className="mbep-group-context-box">
             <div className="mbep-group-context-header">
-              <span>Shared Passage</span>
+              <span>Situation</span>
             </div>
             {question.groupContext && (
               <SafeHtml tag="div" className="mbep-group-context-text" html={question.groupContext} />
