@@ -10,7 +10,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { ConfirmationModal } from '../../components/ConfirmationModal.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
-import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import QuestionStatusFilters from '../../components/QuestionStatusFilters.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import SetMemberRows from '../../components/SetMemberRows.jsx';
 import Pagination from '../../components/Pagination.jsx';
@@ -18,7 +18,7 @@ import QuestionForm from '../../components/QuestionForm.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import PanelHeader from '../../components/PanelHeader.jsx';
 import usePanelLayout from '../../hooks/usePanelLayout.js';
-import { CardLegend, EVALUATING_DOT, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
+import { EVALUATING_DOT, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import { formatDate, formatDateTime, formatTime } from '../../utils/dateFormat.js';
 const BASE = import.meta.env.VITE_API_URL;
 
@@ -27,6 +27,7 @@ import { getStatusLabel } from '../../utils/statusLabels.js';
 const STATE_FILTERS = ['all', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
 const USED_IN_EXAM_FILTER = 'approved_used';
 const REVIEWABLE_STATES = ['pending_chair', 'restored'];
+const LIBRARY_STATES = STATE_FILTERS.filter((state) => state !== 'all' && state !== 'pending_chair');
 // States with actions in the bulk toolbar; questions in other states have no checkbox
 const BULK_ACTION_STATES = [...REVIEWABLE_STATES, 'rejected'];
 
@@ -73,7 +74,7 @@ function formatRoleLabel(role) {
   return map[role] || role;
 }
 
-export default function QuestionApprovals({ me, tabBar }) {
+export default function QuestionApprovals({ me, tabBar, initialFilter = 'all' }) {
   const { notify } = useToast();
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
@@ -81,8 +82,8 @@ export default function QuestionApprovals({ me, tabBar }) {
   const [actionModal, setActionModal] = useState(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [examUseFilter, setExamUseFilter] = useState('all'); // 'all' | 'used' | 'not_used'
+  const [filter, setFilter] = useState(initialFilter);
+  const [selectedStatusFilters, setSelectedStatusFilters] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [programFilter, setProgramFilter] = useState('');
@@ -121,7 +122,7 @@ export default function QuestionApprovals({ me, tabBar }) {
   const listScrollRef = useRef(null);
   useEffect(() => {
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-  }, [currentPage, filter, examUseFilter, searchQuery, subjectFilter, programFilter, sortBy]);
+  }, [currentPage, filter, selectedStatusFilters, searchQuery, subjectFilter, programFilter, sortBy]);
 
   // ...and the open question's card stays in view as the review moves on or the columns change
   useEffect(() => {
@@ -805,6 +806,7 @@ export default function QuestionApprovals({ me, tabBar }) {
       if (state === 'all') return;
       result[state] = questions.filter((q) => q.state === state).length;
     });
+    result.library = questions.filter((q) => q.state !== 'pending_chair').length;
     // Counts for exam-use sub-filter
     const approvedQuestions = questions.filter((q) => q.state === 'approved');
     result._used = approvedQuestions.filter((q) => q.is_used_in_exam).length;
@@ -815,12 +817,17 @@ export default function QuestionApprovals({ me, tabBar }) {
   const filteredQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
     const next = questions.filter((question) => {
-      if (filter !== 'all' && question.state !== filter) return false;
+      if (filter === 'review' && !REVIEWABLE_STATES.includes(question.state)) return false;
+      if (filter === 'library' && question.state === 'pending_chair') return false;
+      if (filter !== 'all' && filter !== 'review' && filter !== 'library' && question.state !== filter) return false;
 
-      // Exam-use sub-filter — only applies when 'approved' is active
-      if (filter === 'approved') {
-        if (examUseFilter === 'used' && !question.is_used_in_exam) return false;
-        if (examUseFilter === 'not_used' && question.is_used_in_exam) return false;
+      if (selectedStatusFilters.length > 0) {
+        const matchesStatus = selectedStatusFilters.some((status) => {
+          if (status === 'approved') return question.state === 'approved' && !question.is_used_in_exam;
+          if (status === USED_IN_EXAM_FILTER) return question.state === 'approved' && question.is_used_in_exam;
+          return question.state === status;
+        });
+        if (!matchesStatus) return false;
       }
 
       if (subjectFilter) {
@@ -868,7 +875,7 @@ export default function QuestionApprovals({ me, tabBar }) {
     }
 
     return finalQuestions;
-  }, [questions, examUseFilter, filter, searchQuery, subjectFilter, programFilter, sortBy]);
+  }, [questions, selectedStatusFilters, filter, searchQuery, subjectFilter, programFilter, sortBy]);
 
   const displayQuestions = useMemo(() => {
     const seen = new Set();
@@ -893,7 +900,7 @@ export default function QuestionApprovals({ me, tabBar }) {
     };
   }, [displayQuestions, currentPage]);
 
-  useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, examUseFilter, searchQuery, subjectFilter, programFilter, sortBy]);
+  useEffect(() => { setCurrentPage(1); handleClearSelections(); }, [filter, selectedStatusFilters, searchQuery, subjectFilter, programFilter, sortBy]);
 
   // Decided questions leave the list, which can empty the last page
   useEffect(() => {
@@ -944,40 +951,77 @@ export default function QuestionApprovals({ me, tabBar }) {
   const bulkNavIndex = selectedQuestion
     ? bulkSelectedQuestions.findIndex(q => q.groupId ? q.groupId === selectedQuestion.groupId : q._id === selectedQuestion._id)
     : -1;
+  const statusFilterStates = initialFilter === 'library'
+    ? LIBRARY_STATES
+    : STATE_FILTERS.filter((state) => state !== 'all');
+  const statusFilterOptions = statusFilterStates.flatMap((state) => {
+    if (state === 'approved') {
+      return [
+        {
+          value: 'approved',
+          label: getStatusLabel('approved'),
+          count: counts._not_used || 0,
+          barCount: counts._not_used || 0,
+          state: 'approved',
+        },
+        {
+          value: USED_IN_EXAM_FILTER,
+          label: 'Used in Exam',
+          count: counts._used || 0,
+          barCount: counts._used || 0,
+          state: 'approved_used',
+        },
+      ];
+    }
+    return [{
+      value: state,
+      label: getStatusLabel(state),
+      count: counts[state] || 0,
+      barCount: counts[state] || 0,
+      state,
+    }];
+  });
 
   return (
     <main className="ca-page page-shell">
       <PageHeader
-        title="Questions for Review and Approval"
-        subtitle="Questions submitted by faculty for your review"
+        title={initialFilter === 'review' ? 'Review questions' : 'All Questions'}
+        subtitle={initialFilter === 'review'
+          ? 'Questions in your review scope awaiting a decision, including your own submissions'
+          : initialFilter === 'library'
+            ? me?.role === 'dean'
+              ? 'Submitted questions from programs in your department, including restored questions. Drafts and pending submissions are excluded.'
+              : 'Submitted questions from your program, including restored questions. Drafts and pending submissions are excluded.'
+            : 'Browse questions available to your role and filter by status'}
       />
       {tabBar}
 
-      <CapsuleFilters
-        className="ca-state-pills"
-        ariaLabel="Filter questions by status"
-        options={[
-          ...STATE_FILTERS.map((state) => ({
-            value: state,
-            label: state === 'all' ? 'All' : getStatusLabel(state),
-            count: counts[state] || 0,
-          })),
-          { value: USED_IN_EXAM_FILTER, label: 'Used in Exam', count: counts._used || 0 },
-        ]}
-        value={filter === 'approved' && examUseFilter === 'used' ? USED_IN_EXAM_FILTER : filter}
-        onChange={(value) => {
-          // "Used in Exam" is approved questions narrowed by the exam-use sub-filter
-          if (value === USED_IN_EXAM_FILTER) {
-            setFilter('approved');
-            setExamUseFilter('used');
-          } else {
-            setFilter(value);
-            setExamUseFilter('all');
-          }
-        }}
-      />
-
-
+      {initialFilter !== 'review' && (
+        <QuestionStatusFilters
+          ariaLabel="Filter questions by status"
+          options={statusFilterOptions}
+          activeValues={selectedStatusFilters}
+          doubleClickClear
+          totalCount={initialFilter === 'library' ? counts.library : counts.all}
+          clearValue={initialFilter}
+          onChange={(value) => {
+            if (value === initialFilter || value === 'all') {
+              setSelectedStatusFilters([]);
+            } else if (value === 'approved' || value === USED_IN_EXAM_FILTER) {
+              setSelectedStatusFilters((selected) => {
+                const approvalFilters = selected.filter((item) => item === 'approved' || item === USED_IN_EXAM_FILTER);
+                const otherFilters = selected.filter((item) => item !== 'approved' && item !== USED_IN_EXAM_FILTER);
+                if (otherFilters.length > 0) return [value];
+                return approvalFilters.includes(value)
+                  ? approvalFilters.filter((item) => item !== value)
+                  : [...approvalFilters, value];
+              });
+            } else {
+              setSelectedStatusFilters((selected) => selected.includes(value) ? selected : [value]);
+            }
+          }}
+        />
+      )}
 
       <QuestionFilters
         className="ca-filters-wrapper"
@@ -996,8 +1040,6 @@ export default function QuestionApprovals({ me, tabBar }) {
 
       <div className={panelLayout.layoutClass(Boolean(selectedQuestion))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
         <section className="ca-list-panel" aria-label="Questions">
-          <CardLegend states={STATE_FILTERS.filter((state) => state !== 'all')} showEvaluating />
-
           {/* Bulk Toolbar */}
           {selectedIds.size > 0 && (
             <div className="ca-bulk-toolbar">
@@ -1034,9 +1076,11 @@ export default function QuestionApprovals({ me, tabBar }) {
               <div className="ca-empty">Loading questions...</div>
             ) : filteredQuestions.length === 0 ? (
               <div className="ca-empty">
-                {filter === 'pending_chair' && !searchQuery.trim() && !subjectFilter && !programFilter
+                {(filter === 'review' || filter === 'pending_chair') && !searchQuery.trim() && !subjectFilter && !programFilter
                   ? 'No questions are waiting for review.'
-                  : 'No questions found.'}
+                  : filter === 'library' && selectedStatusFilters.length === 0 && !searchQuery.trim() && !subjectFilter && !programFilter
+                    ? 'No submitted questions are available in this library.'
+                    : 'No questions match your filters.'}
               </div>
             ) : (
               <>
@@ -1062,7 +1106,7 @@ export default function QuestionApprovals({ me, tabBar }) {
                 {/* Keyed so the cards animate in for each new view, but not while typing a search */}
                 <div
                   className="ca-questions-list"
-                  key={[filter, examUseFilter, subjectFilter, programFilter, sortBy, currentPage].join('|')}
+                  key={[filter, selectedStatusFilters.join(','), subjectFilter, programFilter, sortBy, currentPage].join('|')}
                 >
                   {paginatedQuestions.map((question, cardIndex) => {
                     const isGrouped = !!question.groupId;

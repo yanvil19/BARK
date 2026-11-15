@@ -4,6 +4,11 @@
   flex-direction: column;
 }
 
+.app-container:has(.my-questions-page) > #Footer,
+.app-container:has(.qp-tab-bar) > #Footer {
+  margin-top: auto;
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 .ca-page-header {
   padding: 22px 32px 18px;

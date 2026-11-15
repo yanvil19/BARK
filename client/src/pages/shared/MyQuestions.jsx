@@ -32,12 +32,12 @@ import { FeedbackModal } from '../../components/FeedbackModal.jsx';
 import QuestionFilters from '../../components/QuestionFilters.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import Pagination from '../../components/Pagination.jsx';
-import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import QuestionStatusFilters from '../../components/QuestionStatusFilters.jsx';
 import AuthImage from '../../components/AuthImage.jsx';
 import ImportReviewBubbles from '../../components/ImportReviewBubbles.jsx';
 import SetMemberRows from '../../components/SetMemberRows.jsx';
 import QuestionDetailPanels from '../../components/QuestionDetailPanels.jsx';
-import { CardLegend, Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
+import { Marker, StateMarker, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
 import SafeHtml, { truncateHtml } from '../../components/SafeHtml.jsx';
 import TrashButton, { TrashIcon } from '../../components/TrashButton.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -56,6 +56,7 @@ import { getStatusLabel } from '../../utils/statusLabels.js';
 
 const STATE_FILTERS = ['all', 'draft', 'pending_chair', 'restored', 'returned', 'approved', 'rejected'];
 const LEGEND_STATES = STATE_FILTERS.filter((state) => state !== 'all');
+const USED_IN_EXAM_FILTER = 'approved_used';
 const ITEMS_PER_PAGE = 10;
 
 // A set is one item in the list and the panel, so both find it by its groupId
@@ -102,6 +103,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const [questions, setQuestions] = useState([]);
   const [tags, setTags] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [approvedUsageFilters, setApprovedUsageFilters] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -151,7 +153,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
   const listScrollRef = useRef(null);
   useEffect(() => {
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-  }, [currentPage, filter, searchQuery, subjectFilter, sortBy, programId]);
+  }, [currentPage, filter, approvedUsageFilters, searchQuery, subjectFilter, sortBy, programId]);
 
   // ...and the open question's card stays in view when the columns change, once they finish gliding
   useEffect(() => {
@@ -258,7 +260,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery, subjectFilter, sortBy, programId]);
+  }, [filter, approvedUsageFilters, searchQuery, subjectFilter, sortBy, programId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -309,20 +311,79 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [baseQuestions, tags]);
 
+  // A set is one list item, so usage filtering applies to the whole set.
+  const setInfo = useMemo(() => {
+    const info = new Map();
+    baseQuestions.forEach((q) => {
+      if (!q.groupId) return;
+      const entry = info.get(q.groupId) || { size: 0, usedInExam: false };
+      entry.size += 1;
+      entry.usedInExam = entry.usedInExam || !!q.is_used_in_exam;
+      info.set(q.groupId, entry);
+    });
+    return info;
+  }, [baseQuestions]);
+
   const counts = useMemo(() => {
     const result = { all: baseQuestions.length };
     STATE_FILTERS.forEach((state) => {
       if (state === 'all') return;
       result[state] = baseQuestions.filter((q) => q.state === state).length;
     });
+    const approvedQuestions = baseQuestions.filter((q) => q.state === 'approved');
+    result._used = approvedQuestions.filter((q) => (
+      q.groupId ? setInfo.get(q.groupId)?.usedInExam : q.is_used_in_exam
+    )).length;
+    result._not_used = approvedQuestions.filter((q) => (
+      !(q.groupId ? setInfo.get(q.groupId)?.usedInExam : q.is_used_in_exam)
+    )).length;
     return result;
-  }, [baseQuestions]);
+  }, [baseQuestions, setInfo]);
+
+  const statusFilterOptions = useMemo(() => LEGEND_STATES.flatMap((state) => {
+    if (state === 'approved') {
+      return [
+        {
+          value: 'approved',
+          label: getStatusLabel('approved'),
+          count: counts._not_used,
+          barCount: counts._not_used,
+          state: 'approved',
+        },
+        {
+          value: USED_IN_EXAM_FILTER,
+          label: 'Used in Exam',
+          count: counts._used,
+          barCount: counts._used,
+          state: 'approved_used',
+        },
+      ];
+    }
+    return [{
+      value: state,
+      label: getStatusLabel(state),
+      count: counts[state] || 0,
+      barCount: counts[state] || 0,
+      state,
+    }];
+  }), [counts]);
 
   const filteredQuestions = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
 
     const next = baseQuestions.filter((q) => {
-      if (filter !== 'all' && q.state !== filter) return false;
+      if (filter === 'approved') {
+        if (q.state !== 'approved') return false;
+        const isUsedInExam = q.groupId
+          ? setInfo.get(q.groupId)?.usedInExam
+          : q.is_used_in_exam;
+        const matchesUsage = approvedUsageFilters.some((status) => (
+          status === USED_IN_EXAM_FILTER ? isUsedInExam : !isUsedInExam
+        ));
+        if (approvedUsageFilters.length > 0 && !matchesUsage) return false;
+      } else if (filter !== 'all' && q.state !== filter) {
+        return false;
+      }
 
       if (subjectFilter) {
         const qTag = q.tag?._id || q.tag;
@@ -381,20 +442,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     }
 
     return finalQuestions;
-  }, [baseQuestions, filter, searchQuery, sortBy, subjectFilter]);
-
-  // What each set contains, across the whole list so a search can't shrink it
-  const setInfo = useMemo(() => {
-    const info = new Map();
-    baseQuestions.forEach((q) => {
-      if (!q.groupId) return;
-      const entry = info.get(q.groupId) || { size: 0, usedInExam: false };
-      entry.size += 1;
-      entry.usedInExam = entry.usedInExam || !!q.is_used_in_exam;
-      info.set(q.groupId, entry);
-    });
-    return info;
-  }, [baseQuestions]);
+  }, [baseQuestions, filter, approvedUsageFilters, setInfo, searchQuery, sortBy, subjectFilter]);
 
   // Each set's questions in set order, for the rows under its card
   const setMembersById = useMemo(() => {
@@ -434,11 +482,46 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
     ? (isListPlural ? 'questions' : 'question')
     : `${isListPlural ? 'items' : 'item'} (${formatCount(listedQuestionCount, 'question')})`;
 
+  const activeStatusValues = filter === 'approved'
+    ? approvedUsageFilters
+    : filter === 'all' ? [] : [filter];
+
+  function handleStatusFilterChange(value) {
+    if (value === 'all') {
+      setFilter('all');
+      setApprovedUsageFilters([]);
+      return;
+    }
+
+    if (value === 'approved' || value === USED_IN_EXAM_FILTER) {
+      const current = filter === 'approved' ? approvedUsageFilters : [];
+      const next = current.includes(value)
+        ? current.filter((status) => status !== value)
+        : [...current, value];
+      if (next.length === 0) {
+        setFilter('all');
+        setApprovedUsageFilters([]);
+      } else {
+        setFilter('approved');
+        setApprovedUsageFilters(next);
+      }
+      return;
+    }
+
+    setFilter(value);
+    setApprovedUsageFilters([]);
+  }
+
   let emptyMessage = 'No questions found.';
   if (!searchQuery.trim() && !subjectFilter) {
+    const filterLabel = filter === 'approved'
+      && approvedUsageFilters.length === 1
+      && approvedUsageFilters[0] === USED_IN_EXAM_FILTER
+      ? 'Used in Exam'
+      : getStatusLabel(filter);
     emptyMessage = filter === 'all'
       ? 'No questions found. Create your first one!'
-      : `No ${getStatusLabel(filter)} questions found.`;
+      : `No ${filterLabel} questions found.`;
   }
 
   // The panel reads from the list, so a save, submit or delete shows there straight away
@@ -787,16 +870,13 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
       </PageHeader>
       {tabBar}
 
-      <CapsuleFilters
-        className="ca-state-pills"
+      <QuestionStatusFilters
         ariaLabel="Filter questions by status"
-        options={STATE_FILTERS.map((state) => ({
-          value: state,
-          label: state === 'all' ? 'All' : getStatusLabel(state),
-          count: counts[state] || 0,
-        }))}
-        value={filter}
-        onChange={setFilter}
+        options={statusFilterOptions}
+        activeValues={activeStatusValues}
+        onChange={handleStatusFilterChange}
+        doubleClickClear
+        totalCount={counts.all}
       />
 
       <QuestionFilters
@@ -825,8 +905,6 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
 
       <div className={panelLayout.layoutClass(Boolean(selectedQuestion))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
         <section className="ca-list-panel" aria-label="Questions">
-          <CardLegend states={LEGEND_STATES} />
-
           <div className="ca-list-scroll" ref={listScrollRef}>
             {loading ? (
               <div className="ca-empty">Loading questions...</div>
@@ -836,7 +914,7 @@ export default function MyQuestions({ role, programId, programLabel, programs = 
               /* Keyed so the cards animate in for each new view, but not while typing a search */
               <div
                 className="ca-questions-list"
-                key={[filter, subjectFilter, programId, sortBy, currentPage].join('|')}
+                key={[filter, approvedUsageFilters.join(','), subjectFilter, programId, sortBy, currentPage].join('|')}
               >
                 {paginatedQuestions.map((question, cardIndex) => {
                   const isGrouped = !!question.groupId;

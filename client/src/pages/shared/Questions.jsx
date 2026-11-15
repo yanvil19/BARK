@@ -27,20 +27,37 @@ export default function Questions({
   badgeCounts,
 }) {
   const showApproveTab = role === 'dean' || role === 'program_chair';
-  // Clamp initialTab: professors can't see the approve tab
-  const resolvedInitial = !showApproveTab ? 'my' : initialTab;
+  const resolvedTab = initialTab === 'approve' ? 'review' : initialTab;
+  const resolvedInitial = showApproveTab ? resolvedTab : 'my';
   const [activeTab, setActiveTab] = useState(resolvedInitial);
+  const [filterResetKey, setFilterResetKey] = useState(0);
 
   const myBadge = badgeCounts?.myReturnedOrRejected || 0;
   const approveBadge = badgeCounts?.pendingApprovals || 0;
 
-  const tabBar = (
-    <div className="qp-tab-bar" role="tablist" aria-label="Questions sub-tabs">
+  const tabBar = showApproveTab ? (
+    <div className="qp-tab-bar" role="tablist" aria-label="Question views">
+      <button
+        role="tab"
+        aria-selected={activeTab === 'review'}
+        className={`qp-tab-btn${activeTab === 'review' ? ' is-active' : ''}`}
+        onClick={() => setActiveTab('review')}
+        onDoubleClick={() => setFilterResetKey((key) => key + 1)}
+      >
+        Review
+        {approveBadge > 0 && (
+          <span className={`qp-tab-badge${activeTab === 'review' ? ' is-active' : ''}`}>
+            {approveBadge > 99 ? '99+' : approveBadge}
+          </span>
+        )}
+      </button>
+
       <button
         role="tab"
         aria-selected={activeTab === 'my'}
         className={`qp-tab-btn${activeTab === 'my' ? ' is-active' : ''}`}
         onClick={() => setActiveTab('my')}
+        onDoubleClick={() => setFilterResetKey((key) => key + 1)}
       >
         My Questions
         {myBadge > 0 && (
@@ -50,35 +67,32 @@ export default function Questions({
         )}
       </button>
 
-      {showApproveTab && (
-        <button
-          role="tab"
-          aria-selected={activeTab === 'approve'}
-          className={`qp-tab-btn${activeTab === 'approve' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('approve')}
-        >
-          All Questions
-          {approveBadge > 0 && (
-            <span className={`qp-tab-badge${activeTab === 'approve' ? ' is-active' : ''}`}>
-              {approveBadge > 99 ? '99+' : approveBadge}
-            </span>
-          )}
-        </button>
-      )}
+      <button
+        role="tab"
+        aria-selected={activeTab === 'all'}
+        className={`qp-tab-btn${activeTab === 'all' ? ' is-active' : ''}`}
+        onClick={() => setActiveTab('all')}
+        onDoubleClick={() => setFilterResetKey((key) => key + 1)}
+      >
+        All Questions
+      </button>
     </div>
-  );
+  ) : null;
 
-  if (activeTab === 'approve' && showApproveTab) {
+  if ((activeTab === 'review' || activeTab === 'all') && showApproveTab) {
     return (
       <QuestionApprovals
+        key={`${activeTab}-${filterResetKey}`}
         me={me}
         tabBar={tabBar}
+        initialFilter={activeTab === 'review' ? 'review' : 'library'}
       />
     );
   }
 
   return (
     <MyQuestions
+      key={`my-${filterResetKey}`}
       me={me}
       role={role}
       programId={programId}
