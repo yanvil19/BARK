@@ -1,6 +1,7 @@
 /* ===== STUDENT REGISTRATION PAGE (sm-) =====
-   The list, cards and panel are the shared ca- layout (QuestionApprovals.css), and the register
-   window has its own file (BulkRegister.css). This file only has what the page adds. */
+   Two tables side by side, students then alumni, on the shared Table (Table.css). An account opens
+   in a window built from the shared panel parts (QuestionApprovals.css). The register window has its
+   own file (BulkRegister.css). This file only has what the page adds. */
 
 .sm-header-actions {
   display: flex;
@@ -17,39 +18,189 @@
   }
 }
 
-/* ---------- List ---------- */
+/* ---------- Notes above the tables ---------- */
 
-/* Locked out of signing in: red, like the rejected marker */
-.sm-page .sm-marker--locked,
-.sm-page .ca-legend .sm-marker--locked {
-  background: #fff1f2;
-  color: #be123c;
-  border: 1px solid #fda4af;
+.sm-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  color: #4a5268;
+  font-size: 14px;
 }
 
-/* A long email gives way to the date instead of pushing it to its own line */
-.sm-card-email {
+.sm-alert {
+  padding: 14px 16px;
+  background: #fff1f2;
+  border: 1px solid #fda4af;
+  border-radius: var(--card-radius);
+  color: #be123c;
+  font-size: 14px;
+}
+
+/* ---------- The two tables ---------- */
+
+.sm-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* Too narrow for two tables to show their columns: students, then alumni below */
+@media (max-width: 1150px) {
+  .sm-tables {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* One card: the title bar, the table and its pages */
+.sm-table {
   min-width: 0;
   overflow: hidden;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+/* Navy like the column header under it, centred, with a faint line between the two */
+.sm-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--primary-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* The type's icon, the same book and cap as the exam calendar's, in white on a light tile */
+.sm-table-icon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* The same size as the 20px icon beside it */
+.sm-table-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+/* A count badge: yellow with navy text, like the capsules' counts */
+.sm-table-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-yellow);
+  color: var(--primary-bg);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The Table's own card is dropped: the section above is the card */
+.sm-table .ui-table-card.sm-table-card {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Fixed columns, so a long name or email shortens instead of widening the table. Below this
+   width the table scrolls sideways inside its card. */
+.sm-table .ui-table.sm-table-grid {
+  table-layout: fixed;
+  min-width: 520px;
+}
+
+.sm-table .ui-table th.sm-th-lead {
+  padding-left: 20px;
+  text-align: left;
+}
+
+.sm-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Takes keyboard focus for the row; looks like plain text */
+.sm-name-btn {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: #2b3552;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sm-name-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.sm-email {
+  overflow: hidden;
+  color: #6b77b0;
+  font-size: 12px;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sm-empty-text {
-  margin: 0;
+.sm-id-cell,
+.sm-program {
+  white-space: nowrap;
 }
 
-.sm-page .sm-clear-filters {
-  margin-top: 14px;
+.sm-table .ui-table-status {
+  text-transform: none;
 }
 
-/* ---------- Panel ---------- */
-
-.sm-page .ca-sidebar-content > * {
-  flex-shrink: 0;
+.sm-table-footer {
+  padding: 10px 16px;
+  border-top: 1px solid #edf0f5;
 }
 
-/* Whether they can sign in, and whether their sign-in details reached them */
+/* ---------- Account window ---------- */
+
+.sm-details {
+  display: grid;
+  gap: 20px;
+}
+
 /* The last exam, under the sign-in numbers */
 .sm-last-exam {
   border-top: 1px solid rgba(53, 64, 142, 0.08);
@@ -63,16 +214,6 @@
   padding: 14px;
 }
 
-/* The lock spelled out beside the button that lifts it */
-.sm-unlock-bar {
-  align-items: center;
-}
-
-.sm-unlock-bar .ca-hint {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-
-.sm-unlock-bar .ca-btn {
-  flex: 0 0 auto;
+.sm-locked-note {
+  margin: 16px 0 0;
 }

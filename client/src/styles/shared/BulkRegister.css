@@ -17,6 +17,123 @@
   max-width: 420px;
 }
 
+/* ---------- Account type: two large cards ---------- */
+/* Built like Create Exam's audience cards (mbe-audience-card): a 2px border, the soft fill, and the
+   navy border and tint when picked. The icon tile turns navy with a white icon. */
+
+.br-type-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.br-type-card {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 84px;
+  padding: 16px 18px;
+  border: 2px solid var(--card-border);
+  border-radius: var(--card-radius);
+  background: #f9faff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+/* The radio stays for the keyboard and screen readers; the card shows the choice */
+.br-type-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.br-type-card:hover {
+  transform: translateY(-2px);
+  border-color: #b8c3eb;
+  box-shadow: 0 6px 18px rgba(53, 64, 142, 0.09);
+}
+
+.br-type-card:has(input:focus-visible) {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.br-type-card.is-active {
+  border-color: var(--primary-bg);
+  background: #eef2ff;
+  box-shadow: 0 4px 18px rgba(53, 64, 142, 0.16);
+}
+
+.br-type-icon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--primary-bg);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.br-type-card.is-active .br-type-icon {
+  border-color: var(--primary-bg);
+  background: var(--primary-bg);
+  color: #ffffff;
+}
+
+.br-type-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.br-type-title {
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 700;
+  color: #2b3568;
+}
+
+.br-type-card.is-active .br-type-title {
+  color: var(--primary-bg);
+}
+
+.br-type-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #7b86a5;
+}
+
+.br-type-card.is-active .br-type-desc {
+  color: #5261ab;
+}
+
+@media (max-width: 560px) {
+  .br-type-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .br-type-card,
+  .br-type-icon {
+    transition: none;
+  }
+
+  .br-type-card:hover {
+    transform: none;
+  }
+}
+
 /* ---------- One row per person ---------- */
 
 .br-rows {

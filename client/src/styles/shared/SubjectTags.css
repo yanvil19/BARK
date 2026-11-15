@@ -1,5 +1,6 @@
-/* The list, panel and motion come from QuestionApprovals.css; only what this page adds is here.
-   The windows' shared styles are last. */
+/* Manage Subjects (st-): subject cards in a grid, and a window with a subject's questions and exams.
+   The window builds from the shared panel parts in QuestionApprovals.css (notes, sections, the view
+   toggle) and QuestionStepper. The add and edit window's styles are last. */
 
 .qp-btn-add {
   background-color: var(--primary-bg);
@@ -33,18 +34,274 @@
   flex: 0 0 320px;
 }
 
-/* A count beside its icon, so it can't be mistaken for the question count */
-.st-marker--exams {
-  gap: 3px;
-  padding: 0 6px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+/* The page fills the space down to the footer, so the pager sits at the bottom of the page
+   rather than right under the cards when a page has only a few */
+.page-content:has(> .st-page) {
+  display: flex;
+  flex-direction: column;
 }
 
-.st-marker--exams svg {
-  width: 11px;
-  height: 11px;
+.st-page {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+
+/* ---------- Notes in place of the cards ---------- */
+
+.st-notice {
+  margin: 0;
+  padding: 28px 16px;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  color: #6b77b0;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- Subject cards ---------- */
+
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* A navy header with the subject's book and name, then its numbers on white */
+.st-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: cardIn 0.24s ease-out backwards;
+  animation-delay: calc(var(--card-index, 0) * 28ms);
+}
+
+.st-card:hover {
+  transform: translateY(-2px);
+  border-color: #b8c3eb;
+  box-shadow: 0 8px 22px rgba(53, 64, 142, 0.14);
+}
+
+.st-card:has(.st-card-open:focus-visible) {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
+}
+
+.st-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  background: var(--primary-bg);
+}
+
+/* The subject's book: white on a light tile, like the registration tables' icons */
+.st-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* The same size as the 18px icon beside it; a long name takes two lines, then shortens */
+.st-card-title {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.st-card-open {
+  display: -webkit-box;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: #ffffff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.st-card-open:focus-visible {
+  outline: none;
+}
+
+/* Two numbers side by side, split by a line */
+.st-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+}
+
+.st-card-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 16px 16px;
+}
+
+.st-card-stat + .st-card-stat {
+  border-left: 1px solid #edf0f5;
+}
+
+.st-card-stat-label {
+  color: #8b92bc;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.st-card-stat-value {
+  color: var(--primary-bg);
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.st-card-stat-sub {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Pushed to the bottom of the page; the grid's bottom margin keeps it apart when the page is full */
+.st-pager {
+  margin-top: auto;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.st-pager .pg-pagination {
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-card {
+    animation: none;
+    transition: none;
+  }
+
+  .st-card:hover {
+    transform: none;
+  }
+}
+
+/* ---------- Subject window ---------- */
+
+.st-window-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.st-window-toggle {
+  align-self: flex-start;
+  height: 36px;
+}
+
+.st-window-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+/* The view's count: yellow on the active (navy) view, like the capsules' counts */
+.st-window-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(53, 64, 142, 0.12);
+  color: var(--primary-bg);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.st-window-toggle button.is-active .st-window-count {
+  background: var(--accent-yellow);
+}
+
+/* The questions or exams, spaced like the side panel they used to sit in */
+.st-window-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.st-window-view > .question-panels {
+  margin-top: 0;
+}
+
+/* A long list's bubbles scroll inside their section, so the question stays near the top */
+.st-window-view .import-review-nav-bar {
+  box-sizing: border-box;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.st-window-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+
+.st-window-hint {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Over the subject window it opens from (Modal is 10000). Both classes, so the shared
+   .ca-image-overlay rule can't win on bundle order */
+.ca-image-overlay.st-image-overlay {
+  z-index: 10050;
+}
+
+@media (max-width: 560px) {
+  .st-window-actions {
+    flex-wrap: wrap;
+  }
+
+  .st-window-delete {
+    flex-basis: 100%;
+  }
 }
 
 /* ---------- Exams using the subject ---------- */

@@ -2148,8 +2148,9 @@
   line-height: 1.4;
 }
 
-/* Quiet buttons: refresh the people, try again */
-.ca-page .ca-btn--plain {
+/* Quiet buttons: refresh the people, try again. Student Registration's tables and its account
+   window (a portal, outside the page) aren't ca- pages but use them too. */
+:is(.ca-page, .sm-page, .sm-details) .ca-btn--plain {
   height: var(--control-height);
   padding-top: 0;
   padding-bottom: 0;
@@ -2158,7 +2159,7 @@
   border: 1px solid rgba(53, 64, 142, 0.35);
 }
 
-.ca-page .ca-btn--plain:hover {
+:is(.ca-page, .sm-page, .sm-details) .ca-btn--plain:hover {
   background: #eef1ff;
   border-color: var(--primary-bg);
 }

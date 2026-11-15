@@ -30,6 +30,9 @@ export default function Pagination({
   itemLabel = 'items',
   classPrefix = 'pg',
   maxPageButtons,
+  // Keeps the buttons when everything fits on one page (Previous and Next then stay off), so
+  // tables shown side by side end alike
+  alwaysShowControls = false,
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
@@ -46,7 +49,7 @@ export default function Pagination({
       <div className={`${p}-pagination-info`}>
         Showing {start} to {end} of {totalItems} {itemLabel}
       </div>
-      {totalPages > 1 && (
+      {(totalPages > 1 || alwaysShowControls) && (
         <div className={`${p}-pagination-controls`}>
           <button
             type="button"

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { apiAuth } from '../../lib/api.js';
 import AuthImage from '../../components/AuthImage.jsx';
 import { Modal } from '../../components/Modal.jsx';
@@ -9,29 +10,24 @@ import DropdownSelect from '../../components/DropdownSelect.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
-import PanelHeader from '../../components/PanelHeader.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import usePanelLayout from '../../hooks/usePanelLayout.js';
-import { ExamStatePill, Marker, MarkerLegend, StatePill, USED_IN_EXAM_ICON } from '../../components/QuestionMarkers.jsx';
+import { IconSubject } from '../../components/CalendarIcons.jsx';
+import { ExamStatePill, StatePill } from '../../components/QuestionMarkers.jsx';
 import { formatDateTime } from '../../utils/dateFormat.js';
 import '../../styles/components/QuestionFilters.css';
 import '../../styles/shared/SubjectTags.css';
 import '../../styles/global.css';
-// The list, panel and motion are the same as Approve Questions, so they share its styles
+// The subject window builds from the shared panel parts (sections, notes, the view toggle)
 import '../../styles/shared/QuestionApprovals.css';
 import QuestionStepper from '../../components/QuestionStepper.jsx';
 
 const BASE = import.meta.env.VITE_API_URL;
-const PAGE_SIZE = 10;
+// Twelve cards fill whole rows of two, three or four
+const PAGE_SIZE = 12;
 
-const PANEL_VIEWS = [
+const WINDOW_VIEWS = [
   { value: 'questions', label: 'Questions' },
   { value: 'exams', label: 'Exams' },
-];
-
-const LEGEND_ITEMS = [
-  { text: 'Questions', className: 'ca-marker--count', content: '#' },
-  { text: 'Exams', className: 'ca-marker--used', content: USED_IN_EXAM_ICON },
 ];
 
 const AUDIENCE_LABELS = { student: 'Students', alumni: 'Alumni' };
@@ -102,6 +98,37 @@ function useWholeList(path, field, failureMessage) {
   return list;
 }
 
+// The line under a card's question count
+function describeQuestions(questions) {
+  if (questions.length === 0) return 'None submitted yet';
+  const approved = questions.filter((question) => question.state === 'approved').length;
+  return `${approved} approved`;
+}
+
+// The line under a card's exam count: who the exams are for
+function describeExams(exams) {
+  if (exams.length === 0) return 'Not in an exam yet';
+  const alumni = exams.filter(({ exam }) => exam.targetAudience === 'alumni').length;
+  const students = exams.length - alumni;
+  return [
+    students > 0 && `${students} for students`,
+    alumni > 0 && `${alumni} for alumni`,
+  ].filter(Boolean).join(', ');
+}
+
+// One number on a subject card: what it counts, the count, and a line about it
+function SubjectStat({ label, list, count, describe }) {
+  const value = list.loading || list.error ? '-' : count;
+  const sub = list.loading ? 'Loading...' : list.error ? 'Could not load' : describe();
+  return (
+    <div className="st-card-stat">
+      <span className="st-card-stat-label">{label}</span>
+      <strong className="st-card-stat-value">{value}</strong>
+      <span className="st-card-stat-sub">{sub}</span>
+    </div>
+  );
+}
+
 export default function ManageSubject({ me }) {
   const isDean = me?.role === 'dean';
   const { notify } = useToast();
@@ -112,13 +139,11 @@ export default function ManageSubject({ me }) {
   const [loading, setLoading] = useState(true);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  // The panel: the open subject, Questions or Exams, the question shown, and the image opened full
-  // size. The view stays as it is when another subject opens.
-  const [selectedTagId, setSelectedTagId] = useState(null);
-  const [panelView, setPanelView] = useState('questions');
+  // The subject window: the open subject, Questions or Exams, the question shown, and the image
+  // opened full size
+  const [openTagId, setOpenTagId] = useState(null);
+  const [windowView, setWindowView] = useState('questions');
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
-  // Widened over the list, or covering the whole window
-  const panelLayout = usePanelLayout(selectedTagId);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   // The add or edit window: { tag, name, error }, where tag is empty for a new subject
   const [subjectForm, setSubjectForm] = useState(null);
@@ -134,11 +159,11 @@ export default function ManageSubject({ me }) {
     () => buildUsageByTag(questionList.items, examList.items),
     [questionList.items, examList.items],
   );
-  const selectedTag = useMemo(
-    () => (selectedTagId ? tags.find((tag) => tag._id === selectedTagId) || null : null),
-    [tags, selectedTagId],
+  const openTag = useMemo(
+    () => (openTagId ? tags.find((tag) => tag._id === openTagId) || null : null),
+    [tags, openTagId],
   );
-  const selectedUsage = (selectedTag && usageByTag.get(selectedTag._id)) || NO_USAGE;
+  const openUsage = (openTag && usageByTag.get(openTag._id)) || NO_USAGE;
 
   useEffect(() => {
     if (!isDean) return;
@@ -197,43 +222,29 @@ export default function ManageSubject({ me }) {
     setCurrentPage(1);
   }, [searchQuery, programId]);
 
-  // The list scrolls on its own: each page or search starts at the top...
-  const listScrollRef = useRef(null);
-  useEffect(() => {
-    if (listScrollRef.current) listScrollRef.current.scrollTop = 0;
-  }, [currentPage, searchQuery, programId]);
-
-  // ...and the open subject's card stays in view when the columns change, once they finish gliding
-  useEffect(() => {
-    listScrollRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [selectedTagId, currentPage, panelLayout.isExpanded, panelLayout.isGliding]);
-
-  // Windows too short to fit the page scroll it, which can leave the panel partly off screen
-  const panelRef = useRef(null);
-  useEffect(() => {
-    if (!selectedTagId) return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    panelRef.current?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
-  }, [selectedTagId]);
-
+  // The full-size image sits over the subject window. Escape closes the image first: caught before
+  // the window's own Escape, so the window stays open.
   useEffect(() => {
     if (!fullscreenImage) return undefined;
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setFullscreenImage(null);
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setFullscreenImage(null);
     };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    window.addEventListener('keydown', closeOnEscape, true);
+    return () => window.removeEventListener('keydown', closeOnEscape, true);
   }, [fullscreenImage]);
 
   function changeProgram(nextProgramId) {
     setProgramId(nextProgramId);
-    setSelectedTagId(null);
+    setOpenTagId(null);
     setSearchQuery('');
   }
 
-  function handleSelectTag(tag) {
-    if (tag._id === selectedTagId) return;
-    setSelectedTagId(tag._id);
+  // Each subject opens on its questions, from the first
+  function openSubject(tag) {
+    setOpenTagId(tag._id);
+    setWindowView('questions');
     setActiveQuestionIdx(0);
   }
 
@@ -281,7 +292,7 @@ export default function ManageSubject({ me }) {
     try {
       await apiAuth(`${BASE}/api/tags/${tagToDelete._id}`, { method: 'DELETE' });
       setTags((prev) => prev.filter((tag) => tag._id !== tagToDelete._id));
-      if (selectedTagId === tagToDelete._id) setSelectedTagId(null);
+      if (openTagId === tagToDelete._id) setOpenTagId(null);
       setTagToDelete(null);
       notify('Subject deleted.', { variant: 'success' });
     } catch (err) {
@@ -309,55 +320,55 @@ export default function ManageSubject({ me }) {
   }, [currentPage, totalPages]);
 
   const departmentLabel = me?.department?.name || 'Department';
-  const countsLoaded = {
-    questions: !questionList.loading && !questionList.error,
-    exams: !examList.loading && !examList.error,
-  };
   const examsUsingTagToDelete = tagToDelete ? (usageByTag.get(tagToDelete._id) || NO_USAGE).exams.length : 0;
 
   function renderSubjectCard(tag, cardIndex) {
     const usage = usageByTag.get(tag._id) || NO_USAGE;
 
     return (
-      <div
+      <article
         key={tag._id}
-        className={`ca-question-card ${tag._id === selectedTagId ? 'is-active' : ''}`}
+        className="st-card"
         style={{ '--card-index': cardIndex }}
-        onClick={() => handleSelectTag(tag)}
+        onClick={() => openSubject(tag)}
       >
-        <div className="ca-card-top">
-          {/* Its click bubbles up to the card, so keyboard users can open the card too */}
-          <button type="button" className="ca-card-open">
-            <span className="ca-card-title">{tag.name}</span>
-          </button>
-          <div className="ca-card-markers">
-            {countsLoaded.questions && (
-              <Marker className="ca-marker--count" label={formatCount(usage.questions.length, 'question')}>
-                {usage.questions.length}
-              </Marker>
-            )}
-            {countsLoaded.exams && (
-              <Marker className="ca-marker--used st-marker--exams" label={formatCount(usage.exams.length, 'exam')}>
-                {USED_IN_EXAM_ICON}
-                {usage.exams.length}
-              </Marker>
-            )}
-          </div>
+        <header className="st-card-head">
+          <span className="st-card-icon" aria-hidden="true">
+            <IconSubject width="18" height="18" />
+          </span>
+          {/* Its click goes up to the card, so keyboard users can open the card too */}
+          <h2 className="st-card-title">
+            <button type="button" className="st-card-open" title={tag.name}>{tag.name}</button>
+          </h2>
+        </header>
+        <div className="st-card-body">
+          <SubjectStat
+            label="Questions"
+            list={questionList}
+            count={usage.questions.length}
+            describe={() => describeQuestions(usage.questions)}
+          />
+          <SubjectStat
+            label="Exams"
+            list={examList}
+            count={usage.exams.length}
+            describe={() => describeExams(usage.exams)}
+          />
         </div>
-      </div>
+      </article>
     );
   }
 
   function renderQuestionsView() {
     if (questionList.loading) return <p className="ca-panel-note">Loading questions...</p>;
     if (questionList.error) return <p className="ca-panel-note ca-panel-note--error" role="alert">{questionList.error}</p>;
-    if (selectedUsage.questions.length === 0) {
+    if (openUsage.questions.length === 0) {
       return <p className="ca-panel-note">No submitted questions use this subject yet. Drafts are not shown here.</p>;
     }
 
     return (
       <QuestionStepper
-        questions={selectedUsage.questions}
+        questions={openUsage.questions}
         activeIdx={activeQuestionIdx}
         onSelectQuestion={setActiveQuestionIdx}
         onZoom={setFullscreenImage}
@@ -393,13 +404,13 @@ export default function ManageSubject({ me }) {
   function renderExamsView() {
     if (examList.loading) return <p className="ca-panel-note">Loading exams...</p>;
     if (examList.error) return <p className="ca-panel-note ca-panel-note--error" role="alert">{examList.error}</p>;
-    if (selectedUsage.exams.length === 0) return <p className="ca-panel-note">No exam uses this subject yet.</p>;
+    if (openUsage.exams.length === 0) return <p className="ca-panel-note">No exam uses this subject yet.</p>;
 
     return (
       <section className="question-panel">
-        <p className="question-panel-label">Exams Using This Subject ({selectedUsage.exams.length})</p>
+        <p className="question-panel-label">Exams Using This Subject ({openUsage.exams.length})</p>
         <ul className="st-exam-list">
-          {selectedUsage.exams.map(({ exam, questionCount }) => (
+          {openUsage.exams.map(({ exam, questionCount }) => (
             <li key={exam._id} className="st-exam-row">
               <div className="st-exam-text">
                 <span className="st-exam-name">{exam.name}</span>
@@ -417,10 +428,14 @@ export default function ManageSubject({ me }) {
     );
   }
 
-  const hasQuestions = selectedUsage.questions.length > 0;
+  const hasQuestions = openUsage.questions.length > 0;
+  const viewCounts = {
+    questions: questionList.loading || questionList.error ? null : openUsage.questions.length,
+    exams: examList.loading || examList.error ? null : openUsage.exams.length,
+  };
 
   return (
-    <main className="st-page ca-page ca-page--stepper page-shell">
+    <main className="st-page page-shell">
       <PageHeader
         title="Manage Subjects"
         subtitle={isDean
@@ -463,87 +478,93 @@ export default function ManageSubject({ me }) {
         )}
       </div>
 
-      <div className={panelLayout.layoutClass(Boolean(selectedTag))} onTransitionEnd={panelLayout.onLayoutTransitionEnd}>
-        <section className="ca-list-panel" aria-label="Subjects">
-          <MarkerLegend items={LEGEND_ITEMS} ariaLabel="What the subject markers mean" />
+      {loading ? (
+        <p className="st-notice">Loading subjects...</p>
+      ) : filteredTags.length === 0 ? (
+        <p className="st-notice">
+          {isDean && !programId
+            ? 'Select a program first to view its subjects.'
+            : searchQuery
+              ? `No subjects match "${searchQuery}"`
+              : 'No subjects found. Create your first one!'}
+        </p>
+      ) : (
+        <>
+          {/* Keyed so the cards come in again for each page or program, but not while typing a search */}
+          <section className="st-grid" aria-label="Subjects" key={`${programId}|${currentPage}`}>
+            {paginatedTags.map(renderSubjectCard)}
+          </section>
 
-          <div className="ca-list-scroll" ref={listScrollRef}>
-            {loading ? (
-              <div className="ca-empty">Loading subjects...</div>
-            ) : filteredTags.length === 0 ? (
-              <div className="ca-empty">
-                {isDean && !programId
-                  ? 'Select a program first to view its subjects.'
-                  : searchQuery
-                    ? `No subjects match "${searchQuery}"`
-                    : 'No subjects found. Create your first one!'}
-              </div>
-            ) : (
-              /* Keyed so the cards animate in for each new view, but not while typing a search */
-              <div className="ca-questions-list" key={`${programId}|${currentPage}`}>
-                {paginatedTags.map(renderSubjectCard)}
-              </div>
-            )}
-          </div>
-
-          {!loading && (
+          <div className="st-pager">
             <Pagination
               currentPage={currentPage}
               totalItems={filteredTags.length}
               pageSize={PAGE_SIZE}
               onPageChange={setCurrentPage}
               itemLabel={filteredTags.length === 1 ? 'subject' : 'subjects'}
-              classPrefix="ca"
               maxPageButtons={5}
+              alwaysShowControls
             />
-          )}
-        </section>
+          </div>
+        </>
+      )}
 
-        {selectedTag ? (
-          <div className={panelLayout.sidebarClass} ref={panelRef}>
-            <PanelHeader
-              title={selectedTag.name}
-              views={PANEL_VIEWS}
-              view={panelView}
-              onViewChange={setPanelView}
-              isExpanded={panelLayout.isExpanded}
-              onToggleExpanded={panelLayout.toggleExpanded}
-              isFullscreen={panelLayout.isFullscreen}
-              onToggleFullscreen={panelLayout.toggleFullscreen}
-              onClose={() => setSelectedTagId(null)}
-              closeLabel="Close subject panel"
-            />
-
-            {/* Keyed so each subject and each view starts scrolled to the top */}
-            <div className="ca-sidebar-content" key={`${selectedTag._id}-${panelView}`}>
-              {panelView === 'questions' ? renderQuestionsView() : renderExamsView()}
+      <Modal
+        open={Boolean(openTag)}
+        onClose={() => setOpenTagId(null)}
+        title={openTag?.name || 'Subject'}
+        bodyClassName="st-window-body"
+      >
+        {openTag && (
+          <>
+            <div className="ca-view-toggle st-window-toggle" role="group" aria-label="Show in this window">
+              {WINDOW_VIEWS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={windowView === value ? 'is-active' : ''}
+                  onClick={() => setWindowView(value)}
+                  aria-pressed={windowView === value}
+                >
+                  {label}
+                  {viewCounts[value] !== null && <span className="st-window-count">{viewCounts[value]}</span>}
+                </button>
+              ))}
             </div>
 
-            <div className="ca-sidebar-actions">
+            {/* Keyed so each view starts at the top and fades in */}
+            <div className="st-window-view" key={`${openTag._id}-${windowView}`}>
+              {windowView === 'questions' ? renderQuestionsView() : renderExamsView()}
+            </div>
+
+            <div className="modal-actions st-window-actions">
+              <span className="st-window-delete">
+                <TrashButton
+                  label={hasQuestions ? `${openTag.name} can't be deleted while questions use it` : `Delete ${openTag.name}`}
+                  onClick={() => setTagToDelete(openTag)}
+                  disabled={hasQuestions}
+                />
+                {hasQuestions && <span className="st-window-hint">Can't be deleted while questions use it</span>}
+              </span>
               <button
                 type="button"
-                className="ca-btn ca-btn--edit"
-                onClick={() => setSubjectForm({ tag: selectedTag, name: selectedTag.name, error: '' })}
+                className="modal-btn-cancel"
+                onClick={() => setSubjectForm({ tag: openTag, name: openTag.name, error: '' })}
               >
-                Edit
+                Edit Subject
               </button>
-              <TrashButton
-                label={hasQuestions ? `${selectedTag.name} can't be deleted while questions use it` : `Delete ${selectedTag.name}`}
-                onClick={() => setTagToDelete(selectedTag)}
-                disabled={hasQuestions}
-              />
+              <button type="button" className="modal-btn-primary" onClick={() => setOpenTagId(null)}>
+                Close
+              </button>
             </div>
-          </div>
-        ) : (
-          <div className="ca-sidebar ca-sidebar--empty">
-            <p>Select a subject to view its questions and exams</p>
-          </div>
+          </>
         )}
-      </div>
+      </Modal>
 
-      {fullscreenImage && (
+      {/* On the body like the windows, and above them, since it opens from the subject window */}
+      {fullscreenImage && createPortal(
         <div
-          className="ca-image-overlay"
+          className="ca-image-overlay st-image-overlay"
           role="dialog"
           aria-modal="true"
           aria-label="Image preview"
@@ -553,7 +574,8 @@ export default function ManageSubject({ me }) {
             <button type="button" className="ca-image-close" onClick={() => setFullscreenImage(null)}>Close</button>
             <AuthImage src={fullscreenImage} alt="Question preview" className="ca-image-full" />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <Modal

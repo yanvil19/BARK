@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiAuth } from '../../lib/api.js';
 import { Modal } from '../../components/Modal.jsx';
-import CapsuleFilters from '../../components/CapsuleFilters.jsx';
+import { IconAlumni, IconStudent } from '../../components/CalendarIcons.jsx';
 import DropdownSelect from '../../components/DropdownSelect.jsx';
 import FieldCheck from '../../components/FieldCheck.jsx';
 import TrashButton from '../../components/TrashButton.jsx';
@@ -18,9 +18,10 @@ const MAX_ROWS = 500;
 const ID_PATTERN = /^\d{4}-\d{6}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// The account type cards, with the same book and cap icons as the exam calendar and the tables
 const ROLE_OPTIONS = [
-  { value: 'student', label: 'Students' },
-  { value: 'alumni', label: 'Alumni' },
+  { value: 'student', label: 'Students', Icon: IconStudent, description: 'Enrolled students, registered with their Student ID.' },
+  { value: 'alumni', label: 'Alumni', Icon: IconAlumni, description: 'Graduates, registered with their Alumni ID.' },
 ];
 
 let nextRowId = 1;
@@ -411,12 +412,26 @@ export default function BulkRegister({ user, open, onClose, onFinished }) {
               <h3 className="qf-section-title">Account Type</h3>
             </div>
             <div className="qf-section-body">
-              <CapsuleFilters
-                ariaLabel="Register students or alumni"
-                options={ROLE_OPTIONS}
-                value={role}
-                onChange={changeRole}
-              />
+              <div className="br-type-cards" role="radiogroup" aria-label="Register students or alumni">
+                {ROLE_OPTIONS.map(({ value, label, Icon, description }) => (
+                  <label key={value} className={`br-type-card${role === value ? ' is-active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="br-account-type"
+                      value={value}
+                      checked={role === value}
+                      onChange={() => changeRole(value)}
+                    />
+                    <span className="br-type-icon" aria-hidden="true">
+                      <Icon width="24" height="24" />
+                    </span>
+                    <span className="br-type-text">
+                      <span className="br-type-title">{label}</span>
+                      <span className="br-type-desc">{description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </section>
 

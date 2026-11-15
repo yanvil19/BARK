@@ -1,4 +1,5 @@
-// Line icons shared by the exam calendar and the date & time picker
+// Line icons shared by the exam calendar, the date & time picker, Student Registration and
+// Manage Subjects
 
 function Icon({ children, ...props }) {
   return (
@@ -32,6 +33,16 @@ export function IconAlumni(props) {
       <path d="M22 10 12 5 2 10l10 5 10-5Z" />
       <path d="M6 12v5c3 3 9 3 12 0v-5" />
       <path d="M22 10v6" />
+    </Icon>
+  );
+}
+
+// A closed book with a bookmark: a subject, kept apart from the student's open book
+export function IconSubject(props) {
+  return (
+    <Icon {...props}>
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
+      <path d="M10 2v8l3-3 3 3V2" />
     </Icon>
   );
 }
