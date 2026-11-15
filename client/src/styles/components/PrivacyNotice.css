@@ -268,3 +268,146 @@
   margin-bottom: 0.5rem;
   font-style: italic;
 }
+
+/* ─── Responsive (Tablet & Mobile) ────────────────────────── */
+@media (max-width: 768px) {
+  .pn-overlay {
+    padding: 0.75rem;
+  }
+
+  .pn-card {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 0.875rem;
+  }
+
+  .pn-hero {
+    flex-direction: column;
+  }
+
+  .pn-hero-left {
+    padding: 1.25rem;
+  }
+
+  .pn-hero-brand {
+    gap: 0.875rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .pn-hero-logo {
+    height: 56px;
+  }
+
+  .pn-hero-title {
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  .pn-hero-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .pn-hero-divider {
+    margin-bottom: 1rem;
+  }
+
+  .pn-hero-left .pn-intro {
+    margin-bottom: 0.875rem;
+    font-size: 0.85rem;
+  }
+
+  .pn-hero-right {
+    border-left: none;
+    border-top: 2px solid #e9eaf3;
+    padding: 0.875rem 1.25rem;
+  }
+
+  .pn-hero-npc {
+    width: auto;
+    max-width: 120px;
+    max-height: 120px;
+  }
+
+  .pn-content {
+    padding: 1.25rem;
+  }
+
+  .pn-footer {
+    padding: 0.875rem 1.25rem 1rem;
+  }
+
+  .pn-consent-row {
+    margin-bottom: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pn-overlay {
+    padding: 0.5rem;
+  }
+
+  .pn-card {
+    max-height: 95vh;
+    border-radius: 0.75rem;
+  }
+
+  .pn-hero-left {
+    padding: 1rem;
+  }
+
+  .pn-hero-brand {
+    gap: 0.75rem;
+  }
+
+  .pn-hero-logo {
+    height: 48px;
+  }
+
+  .pn-hero-title {
+    font-size: 1.15rem;
+  }
+
+  .pn-hero-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .pn-hero-right {
+    padding: 0.75rem 1rem;
+  }
+
+  .pn-hero-npc {
+    max-width: 96px;
+    max-height: 96px;
+  }
+
+  .pn-body {
+    font-size: 0.825rem;
+    line-height: 1.55;
+  }
+
+  .pn-content {
+    padding: 1rem;
+  }
+
+  .pn-section {
+    margin-bottom: 1rem;
+  }
+
+  .pn-section-title {
+    font-size: 0.8125rem;
+  }
+
+  .pn-footer {
+    padding: 0.75rem 1rem 0.875rem;
+  }
+
+  .pn-consent-label {
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .pn-agree-btn {
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+  }
+}
