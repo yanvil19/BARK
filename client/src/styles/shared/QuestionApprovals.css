@@ -110,7 +110,11 @@
   overflow: hidden;
 }
 
+/* Positioned so it holds anything absolutely positioned inside the cards, such as the parts of a
+   MathLive <math-field> in an equation. Without this they escape the list's scroll clipping and,
+   sitting far down the list, make the whole page scroll. */
 .ca-list-scroll {
+  position: relative;
   padding: 12px;
 }
 
@@ -1065,7 +1069,10 @@
   outline-offset: 2px;
 }
 
+/* Positioned for the same reason as .ca-list-scroll: .ca-sidebar doesn't clip, so equations in a
+   long question would otherwise reach past the panel and scroll the page */
 .ca-sidebar-content {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   padding: 24px;
