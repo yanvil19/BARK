@@ -15,6 +15,7 @@
   flex-direction: column;
   gap: 14px;
   transition: opacity 0.15s;
+  /* border: 1px solid red; */
 }
 
 /* Another version loading: the one shown stays, a little faded */
@@ -118,25 +119,18 @@
   border-color: var(--primary-bg);
 }
 
-/* Regenerate, in the panel's action bar beside Download Excel */
-.ca-page .ca-sidebar-actions .aio-regenerate {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 16px;
-  padding-right: 16px;
-  background: #fff;
-  color: var(--primary-bg);
-  border: 1px solid rgba(53, 64, 142, 0.35);
-}
-
-.ca-page .ca-sidebar-actions .aio-regenerate:hover:not(:disabled) {
-  background: #eef1ff;
-  border-color: var(--primary-bg);
+/* Regenerate, under the version controls in .aio-meta */
+.aio-regenerate {
+  height: 32px;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 12px;
+  align-self: end;
 }
 
 .aio-regenerate .aio-spark {
+  width: 13px;
+  height: 13px;
   color: var(--primary-bg);
 }
 
@@ -190,8 +184,23 @@
 }
 
 .aio-meta-grow {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
+}
+
+.aio-version-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 1em 0 -1em 0;
+}
+
+.aio-version-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 .aio-version {
@@ -256,7 +265,7 @@
   font-size: 13px;
 }
 
-.aio-banner > svg {
+.aio-banner>svg {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -285,7 +294,7 @@
   color: #7f1d1d;
 }
 
-.aio-banner--bad > svg {
+.aio-banner--bad>svg {
   color: #b91c1c;
 }
 
@@ -295,7 +304,7 @@
   color: #475569;
 }
 
-.aio-banner--muted > svg {
+.aio-banner--muted>svg {
   color: #475569;
 }
 
@@ -440,7 +449,7 @@
   padding: 12px 14px;
 }
 
-.aio-finding + .aio-finding {
+.aio-finding+.aio-finding {
   border-top: 1px solid rgba(53, 64, 142, 0.08);
 }
 
@@ -1025,7 +1034,7 @@
   line-height: 1.55;
 }
 
-.aio-steps li + li {
+.aio-steps li+li {
   border-top: 1px solid rgba(53, 64, 142, 0.08);
 }
 
@@ -1240,15 +1249,23 @@
 }
 
 @keyframes aio-shimmer {
-  from { background-position: 100% 0; }
-  to { background-position: -100% 0; }
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
 }
 
 @keyframes aio-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .aio-sk-line,
   .aio-spinner {
     animation: none;
@@ -1280,7 +1297,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ca-page .aio-stats--groups .ca-stat + .ca-stat {
+  .ca-page .aio-stats--groups .ca-stat+.ca-stat {
     border-left: 0;
     border-top: 1px solid rgba(53, 64, 142, 0.08);
   }
@@ -1301,6 +1318,11 @@
 @media (max-width: 560px) {
   .aio-meta-grow {
     flex-basis: 100%;
+  }
+
+  .aio-version-block,
+  .aio-version-row {
+    width: 100%;
   }
 
   .aio-version {
@@ -1325,7 +1347,7 @@
     grid-column: 1 / -1;
   }
 
-  .aio-db-axis > span:first-child {
+  .aio-db-axis>span:first-child {
     display: none;
   }
 

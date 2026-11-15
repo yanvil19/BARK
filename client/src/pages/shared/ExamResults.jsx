@@ -451,11 +451,19 @@ export default function ExamResults({ me }) {
         setExams((prev) => prev.map((exam) => (exam._id === examId ? { ...exam, hasNewResults: false } : exam)));
         window.dispatchEvent(new CustomEvent('badge-counts-updated'));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [selectedHasNew, selectedExamId]);
 
   // The AI overview loads the first time its view opens for an exam
   const aiOverview = useExamAiOverview(selectedExamId, panelView === 'ai' && Boolean(report));
+
+  const selectedHasAiOverview = Boolean(aiOverview.data?.versions?.length);
+  useEffect(() => {
+    if (!selectedHasAiOverview || !selectedExamId) return;
+    setExams((prev) => prev.map((exam) => (
+      exam._id === selectedExamId && !exam.hasAiOverview ? { ...exam, hasAiOverview: true } : exam
+    )));
+  }, [selectedHasAiOverview, selectedExamId]);
 
   // An open exam without results checks for them now and then, such as alumni's first attempt
   useEffect(() => {
@@ -732,7 +740,10 @@ export default function ExamResults({ me }) {
   async function generateAiOverview(exam) {
     setConfirmingRegenerate(false);
     const result = await aiOverview.generate();
-    if (result.ok) notify(`AI overview ready for ${exam.name}.`, { variant: 'success' });
+    if (result.ok) {
+      setExams((prev) => prev.map((item) => (item._id === exam._id ? { ...item, hasAiOverview: true } : item)));
+      notify(`AI overview ready for ${exam.name}.`, { variant: 'success' });
+    }
   }
 
   // A first overview is generated at once (its view says what it uses); another asks first
@@ -758,6 +769,12 @@ export default function ExamResults({ me }) {
           {/* Its click bubbles up to the card, so keyboard users can open the card too */}
           <button type="button" className="ca-card-open">
             <span className="ca-card-title">{exam.name}</span>
+            {exam.hasAiOverview && (
+              <span className="er-ai-badge" title="AI overview generated">
+                <SparkleIcon />
+                AI Overview
+              </span>
+            )}
           </button>
           <div className="ca-card-markers">
             {exam.hasNewResults && <span className="er-new-badge" title="New results since you last looked">New</span>}
@@ -968,45 +985,6 @@ export default function ExamResults({ me }) {
     return renderOverallView(exam);
   }
 
-  function renderPanelActions(exam) {
-    const canExport = Boolean(report);
-    if (!canExport) return null;
-
-    // Once there is an overview, another can be generated from here while generations are left
-    const aiData = panelView === 'ai' && report ? aiOverview.data : null;
-    const canRegenerate = Boolean(aiData?.versions?.length);
-    return (
-      <div className="ca-sidebar-actions">
-        {canRegenerate && (
-          <button
-            type="button"
-            className="ca-btn aio-regenerate"
-            onClick={() => requestAiOverview(exam)}
-            disabled={aiOverview.isGenerating || aiData.remaining === 0}
-            title={aiData.remaining === 0
-              ? `All ${aiData.limit} generations for this exam are used`
-              : 'Write a new version of the AI overview'}
-          >
-            <SparkleIcon />
-            {aiOverview.isGenerating ? 'Generating...' : 'Regenerate'}
-            <span className="aio-count">{aiData.remaining}/{aiData.limit}</span>
-          </button>
-        )}
-        {canExport && (
-          <button
-            type="button"
-            className="ca-btn ca-btn--edit"
-            onClick={() => handleExportExcel(exam)}
-            disabled={exportingExcel}
-            title={`Download the ${getAudience(exam) === 'alumni' ? 'alumni' : 'student'} results of this exam as an Excel file (.xlsx)`}
-          >
-            {exportingExcel ? 'Preparing file...' : 'Download Excel (.xlsx)'}
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
     <main className="er-page ca-page ca-page--stepper page-shell">
       <PageHeader
@@ -1114,6 +1092,24 @@ export default function ExamResults({ me }) {
               onToggleFullscreen={panelLayout.toggleFullscreen}
               onClose={() => setSelectedExamId(null)}
               closeLabel="Close exam panel"
+              actions={report && panelView === 'individual' && (
+                <button
+                  type="button"
+                  className="ca-panel-btn"
+                  onClick={() => handleExportExcel(selectedExam)}
+                  disabled={exportingExcel}
+                  title={exportingExcel
+                    ? 'Preparing file...'
+                    : `Download the ${getAudience(selectedExam) === 'alumni' ? 'alumni' : 'student'} results of this exam as an Excel file (.xlsx)`}
+                  aria-label={exportingExcel
+                    ? 'Preparing file...'
+                    : `Download ${getAudience(selectedExam) === 'alumni' ? 'alumni' : 'student'} results as Excel (.xlsx)`}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                  </svg>
+                </button>
+              )}
             />
 
             {/* Keyed so each exam and each view starts scrolled to the top */}
@@ -1124,8 +1120,6 @@ export default function ExamResults({ me }) {
             >
               {renderPanelContent(selectedExam)}
             </div>
-
-            {renderPanelActions(selectedExam)}
           </div>
         ) : (
           <div className="ca-sidebar ca-sidebar--empty">

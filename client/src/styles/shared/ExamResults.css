@@ -9,6 +9,40 @@
 
 /* ---------- Result markers on the exam cards ---------- */
 
+/* The smaller AI Overview badge sits beside the exam title */
+.er-page .ca-card-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.er-page .ca-card-title {
+  flex: 0 1 auto;
+}
+
+.er-page .er-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 6px;
+  border-radius: 999px;
+  background: var(--primary-bg);
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.er-page .er-ai-badge .aio-spark {
+  width: 11px;
+  height: 11px;
+  color: var(--accent-yellow);
+}
+
 .er-page .er-result--ready {
   background: #f0fdf4;
   color: #15803d;

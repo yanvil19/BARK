@@ -217,6 +217,10 @@ afterEach(() => {
 describe('AI overview of a student exam', () => {
   it('starts with no overview and all generations left', async () => {
     const exam = await studentExamWithResults('Mock 1');
+    const listRes = await request(app).get('/api/mock-exam-results/list').set('Cookie', deanCookie);
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.exams[0].hasAiOverview).toBe(false);
+
     const res = await getOverview(exam);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -263,6 +267,11 @@ describe('AI overview of a student exam', () => {
     const stored = await ExamAiOverview.findOne({ exam: exam._id }).lean();
     expect(stored).toMatchObject({ version: 1, status: 'ready' });
     expect(stored.basedOn.computedAt).toBeTruthy();
+
+    const listRes = await request(app).get('/api/mock-exam-results/list').set('Cookie', deanCookie);
+    expect(listRes.status).toBe(200);
+    const listedExam = listRes.body.exams.find((entry) => String(entry._id) === String(exam._id));
+    expect(listedExam.hasAiOverview).toBe(true);
 
     const audit = await AuditLog.findOne({ action: 'mock_exam_ai_overview_generated' }).lean();
     expect(audit).toMatchObject({ targetType: 'MockBoardExam', details: { examName: 'Mock 1', version: 1 } });

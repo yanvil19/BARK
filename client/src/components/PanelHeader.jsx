@@ -18,6 +18,7 @@ export default function PanelHeader({
   onToggleFullscreen,
   onClose,
   closeLabel,
+  actions,
   children,
 }) {
   const expandLabel = isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar';
@@ -62,6 +63,7 @@ export default function PanelHeader({
       </div>
       {children}
       <div className="ca-sidebar-header-actions">
+        {actions}
         {onToggleFullscreen && (
           <button
             type="button"

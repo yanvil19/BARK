@@ -881,21 +881,38 @@ export default function AiOverviewView({
           Generated {formatDateTime(overview.createdAt)}
           {author && <> by <strong>{author.name}</strong>{ROLE_LABELS[author.role] ? ` (${ROLE_LABELS[author.role]})` : ''}</>}
         </span>
-        {versions.length > 1 ? (
-          <DropdownSelect
-            className="aio-version"
-            value={String(overview.version)}
-            onChange={(event) => ai.selectVersion(Number(event.target.value))}
-            ariaLabel="Version of the overview"
-            options={versions.map((entry) => ({
-              value: String(entry.version),
-              label: `Version ${entry.version} · ${formatDate(entry.createdAt)}${entry.version === latestVersion ? ' (latest)' : ''}`,
-            }))}
-          />
-        ) : (
-          <span className="aio-version-one">Version {overview.version}</span>
-        )}
-        <Quota limit={limit} remaining={remaining} />
+        <div className="aio-version-block">
+          <div className="aio-version-row">
+            {versions.length > 1 ? (
+              <DropdownSelect
+                className="aio-version"
+                value={String(overview.version)}
+                onChange={(event) => ai.selectVersion(Number(event.target.value))}
+                ariaLabel="Version of the overview"
+                options={versions.map((entry) => ({
+                  value: String(entry.version),
+                  label: `Version ${entry.version} · ${formatDate(entry.createdAt)}${entry.version === latestVersion ? ' (latest)' : ''}`,
+                }))}
+              />
+            ) : (
+              <span className="aio-version-one">Version {overview.version}</span>
+            )}
+            <Quota limit={limit} remaining={remaining} />
+          </div>
+          <button
+            type="button"
+            className="aio-btn aio-btn--plain aio-regenerate"
+            onClick={onGenerate}
+            disabled={isGenerating || remaining === 0}
+            title={remaining === 0
+              ? `All ${limit} generations for this exam are used`
+              : 'Write a new version of the AI overview'}
+          >
+            <SparkleIcon />
+            {isGenerating ? 'Generating...' : 'Regenerate'}
+            {/* <span className="aio-count">{remaining}/{limit}</span> */}
+          </button>
+        </div>
         <p className="aio-meta-note">The numbers, charts and tables come straight from the results. The AI wrote the words around them.</p>
       </div>
 

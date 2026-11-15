@@ -1,6 +1,7 @@
 const { decryptExamQuestions } = require('../services/encryptionService');
 const MockExamResult = require('../models/MockExamResult');
 const MockBoardExam = require('../models/MockBoardExam');
+const ExamAiOverview = require('../models/ExamAiOverview');
 const StudentExamAttempt = require('../models/StudentExamAttempt');
 const AlumniExamAttempt = require('../models/AlumniExamAttempt');
 const User = require('../models/User');
@@ -113,24 +114,28 @@ exports.listExamsWithStatus = async (req, res) => {
       const made = await Promise.all(due.map((exam) => ensureStudentResults(exam._id)));
       if (made.some(Boolean)) results = await MockExamResult.find(resultQuery).select('examId status computedAt');
     }
-    const newIds = await newResultExamIds(req.user);
-
-    const alumniAttemptAgg = await AlumniExamAttempt.aggregate([
-      {
-        $match: {
-          exam: { $in: exams.map(e => e._id) },
-          status: 'submitted',
+    const examIds = exams.map((e) => e._id);
+    const [newIds, alumniAttemptAgg, aiOverviewExamIds] = await Promise.all([
+      newResultExamIds(req.user),
+      AlumniExamAttempt.aggregate([
+        {
+          $match: {
+            exam: { $in: examIds },
+            status: 'submitted',
+          },
         },
-      },
-      {
-        $group: {
-          _id: '$exam',
-          count: { $sum: 1 },
-          computedAt: { $max: '$endTime' },
+        {
+          $group: {
+            _id: '$exam',
+            count: { $sum: 1 },
+            computedAt: { $max: '$endTime' },
+          },
         },
-      },
+      ]),
+      ExamAiOverview.distinct('exam', { exam: { $in: examIds }, status: 'ready' }),
     ]);
     const alumniAttemptStats = new Map(alumniAttemptAgg.map(item => [String(item._id), item]));
+    const withAiOverview = new Set(aiOverviewExamIds.map(String));
 
     const examsWithStatus = exams.map(exam => {
       const result = results.find(r => String(r.examId) === String(exam._id));
@@ -147,6 +152,7 @@ exports.listExamsWithStatus = async (req, res) => {
         alumniSubmissionCount: alumniStats?.count || 0,
         // Results this person has not opened since they came in
         hasNewResults: newIds.has(String(exam._id)),
+        hasAiOverview: withAiOverview.has(String(exam._id)),
       };
     });
 

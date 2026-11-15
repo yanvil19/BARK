@@ -956,15 +956,21 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 
-.ca-panel-btn:hover {
+.ca-panel-btn:hover:not(:disabled) {
   background: #eef0fb;
   border-color: rgba(53, 64, 142, 0.45);
   color: #3f4ab8;
   box-shadow: 0 2px 6px rgba(53, 64, 142, 0.16);
 }
 
-.ca-panel-btn:active {
+.ca-panel-btn:active:not(:disabled) {
   transform: scale(0.94);
+  box-shadow: none;
+}
+
+.ca-panel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
   box-shadow: none;
 }
 
